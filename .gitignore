@@ -1,11 +1,5 @@
 *.pyc
 *.npy
-*.xml
-*.json
-*.log
-*.dat
-*.png
-*.out
-*.aux
-Scripts/calib_status.txt
-.DS_Store
+*.o
+*.so
+*.swp
