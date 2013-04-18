@@ -2,8 +2,8 @@
 # Documentation for bioHW
 
 #Imports
-import bioscaled as bioS
-import scaledhw as SHW
+from . import bioscaled as bioS
+from . import scaledhw as SHW
 
 ## Definition of the class bioHW
 # 

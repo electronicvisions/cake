@@ -3,7 +3,6 @@
 
 # Imports
 import numpy
-import pylab
 import math
 
 # Class scaledTsim

@@ -1,22 +1,20 @@
-## @package databaseinterface
-# Python interface to the calibration database
+'''Python interface to the calibration database'''
 
-# vim: set noexpandtab:
-
-# Imports
 import pymongo
+
 import numpy
 import scipy
 import pylab
-from pymongo import Connection
-from pymongo import ASCENDING, DESCENDING
-import datetime
-import os
-import json
-import time
+
 import sys
-import coordinates
+import os
+import time
+import datetime
+
+import json
 from StringIO import StringIO
+
+from ..config import coordinates
 
 ## Python interface to the calibration database
 class DatabaseInterface:
@@ -25,7 +23,7 @@ class DatabaseInterface:
 	def __init__ (self):
 		
 		# Init connection
-		connection = Connection()
+		connection = pymongo.Connection()
 		self.db = connection.calibrationDB
 
 		self.WAFER = self.db.WAFER
@@ -104,7 +102,7 @@ class DatabaseInterface:
 		ports_per_FPGA = 2
 		
 		# Init connection
-		connection = Connection()
+		connection = pymongo.Connection()
 		db = connection.calibrationDB
 		now = datetime.datetime.now()
 		date = now.strftime('%Y-%m-%d %H:%M')

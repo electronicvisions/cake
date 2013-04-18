@@ -3,7 +3,6 @@
 
 # Imports
 import numpy
-import pylab
 import math
 
 ## Translation from biological model parameters to scaled parameters with the hardware time & voltage ranges

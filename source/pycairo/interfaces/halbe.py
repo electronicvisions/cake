@@ -5,7 +5,7 @@ import os
 import numpy
 import pylab
 import sys
-from default_hardware_params import get_global_parameters, get_HW_parameters
+from ..config.default_hardware_params import get_global_parameters, get_HW_parameters
 
 import pyhalbe
 from pyhalbe import Handle, Coordinate, geometry, HICANN

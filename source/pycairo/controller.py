@@ -1,19 +1,13 @@
-## @package calibrationcontroller
-# Controller for the calibration of the BrainScaleS hardware
+'''Controller for the calibration of the BrainScaleS hardware'''
 
-# vim: set noexpandtab:
-
-# Imports
-import simulator as sim
+from . import simulator as sim
 import time
 import numpy as np
-import pylab
 import sys
 import os
-import collections
 
-## Main calibration class
 class CalibrationController:
+	'''Main calibration class'''
 
 	## Creation of the different interfaces to devices used for calibration.
 	# @param hardware The type of hardware to use. Possible choices are demonstrator, USB, WSS, scope_only
@@ -61,18 +55,20 @@ class CalibrationController:
 		self.debug_mode = False
 
 		# Calibration data for each parameter : min, max, number of values, number of measurements
-		self.parameters_ranges = {"ELmin" : 300, "ELmax" : 800,"EL_pts" : 6, "EL_reps" : 3,
-			"Vresetmin" : 400, "Vresetmax" : 600,"Vreset_pts" : 3,"Vreset_reps" : 2,
-			"Vtmin" : 600, "Vtmax" : 800,"Vt_pts" : 3,"Vt_reps" : 2,
-			"gLmin" : 100, "gLmax" : 600,"gL_pts" : 4,"gL_reps" : 4,
-			"taurefmin" : 10, "taurefmax" : 100,"tauref_pts" : 4,"tauref_reps" : 4,
-			"dTmin" : 50, "dTmax" : 400,"dT_pts" : 3,"dT_reps" : 3,
-			"Vexpmin" : 100, "Vexpmax" : 400,"Vexp_pts" : 3,"Vexp_reps" : 3,
-			"bmin" : 50, "bmax" : 2000,"b_pts" : 3,"b_reps" : 3,
-			"tausynxmin" : 1300, "tausynxmax" : 1500,"tausynx_pts" : 4,"tausynx_reps" : 4,
-			"tausynimin" : 1300, "tausynimax" : 1500,"tausyni_pts" : 3,"tausyni_reps" : 2,
-			"twmin" : 50, "twmax" : 2000,"tw_pts" : 3,"tw_reps" : 3,
-			"amin" : 50, "amax" : 400,"a_pts" : 5,"a_reps" : 5}
+		self.parameter_ranges = {
+				"EL": {"min": 300, "max": 800, "pts": 6, "reps": 3},
+				"Vreset": {"min": 400, "max": 600, "pts": 3, "reps": 2},
+				"Vt": {"min": 600, "max": 800, "pts": 3, "reps": 2},
+				"gL": {"min": 100, "max": 600, "pts": 4, "reps": 4},
+				"tauref": {"min": 10, "max": 100, "pts": 4, "reps": 4},
+				"dT": {"min": 50, "max": 400, "pts": 3, "reps": 3},
+				"Vexp": {"min": 100, "max": 400, "pts": 3, "reps": 3},
+				"b": {"min": 50, "max": 2000, "pts": 3, "reps": 3},
+				"tausynx": {"min": 1300, "max": 1500, "pts": 4, "reps": 4},
+				"tausyni": {"min": 1300, "max": 1500, "pts": 3, "reps": 2},
+				"tw": {"min": 50, "max": 2000, "pts": 3, "reps": 3},
+				"a": {"min": 50, "max": 400, "pts": 5, "reps": 5}
+			}
 
 		# Calibration default values
 		self.Vt_default_max = 1700 # mV
@@ -171,7 +167,7 @@ class CalibrationController:
 
 		# Create input_array
 		input_array = self.get_steps(parameter)
-		repetitions = self.parameters_ranges[parameter+'_reps']
+		repetitions = self.parameter_ranges[parameter]['reps']
 
 		output_array_mean = []
 		output_array_err = []
@@ -216,7 +212,6 @@ class CalibrationController:
 			output_array_err.append(meas_array_err)
 			scope_adjusted = False
 
-		#pylab.show()
 
 		# Log
 		print "Measurement phase completed in " + str(time.time() - start_measure) + " s"
@@ -490,8 +485,8 @@ class CalibrationController:
 
 	def get_steps(self, p):
 		# Create input_array
-		start, stop = self.parameters_ranges[p + 'min'], self.parameters_ranges[p + 'max']
-		pts = self.parameters_ranges[p + '_pts']
+		start, stop = self.parameter_ranges[p]['min'], self.parameter_ranges[p]['max']
+		pts = self.parameter_ranges[p]['pts']
 		return np.linspace(start, stop, pts)
 
 	## Compute calibration function

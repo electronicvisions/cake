@@ -8,8 +8,7 @@ sys.path.append(os.environ['SYMAP2IC_PATH']+ "/components/pynnhw/src/hardware/st
 import facetshardwarescope as fhs
 import numpy as np
 import time
-import pylab
-	
+
 ## Classe ScopeInterface
 class ScopeInterface:
 
@@ -258,4 +257,3 @@ class ScopeInterface:
 		self.setVoltsDiv(channel,"C",vdiv)
 		self.setVerticalOffset(channel,voffset)
 
- 

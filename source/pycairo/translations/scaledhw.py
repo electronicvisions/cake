@@ -1,14 +1,9 @@
-## @package scaledhw
-# Translation from scaled AdEx parameters to hardware parameters
+'''Translation from scaled AdEx parameters to hardware parameters'''
 
-# Imports
-import numpy
-from numpy import polyval
-import pylab
-import math
-import databaseinterface as DB
-import default_hardware_params as dflt
-import idealtrafo as ideal
+from numpy import polyval, sqrt
+from ..interfaces import database as DB
+from ..config import default_hardware_params as dflt
+from ..config import idealtrafo as ideal
 
 
 ## Main class
@@ -62,7 +57,7 @@ class scaledHW:
 
             if (delta >= 0):
 
-                return (-b + numpy.sqrt(delta))/(2*a)
+                return (-b + sqrt(delta))/(2*a)
 
             else:
                 return value
