@@ -1,13 +1,9 @@
-# Imports
-
 import numpy as np
 import pylab
-import adex_neuron
+from . import adex_neuron
 import math
 import sys
 	
-# Main class
-
 class Simulator:
 
 	def __init__(self):

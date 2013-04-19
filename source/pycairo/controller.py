@@ -22,7 +22,7 @@ class CalibrationController:
 
 		if hardware in ('WSS', 'USB', 'demonstrator', 'db_only'):
 			# DB interface creation
-			import databaseinterface as DB
+			from interfaces import database as DB
 			self.dbi = DB.DatabaseInterface()
 			# Create DB if not already existing
 			if self.dbi.is_empty() == True:
@@ -31,17 +31,17 @@ class CalibrationController:
 		if hardware in ('demonstrator', 'WSS', 'USB'):
 
 			# Create HW interface
-			import hardwareinterface as HWI
+			from interfaces import hardware as HWI
 			self.hwi = HWI.HardwareInterface(hardware,scope_address,setup_address)
 
 			# Scaled to hardware module
-			import scaledhw as scali
+			from translations import scaledhw as scali
 			self.scali = scali.scaledHW()
 
 		if hardware == 'scope_only':
 
 			# Import scope
-			import scopeinterface as scope
+			from interfaces import scope
 			# Scope parameters
 			self.scope_address = scope_address
 			self.channeltype = "C"

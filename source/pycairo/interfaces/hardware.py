@@ -48,7 +48,7 @@ class HardwareInterface:
 			tests2_args = ["-log", "0", "-r", "0"]
 
 			# HW interface
-			import demonstratorinterface as DEMO
+			from . import demonstrator as DEMO
 			self.fgi = DEMO.DemonstratorInterface(self.tm_path,self.xmlfile_path,self.mode,self.h_chain,self.h_id,setup_ip,tests2_args)
 
 			# Voltage conversion
@@ -57,7 +57,7 @@ class HardwareInterface:
 		if(hardware == 'USB' or hardware == 'WSS' or hardware == 'WSS_livedemo'):
 
 			# Import ADC interface
-			import adcinterface as adc
+			from . import adc
 			self.adc = adc.ADCInterface()
 
 		if(hardware == 'demonstrator' or hardware == 'livedemo' or hardware == 'no_scope' or hardware == 'USB'):
@@ -66,7 +66,7 @@ class HardwareInterface:
 			setup_ip = (setup_address, "1701")
 
 			# HW interface
-			from halbeinterface import HalbeInterface
+			from halbe import HalbeInterface
 			self.fgi = HalbeInterface(self.h_id, setup_ip)
 
 			# Voltage conversion
@@ -76,7 +76,7 @@ class HardwareInterface:
 		if(hardware == 'demonstrator'):
 
 			# Import scope
-			import scopeinterface as scope
+			from . import scope
 
 			# Scope parameters
 			self.scope_address = scope_address
