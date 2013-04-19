@@ -48,7 +48,7 @@ class HalbeInterface:
     # @param jtag_speed The speed of the jtag interface
     def __init__(self, hicann, ip):
         from pyhalbe import PowerBackend, Handle, Coordinate, geometry, HICANN
-        EnumGlobal = geometry.EnumGlobal
+        Enum = geometry.Enum
 
         # Floating gate parameters
         self.res_fg = 1023
@@ -65,8 +65,8 @@ class HalbeInterface:
         self.port = int(ip[1])
         self.myPowerBackend = PowerBackend.instanceVerticalSetup()
         self.myPowerBackend.SetupReticle(highspeed, self.ip, self.port, 1, arq)
-        self.h = Handle.HICANN(Coordinate.HICANN(EnumGlobal(hicann)))
-        self.dnc = Coordinate.DNC(EnumGlobal(0))
+        self.h = Handle.HICANN(Coordinate.HICANNGlobal(Enum(hicann)))
+        self.dnc = Coordinate.DNCGlobal(Enum(0))
 
         self.init_HW()
 
