@@ -75,7 +75,7 @@ def get_HW_parameters(exp=False, adapt_a=False, adapt_b=False, syn_in_exc=True, 
         HW_parameters['gsyni'] = 1000   # TODO: hicann-doc says: usually set to max
 
     if exp:
-		HW_parameters["expAct"] = 2000
+        HW_parameters["expAct"] = 2000
 
     return HW_parameters
 
