@@ -12,7 +12,7 @@ import pylab
 # 
 # This class encapsulates the methods to readout from the ADC, as well as higher level methods to read the spiking frequency of signal.
 class ADCInterface():
-	ADC_CHANNEL = 7
+	ADC_CHANNEL = 3
 
 	## The constructor
 	def __init__(self):
@@ -23,9 +23,7 @@ class ADCInterface():
 	## Convert the readout from the ADC to a voltage
 	# @param raw The raw readout from the ADC
 	def convert_to_voltage(self, x):
-		a = -0.00064866486377
-		b = 2.02942967983
-		return a*x+b
+		return (2.3139-0.000821*(x)+pow(0.000239*(x),2)-pow(0.0002*(x),3))
 
 	## Start the acquisition from the ADC and return times and voltages
 	# @param sample_time_us The desired sample time in us
