@@ -1,57 +1,44 @@
 '''Controller for the calibration of the BrainScaleS hardware'''
 
-from . import simulator as sim
+from pycairo import simulator as sim
 import time
 import numpy as np
-import sys
-import os
 
 class CalibrationController:
     '''Main calibration class'''
 
-    ## Creation of the different interfaces to devices used for calibration.
-    # @param hardware The type of hardware to use. Possible choices are demonstrator, USB, WSS, scope_only
-    # @param scope_address The IP address of the scope
-    # @param neurons_range The range of neurons to calibrate per chip
-    # @param fpga The logical number of the FPGA board to use
-    def __init__ (self,hardware='demonstrator',scope_address = "129.206.176.32",neurons_range=[],fpga=6):
+    def __init__(self,hardware, neurons_range, fpga):
+        '''Creation of the different interfaces to devices used for calibration.
+
+        Args:
+            hardware: The type of hardware to use. Possible choices are USB, WSS
+            neurons_range: The range of neurons to calibrate per chip
+            fpga: The logical number of the FPGA board to use
+        '''
 
         self.hardware = hardware
         self.neurons_range = neurons_range
         self.fpga = fpga
 
-        if hardware in ('WSS', 'USB', 'demonstrator', 'db_only'):
-            # DB interface creation
-            from interfaces import database as DB
+        if hardware in ('WSS', 'USB'):
+            from pycairo.interfaces import database as DB
             self.dbi = DB.DatabaseInterface()
-            # Create DB if not already existing
-            if self.dbi.is_empty() == True:
+            
+            if self.dbi.is_empty(): # create DB if not already existing
                 self.dbi.create_db(hardware)
             setup_address = '192.168.1.' + str(self.dbi.get_fpga_ip(fpga))
-        if hardware in ('demonstrator', 'WSS', 'USB'):
+        if hardware in ('WSS', 'USB'):
 
             # Create HW interface
-            from interfaces import hardware as HWI
-            self.hwi = HWI.HardwareInterface(hardware,scope_address,setup_address)
+            from pycairo.interfaces import hardware as HWI
+            self.hwi = HWI.HardwareInterface(hardware,setup_address)
 
             # Scaled to hardware module
-            from translations import scaledhw as scali
+            from pycairo.translations import scaledhw as scali
             self.scali = scali.scaledHW()
 
-        if hardware == 'scope_only':
-
-            # Import scope
-            from interfaces import scope
-            # Scope parameters
-            self.scope_address = scope_address
-            self.channeltype = "C"
-            # Create scope interface
-            self.scopi = scope.ScopeInterface(self.scope_address)
-
-        # Import in all cases
         self.simi = sim.Simulator()
 
-        # Global commands
         self.debug_mode = False
 
         # Calibration data for each parameter : min, max, number of values, number of measurements
@@ -97,15 +84,10 @@ class CalibrationController:
         self.current_default = 200 # nA
 
 
-# ***************************************************************************
-#                            Calibration function
-# ***************************************************************************
-
     def calibrate(self, model='LIF'):
         """Main calibration function
         @param model The model can be chosen between "LIF", "ALIF", "AdEx" and single_param, or directly the name of the parameter like "EL"
         """
-        # Log
         print "### Calibration software started ###"
         print ""
         calib_start = time.time()
@@ -128,7 +110,6 @@ class CalibrationController:
             parameters = model
 
         # Creation of neuron index
-
         for param in parameters:
             hicann_index, neuron_index = self.dbi.create_neuron_index(param,self.neurons_range,self.fpga)
             print "Reseting Hardware"
@@ -142,8 +123,6 @@ class CalibrationController:
     # @param hicann HICANN to be calibrated
     # @param neurons list of neurons to be calibrated
     def calibrate_parameter(self, parameter, hicann, neurons):
-
-        # Log
         results_print = True
         start_time = time.time()
         if neurons:
@@ -201,7 +180,7 @@ class CalibrationController:
             # Do a given number of repetitions
             for run in range(repetitions):
                 print "Starting repetition {} of {}".format(run+1, repetitions)
-                result = self.meassure(hicann, neurons, parameter, parameters, value, calibrated_parameters)
+                result = self.measure(hicann, neurons, parameter, parameters, value, calibrated_parameters)
                 meas_array.append(result)
 
             meas_array = np.array(meas_array)
@@ -227,7 +206,7 @@ class CalibrationController:
         sorted_array_err  = np.array(output_array_err).T
 
         # Print for debug
-        if results_print == True:
+        if results_print:
             print "Sorted array, mean :", sorted_array_mean
             print ""
             print "Sorted array, error :", sorted_array_err
@@ -239,17 +218,14 @@ class CalibrationController:
         processed_array_err = np.array(processed_array_err)
 
         # Print results for debug
-        if (results_print == True):
+        if results_print:
             print "Processed array, mean :", processed_array_mean
             print ""
             print "Processed array, error :", processed_array_err
 
-        # Log
         print "Process phase completed in " + str(time.time() - process_start) + " s"
 
         ####### Store #######
-
-        # Log
         print "Store phase started"
         store_start = time.time()
 
@@ -286,45 +262,41 @@ class CalibrationController:
         # Set HICANN as calibrated ?
         self.dbi.check_hicann_calibration(hicann)
 
-        # Log
         print "Store phase completed in " + str(time.time() - store_start) + " s"
         print ""
         print "## Calibration of parameter " + parameter + " completed in " + str(time.time() - start_time) + " s ##"
         print "## Calibration took " + str((time.time() - start_time) / len(neurons)) + " s per neuron ##"
         print ""
 
-# ***************************************************************************
-#                            Other functions
-# ***************************************************************************
     def get_parameters(self, parameter):
         parameters = {}
         # Parameter specific initialization
         if parameter == 'EL':
             parameters.update( {'Vt' : self.Vt_default_max, "gL" : self.gL_default } )
 
-        if parameter in ('Vreset', 'Vt'):
+        elif parameter in ('Vreset', 'Vt'):
             parameters.update( {'EL' : self.EL_default_max, "gL" : self.gL_default } )
 
-        if parameter == 'gL':
+        elif parameter == 'gL':
             parameters.update( {"Vreset" : self.Vreset_IF_value, "EL" : self.EL_IF_value,
                 "Vt" : self.Vt_IF_value } )
 
-        if parameter == 'tauref':
+        elif parameter == 'tauref':
             parameters.update( self.all_IF_values )
 
-        if parameter == 'a':
+        elif parameter == 'a':
             parameters.update( self.all_IF_values )
             parameters["tauw"] = self.tauw_default
 
-        if parameter == 'tw':
+        elif parameter == 'tw':
             parameters.update( self.all_IF_values )
             parameters["a"] = self.a_default
 
-        if parameter == 'b':
+        elif parameter == 'b':
             parameters.update( self.all_IF_values )
             parameters.update( {"a" : self.a_default, "tauw" : self.tauw_default } )
 
-        if parameter in ('tausynx', 'tausyni'):
+        elif parameter in ('tausynx', 'tausyni'):
             parameters.update( self.all_IF_values )
             parameters["EL"] = self.EL_default
             parameters["Vt"] = self.Vt_default_max
@@ -332,12 +304,12 @@ class CalibrationController:
             parameters["Esynx"] = self.Esynx_default
             parameters["Esyni"] = self.Esyni_default
 
-        if parameter == 'dT':
+        elif parameter == 'dT':
             parameters.update( self.all_IF_values )
             parameters["expAct"] = 2000
             parameters["Vexp"] = self.Vexp_default
 
-        if parameter == 'Vexp':
+        elif parameter == 'Vexp':
             parameters.update( self.all_IF_values )
             parameters["expAct"] = 2000
             parameters["dT"] = self.dT_default
@@ -348,14 +320,14 @@ class CalibrationController:
         if parameter in ('EL', 'Vt', 'Vreset', 'tw', 'dT'):
             return sorted_array_mean, sorted_array_err
 
-        if parameter == 'gL':
+        elif parameter == 'gL':
             # Calculate relation between frequency and gL
             gL_coefs = self.simi.get_gl_freq(500,1200,parameters['EL'],parameters['Vreset'],parameters['Vt'])
             mean = [self.poly_process(a, gL_coefs) for a in sorted_array_mean]
             err =  [self.poly_process(a, gL_coefs) for a in sorted_array_err]
             return mean, err
 
-        if parameter == 'tauref':
+        elif parameter == 'tauref':
             # Compute base frequency (tau_ref -> 0 )
             base_freq = self.simi.compute_freq(30e-6,0,parameters)
             calc_freq = lambda x: (1.0/x - 1.0/base_freq) * 1e6
@@ -366,7 +338,7 @@ class CalibrationController:
             e = sorted_array_err[sorted_array_err != 0.0]
             return calc_freq(m), calc_freq(e)
 
-        if parameter in ('tausynx', 'tausyni'):
+        elif parameter in ('tausynx', 'tausyni'):
 
             # Calculate relation between PSP integral and tausyn
             #tausyn_coefs = self.simi.getTausynPSP(1,10,parameters['EL'],parameters['Vreset'],parameters['Vt'], parameters['gL'],parameters['Esynx'])
@@ -394,8 +366,8 @@ class CalibrationController:
             return sorted_array_mean, sorted_array_err
 
         assert False, "TODO, fix stuff for other parameters"
+        #elif
         if (parameter == 'a'):
-
             # Calculate relation between frequency and gL
             a_coefs = self.simi.get_a_freq(200,600,parameters['EL'],parameters['Vreset'],parameters['Vt'],parameters['gL'])
 
@@ -413,8 +385,7 @@ class CalibrationController:
                 processed_array_mean.append(hicann_array_mean)
                 processed_array_err.append(hicann_array_err)
 
-        if (parameter == 'b'):
-
+        elif (parameter == 'b'):
             # Calculate relation between frequency and b
             b_coefs = self.simi.get_b_freq(10,100,parameters['EL'],parameters['Vreset'],parameters['Vt'],parameters['gL'],parameters['a'],parameters['tauw'])
 
@@ -432,8 +403,7 @@ class CalibrationController:
                 processed_array_mean.append(hicann_array_mean)
                 processed_array_err.append(hicann_array_err)
 
-
-        if (parameter == 'Vexp'):
+        elif (parameter == 'Vexp'):
             # Calculate relation between frequency and gL
             Vexp_coefs = self.simi.get_vexp_freq(800,1000,parameters['EL'],parameters['Vreset'],parameters['Vt'],parameters['gL'],parameters['dT'])
 
@@ -452,14 +422,13 @@ class CalibrationController:
                 processed_array_err.append(hicann_array_err)
         return processed_array_mean, processed_array_err
 
-    def meassure(self, hicann, neurons, parameter, parameters, value, calibrated_parameters):
+    def measure(self, hicann, neurons, parameter, parameters, value, calibrated_parameters):
         print "Configuring the hardware ..."
         config_start = time.time()
         # If no debug mode, configure the hardware. If debug, do nothing
         if not self.debug_mode:
             self.hwi.configure(hicann, neurons, calibrated_parameters)
         print "Hardware configuration completed in {:.2}s".format(time.time() - config_start)
-        #sys.exit()
 
         # Measure all neurons
         print "Measuring the hardware ..."

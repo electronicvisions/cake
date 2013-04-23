@@ -1,14 +1,12 @@
-## @package demonstratorinterface
-# Python interface for Demonstrator platform
+'''Cairo interface to HALbe via pyhalbe'''
 
 import os
 import numpy
 import pylab
 import sys
-from ..config.default_hardware_params import get_global_parameters, get_HW_parameters
 
 import pyhalbe
-from pyhalbe import Handle, Coordinate, geometry, HICANN
+from pycairo.config.default_hardware_params import get_global_parameters, get_HW_parameters
 
 class HWNeurons(object):
     def __init__(self):
@@ -22,33 +20,30 @@ class HWNeurons(object):
     def disable_aout(self):
         for q in self.quads:
             for ii in range(pyhalbe.NeuronQuad.size()):
-                q[Coordinate.QuadNeuron(ii)].enable_aout(False)
+                q[pyhalbe.Coordinate.QuadNeuron(ii)].enable_aout(False)
 
     def write(self, handle):
         for ii, q in enumerate(self.quads):
-            block = Coordinate.NeuronBlock(ii/16)
-            quad = Coordinate.NeuronQuad(ii%16)
-            HICANN.set_denmem_quad(handle, block, quad, q)
+            block = pyhalbe.Coordinate.NeuronBlock(ii/16)
+            quad = pyhalbe.Coordinate.NeuronQuad(ii%16)
+            pyhalbe.HICANN.set_denmem_quad(handle, block, quad, q)
 
     def _get_neuron(self, neuron_id):
-        n = Coordinate.Neuron(neuron_id)
+        n = pyhalbe.Coordinate.Neuron(neuron_id)
         quad = self.quads[int(n.getQuadAddress())]
         quad_neuron = n.getQuadNeuronAddress()
         return quad[quad_neuron]
 
 
-## Class DemonstratorInterface
 class HalbeInterface:
-    ## The constructor
-    # @param tm_path The path of the tests2 executable
-    # @param xmlfile_path The path of the xml file
-    # @param mode The access mode to the hardware
-    # @param h_chain The number of hicanns in the chain
-    # @param h_id The id of the current hicann
-    # @param jtag_speed The speed of the jtag interface
     def __init__(self, hicann, ip):
-        from pyhalbe import PowerBackend, Handle, Coordinate, geometry, HICANN
-        Enum = geometry.Enum
+        '''Connect to a vertical setup at a given IP
+        
+        Vars:
+            hicann: HICANN id
+            ip: tuple (str, str or int) of IPv4 adress and port
+        '''
+        Enum = pyhalbe.geometry.Enum
 
         # Floating gate parameters
         self.res_fg = 1023
@@ -58,15 +53,15 @@ class HalbeInterface:
         self.pll = 150
         self.fg_pll = 100
 
-        print ip
+        print 'Connecting to ' + str(ip)
         highspeed = True
         arq = True
-        self.ip = Coordinate.IPv4.from_string(ip[0])
+        self.ip = pyhalbe.Coordinate.IPv4.from_string(ip[0])
         self.port = int(ip[1])
-        self.myPowerBackend = PowerBackend.instanceVerticalSetup()
+        self.myPowerBackend = pyhalbe.PowerBackend.instanceVerticalSetup()
         self.myPowerBackend.SetupReticle(highspeed, self.ip, self.port, 1, arq)
-        self.h = Handle.HICANN(Coordinate.HICANNGlobal(Enum(hicann)))
-        self.dnc = Coordinate.DNCGlobal(Enum(0))
+        self.h = pyhalbe.Handle.HICANN(pyhalbe.Coordinate.HICANNGlobal(Enum(hicann)))
+        self.dnc = pyhalbe.Coordinate.DNCGlobal(Enum(0))
 
         self.init_HW()
 
@@ -89,14 +84,12 @@ class HalbeInterface:
     # @param parameters The neuron parameters
     # @param option The configuration option. Can be "XML_only" or "configure"
     def send_fg_configure(self, neurons, parameters, option='configure'):
-        from pyhalbe import FGControl
-
         if len(set(p["Vreset"] for p in parameters)) != 1:
             raise RuntimeError("Vreset must be equal for all neurons")
 
         g_p = get_global_parameters()
         g_p["V_reset"] = self.convert_to_voltage_fg(parameters[0]['Vreset'])
-        params = [ dict( (k, 0) for k in get_HW_parameters() ) for ii in range(FGControl.number_neurons)]
+        params = [ dict( (k, 0) for k in get_HW_parameters() ) for ii in range(pyhalbe.FGControl.number_neurons)]
 
         for ii, neuron in enumerate(neurons):
             params[neuron] = parameters[ii]
@@ -104,16 +97,13 @@ class HalbeInterface:
         self.write_fg(g_p, params)
 
     def write_fg(self, global_parameters, parameters):
-        import pyhalbe
-        from pyhalbe import geometry, Coordinate, FGControl, FGBlock, FGConfig, HICANN
+        assert len(parameters) == pyhalbe.FGControl.number_neurons
+        fgc = pyhalbe.FGControl()
 
-        assert len(parameters) == FGControl.number_neurons
-        fgc = FGControl();
-
-        for fg_block in [Coordinate.FGBlock(ii) for ii in range(FGControl.number_blocks)]:
-            fgc.setConfig(fg_block, FGConfig());
+        for fg_block in [pyhalbe.Coordinate.FGBlockOnHICANN(ii) for ii in range(pyhalbe.FGControl.number_blocks)]:
+            fgc.setConfig(fg_block, pyhalbe.FGConfig())
             g_p = dict(global_parameters)
-            if fg_block == Coordinate.FGBlock(0) or fg_block == Coordinate.FGBlock(2):
+            if fg_block == pyhalbe.Coordinate.FGBlock(0) or fg_block == pyhalbe.Coordinate.FGBlock(2):
                 # Remove left-only global parameters
                 del g_p["V_clrc"]
                 del g_p["V_bexp"]
@@ -124,9 +114,9 @@ class HalbeInterface:
             for name, value in g_p.iteritems():
                 fgc.setGlobal(fg_block, getattr(pyhalbe, name), value)
 
-        for ii in range(FGControl.number_neurons):
+        for ii in range(pyhalbe.FGControl.number_neurons):
             p = parameters[ii]
-            neuron = Coordinate.Neuron(ii)
+            neuron = pyhalbe.Coordinate.Neuron(ii)
             fgc.setNeuron(neuron, pyhalbe.E_l,        self.convert_to_voltage_fg(p['EL']))
             fgc.setNeuron(neuron, pyhalbe.E_syni,     self.convert_to_voltage_fg(p['Esyni']))
             fgc.setNeuron(neuron, pyhalbe.E_synx,     self.convert_to_voltage_fg(p['Esynx']))
@@ -150,18 +140,17 @@ class HalbeInterface:
             fgc.setNeuron(neuron, pyhalbe.V_t,        self.convert_to_voltage_fg(p['Vt']))
 
 
-        for fg_block in [Coordinate.FGBlock(ii) for ii in range(FGControl.number_blocks)]:
-            HICANN.set_PLL_frequency(self.h, self.fg_pll)
-            HICANN.set_fg_values(self.h, fgc.extractBlock(fg_block)) # write 3(!) times for better accuracy
-#            HICANN.set_fg_values(self.h, fgc.extractBlock(fg_block);
-#            HICANN.set_fg_values(self.h, fgc.extractBlock(fg_block);
-            HICANN.set_PLL_frequency(self.h, self.pll)
+        for fg_block in [pyhalbe.Coordinate.FGBlock(ii) for ii in range(pyhalbe.FGControl.number_blocks)]:
+            pyhalbe.HICANN.set_PLL_frequency(self.h, self.fg_pll)
+            pyhalbe.HICANN.set_fg_values(self.h, fgc.extractBlock(fg_block)) # write 3(!) times for better accuracy
+#            pyhalbe.HICANN.set_fg_values(self.h, fgc.extractBlock(fg_block)
+#            pyhalbe.HICANN.set_fg_values(self.h, fgc.extractBlock(fg_block)
+            pyhalbe.HICANN.set_PLL_frequency(self.h, self.pll)
 
     ## Erase FGArra
     def erase_fg(self):
-        from pyhalbe import FGControl
         g_p = dict( (k, 0) for k in get_global_parameters() )
-        p = [ dict( (k, 0) for k in get_HW_parameters() ) for ii in range(FGControl.number_neurons)]
+        p = [ dict( (k, 0) for k in get_HW_parameters() ) for ii in range(pyhalbe.FGControl.number_neurons)]
         self.write_fg(g_p, p)
 
     ## Sweep output to a given neuron number
@@ -186,7 +175,7 @@ class HalbeInterface:
                 ac.set_membrane_bot_odd(analog_channel)
             else:
                 ac.set_membrane_bot_even(analog_channel)
-        HICANN.set_analog(self.h, ac)
+        pyhalbe.HICANN.set_analog(self.h, ac)
 
         neurons = HWNeurons()
         neurons.disable_aout()
