@@ -1,6 +1,4 @@
-'''Wrapper of multiple hardware variants (wafer/vertical setup and in the second case scope or ADC board)
-	Note: scope support will be dropped.
-'''
+'''Wrapper of multiple hardware variants (wafer/vertical setup)'''
 
 import os
 import numpy as np
@@ -114,7 +112,7 @@ class HardwareInterface:
                         # Inject current
                         self.fgi.set_stimulus(self.current_default)
 
-                        # Get scope trace
+                        # Get trace
                         t,v = self.adc.start_and_read_adc(400)
 
                         # Apply fit
@@ -124,7 +122,7 @@ class HardwareInterface:
                         meas_array.append(tw)
 
                     elif (parameter == 'dT'):
-                        # Get scope trace
+                        # Get trace
                         t,v = self.adc.start_and_read_adc(400)
 
                         # Calc dT
@@ -167,7 +165,7 @@ class HardwareInterface:
     # @param parameter The parameter to measure. Example : "EL"
     # @param option The configuration option.
     def configure(self,hicann,neurons,parameters,option='configure'):
-        if self.hardware in ('WSS', 'USB', 'demonstrator', 'no_scope', 'livedemo'):
+        if self.hardware in ('WSS', 'USB'):
             self.fgi.send_fg_configure(neurons, parameters, option)
 
 ########### Helpers functions ##############

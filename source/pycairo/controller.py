@@ -189,15 +189,10 @@ class CalibrationController:
 
             output_array_mean.append(meas_array_mean)
             output_array_err.append(meas_array_err)
-            scope_adjusted = False
 
-
-        # Log
         print "Measurement phase completed in " + str(time.time() - start_measure) + " s"
 
         ####### Process #######
-
-        # Log
         print "Process phase started"
         process_start = time.time()
 
@@ -205,8 +200,7 @@ class CalibrationController:
         sorted_array_mean = np.array(output_array_mean).T
         sorted_array_err  = np.array(output_array_err).T
 
-        # Print for debug
-        if results_print:
+        if results_print: # Print for debug
             print "Sorted array, mean :", sorted_array_mean
             print ""
             print "Sorted array, error :", sorted_array_err
@@ -217,8 +211,7 @@ class CalibrationController:
         processed_array_mean = np.array(processed_array_mean)
         processed_array_err = np.array(processed_array_err)
 
-        # Print results for debug
-        if results_print:
+        if results_print: # Print results for debug
             print "Processed array, mean :", processed_array_mean
             print ""
             print "Processed array, error :", processed_array_err
@@ -262,10 +255,10 @@ class CalibrationController:
         # Set HICANN as calibrated ?
         self.dbi.check_hicann_calibration(hicann)
 
-        print "Store phase completed in " + str(time.time() - store_start) + " s"
+        print "Store phase completed in " + str(time.time() - store_start) + "s"
         print ""
-        print "## Calibration of parameter " + parameter + " completed in " + str(time.time() - start_time) + " s ##"
-        print "## Calibration took " + str((time.time() - start_time) / len(neurons)) + " s per neuron ##"
+        print "## Calibration of parameter " + parameter + " completed in " + str(time.time() - start_time) + "s ##"
+        print "## Calibration took " + str((time.time() - start_time) / len(neurons)) + "s per neuron ##"
         print ""
 
     def get_parameters(self, parameter):
