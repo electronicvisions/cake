@@ -9,9 +9,8 @@ import pyhalbe
 from pycairo.config.default_hardware_params import get_global_parameters, get_HW_parameters
 
 class HWNeurons(object):
-    def __init__(self):
-        # TODO add default?
-        self.quads = [pyhalbe.NeuronQuad() for ii in range(512/pyhalbe.NeuronQuad.size())]
+    def __init__(self, default = pyhalbe.HICANN.NeuronQuad()):
+        self.quads = [pyhalbe.HICANN.NeuronQuad(default) for ii in range(512/pyhalbe.HICANN.NeuronQuad.size())]
 
     def enable_aout(self, neuron):
         n = self._get_neuron(neuron)
@@ -19,19 +18,18 @@ class HWNeurons(object):
 
     def disable_aout(self):
         for q in self.quads:
-            for ii in range(pyhalbe.NeuronQuad.size()):
-                q[pyhalbe.Coordinate.QuadNeuron(ii)].enable_aout(False)
+            for ii in range(pyhalbe.HICANN.NeuronQuad.size()):
+                q[pyhalbe.Coordinate.NeuronOnQuad(ii)].enable_aout(False)
 
     def write(self, handle):
         for ii, q in enumerate(self.quads):
-            block = pyhalbe.Coordinate.NeuronBlock(ii/16)
-            quad = pyhalbe.Coordinate.NeuronQuad(ii%16)
-            pyhalbe.HICANN.set_denmem_quad(handle, block, quad, q)
+            quad = pyhalbe.Coordinate.QuadOnHICANN(ii)
+            pyhalbe.HICANN.set_denmem_quad(handle, quad, q)
 
     def _get_neuron(self, neuron_id):
-        n = pyhalbe.Coordinate.Neuron(neuron_id)
-        quad = self.quads[int(n.getQuadAddress())]
-        quad_neuron = n.getQuadNeuronAddress()
+        n = pyhalbe.Coordinate.NeuronOnHICANN(neuron_id)
+        quad = self.quads[int(n.quad())] # TODO replace int() by n.quad().id() when id() is available
+        quad_neuron = n.neuronOnQuad()
         return quad[quad_neuron]
 
 
@@ -101,9 +99,9 @@ class HalbeInterface:
         fgc = pyhalbe.FGControl()
 
         for fg_block in [pyhalbe.Coordinate.FGBlockOnHICANN(ii) for ii in range(pyhalbe.FGControl.number_blocks)]:
-            fgc.setConfig(fg_block, pyhalbe.FGConfig())
+            fgc.setConfig(fg_block, pyhalbe.HICANN.FGConfig())
             g_p = dict(global_parameters)
-            if fg_block == pyhalbe.Coordinate.FGBlock(0) or fg_block == pyhalbe.Coordinate.FGBlock(2):
+            if fg_block == pyhalbe.Coordinate.FGBlockOnHICANN(0) or fg_block == pyhalbe.Coordinate.FGBlockOnHICANN(2):
                 # Remove left-only global parameters
                 del g_p["V_clrc"]
                 del g_p["V_bexp"]
@@ -112,35 +110,35 @@ class HalbeInterface:
                 del g_p["V_clra"]
                 del g_p["V_bout"]
             for name, value in g_p.iteritems():
-                fgc.setGlobal(fg_block, getattr(pyhalbe, name), value)
+                fgc.setShared(fg_block, getattr(pyhalbe.HICANN, name), value)
 
         for ii in range(pyhalbe.FGControl.number_neurons):
             p = parameters[ii]
-            neuron = pyhalbe.Coordinate.Neuron(ii)
-            fgc.setNeuron(neuron, pyhalbe.E_l,        self.convert_to_voltage_fg(p['EL']))
-            fgc.setNeuron(neuron, pyhalbe.E_syni,     self.convert_to_voltage_fg(p['Esyni']))
-            fgc.setNeuron(neuron, pyhalbe.E_synx,     self.convert_to_voltage_fg(p['Esynx']))
-            fgc.setNeuron(neuron, pyhalbe.I_bexp,     self.convert_to_current_fg(p['expAct']))
-            fgc.setNeuron(neuron, pyhalbe.I_convi,    self.convert_to_current_fg(p['gsyni']))
-            fgc.setNeuron(neuron, pyhalbe.I_convx,    self.convert_to_current_fg(p['gsynx']))
-            fgc.setNeuron(neuron, pyhalbe.I_fire,     self.convert_to_current_fg(p['b']))
-            fgc.setNeuron(neuron, pyhalbe.I_gl,       self.convert_to_current_fg(p['gL']))
-            fgc.setNeuron(neuron, pyhalbe.I_gladapt,  self.convert_to_current_fg(p['a']))
-            fgc.setNeuron(neuron, pyhalbe.I_intbbi,   self.convert_to_current_fg(p['Iintbbi']))
-            fgc.setNeuron(neuron, pyhalbe.I_intbbx,   self.convert_to_current_fg(p['Iintbbx']))
-            fgc.setNeuron(neuron, pyhalbe.I_pl,       self.convert_to_current_fg(p['tauref']))
-            fgc.setNeuron(neuron, pyhalbe.I_radapt,   self.convert_to_current_fg(p['tw']))
-            fgc.setNeuron(neuron, pyhalbe.I_rexp,     self.convert_to_current_fg(p['dT']))
-            fgc.setNeuron(neuron, pyhalbe.I_spikeamp, self.convert_to_current_fg(p['Ispikeamp']))
-            fgc.setNeuron(neuron, pyhalbe.V_exp,      self.convert_to_voltage_fg(p['Vexp']))
-            fgc.setNeuron(neuron, pyhalbe.V_syni,     self.convert_to_voltage_fg(p['Vsyni']))
-            fgc.setNeuron(neuron, pyhalbe.V_synx,     self.convert_to_voltage_fg(p['Vsynx']))
-            fgc.setNeuron(neuron, pyhalbe.V_syntci,   self.convert_to_voltage_fg(p['tausyni']))
-            fgc.setNeuron(neuron, pyhalbe.V_syntcx,   self.convert_to_voltage_fg(p['tausynx']))
-            fgc.setNeuron(neuron, pyhalbe.V_t,        self.convert_to_voltage_fg(p['Vt']))
+            neuron = pyhalbe.Coordinate.NeuronOnHICANN(ii)
+            fgc.setNeuron(neuron, pyhalbe.HICANN.E_l,        self.convert_to_voltage_fg(p['EL']))
+            fgc.setNeuron(neuron, pyhalbe.HICANN.E_syni,     self.convert_to_voltage_fg(p['Esyni']))
+            fgc.setNeuron(neuron, pyhalbe.HICANN.E_synx,     self.convert_to_voltage_fg(p['Esynx']))
+            fgc.setNeuron(neuron, pyhalbe.HICANN.I_bexp,     self.convert_to_current_fg(p['expAct']))
+            fgc.setNeuron(neuron, pyhalbe.HICANN.I_convi,    self.convert_to_current_fg(p['gsyni']))
+            fgc.setNeuron(neuron, pyhalbe.HICANN.I_convx,    self.convert_to_current_fg(p['gsynx']))
+            fgc.setNeuron(neuron, pyhalbe.HICANN.I_fire,     self.convert_to_current_fg(p['b']))
+            fgc.setNeuron(neuron, pyhalbe.HICANN.I_gl,       self.convert_to_current_fg(p['gL']))
+            fgc.setNeuron(neuron, pyhalbe.HICANN.I_gladapt,  self.convert_to_current_fg(p['a']))
+            fgc.setNeuron(neuron, pyhalbe.HICANN.I_intbbi,   self.convert_to_current_fg(p['Iintbbi']))
+            fgc.setNeuron(neuron, pyhalbe.HICANN.I_intbbx,   self.convert_to_current_fg(p['Iintbbx']))
+            fgc.setNeuron(neuron, pyhalbe.HICANN.I_pl,       self.convert_to_current_fg(p['tauref']))
+            fgc.setNeuron(neuron, pyhalbe.HICANN.I_radapt,   self.convert_to_current_fg(p['tw']))
+            fgc.setNeuron(neuron, pyhalbe.HICANN.I_rexp,     self.convert_to_current_fg(p['dT']))
+            fgc.setNeuron(neuron, pyhalbe.HICANN.I_spikeamp, self.convert_to_current_fg(p['Ispikeamp']))
+            fgc.setNeuron(neuron, pyhalbe.HICANN.V_exp,      self.convert_to_voltage_fg(p['Vexp']))
+            fgc.setNeuron(neuron, pyhalbe.HICANN.V_syni,     self.convert_to_voltage_fg(p['Vsyni']))
+            fgc.setNeuron(neuron, pyhalbe.HICANN.V_synx,     self.convert_to_voltage_fg(p['Vsynx']))
+            fgc.setNeuron(neuron, pyhalbe.HICANN.V_syntci,   self.convert_to_voltage_fg(p['tausyni']))
+            fgc.setNeuron(neuron, pyhalbe.HICANN.V_syntcx,   self.convert_to_voltage_fg(p['tausynx']))
+            fgc.setNeuron(neuron, pyhalbe.HICANN.V_t,        self.convert_to_voltage_fg(p['Vt']))
 
 
-        for fg_block in [pyhalbe.Coordinate.FGBlock(ii) for ii in range(pyhalbe.FGControl.number_blocks)]:
+        for fg_block in [pyhalbe.Coordinate.FGBlockOnHICANN(ii) for ii in range(pyhalbe.FGControl.number_blocks)]:
             pyhalbe.HICANN.set_PLL_frequency(self.h, self.fg_pll)
             pyhalbe.HICANN.set_fg_values(self.h, fgc.extractBlock(fg_block)) # write 3(!) times for better accuracy
 #            pyhalbe.HICANN.set_fg_values(self.h, fgc.extractBlock(fg_block)
@@ -162,9 +160,9 @@ class HalbeInterface:
         assert neuron >= 0 and neuron < 512
         assert current == 0
 
-        analog_channel = pyhalbe.Coordinate.Analog(0)
+        analog_channel = pyhalbe.Coordinate.AnalogOnHICANN(0)
         odd = bool(neuron % 2)
-        ac = pyhalbe.Analog()
+        ac = pyhalbe.HICANN.Analog()
         if neuron < 256:
             if odd:
                 ac.set_membrane_top_odd(analog_channel)
