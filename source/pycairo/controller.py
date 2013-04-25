@@ -88,7 +88,7 @@ class CalibrationController:
         """Main calibration function
         @param model The model can be chosen between "LIF", "ALIF", "AdEx" and single_param, or directly the name of the parameter like "EL"
         """
-        print "### Calibration software started ###"
+        print "### Calibration started ###"
         print ""
         calib_start = time.time()
 
@@ -112,7 +112,7 @@ class CalibrationController:
         # Creation of neuron index
         for param in parameters:
             hicann_index, neuron_index = self.dbi.create_neuron_index(param,self.neurons_range,self.fpga)
-            print "Reseting Hardware"
+            print "Resetting Hardware"
             for ii, hicann in enumerate(hicann_index):
                 self.calibrate_parameter(param, hicann, neuron_index[ii])
 
