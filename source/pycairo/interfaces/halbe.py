@@ -28,7 +28,7 @@ class HWNeurons(object):
 
     def _get_neuron(self, neuron_id):
         n = pyhalbe.Coordinate.NeuronOnHICANN(neuron_id)
-        quad = self.quads[int(n.quad())] # TODO replace int() by n.quad().id() when id() is available
+        quad = self.quads[n.quad().id()]
         quad_neuron = n.neuronOnQuad()
         return quad[quad_neuron]
 
