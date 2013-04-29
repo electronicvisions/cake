@@ -1,5 +1,8 @@
+from StringIO import StringIO
+import numpy
 
-# format:
+# column names in WSS string below
+coordinate_names = ['F', 'FDC', 'R', 'RX', 'RY', 'DX', 'DY', 'HX', 'HY', 'DHC', 'H']
 # F - FPGA ID 0-11
 # FDC - fpgaDncChannel 0-3
 # R - ReticleID in wafer production map
@@ -11,6 +14,7 @@
 # HY - Y-coordinate of HICANN in cartesian coordinates (halbe coordinates)
 # DHC - dncHicannChannel 0-7
 # H - Hicann config Id (halbe coordinates)
+#
 # F FDC R RX RY DX DY HX HY DHC H
 WSS = """0 0 21 5 3 4 5 19 10 6 279
 0 0 21 5 3 4 5 19 11 7 307
@@ -423,3 +427,30 @@ IP = """0 1
 10 21
 11 23"""
 
+        
+def get_reticle_map():
+    reticles = numpy.genfromtxt(StringIO(WSS), names=coordinate_names, dtype=int)
+    reticles.sort(order=['F', 'FDC', 'DHC']) # Sort by FPGA ID, fpga-dnc-channel, dnc-hicann-channel
+
+    # reshape this ndarray, such that there is a quick access via
+    # reticle_map[f][fdc][dhc]
+    reticle_map = numpy.reshape(reticles, (12,4,8))
+    return reticle_map
+
+def get_fpga_map():
+    fpga_coordinates = numpy.genfromtxt(StringIO(FPGA))
+
+    fpga_map = []
+    for i in fpga_coordinates:
+        fpga_map.append(i)
+
+    return fpga_map
+        
+def get_fpga_ip():
+    fpga_ip_file = numpy.genfromtxt(StringIO(IP))
+
+    fpga_ip = []
+    for i in fpga_ip_file:
+        fpga_ip.append(i)
+
+    return fpga_ip

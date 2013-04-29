@@ -1,92 +1,50 @@
-'''Python interface to the calibration database'''
-
 import pymongo
 
 import numpy
-import scipy
 import pylab
 
 import sys
 import os
-import time
 import datetime
 
 import json
-from StringIO import StringIO
 
-from ..config import coordinates
+from pycairo.config import coordinates
 
-## Python interface to the calibration database
 class DatabaseInterface:
+    '''Python interface to the calibration database'''
 
-       ## Initialize the database interface
     def __init__ (self):
-        
-        # Init connection
         connection = pymongo.Connection()
-        self.db = connection.calibrationDB
 
-        self.WAFER = self.db.WAFER
-        self.FPGA = self.db.FPGA
-        self.DNC = self.db.DNC
-        self.HICANN = self.db.HICANN
-        self.ADC_BOARDS = self.db.ADC_BOARDS
+        self.WAFER = connection.calibrationDB.WAFER
+        self.FPGA = connection.calibrationDB.FPGA
+        self.DNC = connection.calibrationDB.DNC
+        self.HICANN = connection.calibrationDB.HICANN
+        self.ADC_BOARDS = connection.calibrationDB.ADC_BOARDS
 
         self.collections = [self.WAFER,self.FPGA,self.DNC,self.HICANN]
-        self.collections_names = ['WAFER','FPGA','DNC','HICANN']
 
-        # Constants
         self.parameters = ['Esynx','Esyni','gL','Vreset','Vt','EL','tw','Vexp','tausynx','tausyni','dT','gsyn','b','a','tauref']
 
-        # Load reticleId file
-        self.reticle_map = []
+        self.reticle_map = coordinates.get_reticle_map()
+        self.fpga_map = coordinates.get_fpga_map()
+        self.fpga_ip = coordinates.get_fpga_ip()
         
-        coordinate_names = "F FDC R RX RY DX DY HX HY DHC H".split() # column names in reticle_file
-        reticle_file = numpy.genfromtxt(StringIO(coordinates.WSS), names=coordinate_names, dtype=int)
-        # Sort by FPGA ID, fpga-dnc-channel, dnc-hicann-channel
-        reticle_file.sort(order=['F', 'FDC', 'DHC'])
+    def create_db(self,hardware,fpga_number):
+        '''Create database with the selected hardware option
 
-        # reshape this ndarray, such that there is a quick access via:
-        # self.reticle_map[f][fdc][dhc]
-        self.reticle_map = numpy.reshape(reticle_file, (12,4,8))
-
-        # Load fpga file
-        fpga_coordinate_file = numpy.genfromtxt(StringIO(coordinates.FPGA))
-
-        self.fpga_map = []
-        for i in fpga_coordinate_file:
-            self.fpga_map.append(i)
-            
-        # Load fpga ip file
-        fpga_ip_file = numpy.genfromtxt(StringIO(coordinates.IP))
-
-        self.fpga_ip = []
-        for i in fpga_ip_file:
-            self.fpga_ip.append(i)
-        
-    ### Functions definitions ###
-        
-    ## Create database with the selected hardware option
-    # @param hardware The hardware system to use. Examples : "demonstrator", "USB", "WSS"
-    # @param fpga_number In case of a single FPGA system, the logical number of the FPGA board
-    def create_db(self,hardware,fpga_number=4):
-
-        if (hardware == 'demonstrator'):
-
-            nb_wafers = 1
-            nb_FPGAs = 1
-            nb_DNCs = 1
-            nb_HICANNs = 1
+        Args:
+            hardware: The hardware system to use. Examples: "USB", "WSS"
+            fpga_number: In case of a single FPGA system, the logical number of the FPGA board
+        '''
 
         if (hardware == 'USB'):
-
             nb_wafers = 1
             nb_FPGAs = 1
             nb_DNCs = 1
             nb_HICANNs = 1
-    
-        if (hardware == 'WSS'):
-
+        elif (hardware == 'WSS'):
             nb_wafers = 1
             nb_FPGAs = 12
             nb_DNCs = 4
@@ -101,25 +59,20 @@ class DatabaseInterface:
         hosts_per_FPGA = 2
         ports_per_FPGA = 2
         
-        # Init connection
-        connection = pymongo.Connection()
-        db = connection.calibrationDB
         now = datetime.datetime.now()
         date = now.strftime('%Y-%m-%d %H:%M')
 
         # Insert JSON documents in database
         for w in range(nb_wafers):
-                
             # Create wafer entry
             wafer = {'logicalNumber' : w, 'uniqueId' : w, 'online' : True}
             self.WAFER.insert(wafer)
 
             for f in range(nb_FPGAs):
-
                 # Create FPGA entry
                 
                 # Unique ID ?
-                if (hardware == 'demonstrator' or hardware == 'USB'):
+                if (hardware == 'USB'):
                     fpga_id = fpga_number
                 else:
                     fpga_id = f
@@ -261,11 +214,14 @@ class DatabaseInterface:
                         
                         self.HICANN.insert(hicann)
 
-    ## Insert a wafer in the database
-    # @param number The logical number of the wafer
-    # @param w_id The unique ID of the wafer
-    # @param online Status of the wafer, can be True or False
     def insert_wafer(self,number,w_id,online):
+        '''Insert a wafer in the database.
+
+        Args:
+            number: The logical number of the wafer
+            w_id: The unique ID of the wafer
+            online: Status of the wafer, can be True or False
+        '''
 
         # Create wafer entry
         wafer = {'logicalNumber' : number, 'uniqueId' : w_id, 'online' : online}
@@ -275,23 +231,28 @@ class DatabaseInterface:
         if not isinstance(serien_no, basestring):
             raise TypeError("serien_no must be a string")
         if not len(calib) == 8:
-            raise ValueError("Calibrations for each mux must be provieded")
+            raise ValueError("Calibrations for each mux must be provided")
         if not all( [ x.has_key["model"] and x.has_key["coefficients"] for x in calib ] ):
             raise ValueError("Calibration Data invalid")
         self.ADC_BOARD.insert( { { "serien_no" : serien_no, "calibration" : calib} })
         
-    ## Return one FPGA given by the fpga ID
-    # @param f The ID of the FPGA board [0..11]
     def get_fpga(self,f):
-        # Get fpga f
+        '''Return one FPGA given by the fpga ID
+
+        Args:
+            f: The ID of the FPGA board [0..11]
+        '''
+
         return self.FPGA.find_one({'logicalNumber' : f})
         
-    ## Return one DNC given by the fpga ID and dnc port
-    # @param f The ID of the FPGA board [0..11]
-    # @param d The dnc port [0..3]
     def get_dnc(self,f,d):
+        '''Return one DNC given by the fpga ID and dnc port.
 
-        # Get dnc d
+        Args:
+            f: The ID of the FPGA board [0..11]
+            d: The dnc port [0..3]
+        '''
+
         return self.DNC.find_one({'logicalNumber' : d, 'parent_fpga' : f})
         
     ## Return one DNC given by the dnc id
@@ -328,7 +289,7 @@ class DatabaseInterface:
         neurons = hicann['neurons']
         
         # Which parameters to check ?
-        parameters = ["EL","Vreset","Vt","gL","tauref"]
+        #parameters = ["EL","Vreset","Vt","gL","tauref"]
         parameters = ["EL"]
         hicann_calibrated = False
         
@@ -340,8 +301,6 @@ class DatabaseInterface:
                     hicann_calibrated = True
                 else:
                     hicann_calibrated = False
-                    
-        #print hicann_calibrated
                     
         # Update HICANN status
         if (hicann_calibrated == True):
@@ -557,9 +516,6 @@ class DatabaseInterface:
     # @param save Save in file ?
     # @param filename Which name for the file ?
     def plot_parameter_multi(self,h,neuron_ids,param,error=True,save=False,filename='default'):
-        
-        start_time = time.time()
-        
         neurons = self.get_neurons(h)
 
         if isinstance(neuron_ids, int):
@@ -613,8 +569,6 @@ class DatabaseInterface:
                     pylab.ylabel('Floating gate value')
                     pylab.savefig(filename)
                     
-        #print time.time() - start_time
-        
         pylab.show()
         
     ## Plot all calibration data for one parameter
@@ -661,11 +615,7 @@ class DatabaseInterface:
     ## List all defect neurons on one chip
     # @param h The desired HICANN
     def list_defect_neurons(self,h):
-        
-        start_time = time.time()
-        
         neurons = self.get_neurons(h)
-        
         for k in neurons:
             if (k['available'] == False):
                 print k['logicalNumber']
@@ -674,9 +624,7 @@ class DatabaseInterface:
     # @param h The desired HICANN
     # @param param The parameter to check
     def list_non_calibrated(self,h,param):
-        
         neurons = self.get_neurons(h)
-        
         for k in neurons:
             if (k[param + '_calibrated'] == False):
                 print k['logicalNumber']
@@ -717,11 +665,7 @@ class DatabaseInterface:
     # @param range The number of neurons to be tested
     # @param p The parameter to be tested
     def evaluate_db(self,hicann,range,p):
-        
-        start_time = time.time()
-            
         neurons = self.get_neurons(hicann)
-         
         # Go through all neurons
         for k in range:
                             
@@ -742,8 +686,6 @@ class DatabaseInterface:
                 print 'passed'
                 pass
                             
-        #print 'Evaluation done in', time.time() - start_time, 's'
-                                                        
     # Erase DB
     def clear_db(self):
         for c in self.collections:
@@ -801,7 +743,6 @@ class DatabaseInterface:
     
     ## List all elements in the database
     def list_db_all(self):
-
         for c in self.collections:
             i =0
             for item in c.find():
@@ -819,7 +760,7 @@ class DatabaseInterface:
         
         # Export DB
         if (collections == 'all'):
-            for c in self.collections_names:
+            for c in ['WAFER','FPGA','DNC','HICANN']:
                 os.system('mongoexport -c ' + c + ' -d calibrationDB -o ' + path + c + '.json')
                 
                 # Post process
@@ -916,7 +857,7 @@ class DatabaseInterface:
         self.clear_db()
 
         # Import JSON to DB
-        for c in self.collections_names:
+        for c in ['WAFER','FPGA','DNC','HICANN']:
                 os.system('mongoimport -c ' + c + ' -d calibrationDB ' + path + c + '.json')
 
     ## Return the location of a given FPGA
@@ -1060,3 +1001,4 @@ class DatabaseInterface:
 
         # Update in DB
         self.HICANN.update({'uniqueId' : h}, {'$set':{'synapses' : synapses}})
+
