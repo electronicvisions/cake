@@ -414,19 +414,6 @@ FPGA = """0 S 2 4
 10 WNW 0 1
 11 WSW 0 3"""
 
-IP = """0 1
-1 3
-2 5
-3 7
-4 9
-5 11
-6 13
-7 15
-8 17
-9 19
-10 21
-11 23"""
-
         
 def get_reticle_map():
     reticles = numpy.genfromtxt(StringIO(WSS), names=coordinate_names, dtype=int)
@@ -446,11 +433,18 @@ def get_fpga_map():
 
     return fpga_map
         
-def get_fpga_ip():
-    fpga_ip_file = numpy.genfromtxt(StringIO(IP))
+def get_fpga_ip(fpga_id):
+    '''Get the IPv4 address of a given FPGA.
 
-    fpga_ip = []
-    for i in fpga_ip_file:
-        fpga_ip.append(i)
+    Args:
+        fpga_id: the FPGA identifier
+    '''
 
-    return fpga_ip
+    # FIXME the following code returns a hardcoded IP address
+    # this should be replaced by reading from a "cable db" in the future
+    IP = {0: 1, 1: 3, 2: 5, 3: 7, 4: 9, 5: 11, 6: 13, 7: 15, 8: 17, 9: 19, 10: 21, 11: 23}
+    return '192.168.1.%d' % IP[fpga_id]
+
+def get_fpga_host_ip(h):
+    '''?? (from calibration/source/databaseinterface.py)'''
+    return '192.168.1.' + str(25+h)

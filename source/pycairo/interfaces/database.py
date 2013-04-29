@@ -1,7 +1,6 @@
 import pymongo
 
 import numpy
-import pylab
 
 import sys
 import os
@@ -14,7 +13,7 @@ from pycairo.config import coordinates
 class DatabaseInterface:
     '''Python interface to the calibration database'''
 
-    def __init__ (self):
+    def __init__(self):
         connection = pymongo.Connection()
 
         self.WAFER = connection.calibrationDB.WAFER
@@ -29,7 +28,6 @@ class DatabaseInterface:
 
         self.reticle_map = coordinates.get_reticle_map()
         self.fpga_map = coordinates.get_fpga_map()
-        self.fpga_ip = coordinates.get_fpga_ip()
         
     def create_db(self,hardware,fpga_number):
         '''Create database with the selected hardware option
@@ -68,74 +66,66 @@ class DatabaseInterface:
             wafer = {'logicalNumber' : w, 'uniqueId' : w, 'online' : True}
             self.WAFER.insert(wafer)
 
-            for f in range(nb_FPGAs):
-                # Create FPGA entry
-                
-                # Unique ID ?
-                if (hardware == 'USB'):
-                    fpga_id = fpga_number
+            # Create FPGA entry
+            for f in range(nb_FPGAs): 
+                if hardware == 'USB':
+                    fpga_id = fpga_number # Unique ID
                 else:
                     fpga_id = f
 
-                # Create FPGA channels
                 fpga_channels = []
                 for c in range(channels_per_FPGA):
-                    fpga_channel = { 'logicalNumber' : c, 'sink' : '0.00.0' }
+                    fpga_channel = {'logicalNumber': c, 'sink': '0.00.0'}
                     fpga_channels.append(fpga_channel)
 
-                # Create FPGA hosts
                 hosts = []
                 for h in range(hosts_per_FPGA):
-                    host = { 'fpgaPort' : h, 'ip' : '192.168.' + str(1) + '.' + str(25+h), 'online' : True }
+                    host = {'fpgaPort': h, 'ip': coordinates.get_fpga_host_ip(h), 'online': True}
                     hosts.append(host)
 
-                # Create FPGA ports
                 ports = []
                 for p in range(ports_per_FPGA):
-                    port = {'logicalNumber' : p, 'ip' : '192.168.' + str(1) + '.' + str(self.get_fpga_ip(fpga_id)) }
+                    port = {'logicalNumber': p, 'ip': coordinates.get_fpga_ip(fpga_id)}
                     ports.append(port)
                     
-                # Create ADC calibration data
-                analogReadout = [ { "adc" : "0", "channel" : -1 }, { "adc" : "0", "channel" : -1 } ]
+                # ADC calibration data
+                analogReadout = [{"adc": "0", "channel": -1}, {"adc": "0", "channel": -1}]
 
-                fpga = {'uniqueId' : fpga_id,
-                        'logicalNumber' : fpga_id,
-                        'location' : self.get_location(fpga_id),
-                        'fpgaX' : self.get_fpga_xpos(fpga_id),
-                        'fpgaY' : self.get_fpga_ypos(fpga_id),
-                        'online' : False,
-                        'parent_wafer' : w,
-                         'locked' : False,
-                        'host' : hosts,
-                        'fpgaPort' : ports,
-                           'fpgaChannel' : fpga_channels,
-                           'analogReadout' : analogReadout }
+                fpga = {'uniqueId': fpga_id,
+                        'logicalNumber': fpga_id,
+                        'location': self.get_location(fpga_id),
+                        'fpgaX': self.get_fpga_xpos(fpga_id),
+                        'fpgaY': self.get_fpga_ypos(fpga_id),
+                        'online': False,
+                        'parent_wafer': w,
+                        'locked': False,
+                        'host': hosts,
+                        'fpgaPort': ports,
+                        'fpgaChannel': fpga_channels,
+                        'analogReadout': analogReadout}
                 self.FPGA.insert(fpga)
 
                 for d in range(nb_DNCs):
-
                     # Create DNC entry
-                    dnc = { 'logicalNumber' : fpga_id*nb_DNCs+d,
-                    'uniqueId' : fpga_id*nb_DNCs+d,
-                    'reticleId' : self.get_reticle_id(fpga_id,d),
-                    'parent_wafer' : w,
-                    'parent_fpga' : fpga_id,
-                    'location' : '0',
-                    'available' : False,
-                    'locked' : False,
-                    'dncX' : self.get_dnc_xpos(fpga_id,d),
-                    'dncY' : self.get_dnc_ypos(fpga_id,d),
-                    'fpgaDncChannel' : d}
+                    dnc = { 'logicalNumber': fpga_id*nb_DNCs+d,
+                            'uniqueId': fpga_id*nb_DNCs+d,
+                            'reticleId': self.get_reticle_id(fpga_id,d),
+                            'parent_wafer': w,
+                            'parent_fpga': fpga_id,
+                            'location': '0',
+                            'available': False,
+                            'locked': False,
+                            'dncX': self.get_dnc_xpos(fpga_id,d),
+                            'dncY': self.get_dnc_ypos(fpga_id,d),
+                            'fpgaDncChannel': d}
                     self.DNC.insert(dnc)
 
                     for h in range(nb_HICANNs):
-                        
                         # Store global switches values
-                        global_switches = {'gL' : [0,0,0,0],
-                        'gLadapt' : [0,0,0,0],
-                        'bigCap' : [1,1],
-                        }
-                        
+                        global_switches = {'gL': [0,0,0,0],
+                                           'gLadapt': [0,0,0,0],
+                                           'bigCap': [1,1]}
+
                         # Create repeaters array. Repeaters block numbers from 0 to 5 : rc_l,rc_r,rc_tl,rc_bl,rc_tr,rc_br
                         repeaters = []
                         for r in repeaters_labels:
@@ -145,19 +135,16 @@ class DatabaseInterface:
                             else:
                                 repeaters_per_block = 64
                             for i in range(repeaters_per_block):
-                                repeater = {'logicalNumber' : i, 'available' : True}
+                                repeater = {'logicalNumber': i, 'available': True}
                                 repeater_block.append(repeater)
 
                             repeaters.append(repeater_block)
                         
-                        # Create synapse drivers array
                         synapse_drivers = []
-
-                        # Two halves of the chip
-                        for halves in range(2):
+                        for halves in range(2): # Two halves of the chip
                             syn_driver_half = []
                             for s in range(nb_syn_drivers):
-                                synapse_driver = {'logicalNumber' : s, 'available' : True}
+                                synapse_driver = {'logicalNumber': s, 'available': True}
                                 syn_driver_half.append(synapse_driver)
                             synapse_drivers.append(syn_driver_half)
                     
@@ -168,49 +155,44 @@ class DatabaseInterface:
                         for halves in range(2):
                             syn_half = []
                             for l in range(lines_per_array):
-
                                 syn_line = []
-
                                 for c in range(columns_per_array):
-                                    synapse = {'logicalNumber' : c, 'available' : True}
+                                    synapse = {'logicalNumber': c, 'available': True}
                                     syn_line.append(synapse)
-
                                 syn_half.append(syn_line)
-
                             synapses.append(syn_half)
                     
                         # Create neuron array
                         neurons = []
                         for n in range(neurons_per_hicann):
-                            neuron = {'logicalNumber' : n, 'calibration_date' : date, 'available' : True}
+                            neuron = {'logicalNumber': n, 'calibration_date': date, 'available': True}
                             for k in self.parameters:
                                 neuron[k] = []
                                 neuron[k + '_dev'] = []
                                 neuron[k + '_fit'] = []
-                                neuron[k + '_calibrated']  = False
-
+                                neuron[k + '_calibrated'] = False
                             neurons.append(neuron)
 
                         # Create HICANN entry
-                        hicann = {'reticleId' : self.get_reticle_id(fpga_id,d), 
-                        'reticleX' : self.get_reticle_xpos(fpga_id,d,h), 
-                        'reticleY' : self.get_reticle_ypos(fpga_id,d,h), 
-                        'hicannX' : self.get_hicann_xpos(fpga_id,d,h), 
-                        'hicannY' : self.get_hicann_ypos(fpga_id,d,h), 
-                        'configId' : self.get_conf_id(fpga_id,d,h),
-                        'uniqueId' : fpga_id*nb_HICANNs*nb_DNCs+d*nb_HICANNs+h, 
-                        'dncHicannChannel' : h,
-                        'parent_wafer' : w,
-                        'parent_fpga' : fpga_id,  
-                        'parent_dnc' : d, 
-                        'locked' : False, 
-                        'available' : False,
-                        'calibrated' : False, 
-                        'neurons' : neurons,
-                        'repeaters' : repeaters,
-                        'synapse_drivers' : synapse_drivers,
-                        'synapses' : synapses,
-                        'global_switches' : global_switches}
+                        hicann = {'reticleId': self.get_reticle_id(fpga_id,d), 
+                                  'reticleX': self.get_reticle_xpos(fpga_id,d,h), 
+                                  'reticleY': self.get_reticle_ypos(fpga_id,d,h), 
+                                  'hicannX': self.get_hicann_xpos(fpga_id,d,h), 
+                                  'hicannY': self.get_hicann_ypos(fpga_id,d,h), 
+                                  'configId': self.get_conf_id(fpga_id,d,h),
+                                  'uniqueId': fpga_id*nb_HICANNs*nb_DNCs+d*nb_HICANNs+h, 
+                                  'dncHicannChannel': h,
+                                  'parent_wafer': w,
+                                  'parent_fpga': fpga_id,  
+                                  'parent_dnc': d, 
+                                  'locked': False, 
+                                  'available': False,
+                                  'calibrated': False, 
+                                  'neurons': neurons,
+                                  'repeaters': repeaters,
+                                  'synapse_drivers': synapse_drivers,
+                                  'synapses': synapses,
+                                  'global_switches': global_switches}
                         
                         self.HICANN.insert(hicann)
 
@@ -223,8 +205,7 @@ class DatabaseInterface:
             online: Status of the wafer, can be True or False
         '''
 
-        # Create wafer entry
-        wafer = {'logicalNumber' : number, 'uniqueId' : w_id, 'online' : online}
+        wafer = {'logicalNumber': number, 'uniqueId': w_id, 'online': online}
         self.WAFER.insert(wafer)
     
     def insert_adc_board(self,serien_no,calib):
@@ -234,76 +215,79 @@ class DatabaseInterface:
             raise ValueError("Calibrations for each mux must be provided")
         if not all( [ x.has_key["model"] and x.has_key["coefficients"] for x in calib ] ):
             raise ValueError("Calibration Data invalid")
-        self.ADC_BOARD.insert( { { "serien_no" : serien_no, "calibration" : calib} })
+        self.ADC_BOARD.insert( { { "serien_no": serien_no, "calibration": calib} })
         
-    def get_fpga(self,f):
+    def get_fpga(self, fpga_id):
         '''Return one FPGA given by the fpga ID
 
         Args:
-            f: The ID of the FPGA board [0..11]
+            fpga_id: The ID of the FPGA board [0..11]
         '''
 
-        return self.FPGA.find_one({'logicalNumber' : f})
+        return self.FPGA.find_one({'logicalNumber': fpga_id})
         
-    def get_dnc(self,f,d):
+    def get_dnc(self, fpga_id, dnc_id):
         '''Return one DNC given by the fpga ID and dnc port.
 
         Args:
-            f: The ID of the FPGA board [0..11]
-            d: The dnc port [0..3]
+            fpga_id: The ID of the FPGA board [0..11]
+            dnc_id: The dnc port [0..3]
         '''
 
-        return self.DNC.find_one({'logicalNumber' : d, 'parent_fpga' : f})
+        return self.DNC.find_one({'logicalNumber': dnc_id, 'parent_fpga': fpga_id})
         
-    ## Return one DNC given by the dnc id
-    # @param d The dnc unique ID
-    def get_dnc_id(self,d):
+    def get_dnc_id(self, dnc_id):
+        '''Return one DNC given by the dnc id.
 
-        # Get dnc d
-        return self.DNC.find_one({'logicalNumber' : d})
+        Args:
+            dnc_id: The dnc unique ID
+        '''
 
-    ## Return one HICANN given by the fpga ID
-    # @param f The ID of the FPGA board [0..11]
-    # @param d The dnc port [0..3]
-    # @param h The relative hicann ID
-    def get_hicann(self,f,d,h):
+        return self.DNC.find_one({'logicalNumber': dnc_id})
 
-        # Get hicann h
-        return self.HICANN.find_one({'dncHicannChannel' : h, 'parent_fpga' : f, 'parent_dnc' : d})
+    def get_hicann(self, fpga_id, dnc_port, hicann_channel):
+        '''Return one HICANN given by the fpga ID
+
+        Args:
+            fpga_id: The ID of the FPGA board [0..11]
+            dnc_port: The dnc port [0..3]
+            hicann_channel: The relative hicann ID
+        '''
+
+        return self.HICANN.find_one({'dncHicannChannel': hicann_channel, 'parent_fpga': fpga_id, 'parent_dnc': dnc_port})
         
-    ## Return one HICANN
-    # @param h The hicann ID
-    def get_hicann_id(self,h):
+    def get_hicann_id(self, hicann_id):
+        '''Return one HICANN.
 
-        # Get hicann h
-        return self.HICANN.find_one({'uniqueId' : h})
+        Args:
+            hicann_id: The hicann ID
+        '''
+
+        return self.HICANN.find_one({'uniqueId': hicann_id})
     
-    ## Check if an HICANN chip is calibrated for the LIF model parameters
-    # @param h The id of the desired HICANN
-    def check_hicann_calibration(self,h):
+    def check_hicann_calibration(self, hicann_id):
+        '''Check if an HICANN chip is calibrated for the LIF model parameters
+
+        Args:
+            hicann_id: The id of the desired HICANN
+        '''
         
-        # Get hicann h
-        hicann = self.HICANN.find_one({'uniqueId' : h})
-        
-        # Get neurons
+        hicann = self.HICANN.find_one({'uniqueId' : hicann_id})
         neurons = hicann['neurons']
         
-        # Which parameters to check ?
-        #parameters = ["EL","Vreset","Vt","gL","tauref"]
-        parameters = ["EL"]
+        parameters = ["EL","Vreset","Vt","gL","tauref"] # Which parameters to check
         hicann_calibrated = False
         
         # Check parameters
         for p in parameters:
             for n,neuron in enumerate(neurons):
-                #print "Neuron",n,"is", neuron[p + "_calibrated"] 
                 if neuron[p + "_calibrated"]:
                     hicann_calibrated = True
                 else:
                     hicann_calibrated = False
+                    break
                     
-        # Update HICANN status
-        if (hicann_calibrated == True):
+        if hicann_calibrated: # Update HICANN status
             self.change_parameter_hicann(h,'calibrated',True)
 
     ## Return one neuron object n from HICANN h
@@ -507,110 +491,6 @@ class DatabaseInterface:
         currentNeuron = self.get_neuron(h,n)
         fit = currentNeuron[param + '_fit']
         return fit
-        
-    ## Plot the relation between two parameters
-    # @param h The desired HICANN
-    # @param neuron_ids list of neurons to plot, or number of neurons to plot 
-    # @param param The parameter to be plotted
-    # @param error Show errorbars ?
-    # @param save Save in file ?
-    # @param filename Which name for the file ?
-    def plot_parameter_multi(self,h,neuron_ids,param,error=True,save=False,filename='default'):
-        neurons = self.get_neurons(h)
-
-        if isinstance(neuron_ids, int):
-            neuron_ids = range(neuron_ids)
-        
-        for k in neuron_ids:
-            if (neurons[k]['available'] == True):
-                arrayParam =  neurons[k][param]            
-
-                S = param + '_fit'
-                fit =  neurons[k][S]      
-
-                a = fit[0]
-                b = fit[1]
-                c = fit[2]
-
-                minValue = min(arrayParam[0])
-                maxValue = max(arrayParam[0])
-              
-                resolution = 20
-                step = (maxValue-minValue)/resolution
-                cValue = []
-                
-                value = numpy.arange(minValue-step,maxValue+step,step)
-             
-                for i in value:
-                    cValue.append(a*i*i+b*i+c)
-
-                if (k < 128):
-                    pylab.plot(value,cValue,c='r')
-                if (k > 127 and k < 256):
-                    pylab.plot(value,cValue,c='g')
-                if (k > 255 and k < 384):
-                    pylab.plot(value,cValue,c='b')
-                if (k > 383):
-                    pylab.plot(value,cValue,c='k')
-                
-                # Plot deviation
-                if ( neurons[k][param + '_dev'] and error==True):
-                    pylab.errorbar(arrayParam[0],arrayParam[1],xerr= neurons[k][param + '_dev'],fmt='ro',c='k')
-                
-                if (not  neurons[k][param + '_dev'] or error==False):
-                    pylab.scatter(arrayParam[0],arrayParam[1],c='k',s=30,edgecolors='none')
-                
-                if (save == False):
-                    pylab.xlabel('Effective hardware value')
-                    pylab.ylabel('Floating gate value')
-                
-                if (save == True):
-                    pylab.xlabel('Effective hardware value')
-                    pylab.ylabel('Floating gate value')
-                    pylab.savefig(filename)
-                    
-        pylab.show()
-        
-    ## Plot all calibration data for one parameter
-    # @param h The desired HICANN
-    # @param start The first neuron to be plotted
-    # @param stop The last neuron to be plotted
-    # @param param The parameter to be plotted
-    # @param plot_type Choose between 'plot' and 'hist'
-    def plot_parameter_all(self,h,start,stop,param,plot_type='plot'):
-        
-        # Get neurons from HICANN h
-        neurons = self.get_neurons(h)
-        
-        # Find len of measurement array
-        for k in numpy.arange(start,stop):
-            if (neurons[k]['available'] == True and neurons[k][param +'_calibrated'] == True):
-                len_array =  len(neurons[k][param][0])
-                break
-
-        # Plot all data for param
-        for i in range(len_array):
-            value_array = []
-            
-            for k in numpy.arange(start,stop):
-                if (neurons[k]['available'] == True and neurons[k][param +'_calibrated'] == True):
-                    arrayParam =  neurons[k][param]            
-                    value = arrayParam[0][i]
-                    value_array.append(value)
-            if (plot_type == 'plot'):
-                pylab.plot(range(len(value_array)),value_array)
-            if (plot_type == 'hist'):
-                pylab.hist(value_array,bins=50)
-                pylab.ylabel('Count')
-                if (param == 'EL'):
-                    pylab.xlabel('Resting potential [mV]')
-                if (param == 'gL'):
-                    pylab.xlabel('Leakage conductance [nS]')
-                    
-            print 'Mean : ', numpy.mean(value_array)
-            print 'Std : ', numpy.std(value_array)
-            
-        pylab.show()
         
     ## List all defect neurons on one chip
     # @param h The desired HICANN
