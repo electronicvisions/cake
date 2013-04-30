@@ -1,117 +1,137 @@
-## @package adcinterface
-# Documentation for ADCInterface
-
-# vim: set noexpandtab:
-
-# Imports
-import matplotlib.pyplot as plt
 import numpy as np
-import pylab
 
-## Definition of the class ADCInterface
-# 
-# This class encapsulates the methods to readout from the ADC, as well as higher level methods to read the spiking frequency of signal.
-class ADCInterface():
-    ADC_CHANNEL = 3
+import pyhalbe
+import pycairo.config.adc
 
-    ## The constructor
-    def __init__(self):
-        import pyhalbe
-        self.ADC = pyhalbe.ADC
-        self.ADC_Handle = pyhalbe.Handle.ADC
+class ADCTrace(object):
+    '''Container to store a measured ADC trace.
+    
+    Automatically converts raw data to voltage and adds time.'''
 
-    ## Convert the readout from the ADC to a voltage
-    # @param raw The raw readout from the ADC
-    def convert_to_voltage(self, x):
-        return (2.3139-0.000821*(x)+pow(0.000239*(x),2)-pow(0.0002*(x),3))
+    def __init__(self, raw_data=None):
+        self.raw = None
+        self.voltage = None
+        self.time = None
 
-    ## Start the acquisition from the ADC and return times and voltages
-    # @param sample_time_us The desired sample time in us
-    def start_and_read_adc(self,sample_time_us):
-        from pyhalbe import ADC, Handle
-        adc = Handle.ADC()
-        cfg = ADC.Config(sample_time_us,
-                ADC.INPUT_CHANNEL_7,
-                ADC.TriggerChannel(0))
-        ADC.config(adc, cfg)
-        ADC.trigger_now(adc)
-        raw = ADC.get_trace(adc)
-        v = self.convert_to_voltage(np.array(raw))
-        t = np.arange(len(v)) * 10e-6
-        return t, v
+        if raw_data is not None:
+            self.set_trace(raw_data)
 
-    ## Get the mean value of the signal for 100 us
+    def set_trace(self, raw_data):
+        '''Store measured data.'''
+
+        self.raw = np.array(raw_data)
+        self.time = np.arange(len(raw_data))*1e-6
+        self.voltage = self._convert_to_voltage(self.raw)
+
+    def _convert_to_voltage(self, raw):
+        '''Convert a raw ADC readout value to a voltage.
+
+        Args:
+            raw: raw readout from the ADC
+        '''
+
+        return (2.3139-0.000821*(raw)+pow(0.000239*(raw),2)-pow(0.0002*(raw),3))
+
     def get_mean(self):
+        return np.mean(self.voltage)
 
-        t,v = self.start_and_read_adc(100)
-        return np.mean(v)
-
-    ## Get the minimum value of the signal for 100 us
     def get_min(self):
+        return np.min(self.voltage)
 
-        t,v = self.start_and_read_adc(100)
-        return np.min(v)
-
-    ## Get the maximum value of the signal for 100 us    
     def get_max(self):
+        return np.max(self.voltage)
 
-        t,v = self.start_and_read_adc(100)
-        return np.max(v)
 
-    ## Get the spiking frequency of the signal
+class ADCInterface():
+    '''This class encapsulates the methods to readout from the ADC, as well as higher level methods to read the spiking frequency of signal.'''
+
+    def __init__(self):
+        self.sampletime = pycairo.config.adc.SampleTime()
+
+    def read_adc(self, sample_time):
+        '''Start the acquisition from the ADC and return times and voltages.
+
+        Args:
+            sample_time: The desired sample time in us
+        '''
+
+        adc = pyhalbe.Handle.ADC()
+        cfg = pyhalbe.ADC.Config(sample_time,
+                                 pycairo.config.adc.INPUT_CHANNEL,
+                                 pyhalbe.ADC.TriggerChannel(0))
+        pyhalbe.ADC.config(adc, cfg)
+        pyhalbe.ADC.trigger_now(adc)
+        raw = pyhalbe.ADC.get_trace(adc)
+        return ADCTrace(raw)
+
+    def get_mean(self):
+        '''Get the mean value of the signal for 100us.'''
+
+        trace = self.read_adc(self.sampletime.mean)
+        return trace.get_mean()
+
+    def get_min(self):
+        '''Get the minimum value of the signal for 100us.'''
+
+        trace = self.read_adc(self.sampletime.min)
+        return trace.get_min()
+
+    def get_max(self):
+        '''Get the maximum value of the signal for 100us.'''
+
+        trace = self.read_adc(self.sampletime.max)
+        return trace.get_max()
+
     def get_freq(self):
+        '''Get the spiking frequency of the signal'''
 
         spikes = self.get_spikes()
 
         # Get freq
         ISI = spikes[1:] - spikes[:-1]
 
-        if (len(ISI) == 0 or np.mean(ISI) == 0):
+        if (len(ISI) == 0) or (np.mean(ISI) == 0):
             return 0
         else:
             return 1.0/np.mean(ISI)*1e6
 
-    ## Get the spikes from the signal
     def get_spikes(self):
-        from time import time
+        '''Get the spikes from the signal'''
 
-        t,v = self.start_and_read_adc(10000)
-        v= pylab.array(v)
+        trace = self.read_adc(self.sampletime.spikes)
+        t,v = trace.time, trace.voltage
+        v = np.array(v)
         # Derivative of voltages
         dv = v[1:] - v[:-1]
         # Take average over 3 to reduce noise and increase spikes 
         smooth_dv = dv[:-2] + dv[1:-1] + dv[2:]
-        threshhold = -2.5 * pylab.std(smooth_dv)
+        threshhold = -2.5 * np.std(smooth_dv)
 
         # Detect positions of spikes
         tmp = smooth_dv < threshhold
-        pos = pylab.logical_and(tmp[1:] != tmp[:-1], tmp[1:])
+        pos = np.logical_and(tmp[1:] != tmp[:-1], tmp[1:])
         spikes = t[1:-2][pos]
 
         isi = spikes[1:] - spikes[:-1]
-        if max(isi) / min(isi) > 1.7 or pylab.std(isi)/pylab.mean(isi) >= 0.1:
+        if max(isi) / min(isi) > 1.7 or np.std(isi)/np.mean(isi) >= 0.1:
+            # write raw data to file for debug purposes
+            from time import time
             filename = "get_spikes_" + str(time()) + ".npy"
-            pylab.np.save(filename, (t,v))
+            np.save(filename, (t,v))
 
             x = smooth_dv
             print "Stored rawdata to:", filename
             print "min, max, len", min(x), max(x), len(x)
-            print "mean, std", pylab.mean(x), pylab.std(x)
+            print "mean, std", np.mean(x), np.std(x)
 
-
-            from pprint import pprint
-            #pprint(isi)
             print "min, max, len", min(isi), max(isi), len(isi)
-            print "--> mean, std", pylab.mean(isi), pylab.std(isi)
-            #pylab.plot(t,v,'o-')
-            #pylab.show()
-            #sys.exit()
+            print "--> mean, std", np.mean(isi), np.std(isi)
 
         return spikes
 
 
-    ## Get the spikes from the signal and convert to bio domain
     def get_spikes_bio(self):
+        '''Get the spikes from the signal and convert to bio domain'''
 
         spikes = self.get_spikes()
         for i,item in enumerate(spikes):
@@ -119,55 +139,54 @@ class ADCInterface():
 
         return spikes
 
-    ## Get the frequency in the bio domain
     def get_freq_bio(self):
+        '''Get the frequency in the bio domain'''
 
         freq = self.get_freq()
-
         return freq/1e4
 
+    def adc_sta(self, period):
+        '''Perform Spike-Triggered Averaging
 
-    ## Perform Spike-Triggered Averaging
-    # @param period The period of the stimulus
-    def adc_sta(self,period):
+        Args:
+            period: The period of the stimulus
+        '''
 
         mean_v_all = []
         mean_v = []
 
-        for k in range(1):
+        t,v = self.start_and_read_adc(self.sampletime.spikes)
 
-            t,v = self.start_and_read_adc(10000)
+        dt = t[1]-t[0]
+        period_pts = int(period/dt)
 
-            dt = t[1]-t[0]
-            period_pts = int(period/dt)
+        shift = int(2e-6/dt)
+        t_ref = t[len(t)/2-1]
 
-            shift = int(2e-6/dt)
-            t_ref = t[len(t)/2-1]
+        v_middle = v[int(len(v)/2-period_pts/2):int(len(v)/2+period_pts/2)]
+        t_middle = t[int(len(v)/2-period_pts/2):int(len(v)/2+period_pts/2)]
+        t_ref = t_middle[np.where(v_middle==max(v_middle))[0][0]]
 
-            v_middle = v[int(len(v)/2-period_pts/2):int(len(v)/2+period_pts/2)]
-            t_middle = t[int(len(v)/2-period_pts/2):int(len(v)/2+period_pts/2)]
-            t_ref = t_middle[np.where(v_middle==max(v_middle))[0][0]]
+        nb_periods = int((len(t)/2-1)/period_pts)
+        t_cut_ref = t[int(t_ref/dt)-shift:int(t_ref/dt)-shift + period_pts]
 
-            nb_periods = int((len(t)/2-1)/period_pts)
-            t_cut_ref = t[int(t_ref/dt)-shift:int(t_ref/dt)-shift + period_pts]
+        # For PSPs after middle
+        for i in range(nb_periods):
 
-            # For PSPs after middle
-            for i in range(nb_periods):
+            v_cut = v[int((t_ref+i*period)/dt)-shift:int((t_ref+(i+1)*period)/dt)-shift]
+            if (len(v_cut) == period_pts):
+                mean_v_all.append(v_cut)
 
-                v_cut = v[int((t_ref+i*period)/dt)-shift:int((t_ref+(i+1)*period)/dt)-shift]
-                if (len(v_cut) == period_pts):
-                    mean_v_all.append(v_cut)
+            print len(v_cut)
 
-                print len(v_cut)
+        # For PSPs before middle
+        for i in range(nb_periods):
 
-            # For PSPs before middle
-            for i in range(nb_periods):
+            v_cut = v[int((t_ref-(i+1)*period)/dt)-shift:int((t_ref-i*period)/dt)-shift]
+            if (len(v_cut) == period_pts):
+                mean_v_all.append(v_cut)
 
-                v_cut = v[int((t_ref-(i+1)*period)/dt)-shift:int((t_ref-i*period)/dt)-shift]
-                if (len(v_cut) == period_pts):
-                    mean_v_all.append(v_cut)
-
-                print len(v_cut)
+            print len(v_cut)
 
         # Calc mean
         for i in range(period_pts):

@@ -1,12 +1,11 @@
 '''Wrapper of multiple hardware variants (wafer/vertical setup)'''
 
-import os
 import numpy as np
-import pylab
 from scipy import optimize
 import matplotlib.pyplot as plt
-import sys
-import time
+
+import pycairo.interfaces.adc
+from pycairo.interfaces.halbe import HalbeInterface
 
 class HardwareInterface:
     # @param hardware The desired hardware system. It can be "WSS" or "USB"
@@ -24,18 +23,13 @@ class HardwareInterface:
         # Define max number of retry
         self.retry_max = 2
 
-        if hardware in ['USB', 'WSS']:
-            # Import ADC interface
-            from pycairo.interfaces import adc
-            self.adc = adc.ADCInterface()
-
+        self.adc = pycairo.interfaces.adc.ADCInterface()
         if hardware  == 'USB':
             # HICANN ID
             self.h_id = 0
             setup_ip = (setup_address, "1701")
 
             # HW interface
-            from pycairo.interfaces.halbe import HalbeInterface
             self.fgi = HalbeInterface(self.h_id, setup_ip)
 
             # Voltage conversion
@@ -83,9 +77,7 @@ class HardwareInterface:
                     if (parameter == 'EL'):
 
                         # Measure
-                        #start_op = time.time()
                         measured_value = self.adc.get_mean() * self.vCoeff
-                        #print 'USB acq time', time.time() - start_op
 
                         print "Measured value for EL : " + str(measured_value) + " mV"
                         meas_array.append(measured_value)
@@ -113,7 +105,8 @@ class HardwareInterface:
                         self.fgi.set_stimulus(self.current_default)
 
                         # Get trace
-                        t,v = self.adc.start_and_read_adc(400)
+                        trace = self.adc.read_adc(400)
+                        t,v = trace.time, trace.voltage
 
                         # Apply fit
                         tw = self.tw_fit(t,v,parameters['C'],parameters['gL'])
@@ -123,7 +116,8 @@ class HardwareInterface:
 
                     elif (parameter == 'dT'):
                         # Get trace
-                        t,v = self.adc.start_and_read_adc(400)
+                        trace = self.adc.read_adc(400)
+                        t,v = trace.time, trace.voltage
 
                         # Calc dT
                         dT = self.calc_dT(t,v,parameters['C'],parameters['gL'],parameters['EL'])
@@ -272,10 +266,10 @@ class HardwareInterface:
     # @param trace Voltage array
     # @param trace_fit Fitted voltage array
     def plot(self, tm, trace, trace_fit):
-        pylab.plot(tm, trace, c='k')
-        pylab.plot(tm, trace_fit, c='r')
-        pylab.grid(True)
-        pylab.show()
+        plt.plot(tm, trace, c='k')
+        plt.plot(tm, trace_fit, c='r')
+        plt.grid(True)
+        plt.show()
 
     ## Fit trace to find dT
     # @param p Array of parameter for the fit function
