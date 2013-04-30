@@ -4,6 +4,8 @@ from pycairo import simulator as sim
 import time
 import numpy as np
 
+from pycairo.config.coordinates import get_fpga_ip
+
 class CalibrationController:
     '''Main calibration class'''
 
@@ -26,7 +28,7 @@ class CalibrationController:
             
             if self.dbi.is_empty(): # create DB if not already existing
                 self.dbi.create_db(hardware)
-            setup_address = '192.168.1.' + str(self.dbi.get_fpga_ip(fpga))
+            setup_address = get_fpga_ip(fpga)
         if hardware in ('WSS', 'USB'):
 
             # Create HW interface
@@ -129,7 +131,7 @@ class CalibrationController:
             print "## Starting calibration of parameter {} on HICANN {}".format(parameter, hicann)
             print "Calibrating neurons " + ", ".join([str(jj) for jj in neurons])
         else:
-            print "## Parameter {} on HICANN {} allready calibrated for neurons".format(
+            print "## Parameter {} on HICANN {} already calibrated for neurons".format(
                     parameter, hicann)
             return
 

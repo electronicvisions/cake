@@ -813,12 +813,6 @@ class DatabaseInterface:
 
         return int(self.fpga_map[f][3])
         
-    ## Return the FPGA IP address given the FPGA Id
-    # @param f The FPGA id
-    def get_fpga_ip(self,f):
-
-        return int(self.fpga_ip[f][1])
-
     ## Return the HICANN confId given the FPGA, DNC and dncHicann channel
     # @param f The FPGA id
     # @param d The DNC id
