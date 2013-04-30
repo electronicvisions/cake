@@ -6,31 +6,11 @@ import pycairo.config.adc
 class ADCTrace(object):
     '''Container to store a measured ADC trace.
     
-    Automatically converts raw data to voltage and adds time.'''
+    Automatically adds time.'''
 
-    def __init__(self, raw_data=None):
-        self.raw = None
-        self.voltage = None
-        self.time = None
-
-        if raw_data is not None:
-            self.set_trace(raw_data)
-
-    def set_trace(self, raw_data):
-        '''Store measured data.'''
-
-        self.raw = np.array(raw_data)
-        self.time = np.arange(len(raw_data))*1e-6
-        self.voltage = self._convert_to_voltage(self.raw)
-
-    def _convert_to_voltage(self, raw):
-        '''Convert a raw ADC readout value to a voltage.
-
-        Args:
-            raw: raw readout from the ADC
-        '''
-
-        return (2.3139-0.000821*(raw)+pow(0.000239*(raw),2)-pow(0.0002*(raw),3))
+    def __init__(self, voltage):
+        self.voltage = voltage
+        self.time = np.arange(len(voltage))*1e-6
 
     def get_mean(self):
         return np.mean(self.voltage)
@@ -46,9 +26,12 @@ class ADCInterface():
     '''This class encapsulates the methods to readout from the ADC, as well as higher level methods to read the spiking frequency of signal.'''
 
     def __init__(self):
-        self.sampletime = pycairo.config.adc.SampleTime()
+        self.sampletime = pycairo.config.adc.SampleTime() # default sample times (constant values)
 
-    def read_adc(self, sample_time):
+        # initialize ADC calibration backend
+        self.adc_calib = pycairo.config.adc.init_adc_calibration_backend()
+
+    def read_adc(self, sample_time, input_channel=pycairo.config.adc.INPUT_CHANNEL):
         '''Start the acquisition from the ADC and return times and voltages.
 
         Args:
@@ -57,12 +40,14 @@ class ADCInterface():
 
         adc = pyhalbe.Handle.ADC()
         cfg = pyhalbe.ADC.Config(sample_time,
-                                 pycairo.config.adc.INPUT_CHANNEL,
-                                 pyhalbe.ADC.TriggerChannel(0))
+                                 input_channel,
+                                 pyhalbe.Coordinate.TriggerOnADC(chr(0)))
         pyhalbe.ADC.config(adc, cfg)
         pyhalbe.ADC.trigger_now(adc)
         raw = pyhalbe.ADC.get_trace(adc)
-        return ADCTrace(raw)
+        raw = np.array(raw, dtype=np.ushort)
+        voltage = self.adc_calib.apply(int(input_channel), raw)
+        return ADCTrace(voltage)
 
     def get_mean(self):
         '''Get the mean value of the signal for 100us.'''
