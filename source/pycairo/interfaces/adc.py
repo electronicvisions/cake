@@ -21,6 +21,10 @@ class ADCTrace(object):
     def get_max(self):
         return np.max(self.voltage)
 
+    def get_std(self):
+        return np.std(self.voltage)
+
+
 
 class ADCInterface():
     '''This class encapsulates the methods to readout from the ADC, as well as higher level methods to read the spiking frequency of signal.'''
@@ -38,37 +42,38 @@ class ADCInterface():
             sample_time: The desired sample time in us
         '''
 
-        adc = pyhalbe.Handle.ADC()
+        h_adc = pyhalbe.Handle.ADC()
         cfg = pyhalbe.ADC.Config(sample_time,
                                  input_channel,
-                                 pyhalbe.Coordinate.TriggerOnADC(chr(0)))
-        pyhalbe.ADC.config(adc, cfg)
-        pyhalbe.ADC.trigger_now(adc)
-        raw = pyhalbe.ADC.get_trace(adc)
+                                 pyhalbe.Coordinate.TriggerOnADC(chr(0))) # FIXME chr should be removed in the future
+        pyhalbe.ADC.config(h_adc, cfg)
+        pyhalbe.ADC.trigger_now(h_adc)
+        raw = pyhalbe.ADC.get_trace(h_adc)
+        h_adc.free_handle()
         raw = np.array(raw, dtype=np.ushort)
-        voltage = self.adc_calib.apply(int(input_channel), raw)
+        voltage = self.adc_calib.apply(int(input_channel), raw) # FIXME int() should not be neccessary in the future
         return ADCTrace(voltage)
 
     def get_mean(self):
-        '''Get the mean value of the signal for 100us.'''
+        '''Get a voltage trace and calculate the mean value of the signal in a preconfigured sample time.'''
 
         trace = self.read_adc(self.sampletime.mean)
         return trace.get_mean()
 
     def get_min(self):
-        '''Get the minimum value of the signal for 100us.'''
+        '''Get a voltage trace and calculate the minimum value of the signal in a preconfigured sample time.'''
 
         trace = self.read_adc(self.sampletime.min)
         return trace.get_min()
 
     def get_max(self):
-        '''Get the maximum value of the signal for 100us.'''
+        '''Get a voltage trace and calculate the maximum value of the signal in a preconfigured sample time.'''
 
         trace = self.read_adc(self.sampletime.max)
         return trace.get_max()
 
     def get_freq(self):
-        '''Get the spiking frequency of the signal'''
+        '''Get a voltage trace and calculate the spiking frequency of the signal'''
 
         spikes = self.get_spikes()
 
@@ -81,7 +86,7 @@ class ADCInterface():
             return 1.0/np.mean(ISI)*1e6
 
     def get_spikes(self):
-        '''Get the spikes from the signal'''
+        '''Get a voltage trace and calculate the spikes from the signal'''
 
         trace = self.read_adc(self.sampletime.spikes)
         t,v = trace.time, trace.voltage
@@ -116,7 +121,7 @@ class ADCInterface():
 
 
     def get_spikes_bio(self):
-        '''Get the spikes from the signal and convert to bio domain'''
+        '''Get a voltage trace and calculate the spikes from the signal and convert to bio domain'''
 
         spikes = self.get_spikes()
         for i,item in enumerate(spikes):
@@ -125,7 +130,7 @@ class ADCInterface():
         return spikes
 
     def get_freq_bio(self):
-        '''Get the frequency in the bio domain'''
+        '''Get a voltage trace and calculate the frequency in the bio domain'''
 
         freq = self.get_freq()
         return freq/1e4
