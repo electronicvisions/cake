@@ -2,7 +2,6 @@
 
 import numpy as np
 from scipy import optimize
-import matplotlib.pyplot as plt
 
 import pycairo.interfaces.adc
 from pycairo.interfaces.halbe import HalbeInterface
@@ -18,22 +17,21 @@ class HardwareInterface:
             setup_address: FPGA IP(v4)
         '''
 
-        self.hardware = hardware
-
-        # Define max number of retry
-        self.retry_max = 2
+        if hardware not in ('WSS', 'USB'):
+            raise Exception, 'non-ADC readout not supported anymore'
 
         self.adc = pycairo.interfaces.adc.ADCInterface()
+
         if hardware  == 'USB':
             # HICANN ID
             self.h_id = 0
             setup_ip = (setup_address, "1701")
 
-            # HW interface
-            self.fgi = HalbeInterface(self.h_id, setup_ip)
+        # HW interface
+        self.halbe_if = HalbeInterface(self.h_id, setup_ip)
 
-            # Voltage conversion
-            self.vCoeff = 1000 # FIXME: should be in calibration
+        # Voltage conversion
+        self.vCoeff = 1000 # FIXME: should be in calibration
 
         self.save_analog_traces = False
 
@@ -52,115 +50,97 @@ class HardwareInterface:
             spike_stimulus The list of spikes to send to the hardware
         '''
 
-        if self.hardware in ['USB', 'WSS']:
+        measurement_array = [] # main measurement array for all HICANNs
 
-            # Create main measurement array for all HICANNs
-            measurement_array = []
+        #if parameter in ['gL', 'digital_freq']:
+        if parameter in ['digital_freq']: # do digital measurement
+            self.halbe_if.init_L1() # Init HICANN
 
-            #if parameter in ['gL', 'digital_freq']:
-            if parameter in ['digital_freq']: # do digital measurement
-                self.fgi.init_L1() # Init HICANN
+            # Get frequencies for all neurons in current HICANN
+            print 'Measuring frequencies ...'
+            neurons, freqs = self.halbe_if.read_spikes_freq(neurons,range=32)
 
-                # Get frequencies for all neurons in current HICANN
-                print 'Measuring frequencies ...'
-                neurons, freqs = self.fgi.read_spikes_freq(neurons,range=32)
-
-                measurement_array.append(freqs)
-
-            else:
-                meas_array = [] # Init measurement array
-                for n,current_neuron in enumerate(neurons):
-                    print "Measuring neuron " + str(current_neuron)
-                    self.switch_neuron(current_neuron)
-
-                    # Parameter specific measurement
-                    if (parameter == 'EL'):
-
-                        # Measure
-                        measured_value = self.adc.get_mean() * self.vCoeff
-
-                        print "Measured value for EL : " + str(measured_value) + " mV"
-                        meas_array.append(measured_value)
-
-                    elif (parameter == 'Vreset'):
-                        measured_value = self.adc.get_min() * self.vCoeff
-
-                        print "Measured value for Vreset : " + str(measured_value) + " mV"
-                        meas_array.append(measured_value)
-
-                    elif (parameter == 'Vt'):
-                        measured_value = self.adc.get_max() * self.vCoeff
-
-                        print "Measured value for Vt : " + str(measured_value) + " mV"
-                        meas_array.append(measured_value)
-
-                    elif (parameter == 'gL' or parameter == 'tauref' or parameter == 'a' or parameter == 'b' or parameter == 'Vexp'):
-                        measured_value = self.adc.get_freq()
-
-                        print "Measured frequency : " + str(measured_value) + " Hz"
-                        meas_array.append(measured_value)
-
-                    elif (parameter == 'tw'):
-                        # Inject current
-                        self.fgi.set_stimulus(self.current_default)
-
-                        # Get trace
-                        trace = self.adc.read_adc(400)
-                        t,v = trace.time, trace.voltage
-
-                        # Apply fit
-                        tw = self.tw_fit(t,v,parameters['C'],parameters['gL'])
-
-                        print "Measured value : " + str(tw)
-                        meas_array.append(tw)
-
-                    elif (parameter == 'dT'):
-                        # Get trace
-                        trace = self.adc.read_adc(400)
-                        t,v = trace.time, trace.voltage
-
-                        # Calc dT
-                        dT = self.calc_dT(t,v,parameters['C'],parameters['gL'],parameters['EL'])
-
-                        print "Measured value : " + str(dT)
-                        meas_array.append(dT)
-
-                    elif (parameter == 'tausynx' or parameter=='tausyni'):
-                        # Activate BEG
-                        self.fgi.activate_BEG('ON','REGULAR',2000,current_neuron)
-                        print 'BEG active'
-
-                        # Get trace
-                        t,v = self.adc.adc_sta(20e-6)
-
-                        # Convert v with scaling
-                        for i in range(len(v)):
-                            v[i] = v[i]*self.vCoeff/1000
-                            t[i] = t[i]*1000
-
-                        if (parameter == 'tausynx'):
-                            fit = self.fit_PSP(t,v,parameter,parameters[parameter],parameters['Esynx'])
-
-                        if (parameter == 'tausyni'):
-                            fit = self.fit_PSP(t,v,parameter,parameters[parameter],parameters['Esyni'])
-
-                        print "Measured value : " + str(fit)
-                        meas_array.append(fit)
-
-            measurement_array = meas_array
+            measurement_array.append(freqs)
         else:
-            raise Exception, 'non-ADC readout not supported anymore'
+            meas_array = [] # Init measurement array
+            for n,current_neuron in enumerate(neurons):
+                print "Measuring neuron " + str(current_neuron)
+                self.switch_neuron(current_neuron)
 
+                # Parameter specific measurement
+                if (parameter == 'EL'):
+                    measured_value = self.adc.get_mean() * self.vCoeff
+                    print "Measured value for EL : " + str(measured_value) + " mV"
+                    meas_array.append(measured_value)
+                elif (parameter == 'Vreset'):
+                    measured_value = self.adc.get_min() * self.vCoeff
+                    print "Measured value for Vreset : " + str(measured_value) + " mV"
+                    meas_array.append(measured_value)
+                elif (parameter == 'Vt'):
+                    measured_value = self.adc.get_max() * self.vCoeff
+                    print "Measured value for Vt : " + str(measured_value) + " mV"
+                    meas_array.append(measured_value)
+                elif (parameter == 'gL' or parameter == 'tauref' or parameter == 'a' or parameter == 'b' or parameter == 'Vexp'):
+                    measured_value = self.adc.get_freq()
+                    print "Measured frequency : " + str(measured_value) + " Hz"
+                    meas_array.append(measured_value)
+                elif (parameter == 'tw'):
+                    # Inject current
+                    self.halbe_if.set_stimulus(self.current_default)
+
+                    # Get trace
+                    trace = self.adc.read_adc(400)
+                    t,v = trace.time, trace.voltage
+
+                    # Apply fit
+                    tw = self.tw_fit(t,v,parameters['C'],parameters['gL'])
+
+                    print "Measured value : " + str(tw)
+                    meas_array.append(tw)
+                elif (parameter == 'dT'):
+                    # Get trace
+                    trace = self.adc.read_adc(400)
+                    t,v = trace.time, trace.voltage
+
+                    # Calc dT
+                    dT = self.calc_dT(t,v,parameters['C'],parameters['gL'],parameters['EL'])
+
+                    print "Measured value : " + str(dT)
+                    meas_array.append(dT)
+                elif (parameter == 'tausynx' or parameter=='tausyni'):
+                    # Activate BEG
+                    self.halbe_if.activate_BEG('ON','REGULAR',2000,current_neuron)
+                    print 'BEG active'
+
+                    # Get trace
+                    t,v = self.adc.adc_sta(20e-6)
+
+                    # Convert v with scaling
+                    for i in range(len(v)):
+                        v[i] = v[i]*self.vCoeff/1000
+                        t[i] = t[i]*1000
+
+                    if (parameter == 'tausynx'):
+                        fit = self.fit_PSP(t,v,parameter,parameters[parameter],parameters['Esynx'])
+                    if (parameter == 'tausyni'):
+                        fit = self.fit_PSP(t,v,parameter,parameters[parameter],parameters['Esyni'])
+
+                    print "Measured value : " + str(fit)
+                    meas_array.append(fit)
+            measurement_array = meas_array
         return measurement_array
 
-    ## Main configuration function
-    # @param hicann_index The index of HICANNs. For example : [4,5]
-    # @param neuron_index The index of neurons. For example : [[1,2,3],[1,2,3]]
-    # @param parameter The parameter to measure. Example : "EL"
-    # @param option The configuration option.
-    def configure(self,hicann,neurons,parameters,option='configure'):
-        if self.hardware in ('WSS', 'USB'):
-            self.fgi.send_fg_configure(neurons, parameters, option)
+    def configure(self, hicann, neurons, parameters, option='configure'):
+        """Main configuration function. Sends config to HALbe interface.
+
+        Args:
+            hicann_index The index of HICANNs. For example : [4,5]
+            neuron_index The index of neurons. For example : [[1,2,3],[1,2,3]]
+            parameter The parameter to measure. Example : "EL"
+            option The configuration option.
+        """
+
+        self.halbe_if.send_fg_configure(neurons, parameters, option)
 
 ########### Helpers functions ##############
 
@@ -203,7 +183,6 @@ class HardwareInterface:
             tau_syn, tau_eff, v_offset, t_offset = pfit
 
             trace_fit = self.psp_trace_inh(pfit, tm)
-        #self.plot(tm, psp, trace_fit)
 
         # Weight calculation
         e_rev_E = Esyn
@@ -253,23 +232,12 @@ class HardwareInterface:
         l, w, A, B, v_inf = tfit
 
         trace_fit = self.fit_tw_trace(tfit, tm)
-        #self.plot(tm, trace, trace_fit)
 
         # Calc tw
         tm = C*1e-12/(gL*1e-9)
         tw = tm/(2*tfit[0]*tm-1)
 
         return tw*1e6
-
-    ## Plot the trace vs the fitted trace
-    # @param tm Time array
-    # @param trace Voltage array
-    # @param trace_fit Fitted voltage array
-    def plot(self, tm, trace, trace_fit):
-        plt.plot(tm, trace, c='k')
-        plt.plot(tm, trace_fit, c='r')
-        plt.grid(True)
-        plt.show()
 
     ## Fit trace to find dT
     # @param p Array of parameter for the fit function
@@ -347,14 +315,14 @@ class HardwareInterface:
     		current_neuron: number of the desired neuron.'''
 
         if(current_neuron < 128):
-            self.fgi.sweep_neuron(current_neuron,'top')
+            self.halbe_if.sweep_neuron(current_neuron,'top')
             side = 'left'
         elif(current_neuron > 127 and current_neuron < 256):
-            self.fgi.sweep_neuron(-current_neuron + 383,'top')
+            self.halbe_if.sweep_neuron(-current_neuron + 383,'top')
             side = 'right'
         elif(current_neuron > 255 and current_neuron < 384):
-            self.fgi.sweep_neuron(current_neuron,'bottom')
+            self.halbe_if.sweep_neuron(current_neuron,'bottom')
             side = 'left'
         elif(current_neuron > 383):
-            self.fgi.sweep_neuron(-current_neuron + 895,'bottom')
+            self.halbe_if.sweep_neuron(-current_neuron + 895,'bottom')
             side = 'right'
