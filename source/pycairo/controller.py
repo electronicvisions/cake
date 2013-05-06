@@ -3,14 +3,17 @@
 import time
 import numpy as np
 
-import pycairo.config.controller as config
-
 import pycairo.simulator
-import pycairo.interfaces.database
-import pycairo.interfaces.hardware
-import pycairo.translations.scaledhw
+
+import pycairo.interfaces.database # will be replaced by pycalibtic
+import pycairo.translations.scaledhw # will be replaced by pycalibtic
+#import pycalibtic
+
+import pycairo.interfaces.hardware # will be replaced by interfaces.halbe
+#import pycairo.interfaces.halbe
 
 from pycairo.config.coordinates import get_fpga_ip
+import pycairo.config.controller as config
 
 class CalibrationController:
     '''Main calibration class'''
