@@ -98,10 +98,11 @@ class HalbeInterface:
         assert len(parameters) == pyhalbe.FGControl.number_neurons
         fgc = pyhalbe.FGControl()
 
-        for fg_block in [pyhalbe.Coordinate.FGBlockOnHICANN(ii) for ii in range(pyhalbe.FGControl.number_blocks)]:
+        for ii in range(pyhalbe.FGControl.number_blocks): # number_blocks == 4
+            fg_block = pyhalbe.Coordinate.FGBlockOnHICANN(ii)
             fgc.setConfig(fg_block, pyhalbe.HICANN.FGConfig())
-            g_p = dict(global_parameters)
-            if fg_block == pyhalbe.Coordinate.FGBlockOnHICANN(0) or fg_block == pyhalbe.Coordinate.FGBlockOnHICANN(2):
+            g_p = dict(global_parameters) # copy dictionary before deleting elements
+            if ii in (0,2):
                 # Remove left-only global parameters
                 del g_p["V_clrc"]
                 del g_p["V_bexp"]
