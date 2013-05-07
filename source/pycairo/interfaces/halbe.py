@@ -1,11 +1,13 @@
-'''Cairo interface to HALbe via pyhalbe'''
-
-import os
-import numpy
-import pylab
-import sys
+'''Cairo interface to HALbe via pyhalbe. Adresses a single HICANN.'''
 
 import pyhalbe
+
+import numpy as np
+from scipy import optimize
+
+import pycairo.interfaces.adc
+import pycairo.logic.helpers
+import pycairo.config.hardware as config
 from pycairo.config.default_hardware_params import get_global_parameters, get_HW_parameters
 
 class HWNeurons(object):
@@ -34,54 +36,57 @@ class HWNeurons(object):
 
 
 class HalbeInterface:
-    def __init__(self, hicann, ip):
-        '''Connect to a vertical setup at a given IP
+    def __init__(self, hicann_id, setup_ip, setup_port=config.FPGA_PORT):
+        '''Connect to a vertical setup at a given IP.
         
         Vars:
-            hicann: HICANN id
-            ip: tuple (str, str or int) of IPv4 adress and port
+            hicann_id: HICANN id
+            setup_ip (str): string containing of IPv4 adress
+            setup_port (int): port
         '''
-        Enum = pyhalbe.geometry.Enum
 
-        # Floating gate parameters
-        self.res_fg = 1023
-        self.max_v = 1800 # mV
-        self.max_i = 2500 # nA
+        self.helpers = pycairo.logic.helpers.Helpers()
+        self.adc = pycairo.interfaces.adc.ADCInterface() # TODO WSS case?
 
-        self.pll = 150
-        self.fg_pll = 100
+        if type(setup_ip) is tuple: # old format, tuple of IP and port
+            self.ip = pyhalbe.Coordinate.IPv4.from_string(setup_ip[0])
+            self.port = int(setup_ip[1])
+        else:
+            self.ip = pyhalbe.Coordinate.IPv4.from_string(setup_ip)
+            self.port = int(setup_port)
+        print 'Connecting to ' + self.ip.to_string() + ':' + str(self.port)
 
-        print 'Connecting to ' + str(ip)
         highspeed = True
         arq = True
-        self.ip = pyhalbe.Coordinate.IPv4.from_string(ip[0])
-        self.port = int(ip[1])
         self.myPowerBackend = pyhalbe.PowerBackend.instanceVerticalSetup()
         self.myPowerBackend.SetupReticle(highspeed, self.ip, self.port, 1, arq)
-        self.h = pyhalbe.Handle.HICANN(pyhalbe.Coordinate.HICANNGlobal(Enum(hicann)))
+        Enum = pyhalbe.geometry.Enum
+        self.h = pyhalbe.Handle.HICANN(pyhalbe.Coordinate.HICANNGlobal(Enum(hicann_id)))
         self.dnc = pyhalbe.Coordinate.DNCGlobal(Enum(0))
 
         self.init_HW()
 
 
     def convert_to_voltage_fg(self,value):
-        fgvalue = int(float(value)/self.max_v*self.res_fg)
-        if fgvalue < 0 or fgvalue > self.res_fg:
+        fgvalue = int(float(value)/config.max_v*config.res_fg)
+        if fgvalue < 0 or fgvalue > config.res_fg:
             raise ValueError("Floating gate value {} out of range".format(fgvalue))
         return fgvalue
 
     def convert_to_current_fg(self,value):
-        fgvalue = int(float(value)/self.max_i*self.res_fg)
-        if fgvalue < 0 or fgvalue > self.res_fg:
+        fgvalue = int(float(value)/config.max_i*config.res_fg)
+        if fgvalue < 0 or fgvalue > config.res_fg:
             raise ValueError("Floating gate value {} out of range".format(fgvalue))
         return fgvalue
 
-    ## Create XML file, erase and write FGarray and read out neuron neuronID
-    # @param hicann_index The index of HICANNs
-    # @param neuron_index The index of neurons
-    # @param parameters The neuron parameters
-    # @param option The configuration option. Can be "XML_only" or "configure"
-    def send_fg_configure(self, neurons, parameters, option='configure'):
+    def send_fg_configure(self, neurons, parameters):
+        """Main configuration function. Erase and write FGarray and read out neuron neuronID.
+
+        Args:
+            neuron_index The index of neurons. For example : [[1,2,3],[1,2,3]]
+            parameter The parameter to measure. Example : "EL"
+        """
+
         if len(set(p["Vreset"] for p in parameters)) != 1:
             raise RuntimeError("Vreset must be equal for all neurons")
 
@@ -140,11 +145,11 @@ class HalbeInterface:
 
 
         for fg_block in [pyhalbe.Coordinate.FGBlockOnHICANN(ii) for ii in range(pyhalbe.FGControl.number_blocks)]:
-            pyhalbe.HICANN.set_PLL_frequency(self.h, self.fg_pll)
+            pyhalbe.HICANN.set_PLL_frequency(self.h, config.fg_pll)
             pyhalbe.HICANN.set_fg_values(self.h, fgc.extractBlock(fg_block)) # write 3(!) times for better accuracy
 #            pyhalbe.HICANN.set_fg_values(self.h, fgc.extractBlock(fg_block)
 #            pyhalbe.HICANN.set_fg_values(self.h, fgc.extractBlock(fg_block)
-            pyhalbe.HICANN.set_PLL_frequency(self.h, self.pll)
+            pyhalbe.HICANN.set_PLL_frequency(self.h, config.pll)
 
     ## Erase FGArra
     def erase_fg(self):
@@ -228,8 +233,8 @@ class HalbeInterface:
         pyhalbe.HICANN.full_reset(self.h, False);
         print "done"
 
-        print "Setting PLL to", self.pll
-        pyhalbe.HICANN.set_PLL_frequency(self.h, self.pll)
+        print "Setting PLL to", config.pll
+        pyhalbe.HICANN.set_PLL_frequency(self.h, config.pll)
 
     ## Init iBoard and HICANN
     def init_HW(self):
@@ -284,7 +289,6 @@ class HalbeInterface:
     # @param neuron_index The neuron index
     # @param range The number of neuron circuits to read from at a time
     def read_spikes_freq(self,neuron_index,range=4):
-
         def measure_top_half(neuron_index,range):
             neuron_list, freqs = self.read_spikes_half(neuron_index,range)
 
@@ -317,21 +321,22 @@ class HalbeInterface:
     def read_spikes_half(self,neuron_index,range=4):
 
         keys = []
-        for n in numpy.arange(min(neuron_index),max(neuron_index),range):
+        for n in np.arange(min(neuron_index),max(neuron_index),range):
             keys.append('R')
             keys.append(str(n))
             keys.append(str(n+range-1))
         keys.append("x")
 
         # Remove spike file
-        os.system("rm " + self.tm_path + 'train')   
+        import os
+        os.system("rm " + self.tm_path + 'train') # FIXME this is bad
 
         # Launch test mode
         self.configure_hardware(keys)
 
         # Read file
         try:
-            data = numpy.genfromtxt(self.tm_path + "train")
+            data = np.genfromtxt(self.tm_path + "train")
         except:
             data = []
 
@@ -397,8 +402,8 @@ class HalbeInterface:
 
         return neuron_list_new, freqs
 
-    # Read spikes and plot for one half
     def plot_spikes(self,neuron_index,range=4):
+        """Read spikes and plot for one half"""
 
         # Measure top half
         if (max(neuron_index) < 256):
@@ -434,8 +439,9 @@ class HalbeInterface:
             neuron_list = neuron_list_top + new_neuron_list_bottom
             spikes = spikes_top + spikes_bottom
 
+        import matplotlib.pyplot as plt
         for i,item in enumerate(neuron_list):
-            pylab.scatter(spikes[i],neuron_list[i]*numpy.ones(len(spikes[i])),s=3)
+            plt.scatter(spikes[i],neuron_list[i]*np.ones(len(spikes[i])),s=3)
 
     ## Read spikes and plot for one half
     # @param neuron_index The neuron index
@@ -443,21 +449,22 @@ class HalbeInterface:
     def plot_spikes_half(self,neuron_index,range=4):
 
         keys = []
-        for n in numpy.arange(min(neuron_index),max(neuron_index),range):
+        for n in np.arange(min(neuron_index),max(neuron_index),range):
             commands.append('R')
             commands.append(str(n))
             commands.append(str(n+range-1))
         keys.append("x")
 
         # Remove spike file
-        os.system("rm " + self.tm_path + 'train')      
+        import os
+        os.system("rm " + self.tm_path + 'train') # FIXME this is bad
 
         # Launch test mode
         self.configure_hardware(keys)
 
         # Read file
         try:
-            data = numpy.genfromtxt(self.tm_path + "train")
+            data = np.genfromtxt(self.tm_path + "train")
         except:
             data = []
 
@@ -502,7 +509,7 @@ class HalbeInterface:
     # @param spikes_list The input spikes list
     def calc_ISI(self,spikes_list):
         ISI = []
-        for i in numpy.arange(1,len(spikes_list)):
+        for i in np.arange(1,len(spikes_list)):
             ISI.append(spikes_list[i]-spikes_list[i-1])
 
         return ISI
@@ -511,7 +518,7 @@ class HalbeInterface:
     # @param spikes_list The input spikes list
     def calc_freq(self,spikes_list):
         ISI = self.calc_ISI(spikes_list)
-        mean_ISI = numpy.mean(ISI)
+        mean_ISI = np.mean(ISI)
         if (mean_ISI != 0):
             return 1/mean_ISI
         else:
@@ -525,7 +532,118 @@ class HalbeInterface:
         for i in ISI:
             if (i != 0):
                 freqs.append(1/i)
-        std_freq = numpy.std(freqs)
+        std_freq = np.std(freqs)
         return std_freq
 
+
+    def switch_neuron(self, current_neuron):
+        '''Switch to the correct hardware neuron.
+
+        Args:
+            current_neuron: number of the desired neuron.'''
+
+        if(current_neuron < 128):
+            self.sweep_neuron(current_neuron,'top')
+            side = 'left'
+        elif(current_neuron > 127 and current_neuron < 256):
+            self.sweep_neuron(-current_neuron + 383,'top')
+            side = 'right'
+        elif(current_neuron > 255 and current_neuron < 384):
+            self.sweep_neuron(current_neuron,'bottom')
+            side = 'left'
+        elif(current_neuron > 383):
+            self.sweep_neuron(-current_neuron + 895,'bottom')
+            side = 'right'
+
+    def measure(self, neurons, parameter, parameters, stimulus=0, spike_stimulus=[]):
+        '''Main measurement function.
+
+        Args:
+            neuron_index The index of neurons. For example : [[1,2,3],[1,2,3]]
+            parameter The parameter to measure. Example : "EL"
+            parameters The neuron parameters
+            stimulus Value of the current stimulus
+            value The hardware value of the parameter that is currently being measured
+            spike_stimulus The list of spikes to send to the hardware
+        '''
+
+        measurement_array = [] # main measurement array for all HICANNs
+
+        #if parameter in ['gL', 'digital_freq']:
+        if parameter in ['digital_freq']: # do digital measurement
+            self.init_L1() # Init HICANN
+
+            # Get frequencies for all neurons in current HICANN
+            print 'Measuring frequencies ...'
+            neurons, freqs = self.read_spikes_freq(neurons,range=32)
+
+            measurement_array.append(freqs)
+        else:
+            meas_array = [] # Init measurement array
+            for n,current_neuron in enumerate(neurons):
+                print "Measuring neuron " + str(current_neuron)
+                self.switch_neuron(current_neuron)
+
+                # Parameter specific measurement
+                if (parameter == 'EL'):
+                    measured_value = self.adc.get_mean() * config.vCoeff
+                    print "Measured value for EL : " + str(measured_value) + " mV"
+                    meas_array.append(measured_value)
+                elif (parameter == 'Vreset'):
+                    measured_value = self.adc.get_min() * config.vCoeff
+                    print "Measured value for Vreset : " + str(measured_value) + " mV"
+                    meas_array.append(measured_value)
+                elif (parameter == 'Vt'):
+                    measured_value = self.adc.get_max() * config.vCoeff
+                    print "Measured value for Vt : " + str(measured_value) + " mV"
+                    meas_array.append(measured_value)
+                elif (parameter == 'gL' or parameter == 'tauref' or parameter == 'a' or parameter == 'b' or parameter == 'Vexp'):
+                    measured_value = self.adc.get_freq()
+                    print "Measured frequency : " + str(measured_value) + " Hz"
+                    meas_array.append(measured_value)
+                elif (parameter == 'tw'):
+                    # Inject current
+                    self.set_stimulus(config.current_default)
+
+                    # Get trace
+                    trace = self.adc.read_adc(config.sample_time_tw)
+                    t,v = trace.time, trace.voltage
+
+                    # Apply fit
+                    tw = self.helpers.tw_fit(t,v,parameters['C'],parameters['gL'])
+
+                    print "Measured value : " + str(tw)
+                    meas_array.append(tw)
+                elif (parameter == 'dT'):
+                    # Get trace
+                    trace = self.adc.read_adc(config.sample_time_dT)
+                    t,v = trace.time, trace.voltage
+
+                    # Calc dT
+                    dT = self.helpers.calc_dT(t,v,parameters['C'],parameters['gL'],parameters['EL'])
+
+                    print "Measured value : " + str(dT)
+                    meas_array.append(dT)
+                elif (parameter == 'tausynx' or parameter=='tausyni'):
+                    # Activate BEG
+                    self.activate_BEG('ON','REGULAR',2000,current_neuron)
+                    print 'BEG active'
+
+                    # Get trace
+                    t,v = self.adc.adc_sta(20e-6)
+
+                    # Convert v with scaling
+                    for i in range(len(v)):
+                        v[i] = v[i]*self.config.vCoeff/1000
+                        t[i] = t[i]*1000
+
+                    if (parameter == 'tausynx'):
+                        fit = self.helpers.fit_PSP(t,v,parameter,parameters[parameter],parameters['Esynx'])
+                    if (parameter == 'tausyni'):
+                        fit = self.helpers.fit_PSP(t,v,parameter,parameters[parameter],parameters['Esyni'])
+
+                    print "Measured value : " + str(fit)
+                    meas_array.append(fit)
+            measurement_array = meas_array
+        return measurement_array
 

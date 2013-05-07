@@ -9,8 +9,7 @@ import pycairo.interfaces.database # will be replaced by pycalibtic
 import pycairo.translations.scaledhw # will be replaced by pycalibtic
 #import pycalibtic
 
-import pycairo.interfaces.hardware # will be replaced by interfaces.halbe
-#import pycairo.interfaces.halbe
+import pycairo.interfaces.halbe
 
 from pycairo.config.coordinates import get_fpga_ip
 import pycairo.config.controller as config
@@ -22,10 +21,10 @@ class CalibrationController:
         '''Creation of the different interfaces to devices used for calibration.
 
         Args:
-            hardware: The type of hardware to use. Possible choices are USB, WSS
+            hardware: The type of hardware to use. Possible choices are USB, WSS.
             neurons_range: The range of neurons to calibrate per chip
             fpga_id: The logical number of the FPGA board to use
-        '''
+        ''' # TODO remove hardware parameter
 
         self.neurons_range = neurons_range
         self.fpga_id = fpga_id
@@ -37,8 +36,9 @@ class CalibrationController:
             self.dbi.activate_dnc(0, fpga_id)
             self.dbi.activate_hicann(0, 0, fpga_id)
 
-        # hardware interface
-        self.hwi = pycairo.interfaces.hardware.HardwareInterface(hardware, get_fpga_ip(fpga_id))
+        assert hardware == 'USB'
+        # hardware interface for single HICANN
+        self.hwi = pycairo.interfaces.halbe.HalbeInterface(0, get_fpga_ip(fpga_id))
 
         # Scaled to hardware module
         self.scali = pycairo.translations.scaledhw.scaledHW()
@@ -76,21 +76,21 @@ class CalibrationController:
 
         # Creation of neuron index
         for param in parameters:
-            hicann_index, neuron_index = self.dbi.create_neuron_index(param, self.neurons_range, self.fpga_id)
+            fpga_index, neuron_index = self.dbi.create_neuron_index(param, self.neurons_range, self.fpga_id)
             if config.verbose:
                 print "Resetting Hardware"
-            for ii, hicann in enumerate(hicann_index):
-                self.calibrate_parameter(param, hicann, neuron_index[ii])
+            for ii, fpga_id in enumerate(fpga_index):
+                self.calibrate_parameter(param, fpga_id, neuron_index[ii])
 
         if config.verbose:
             print "### Calibration completed in " + str(time.time() - calib_start) + " s ###"
 
-    def calibrate_parameter(self, parameter, hicann, neurons):
+    def calibrate_parameter(self, parameter, fpga_id, neurons):
         """Launch calibration for one parameter
 
         Args:
             parameter: The parameter to be calibrated, for example "EL"
-            hicann: HICANN to be calibrated
+            fpga_id: FPGA that controls HICANN to be calibrated
             neurons: list of neurons to be calibrated
         """
 
@@ -98,11 +98,11 @@ class CalibrationController:
         start_time = time.time()
         if neurons:
             if config.verbose:
-                print "## Starting calibration of parameter {} on HICANN {}".format(parameter, hicann)
+                print "## Starting calibration of parameter {} on HICANN {}".format(parameter, fpga_id)
                 print "Calibrating neurons " + ", ".join([str(jj) for jj in neurons])
         else:
             print "## Parameter {} on HICANN {} already calibrated for neurons".format(
-                    parameter, hicann)
+                    parameter, fpga_id)
             return
 
         if config.verbose:
@@ -136,16 +136,16 @@ class CalibrationController:
             # Convert parameters for one HICANN
             try:
                 # Use calibration database
-                calibrated_parameters = self.scali.scaled_to_hw(hicann, neurons, parameters, parameters=parameter+'_calibration')
+                calibrated_parameters = self.scali.scaled_to_hw(fpga_id, neurons, parameters, parameters=parameter+'_calibration')
             except:
                 # If no calibration available, use direct translation
-                calibrated_parameters = self.scali.scaled_to_hw(hicann,neurons,parameters,parameters='None')
+                calibrated_parameters = self.scali.scaled_to_hw(fpga_id, neurons, parameters, parameters='None')
 
             meas_array = []
             for run in range(repetitions): # Do a given number of repetitions
                 if config.verbose:
                     print "Starting repetition {} of {}".format(run+1, repetitions)
-                result = self.measure(hicann, neurons, parameter, parameters, value, calibrated_parameters)
+                result = self.measure(neurons, parameter, parameters, value, calibrated_parameters)
                 meas_array.append(result)
 
             meas_array = np.array(meas_array)
@@ -200,27 +200,27 @@ class CalibrationController:
                 parameter_fit = self.compute_calib_function(processed_array_mean[n], db_input_array)
 
                 # Set the parameter as calibrated
-                self.dbi.change_parameter_neuron(hicann, neuron, parameter+"_calibrated", True)
+                self.dbi.change_parameter_neuron(fpga_id, neuron, parameter+"_calibrated", True)
             except Exception as e: #TODO catch specific exception
                 # If fail, don't store anything, mark as non calibrated
                 parameter_fit = []
-                self.dbi.change_parameter_neuron(hicann,neuron,parameter+"_calibrated",False)
+                self.dbi.change_parameter_neuron(fpga_id, neuron, parameter+"_calibrated", False)
                 raise e
 
             # Store function in DB
-            self.dbi.change_parameter_neuron(hicann,neuron,parameter+"_fit",parameter_fit)
+            self.dbi.change_parameter_neuron(fpga_id, neuron, parameter+"_fit", parameter_fit)
 
             # Store standard deviation in DB
-            self.dbi.change_parameter_neuron(hicann,neuron,parameter+"_dev", processed_array_err[n].tolist())
+            self.dbi.change_parameter_neuron(fpga_id, neuron, parameter+"_dev", processed_array_err[n].tolist())
 
             # Store data in DB
-            self.dbi.change_parameter_neuron(hicann,neuron,parameter,[processed_array_mean[n].tolist(),db_input_array.tolist()])
+            self.dbi.change_parameter_neuron(fpga_id, neuron, parameter, [processed_array_mean[n].tolist(),db_input_array.tolist()])
 
         # Evaluate calibration
-        # self.dbi.evaluate_db(hicann,neuron_index[h],parameter)
+        # self.dbi.evaluate_db(fpga_id,neuron_index[h],parameter)
 
-        # Set HICANN as calibrated?
-        self.dbi.check_hicann_calibration(hicann)
+        # Set HICANN as calibrated if all parameters are calibrated
+        self.dbi.check_hicann_calibration(fpga_id)
 
         if config.verbose:
             print "Store phase completed in " + str(time.time() - store_start) + "s"
@@ -297,23 +297,6 @@ class CalibrationController:
             return calc_freq(m), calc_freq(e)
 
         elif parameter in ('tausynx', 'tausyni'):
-            # Calculate relation between PSP integral and tausyn
-            #tausyn_coefs = self.simi.getTausynPSP(1,10,parameters['EL'],parameters['Vreset'],parameters['Vt'], parameters['gL'],parameters['Esynx'])
-
-            #for h, hicann in enumerate(hicann_index):
-
-                #hicann_array_mean = []
-                 #hicann_array_err = []
-
-                 #for n, neuron in enumerate(neuron_index[h]):
-
-                     # Calcultate tausyn and error
-                     #hicann_array_mean.append(self.poly_process(sorted_array_mean[h][n],tausyn_coefs))
-                     #hicann_array_err.append(self.poly_process(sorted_array_err[h][n],tausyn_coefs))
-
-                 #processed_array_mean.append(hicann_array_mean)
-                 #processed_array_err.append(hicann_array_err)
-
             # Fitting is already done in HW interface, just transmit results
             processed_array_err = sorted_array_err
             processed_array_mean = sorted_array_mean
@@ -369,14 +352,14 @@ class CalibrationController:
                 processed_array_err.append(hicann_array_err)
         return processed_array_mean, processed_array_err
 
-    def measure(self, hicann, neurons, parameter, parameters, value, calibrated_parameters):
+    def measure(self, neurons, parameter, parameters, value, calibrated_parameters):
         if config.verbose:
             print "Configuring the hardware ..."
             config_start = time.time()
 
         # If no debug mode, configure the hardware. If debug, do nothing
         if not config.debug_mode:
-            self.hwi.configure(hicann, neurons, calibrated_parameters)
+            self.hwi.send_fg_configure(neurons, calibrated_parameters)
 
         if config.verbose:
             print "Hardware configuration completed in {:.2}s".format(time.time() - config_start)
@@ -385,7 +368,7 @@ class CalibrationController:
 
         # If no debug mode, measure the hardware. If debug, return 0
         if not config.debug_mode:
-            measurement = self.hwi.measure(hicann, neurons, parameter, parameters, 0, value)
+            measurement = self.hwi.measure(neurons, parameter, parameters, 0, value)
         else:
             measurement = neuron_index # FIXME this looks wrong
 
@@ -394,8 +377,7 @@ class CalibrationController:
 
         return measurement
 
-
-    def poly_process (self,array,coefficients):
+    def poly_process(self, array, coefficients):
         """Process an array with a polynomial function.
 
         Args:
@@ -414,7 +396,7 @@ class CalibrationController:
         pts = config.parameter_ranges[p]['pts']
         return np.linspace(start, stop, pts)
 
-    def compute_calib_function(self,measuredValues,values):
+    def compute_calib_function(self, measuredValues, values):
         """Compute calibration function.
 
         Args:
@@ -428,3 +410,4 @@ class CalibrationController:
         c = float(calibCoeff[2])
         fit = (a,b,c)
         return fit
+
