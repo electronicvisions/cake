@@ -8,25 +8,7 @@ class Neuron(object):
     """This class defines the simulation of the AdEx neuron model."""
 
     def __init__(self):
-        # default set of parameters, will usually be overwritten
-        self.parameters = {"EL" : 700.0,
-            "gL" : 1000.0,
-            "Vt" : 1000.0,
-            "Vreset" : 700.0,
-            "C" : 2.6,
-            "a" : 0.0,
-            "tw" : 30.0,
-            "b" : 0.0,
-            "dT" : 2.0,
-            "Vexp" : -50.0,
-            "expAct" : 0.0,
-            "gsynx" : 0.0,
-            "gsyni" : 0.0,
-            "tausynx" : 10.0,
-            "tausyni" : 10.0,
-            "Esynx" : 1000.0,
-            "Esyni" : 200.0,
-            "tauref" : 0.0}
+        self.parameters = {} # will be overwritten by Simulator.sim()
         self.record = True # store v, w, gsynx, gsyni for every timestep?
 
         self.reset()
