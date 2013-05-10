@@ -2,7 +2,6 @@
 
 import math
 import numpy as np
-import matplotlib.pyplot as plt
 
 class Neuron(object):
     """This class defines the simulation of the AdEx neuron model."""
@@ -66,7 +65,7 @@ class Neuron(object):
         self.time_count = self.time_count + timestep
 
     def reset(self):
-        """Reset the simulation."""
+        """Reset the simulation parameters and delete recorded data."""
 
         # runtime variables
         self.v = self.parameters['EL']*1e-3 # convert mV to V
@@ -95,7 +94,6 @@ class Simulator:
         """
 
         self.neuron = Neuron()
-        self.current_ramp = 0
 
         ### default options below ###
 
@@ -146,11 +144,10 @@ class Simulator:
 
         # Simulate
         for i in time_array:
-            # Generate current ramp
-            self.current_ramp = ramp_current*i/time
+            current_ramp = ramp_current*i/time # Generate current ramp
 
             # Simulation step
-            self.neuron.sim_step(timestep,applied_stim,spikes_x,spikes_i,self.current_ramp)
+            self.neuron.sim_step(timestep, applied_stim, spikes_x, spikes_i, current_ramp)
 
         if self.noise: # Add noise
             for i,item in enumerate(self.neuron.v_record):
@@ -164,42 +161,33 @@ class Simulator:
 
         return time_array, self.neuron.v_record, self.neuron.spikes
 
-    def plot_sim(self,time,stim,params,spikes_x=[],spikes_i=[]):
-        """Run and plot a simulation. See sim()"""
+    def compute_frequencies(self, spikes):
+        """Compute frequencies between each two spikes in an array.
 
-        t,v,spikes = self.sim(time,stim,params,spikes_x,spikes_i)
-        plt.plot(t,v,linewidth = 1.0)
+        Args:
+            spikes: array of spike times
 
-    def plot_spikes(self,time,stim,params):
-        """Run a simulation, plot spikes only. See sim()"""
+        Returns:
+            array of frequencies
+        """
 
-        t,v,spikes = self.sim(time,stim,params)
-        for i in spikes:
-            plt.plot([i,i],[0,1],c='k')
+        freqs = []
+        for i in range(1,len(spikes)):
+            dt = spikes[i]-spikes[i-1]
+            if dt != 0:
+                freqs.append(1/dt)
+            else:
+                freqs.append(0)
 
-        plt.ylim(-5,6)
-
-    def get_spike_time(self,time,stim,params):
-        """Return only spike times"""
-
-        t,v,spikes = self.sim(time,stim,params)
-        return spikes
+        return freqs
 
     def compute_freq(self,time,stim,params):
         """Return an array with spiking frequency"""
 
         t,v,spikes = self.sim(time,stim,params)
 
-        r = len(spikes)
-        for i in range(1,r):
-            p = spikes[i]-spikes[i-1]
-        try:
-            p
-            freq = 1/p
-        except:
-            freq = 0
-
-        return freq
+        freqs = self.compute_frequencies(spikes)
+        return freqs[0]
 
     def compute_psp_integral(self,time,stim,params):
         """Return an array with spiking frequency"""
@@ -211,25 +199,6 @@ class Simulator:
         integral = np.trapz(t,v)
 
         return integral
-
-    def plot_freq(self,time,stim,params):
-        """Plot the spiking frequency versus time"""
-
-        t,v,spikes = self.sim(time,stim,params)
-
-        freqs = []
-        for i in range(1,len(spikes)):
-            freqs.append(1/(spikes[i]-spikes[i-1]))
-
-        plt.plot(freqs)
-
-    def get_time_freq(self,time,stim,params):
-        """Return time and frequency arrays"""
-
-        t,f = self.compute_freq(time,stim,params)
-        last = len(f) - 1
-        f.append(f[last])
-        return t,f
 
     def get_stat_freq(self,time,stim,params):
         """Return the stationary spiking frequency"""
@@ -252,14 +221,13 @@ class Simulator:
             print "No limit found !"
         return limit
 
-    def compute_deriv(self,array):
+    def compute_deriv(self, array):
         """Return the discrete derivative"""
 
         deriv = range(len(array))
         for i in range(len(array)-1):
             deriv[i] = array[i+1] - array[i]
         return deriv
-
 
     def get_gl_freq(self,gLMin,gLMax,EL,Vreset,Vt):
         """Return the relation between gL and frequency"""
