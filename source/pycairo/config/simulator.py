@@ -47,7 +47,7 @@ def get_parameters(parameter):
     elif parameter in ("a", "b"):
         parameters["tw"] = 1.
 
-    if parameter in ("gL", "tauw", "tauw_isi", "tauw_int", "tausyn"):
+    if parameter in ("gL", "tauw", "tauw_isi", "tauw_int", "tausyn", "tausyn_PSP"):
         parameters["dT"] = 10.
     elif parameter in ("a", "b"):
         parameters["dT"] = 300.

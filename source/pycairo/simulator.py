@@ -189,14 +189,6 @@ class Simulator(object):
 
         return freqs
 
-    def compute_freq(self, time, stim, params):
-        """Return an array with spiking frequency"""
-
-        t, v, spikes = self.run_simulation(time, stim, params)
-
-        freqs = self.compute_frequencies(spikes)
-        return freqs[0]
-
     def compute_psp_integral(self, time, stim, params):
         """Return an array with spiking frequency"""
 
@@ -237,7 +229,7 @@ class Simulator(object):
         print "No limit found!"
         return 0
 
-    def polyfit_sim_freq(self, parameter, pMin, pMax, num_steps, EL, Vreset, Vt):
+    def polyfit_sim_freq(self, parameter, pMin, pMax, num_steps, parameters_update):
         """Return the relation between a parameter and the spiking frequency.
 
         Runs simulations for parameter values between pMin and pMax.
@@ -266,9 +258,7 @@ class Simulator(object):
         values = np.arange(pMin, pMax + stepsize, stepsize)
 
         parameters = config.get_parameters(parameter)
-        parameters["EL"] = EL
-        parameters["Vt"] = Vt
-        parameters["Vreset"] = Vreset
+        parameters.update(parameters_update)
 
         simtime = config.get_time(parameter)
 
@@ -301,116 +291,58 @@ class Simulator(object):
             polynomial coefficients a, b, c for a*x**2 + b*x + c
         """
 
-        return self.polyfit_sim_freq("gL", gLMin, gLMax, 4, EL, Vreset, Vt)
+        return self.polyfit_sim_freq("gL", gLMin, gLMax, 4, {"EL": EL, "Vreset": Vreset, "Vt": Vt})
 
-    # def getTausynPSP(self, paramMin, paramMax, EL, Vreset, Vt, gL, Esynx):
-    #     # Number of points
-    #     s = 5
+    def getTausynPSP(self, paramMin, paramMax, EL, Vreset, Vt, gL, Esynx):
+        s = 5  # Number of points
 
-    #     # PSP array
-    #     psp = []
+        psp = []  # PSP array
 
-    #     # Generate values
-    #     values = np.arange(paramMin, paramMax + (paramMax - paramMin) / s, (paramMax - paramMin) / s)
+        # Generate values
+        values = np.arange(paramMin, paramMax + (paramMax - paramMin) / s, (paramMax - paramMin) / s)
 
-    #     for i in values:
-    #         parameters = {"EL": EL,
-    #                       "gL": gL,
-    #                       "Vt": Vt,
-    #                       "Vreset": Vreset,
-    #                       "C": 2.6,
-    #                       "a": 1e-6,
-    #                       "tw": 30.0,
-    #                       "b": 1e-6,
-    #                       "dT": 10.0,
-    #                       "Vexp": 1000.0,
-    #                       "expAct": 1e-6,
-    #                       "gsynx": 100.0,
-    #                       "tauref": 0.0,
-    #                       "tausynx": i,
-    #                       "Esynx": Esynx}
-    #         psp.append(self.computePSPIntegral(100e-6, 0, parameters))
-    #         self.neuron.reset()
+        parameters = config.get_parameters("tausyn_PSP")
+        parameters.update({"EL": EL,
+                           "gL": gL,
+                           "Vt": Vt,
+                           "Vreset": Vreset,
+                           "Esynx": Esynx})
 
-    #     # Calculate fit
-    #     a, b, c = np.polyfit(psp, values, 2)
+        simtime = config.get_time("tausyn_PSP")
 
-    #     return a, b, c
+        for i in values:
+            parameters["tausynx"] = i
+            psp.append(self.computePSPIntegral(simtime, 0, parameters))
+            self.neuron.reset()
+
+        return np.polyfit(psp, values, 2)
 
     def get_a_freq(self, paramMin, paramMax, EL, Vreset, Vt, gL):
         """Return the relation between a and frequency"""
 
-        # Number of points
-        s = 3
-
-        # Frequency array
-        freq = []
-
-        # Generate values
-        values = np.arange(paramMin, paramMax + (paramMax - paramMin) / s, (paramMax - paramMin) / s)
-
-        # Calculate stationnary frequency
-        for i in values:
-            parameters = {"EL": EL,
-                          "gL": gL,
-                          "Vt": Vt,
-                          "Vreset": Vreset,
-                          "C": 2.6,
-                          "a": i,
-                          "tw": 1.0,
-                          "b": 1e-6,
-                          "dT": 300.0,
-                          "Vexp": 1000.0,
-                          "expAct": 1e-6,
-                          "gsynx": 1e-6,
-                          "gsyni": 1e-6,
-                          "tausynx": 10.0,
-                          "tausyni": 10.0,
-                          "tauref": 0.0,
-                          "Esynx": 1e-6,
-                          "Esyni": 1e-6}
-            freq.append(self.get_stat_freq(200e-6, 0, parameters))
-            self.neuron.reset()
-
-        # Calculate fit
-        a, b, c = np.polyfit(freq, values, 2)
-
-        return a, b, c
+        return self.polyfit_sim_freq("a", paramMin, paramMax, 4, {"EL": EL, "Vreset": Vreset, "Vt": Vt, "gL": gL})
 
     def get_vexp_freq(self, paramMin, paramMax, EL, Vreset, Vt, gL, dT):
         """Return the relation between a and frequency"""
 
-        # Number of points
-        s = 20
+        s = 20  # Number of points
 
-        # Frequency array
-        freq = []
+        freq = []  # Frequency array
 
-        # Generate values
         values = np.arange(paramMin, paramMax + (paramMax - paramMin) / s, (paramMax - paramMin) / s)
 
-        # Calculate stationnary frequency
+        parameters = config.get_parameters("Vexp")
+        parameters.update({"EL": EL,
+                           "gL": gL,
+                           "Vt": Vt,
+                           "Vreset": Vreset,
+                           "dT": dT})
+
+        simtime = config.get_time("Vexp")
+
         for i in values:
-            parameters = {"EL": EL,
-                          "gL": gL,
-                          "Vt": Vt,
-                          "Vreset": Vreset,
-                          "C": 2.6,
-                          "a": 1e-6,
-                          "tw": 1.0,
-                          "b": 1e-6,
-                          "dT": dT,
-                          "Vexp": i,
-                          "expAct": 1,
-                          "gsynx": 1e-6,
-                          "gsyni": 1e-6,
-                          "tausynx": 10.0,
-                          "tausyni": 10.0,
-                          "tauref": 0.0,
-                          "Esynx": 1e-6,
-                          "Esyni": 1e-6}
-            freq.append(self.get_stat_freq(200e-6, 0, parameters))
-            self.neuron.reset()
+            parameters["Vexp"] = i
+            freq.append(self.get_stat_freq(simtime, 0, parameters))
 
         # Cut constant part
         thresh = 10e3
@@ -433,134 +365,67 @@ class Simulator(object):
                 new_freq.append(freq[i])
                 new_values.append(values[i])
 
-        # Calculate fit
-        a, b, c = np.polyfit(new_freq, new_values, 2)
-
-        return a, b, c
+        return np.polyfit(new_freq, new_values, 2)
 
     def get_b_freq(self, paramMin, paramMax, EL, Vreset, Vt, gL, a, tauw):
-        """Return the relation between a and frequency"""
+        """Return the relation between b and frequency"""
 
-        # Number of points
-        s = 3
-
-        # Frequency array
-        freq = []
-
-        # Generate gL values
-        values = np.arange(paramMin, paramMax + (paramMax - paramMin) / s, (paramMax - paramMin) / s)
-
-        # Calculate stationnary frequency for each gL
-        for i in values:
-            parameters = {"EL": EL,
-                          "gL": gL,
-                          "Vt": Vt,
-                          "Vreset": Vreset,
-                          "C": 2.6,
-                          "a": a,
-                          "tw": tauw,
-                          "b": i,
-                          "dT": 300.0,
-                          "Vexp": 1000.0,
-                          "expAct": 1e-6,
-                          "tauref": 0.0,
-                          "gsynx": 1e-6,
-                          "gsyni": 1e-6,
-                          "tausynx": 10.0,
-                          "tausyni": 10.0,
-                          "tauref": 0.0,
-                          "Esynx": 1e-6,
-                          "Esyni": 1e-6}
-            freq.append(self.get_stat_freq(100e-6, 0, parameters))
-            self.neuron.reset()
-
-        # Calculate fit
-        a, b, c = np.polyfit(freq, values, 2)
-
-        return a, b, c
+        return self.polyfit_sim_freq("b", paramMin, paramMax, 4, {"EL": EL, "Vreset": Vreset, "Vt": Vt, "gL": gL, "a": a, "tauw": tauw})
 
     def get_tauw_isi(self, paramMin, paramMax, EL, Vreset, Vt, gL, gLadapt, stim):
-        """Return the relation between gL and frequency"""
+        """Return the relation between tauw and frequency"""
 
-        # Number of points
-        s = 10
+        s = 10  # Number of points
 
-        # Frequency array
-        ISI = []
+        ISI = []  # Frequency array
 
-        # Generate gL values
         values = np.arange(paramMin, paramMax + (paramMax - paramMin) / s, (paramMax - paramMin) / s)
 
-        # Calculate stationnary frequency for each gL
+        parameters = config.get_parameters("tauw_isi")
+        parameters.update({"EL": EL,
+                           "gL": gL,
+                           "Vt": Vt,
+                           "Vreset": Vreset,
+                           "a": gLadapt})
+
+        simtime = config.get_time("tauw_isi")
+
         for i in values:
-            parameters = {"EL": EL,
-                          "gL": gL,
-                          "Vt": Vt,
-                          "Vreset": Vreset,
-                          "C": 2.6,
-                          "a": gLadapt,
-                          "tw": i,
-                          "b": 1e-6,
-                          "dT": 10.0,
-                          "Vexp": 1000.0,
-                          "expAct": 1e-6,
-                          "gsynx": 1e-6,
-                          "tausynx": 10.0,
-                          "tauref": 0.0,
-                          "Esynx": 1e-6}
-            t, v, spikes = self.run_simulation(10e-6, stim, parameters)
+            parameters["tw"] = i
+            t, v, spikes = self.run_simulation(simtime, stim, parameters)
             freqs = []
             for i in range(1, len(spikes)):
                 freqs.append(1. / (spikes[i] - spikes[i - 1]))
             a, b = np.polyfit(range(len(freqs)), freqs, 1)
             ISI.append(b)
             #ISI.append(spikes[1]-spikes[0])
-            #print parameters['tw']
-            #print spikes
-            self.neuron.reset()
 
         # for i in range(len(values)):
             # values[i] = float(1/float(values[i]))
 
-        # Calculate fit
-        a, b, c, d, e = np.polyfit(ISI, values, 4)
-
-        return a, b, c, d, e
+        return np.polyfit(ISI, values, 4)
 
     def get_tauw_int(self, paramMin, paramMax, EL, Vreset, Vt, gL, gLadapt, stim):
         """Return the relation between gL and frequency"""
 
-        # Number of points
-        s = 10
+        s = 10  # Number of points
 
-        # Integral array
         integral = []
 
-        # Generate gL values
         values = np.arange(paramMin, paramMax + (paramMax - paramMin) / s, (paramMax - paramMin) / s)
 
-        # Calculate stationnary frequency for each gL
+        parameters = config.get_parameters("tauw_int")
+        parameters.update({"EL": EL,
+                           "gL": gL,
+                           "Vt": Vt,
+                           "Vreset": Vreset,
+                           "a": gLadapt})
+
+        simtime = config.get_time("tauw_int")
+
         for i in values:
-            parameters = {"EL": EL,
-                          "gL": gL,
-                          "Vt": Vt,
-                          "Vreset": Vreset,
-                          "C": 2.6,
-                          "a": gLadapt,
-                          "tw": i,
-                          "b": 1e-6,
-                          "dT": 10.0,
-                          "Vexp": 1000.0,
-                          "expAct": 1e-6,
-                          "gsynx": 1e-6,
-                          "tausynx": 10.0,
-                          "tauref": 0.0,
-                          "Esynx": 1e-6}
-            t, v, spikes = self.run_simulation(50e-6, stim, parameters)
+            parameters["tw"] = i
+            t, v, spikes = self.run_simulation(simtime, stim, parameters)
             integral.append(np.trapz(t, v))
-            self.neuron.reset()
 
-        # Calculate fit
-        a, b, c = np.polyfit(integral, values, 2)
-
-        return a, b, c
+        return np.polyfit(integral, values, 2)
