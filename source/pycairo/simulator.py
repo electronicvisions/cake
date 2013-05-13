@@ -6,6 +6,8 @@ over a given timestep."""
 import math
 import numpy as np
 
+import pycairo.config.simulator as config
+
 
 class Neuron(object):
     """This class defines the simulation of the AdEx neuron model."""
@@ -235,6 +237,50 @@ class Simulator(object):
         print "No limit found!"
         return 0
 
+    def polyfit_sim_freq(self, parameter, pMin, pMax, num_steps, EL, Vreset, Vt):
+        """Return the relation between a parameter and the spiking frequency.
+
+        Runs simulations for parameter values between pMin and pMax.
+        Calculates the spiking frequency f for each simulation.
+        Fits a 2nd order polynomial on the resulting dependency of the parameter from f.
+
+        Simulation parameters which are not in args have a predefined value.
+
+        Args:
+            parameter (string): parameter which will be sweeped
+            pMin: minimum value for parameter
+            pMax: maximum value for parameter
+            num_steps: number of steps between pMin and pMax
+            EL: constant value EL
+            Vreset: constant value Vreset
+            Vt: constant value Vt
+
+        Returns:
+            polynomial coefficients a, b, c for a*x**2 + b*x + c
+        """
+
+        freq = []  # frequency array
+
+        # generate parameter value range
+        stepsize = float(pMax - pMin) / (num_steps - 1)
+        values = np.arange(pMin, pMax + stepsize, stepsize)
+
+        parameters = config.get_parameters(parameter)
+        parameters["EL"] = EL
+        parameters["Vt"] = Vt
+        parameters["Vreset"] = Vreset
+
+        simtime = config.get_time(parameter)
+
+        # calculate frequency for each value
+        for i in values:
+            parameters[parameter] = i
+            t, v, spikes = self.run_simulation(simtime, 0, parameters)
+            freqs = self.compute_frequencies(spikes)
+            freq.append(freqs[0])
+
+        return np.polyfit(freq, values, 2)
+
     def get_gl_freq(self, gLMin, gLMax, EL, Vreset, Vt):
         """Return the relation between gL and frequency.
 
@@ -255,43 +301,9 @@ class Simulator(object):
             polynomial coefficients a, b, c for a*x**2 + b*x + c
         """
 
-        num_steps = 4  # Number of points
+        return self.polyfit_sim_freq("gL", gLMin, gLMax, 4, EL, Vreset, Vt)
 
-        freq = []  # Frequency array
-
-        # Generate gL values
-        stepsize = float(gLMax - gLMin) / (num_steps - 1)
-        values = np.arange(gLMin, gLMax + stepsize, stepsize)
-
-        # Calculate stationary frequency for each gL
-        for i in values:
-            parameters = {"EL": EL,
-                          "gL": i,
-                          "Vt": Vt,
-                          "Vreset": Vreset,
-                          "C": 2.6,
-                          "a": 1e-6,
-                          "tw": 30.0,
-                          "b": 1e-6,
-                          "dT": 10.0,
-                          "Vexp": 1000.0,
-                          "expAct": 1e-6,
-                          "gsynx": 1e-6,
-                          "gsyni": 1e-6,
-                          "tausynx": 10.0,
-                          "tausyni": 10.0,
-                          "tauref": 0.0,
-                          "Esynx": 1e-6,
-                          "Esyni": 1e-6}
-            t, v, spikes = self.run_simulation(30e-6, 0, parameters)
-            freqs = self.compute_frequencies(spikes)
-            freq.append(freqs[0])
-
-        return np.polyfit(freq, values, 2)
-
-    # # Return the relation between gL and frequency
-    # def getTausynPSP(self,paramMin,paramMax,EL,Vreset,Vt,gL,Esynx):
-
+    # def getTausynPSP(self, paramMin, paramMax, EL, Vreset, Vt, gL, Esynx):
     #     # Number of points
     #     s = 5
 
@@ -299,31 +311,31 @@ class Simulator(object):
     #     psp = []
 
     #     # Generate values
-    #     values = np.arange(paramMin,paramMax+(paramMax-paramMin)/s,(paramMax-paramMin)/s)
+    #     values = np.arange(paramMin, paramMax + (paramMax - paramMin) / s, (paramMax - paramMin) / s)
 
     #     for i in values:
-    #         parameters = {"EL" : EL,
-    #         "gL" : gL,
-    #         "Vt" : Vt,
-    #         "Vreset" : Vreset,
-    #         "C" : 2.6,
-    #         "a" : 1e-6,
-    #         "tw" : 30.0,
-    #         "b" : 1e-6,
-    #         "dT" : 10.0,
-    #         "Vexp" : 1000.0,
-    #         "expAct" : 1e-6,
-    #         "gsynx" : 100.0,
-    #         "tauref" : 0.0,
-    #         "tausynx" : i,
-    #         "Esynx" : Esynx}
-    #         psp.append(self.computePSPIntegral(100e-6,0,parameters))
+    #         parameters = {"EL": EL,
+    #                       "gL": gL,
+    #                       "Vt": Vt,
+    #                       "Vreset": Vreset,
+    #                       "C": 2.6,
+    #                       "a": 1e-6,
+    #                       "tw": 30.0,
+    #                       "b": 1e-6,
+    #                       "dT": 10.0,
+    #                       "Vexp": 1000.0,
+    #                       "expAct": 1e-6,
+    #                       "gsynx": 100.0,
+    #                       "tauref": 0.0,
+    #                       "tausynx": i,
+    #                       "Esynx": Esynx}
+    #         psp.append(self.computePSPIntegral(100e-6, 0, parameters))
     #         self.neuron.reset()
 
     #     # Calculate fit
-    #     a,b,c = np.polyfit(psp,values,2)
+    #     a, b, c = np.polyfit(psp, values, 2)
 
-    #     return a,b,c
+    #     return a, b, c
 
     def get_a_freq(self, paramMin, paramMax, EL, Vreset, Vt, gL):
         """Return the relation between a and frequency"""
