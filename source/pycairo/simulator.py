@@ -14,8 +14,6 @@ class Neuron(object):
         self.parameters = {}  # overwritten by Simulator.run_simulation()
         self.record = True  # store v, w, gsynx, gsyni for every timestep?
 
-        self.reset()
-
     def sim_step(self, timestep, stim, spikes_x=[], spikes_i=[], ramp_current=0):
         """Perform a single timestep.
 
@@ -28,6 +26,7 @@ class Neuron(object):
         """
 
         p = self.parameters
+
         # Incoming spikes (excitatory)
         if (int(self.time_count / timestep) in spikes_x):
             self.gsynx = self.gsynx + p['gsynx'] * 1e-9
@@ -237,18 +236,34 @@ class Simulator(object):
         return 0
 
     def get_gl_freq(self, gLMin, gLMax, EL, Vreset, Vt):
-        """Return the relation between gL and frequency"""
+        """Return the relation between gL and frequency.
 
-        # Number of points
-        s = 3
+        Runs simulations for values of gL between gLMin and gLMax.
+        Calculates the spiking frequency f for each simulation.
+        Fits a 2nd order polynomial on the resulting gL(f).
 
-        # Frequency array
-        freq = []
+        Simulation parameters which are not in args have a predefined value.
+
+        Args:
+            gLMin: minimum value for gL
+            gLMax: maximum value for gL
+            EL: constant parameter EL
+            Vreset: constant parameter Vreset
+            Vt: constant parameter Vt
+
+        Returns:
+            polynomial coefficients a, b, c for a*x**2 + b*x + c
+        """
+
+        num_steps = 4  # Number of points
+
+        freq = []  # Frequency array
 
         # Generate gL values
-        values = np.arange(gLMin, gLMax + (gLMax - gLMin) / s, (gLMax - gLMin) / s)
+        stepsize = float(gLMax - gLMin) / (num_steps - 1)
+        values = np.arange(gLMin, gLMax + stepsize, stepsize)
 
-        # Calculate stationnary frequency for each gL
+        # Calculate stationary frequency for each gL
         for i in values:
             parameters = {"EL": EL,
                           "gL": i,
@@ -268,13 +283,11 @@ class Simulator(object):
                           "tauref": 0.0,
                           "Esynx": 1e-6,
                           "Esyni": 1e-6}
-            freq.append(self.compute_freq(30e-6, 0, parameters))
-            self.neuron.reset()
+            t, v, spikes = self.run_simulation(30e-6, 0, parameters)
+            freqs = self.compute_frequencies(spikes)
+            freq.append(freqs[0])
 
-        # Calculate fit
-        a, b, c = np.polyfit(freq, values, 2)
-
-        return a, b, c
+        return np.polyfit(freq, values, 2)
 
     # # Return the relation between gL and frequency
     # def getTausynPSP(self,paramMin,paramMax,EL,Vreset,Vt,gL,Esynx):
