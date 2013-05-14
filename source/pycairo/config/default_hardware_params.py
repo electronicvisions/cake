@@ -64,13 +64,11 @@ def get_HW_parameters(exp=False, adapt_a=False, adapt_b=False, syn_in_exc=True, 
 
     if syn_in_exc:
         HW_parameters['Vsynx'] = 1000   # according to hicann-doc: set to 1 V
-        HW_parameters['Vsynx'] = 0   # according to hicann-doc: set to 1 V
         HW_parameters['Iintbbx'] = 2000 # according to hicann-doc: set to 2uA
         HW_parameters['gsynx'] = 1000   # TODO: hicann-doc says: usually set to max
 
     if syn_in_inh:
         HW_parameters['Vsyni'] = 1000   # according to hicann-doc: set to 1 V
-        HW_parameters['Vsyni'] = 0   # according to hicann-doc: set to 1 V
         HW_parameters['Iintbbi'] = 2000 # according to hicann-doc: set to 2uA
         HW_parameters['gsyni'] = 1000   # TODO: hicann-doc says: usually set to max
 
