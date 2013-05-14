@@ -2,6 +2,18 @@
 
 """Configuration file for Simulator class."""
 
+# Parameters variation
+parameters_variation = False
+variation = 1e-3
+
+# Noise
+noise = False
+noise_std = 10e-3
+
+# Spike time jitter
+jitter = False
+jitter_std = 1e-8
+
 # a value of None means it must be set manually
 # before running a simulation
 _default_parameters = {"EL": None,

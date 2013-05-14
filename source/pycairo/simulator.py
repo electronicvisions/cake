@@ -94,26 +94,9 @@ class Simulator(object):
     """Performs simulations for given parameters to get frequencies etc."""
 
     def __init__(self):
-        """Initialize Simulator.
-
-        Create Neuron object for simulations. Set default options.
-        """
+        """Create Neuron object for simulations."""
 
         self.neuron = Neuron()
-
-        ### default options below ###
-
-        # Parameters variation
-        self.parameters_variation = False
-        self.variation = 1e-3
-
-        # Noise
-        self.noise = False
-        self.noise_std = 10e-3
-
-        # Spike time jitter
-        self.jitter = False
-        self.jitter_std = 1e-8
 
     def run_simulation(self, time, stim, params,
                        spikes_x=[], spikes_i=[],
@@ -139,10 +122,10 @@ class Simulator(object):
 
         time_array = np.arange(0, time, timestep)  # array containing each timestep
 
-        if self.parameters_variation:
+        if config.parameters_variation:
             # Apply parameters variations
             for i in params:
-                params[i] = np.random.normal(params[i], self.variation * params[i])
+                params[i] = np.random.normal(params[i], config.variation * params[i])
 
         self.neuron.parameters = params  # apply parameters
 
@@ -157,13 +140,13 @@ class Simulator(object):
             # Simulation step
             self.neuron.sim_step(timestep, applied_stim, spikes_x, spikes_i, current_ramp)
 
-        if self.noise:  # add noise
+        if config.noise:  # add noise
             for i, item in enumerate(self.neuron.v_record):
-                self.neuron.v_record[i] = self.neuron.v_record[i] + np.random.normal(0, self.noise_std)
+                self.neuron.v_record[i] = self.neuron.v_record[i] + np.random.normal(0, config.noise_std)
 
-        if self.jitter:  # add jitter
+        if config.jitter:  # add jitter
             for i, item in enumerate(self.neuron.spikes):
-                self.neuron.spikes[i] = np.random.normal(self.neuron.spikes[i], self.jitter_std)
+                self.neuron.spikes[i] = np.random.normal(self.neuron.spikes[i], config.jitter_std)
 
         self.current_ramp = 0
 
