@@ -212,6 +212,23 @@ class Simulator(object):
         print "No limit found!"
         return 0
 
+    def parameter_range(self, pMin, pMax, num_steps):
+        """Generate parameter value range with equal steps between pMin and pMax.
+
+        Last value in range might be greater than pMax.
+
+        Args:
+            pMin: minimum value
+            pMax: maximum value
+            num_steps: number of values in range
+
+        Returns:
+            numpy array ranging from pMin to pMax
+        """
+
+        stepsize = float(pMax - pMin) / (num_steps - 1)
+        return np.arange(pMin, pMax + stepsize, stepsize)
+
     def polyfit_sim_freq(self, parameter, pMin, pMax, num_steps, parameters_update):
         """Return the relation between a parameter and the spiking frequency.
 
@@ -235,10 +252,7 @@ class Simulator(object):
         """
 
         freq = []  # frequency array
-
-        # generate parameter value range
-        stepsize = float(pMax - pMin) / (num_steps - 1)
-        values = np.arange(pMin, pMax + stepsize, stepsize)
+        values = self.parameter_range(pMin, pMax, num_steps)
 
         parameters = config.get_parameters(parameter)
         parameters.update(parameters_update)
@@ -277,12 +291,8 @@ class Simulator(object):
         return self.polyfit_sim_freq("gL", gLMin, gLMax, 4, {"EL": EL, "Vreset": Vreset, "Vt": Vt})
 
     def getTausynPSP(self, paramMin, paramMax, EL, Vreset, Vt, gL, Esynx):
-        s = 5  # Number of points
-
         psp = []  # PSP array
-
-        # Generate values
-        values = np.arange(paramMin, paramMax + (paramMax - paramMin) / s, (paramMax - paramMin) / s)
+        values = self.parameter_range(paramMin, paramMax, 6)
 
         parameters = config.get_parameters("tausyn_PSP")
         parameters.update({"EL": EL,
@@ -308,11 +318,8 @@ class Simulator(object):
     def get_vexp_freq(self, paramMin, paramMax, EL, Vreset, Vt, gL, dT):
         """Return the relation between a and frequency"""
 
-        s = 20  # Number of points
-
         freq = []  # Frequency array
-
-        values = np.arange(paramMin, paramMax + (paramMax - paramMin) / s, (paramMax - paramMin) / s)
+        values = self.parameter_range(paramMin, paramMax, 20)
 
         parameters = config.get_parameters("Vexp")
         parameters.update({"EL": EL,
@@ -358,11 +365,8 @@ class Simulator(object):
     def get_tauw_isi(self, paramMin, paramMax, EL, Vreset, Vt, gL, gLadapt, stim):
         """Return the relation between tauw and frequency"""
 
-        s = 10  # Number of points
-
         ISI = []  # Frequency array
-
-        values = np.arange(paramMin, paramMax + (paramMax - paramMin) / s, (paramMax - paramMin) / s)
+        values = self.parameter_range(paramMin, paramMax, 10)
 
         parameters = config.get_parameters("tauw_isi")
         parameters.update({"EL": EL,
