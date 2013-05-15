@@ -290,26 +290,6 @@ class Simulator(object):
 
         return self.polyfit_sim_freq("gL", gLMin, gLMax, 4, {"EL": EL, "Vreset": Vreset, "Vt": Vt})
 
-    def getTausynPSP(self, paramMin, paramMax, EL, Vreset, Vt, gL, Esynx):
-        psp = []  # PSP array
-        values = self.parameter_range(paramMin, paramMax, 6)
-
-        parameters = config.get_parameters("tausyn_PSP")
-        parameters.update({"EL": EL,
-                           "gL": gL,
-                           "Vt": Vt,
-                           "Vreset": Vreset,
-                           "Esynx": Esynx})
-
-        simtime = config.get_time("tausyn_PSP")
-
-        for i in values:
-            parameters["tausynx"] = i
-            psp.append(self.computePSPIntegral(simtime, 0, parameters))
-            self.neuron.reset()
-
-        return np.polyfit(psp, values, 2)
-
     def get_a_freq(self, paramMin, paramMax, EL, Vreset, Vt, gL):
         """Return the relation between a and frequency"""
 
