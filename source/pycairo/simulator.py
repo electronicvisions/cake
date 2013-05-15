@@ -393,13 +393,20 @@ class Simulator(object):
         return np.polyfit(ISI, values, 4)
 
     def get_tauw_int(self, paramMin, paramMax, EL, Vreset, Vt, gL, gLadapt, stim):
-        """Return the relation between gL and frequency"""
+        """Return the relation between tauw and ??.
 
-        s = 10  # Number of points
+        Runs simulations for values of tauw between paramMin and paramMax.
+        Integrates t(V) using the trapezoidal rule for each simulation.
+        Fits a 2nd order polynomial on tauw(int(t(V))).
+
+        Returns:
+            polynomial coefficients.
+        """
+        # TODO why integrate t(V)?
 
         integral = []
 
-        values = np.arange(paramMin, paramMax + (paramMax - paramMin) / s, (paramMax - paramMin) / s)
+        values = self.parameter_range(paramMin, paramMax, 10)
 
         parameters = config.get_parameters("tauw_int")
         parameters.update({"EL": EL,
