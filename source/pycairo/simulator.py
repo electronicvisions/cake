@@ -152,6 +152,17 @@ class Simulator(object):
 
         return time_array, self.neuron.v_record, self.neuron.spikes
 
+    def compute_freq(self, time, stim, params):
+        """Run a simulation and return the spiking frequency.
+
+        Deprecated, but still used in pycairo.Controller
+        """
+
+        t, v, spikes = self.run_simulation(time, stim, params)
+
+        freqs = self.compute_frequencies(spikes)
+        return freqs[0]
+
     def compute_frequencies(self, spikes):
         """Compute frequencies between each two spikes in an array.
 
