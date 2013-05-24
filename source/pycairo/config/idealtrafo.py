@@ -1,11 +1,12 @@
+# -*- coding: utf-8 -*-
+
 """Polynom coefficients of the ideal AdEx transformation."""
 
 ident = [1, 0]
 
-# copied from scaledtsim process="180" and verified from Marco"s thesis
-# TODO add reference to table in Marco"s thesis
-IDEAL_TRAFO_ADEX = {
-    # Don"t change
+# copied from scaledtsim process="180" and verified from Marco's thesis
+# TODO add reference to table in Marco's thesis
+IDEAL_TRAFO_ADEX = {  # Don't change
     "Vreset":  ident,
     # From transistor-level simulations
     "EL":      [1.02, -8.58],
