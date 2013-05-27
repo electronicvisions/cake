@@ -264,7 +264,6 @@ class CalibrationController(object):
             parameters.update(config.parameter_IF)
             parameters['EL'] = config.parameter_default['EL']
             parameters['Vt'] = config.parameter_max['Vt']
-            parameters['gL'] = config.parameter_special['gL']
             parameters['Esynx'] = config.parameter_default['Esynx']
             parameters['Esyni'] = config.parameter_default['Esyni']
         elif parameter == 'dT':

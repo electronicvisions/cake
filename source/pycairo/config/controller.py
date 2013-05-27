@@ -44,6 +44,5 @@ parameter_IF = {
 }
 
 parameter_special = {  # FIXME add comment, what are these?!
-    "gL": 1000,
     "expAct": 2000
 }
