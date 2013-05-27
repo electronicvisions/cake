@@ -24,9 +24,8 @@ _default_parameters = {"EL": None,
                        "a": 1e-6,
                        "tw": 1.,
                        "b": 1e-6,
-                       "dT": 10.,  # or 300?
+                       "dT": 10.*1e-6,
                        "Vexp": 1000.,
-                       "expAct": 1e-6,
                        "gsynx": 1e-6,
                        "gsyni": 1e-6,
                        "tausynx": 10.,
@@ -60,12 +59,12 @@ def get_parameters(parameter):
         parameters["tw"] = 1.
 
     if parameter in ("gL", "tauw", "tauw_isi", "tauw_int", "tausyn", "tausyn_PSP"):
-        parameters["dT"] = 10.
+        parameters["dT"] = 10.*1e-6
     elif parameter in ("a", "b"):
-        parameters["dT"] = 300.
+        parameters["dT"] = 300.*1e-6
 
     if parameter == "Vexp":
-        parameters["expAct"] = 1
+        parameters["dT"] = 10.
 
     if parameter == "tausyn":
         parameters["gsynx"] = 100

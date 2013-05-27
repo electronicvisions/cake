@@ -44,7 +44,7 @@ class Neuron(object):
             self.v += (- self.gsynx * (self.v - p['Esynx'] * 1e-3)
                        - self.gsyni * (self.v - p['Esyni'] * 1e-3)
                        - p['gL'] * 1e-9 * (self.v - p['EL'] * 1e-3)
-                       + p['expAct'] * p['gL'] * 1e-9 * p['dT'] * 1e-3 * math.exp((self.v - p['Vexp'] * 1e-3) / (p['dT'] * 1e-3))
+                       + p['gL'] * 1e-9 * p['dT'] * 1e-3 * math.exp((self.v - p['Vexp'] * 1e-3) / (p['dT'] * 1e-3))
                        + stim + ramp_current
                        - self.w
                        ) * timestep / (p['C'] * 1e-12)
