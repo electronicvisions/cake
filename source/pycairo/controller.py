@@ -269,11 +269,11 @@ class CalibrationController(object):
         elif parameter == 'dT':
             parameters.update(config.parameter_IF)
             parameters['expAct'] = config.parameter_special['expAct']
-            parameters['Vexp'] = self.Vexp_default
+            parameters['Vexp'] = config.parameter_default['Vexp']
         elif parameter == 'Vexp':
             parameters.update(config.parameter_IF)
             parameters['expAct'] = config.parameter_special['expAct']
-            parameters['dT'] = self.dT_default
+            parameters['dT'] = config.parameter_default['dT']
         return parameters
 
     def process_result(self, parameter, parameters, sorted_array_mean, sorted_array_err):
