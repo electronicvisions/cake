@@ -268,11 +268,11 @@ class CalibrationController(object):
             parameters['Esyni'] = config.parameter_default['Esyni']
         elif parameter == 'dT':
             parameters.update(config.parameter_IF)
-            parameters['expAct'] = config.parameter_special['expAct']
+            parameters['Ibexp'] = config.parameter_special['Ibexp']
             parameters['Vexp'] = config.parameter_default['Vexp']
         elif parameter == 'Vexp':
             parameters.update(config.parameter_IF)
-            parameters['expAct'] = config.parameter_special['expAct']
+            parameters['Ibexp'] = config.parameter_special['Ibexp']
             parameters['dT'] = config.parameter_default['dT']
         return parameters
 

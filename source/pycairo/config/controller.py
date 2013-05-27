@@ -43,6 +43,7 @@ parameter_IF = {
     "gL": 1000  # nA
 }
 
-parameter_special = {  # FIXME add comment, what are these?!
-    "expAct": 2000
+parameter_special = {
+    # bias current in exponential term
+    "Ibexp": 2000
 }

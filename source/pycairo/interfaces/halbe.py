@@ -38,7 +38,7 @@ class HWNeurons(object):
 class HalbeInterface:
     def __init__(self, hicann_id, setup_ip, setup_port=config.FPGA_PORT):
         '''Connect to a vertical setup at a given IP.
-        
+
         Vars:
             hicann_id: HICANN id
             setup_ip (str): string containing of IPv4 adress
@@ -124,7 +124,7 @@ class HalbeInterface:
             fgc.setNeuron(neuron, pyhalbe.HICANN.E_l,        self.convert_to_voltage_fg(p['EL']))
             fgc.setNeuron(neuron, pyhalbe.HICANN.E_syni,     self.convert_to_voltage_fg(p['Esyni']))
             fgc.setNeuron(neuron, pyhalbe.HICANN.E_synx,     self.convert_to_voltage_fg(p['Esynx']))
-            fgc.setNeuron(neuron, pyhalbe.HICANN.I_bexp,     self.convert_to_current_fg(p['expAct']))
+            fgc.setNeuron(neuron, pyhalbe.HICANN.I_bexp,     self.convert_to_current_fg(p['Ibexp']))
             fgc.setNeuron(neuron, pyhalbe.HICANN.I_convi,    self.convert_to_current_fg(p['gsyni']))
             fgc.setNeuron(neuron, pyhalbe.HICANN.I_convx,    self.convert_to_current_fg(p['gsynx']))
             fgc.setNeuron(neuron, pyhalbe.HICANN.I_fire,     self.convert_to_current_fg(p['b']))
@@ -160,7 +160,7 @@ class HalbeInterface:
     ## Sweep output to a given neuron number
     # @param i The neuron number
     # @param side The side of the chip, can be "top" or "bottom"
-    # @param current The current to inject in the neuron, values from 0 to 1023    
+    # @param current The current to inject in the neuron, values from 0 to 1023
     def sweep_neuron(self, neuron, side = None, current=0):
         neuron = int(neuron)
         assert neuron >= 0 and neuron < 512
@@ -255,7 +255,7 @@ class HalbeInterface:
 #        keys += ['7', 'c', 'x']
 #
 #        self.call_testmode('tmak_iboardv2', keys)
-#        print "iBoard configured"  
+#        print "iBoard configured"
 #
 #        # Clear synapse array
 #        self.configure_hardware(["0","x"])
@@ -417,7 +417,7 @@ class HalbeInterface:
             for i in temp_neuron_list:
                 neuron_list.append(i+256)
 
-        # Measure all chip    
+        # Measure all chip
         if (max(neuron_index) > 256 and min(neuron_index) < 255):
             # Split index
             neuron_index_top = []
@@ -487,7 +487,7 @@ class HalbeInterface:
 
             for i in data:
                 neuron_number = (-i[1]+7)*64 + i[2]
-                spikes_lists[neuron_list.index(neuron_number)].append(i[0]*1e6)    
+                spikes_lists[neuron_list.index(neuron_number)].append(i[0]*1e6)
 
             # Calculate new neuron list
             neuron_list_new = []

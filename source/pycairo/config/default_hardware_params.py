@@ -1,6 +1,12 @@
 # -*- coding: utf-8 -*-
 
-"""Default hardware parameters used in calibration."""
+"""Default hardware parameters used in calibration.
+
+Other default hardware parameters can be found in Calibtic
+and in HALbe (halbe/hal/HMFUtil.cpp).
+
+TODO: get rid of these and use HALbe/Calibtic only.
+"""
 
 _HW_parameters = {
     "EL": 1000,  # mV
@@ -13,7 +19,7 @@ _HW_parameters = {
     "Vsyni": 0,  # mV
     "tausynx": 900,  # nA
     "tausyni": 900,  # nA
-    "expAct": 0,  # nA
+    "Ibexp": 0,  # nA
     "b": 0,  # nA
     "a": 0,  # nA
     "gL": 400,  # nA
@@ -78,7 +84,7 @@ def get_HW_parameters(exp=False, adapt_a=False, adapt_b=False, syn_in_exc=True, 
         HW_parameters["gsyni"] = 1000    # TODO: hicann-doc says: usually set to max
 
     if exp:
-        HW_parameters["expAct"] = 2000
+        HW_parameters["Ibexp"] = 2000  # nA
 
     return HW_parameters
 

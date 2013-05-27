@@ -295,7 +295,7 @@ class scaledHW(object):
 
                 HW_parameters['dT'] = params['dT']
                 HW_parameters['Vexp'] = params['Vexp']
-                HW_parameters['expAct'] = params['expAct']
+                HW_parameters['Ibexp'] = params['Ibexp']
 
                 HW_parameters['gsynx'] = params['gsynx']
                 HW_parameters['gsyni'] = params['gsynx']
@@ -401,7 +401,7 @@ class scaledHW(object):
                 HW_parameters['dT'] = 1600
                 HW_parameters['Vexp'] = 1600
 
-                HW_parameters['expAct'] = 0
+                HW_parameters['Ibexp'] = 0
                 HW_parameters['Esynx'] = self.scaled_to_hw_single(currentNeuron,"EL",params['Esynx'] - corr_factor)
                 HW_parameters['gsynx'] = 2000
                 HW_parameters['Iintbbx'] = 1500
@@ -434,7 +434,7 @@ class scaledHW(object):
                 HW_parameters['dT'] = 1000
                 HW_parameters['Vexp'] = 1200
 
-                HW_parameters['expAct'] = 0
+                HW_parameters['Ibexp'] = 0
                 HW_parameters['Esynx'] = self.scaled_to_hw_single(currentNeuron,"EL",params['Esynx'] - corr_factor)
                 HW_parameters['gsynx'] = 2000
                 HW_parameters['Iintbbx'] = 1500
@@ -461,7 +461,7 @@ class scaledHW(object):
                 HW_parameters['gsynx'] = 2000 # TODO: differs from default
                 HW_parameters['Iintbbx'] = 0 # TODO: differs from default
                 HW_parameters['Iintbbi'] = 0 # TODO: differs from default
-                HW_parameters['expAct'] = 0 # TODO: differs from default
+                HW_parameters['Ibexp'] = 0 # TODO: differs from default
                 HW_parameters['gsyni'] = 0 # TODO: differs from default
 
             hicann_parameters.append(HW_parameters)
