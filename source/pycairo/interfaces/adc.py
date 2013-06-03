@@ -5,7 +5,7 @@ import pycairo.config.adc
 
 class ADCTrace(object):
     '''Container to store a measured ADC trace.
-    
+
     Automatically adds time.'''
 
     def __init__(self, voltage):
@@ -43,13 +43,15 @@ class ADCInterface():
         '''
 
         h_adc = pyhalbe.Handle.ADC()
-        cfg = pyhalbe.ADC.Config(sample_time,
-                                 input_channel,
-                                 pyhalbe.Coordinate.TriggerOnADC(chr(0))) # FIXME chr should be removed in the future
-        pyhalbe.ADC.config(h_adc, cfg)
-        pyhalbe.ADC.trigger_now(h_adc)
-        raw = pyhalbe.ADC.get_trace(h_adc)
-        h_adc.free_handle()
+        if True:  # TODO replace previous line by 'with ... as ...'
+            cfg = pyhalbe.ADC.Config(sample_time,
+                                     input_channel,
+                                     pyhalbe.Coordinate.TriggerOnADC(0))
+            pyhalbe.ADC.config(h_adc, cfg)
+            pyhalbe.ADC.trigger_now(h_adc)
+            raw = pyhalbe.ADC.get_trace(h_adc)
+        del h_adc
+
         raw = np.array(raw, dtype=np.ushort)
         voltage = self.adc_calib.apply(int(input_channel), raw) # FIXME int() should not be neccessary in the future
         return ADCTrace(voltage)
@@ -93,7 +95,7 @@ class ADCInterface():
         v = np.array(v)
         # Derivative of voltages
         dv = v[1:] - v[:-1]
-        # Take average over 3 to reduce noise and increase spikes 
+        # Take average over 3 to reduce noise and increase spikes
         smooth_dv = dv[:-2] + dv[1:-1] + dv[2:]
         threshhold = -2.5 * np.std(smooth_dv)
 

@@ -1,18 +1,19 @@
 '''Cairo interface to HALbe via pyhalbe. Adresses a single HICANN.'''
 
 import pyhalbe
+from pyhalbe.geometry import Enum
 
 import numpy as np
-from scipy import optimize
 
 import pycairo.interfaces.adc
 import pycairo.logic.helpers
 import pycairo.config.hardware as config
 from pycairo.config.default_hardware_params import get_global_parameters, get_HW_parameters
 
+
 class HWNeurons(object):
-    def __init__(self, default = pyhalbe.HICANN.NeuronQuad()):
-        self.quads = [pyhalbe.HICANN.NeuronQuad(default) for ii in range(512/pyhalbe.HICANN.NeuronQuad.size())]
+    def __init__(self, default=pyhalbe.HICANN.NeuronQuad()):
+        self.quads = [pyhalbe.HICANN.NeuronQuad(default) for ii in range(512 / pyhalbe.HICANN.NeuronQuad.size())]
 
     def enable_aout(self, neuron):
         n = self._get_neuron(neuron)
@@ -21,7 +22,7 @@ class HWNeurons(object):
     def disable_aout(self):
         for q in self.quads:
             for ii in range(pyhalbe.HICANN.NeuronQuad.size()):
-                q[pyhalbe.Coordinate.NeuronOnQuad(ii)].enable_aout(False)
+                q[pyhalbe.Coordinate.NeuronOnQuad(Enum(ii))].enable_aout(False)
 
     def write(self, handle):
         for ii, q in enumerate(self.quads):
@@ -29,8 +30,8 @@ class HWNeurons(object):
             pyhalbe.HICANN.set_denmem_quad(handle, quad, q)
 
     def _get_neuron(self, neuron_id):
-        n = pyhalbe.Coordinate.NeuronOnHICANN(neuron_id)
-        quad = self.quads[n.quad().id()]
+        n = pyhalbe.Coordinate.NeuronOnHICANN(Enum(neuron_id))
+        quad = self.quads[int(n.quad())]
         quad_neuron = n.neuronOnQuad()
         return quad[quad_neuron]
 
@@ -46,9 +47,9 @@ class HalbeInterface:
         '''
 
         self.helpers = pycairo.logic.helpers.Helpers()
-        self.adc = pycairo.interfaces.adc.ADCInterface() # TODO WSS case?
+        self.adc = pycairo.interfaces.adc.ADCInterface()  # TODO WSS case?
 
-        if type(setup_ip) is tuple: # old format, tuple of IP and port
+        if type(setup_ip) is tuple:  # old format, tuple of IP and port
             self.ip = pyhalbe.Coordinate.IPv4.from_string(setup_ip[0])
             self.port = int(setup_ip[1])
         else:
@@ -60,21 +61,19 @@ class HalbeInterface:
         arq = True
         self.myPowerBackend = pyhalbe.PowerBackend.instanceVerticalSetup()
         self.myPowerBackend.SetupReticle(highspeed, self.ip, self.port, 1, arq)
-        Enum = pyhalbe.geometry.Enum
         self.h = pyhalbe.Handle.HICANN(pyhalbe.Coordinate.HICANNGlobal(Enum(hicann_id)))
         self.dnc = pyhalbe.Coordinate.DNCGlobal(Enum(0))
 
         self.init_HW()
 
-
-    def convert_to_voltage_fg(self,value):
-        fgvalue = int(float(value)/config.max_v*config.res_fg)
+    def convert_to_voltage_fg(self, value):
+        fgvalue = int(float(value) / config.max_v * config.res_fg)
         if fgvalue < 0 or fgvalue > config.res_fg:
             raise ValueError("Floating gate value {} out of range".format(fgvalue))
         return fgvalue
 
-    def convert_to_current_fg(self,value):
-        fgvalue = int(float(value)/config.max_i*config.res_fg)
+    def convert_to_current_fg(self, value):
+        fgvalue = int(float(value) / config.max_i * config.res_fg)
         if fgvalue < 0 or fgvalue > config.res_fg:
             raise ValueError("Floating gate value {} out of range".format(fgvalue))
         return fgvalue
@@ -92,7 +91,7 @@ class HalbeInterface:
 
         g_p = get_global_parameters()
         g_p["V_reset"] = self.convert_to_voltage_fg(parameters[0]['Vreset'])
-        params = [ dict( (k, 0) for k in get_HW_parameters() ) for ii in range(pyhalbe.FGControl.number_neurons)]
+        params = [dict((k, 0) for k in get_HW_parameters()) for ii in range(pyhalbe.FGControl.number_neurons)]
 
         for ii, neuron in enumerate(neurons):
             params[neuron] = parameters[ii]
@@ -103,11 +102,11 @@ class HalbeInterface:
         assert len(parameters) == pyhalbe.FGControl.number_neurons
         fgc = pyhalbe.FGControl()
 
-        for ii in range(pyhalbe.FGControl.number_blocks): # number_blocks == 4
+        for ii in range(pyhalbe.FGControl.number_blocks):  # number_blocks == 4
             fg_block = pyhalbe.Coordinate.FGBlockOnHICANN(ii)
             fgc.setConfig(fg_block, pyhalbe.HICANN.FGConfig())
-            g_p = dict(global_parameters) # copy dictionary before deleting elements
-            if ii in (0,2):
+            g_p = dict(global_parameters)  # copy dictionary before deleting elements
+            if ii in (0, 2):
                 # Remove left-only global parameters
                 del g_p["V_clrc"]
                 del g_p["V_bexp"]
@@ -120,7 +119,7 @@ class HalbeInterface:
 
         for ii in range(pyhalbe.FGControl.number_neurons):
             p = parameters[ii]
-            neuron = pyhalbe.Coordinate.NeuronOnHICANN(ii)
+            neuron = pyhalbe.Coordinate.NeuronOnHICANN(Enum(ii))
             fgc.setNeuron(neuron, pyhalbe.HICANN.E_l,        self.convert_to_voltage_fg(p['EL']))
             fgc.setNeuron(neuron, pyhalbe.HICANN.E_syni,     self.convert_to_voltage_fg(p['Esyni']))
             fgc.setNeuron(neuron, pyhalbe.HICANN.E_synx,     self.convert_to_voltage_fg(p['Esynx']))
@@ -143,25 +142,28 @@ class HalbeInterface:
             fgc.setNeuron(neuron, pyhalbe.HICANN.V_syntcx,   self.convert_to_voltage_fg(p['tausynx']))
             fgc.setNeuron(neuron, pyhalbe.HICANN.V_t,        self.convert_to_voltage_fg(p['Vt']))
 
-
         for fg_block in [pyhalbe.Coordinate.FGBlockOnHICANN(ii) for ii in range(pyhalbe.FGControl.number_blocks)]:
-            pyhalbe.HICANN.set_PLL_frequency(self.h, config.fg_pll)
-            pyhalbe.HICANN.set_fg_values(self.h, fgc.extractBlock(fg_block)) # write 3(!) times for better accuracy
+            # setting PLL frequency is disabled
+            # because it is not well understood
+            #pyhalbe.HICANN.set_PLL_frequency(self.h, config.fg_pll)
+            pyhalbe.HICANN.set_fg_values(self.h, fgc.extractBlock(fg_block))  # write 3(!) times for better accuracy
 #            pyhalbe.HICANN.set_fg_values(self.h, fgc.extractBlock(fg_block)
 #            pyhalbe.HICANN.set_fg_values(self.h, fgc.extractBlock(fg_block)
-            pyhalbe.HICANN.set_PLL_frequency(self.h, config.pll)
+            # setting PLL frequency is disabled
+            # because it is not well understood
+            #pyhalbe.HICANN.set_PLL_frequency(self.h, config.pll)
 
     ## Erase FGArra
     def erase_fg(self):
-        g_p = dict( (k, 0) for k in get_global_parameters() )
-        p = [ dict( (k, 0) for k in get_HW_parameters() ) for ii in range(pyhalbe.FGControl.number_neurons)]
+        g_p = dict((k, 0) for k in get_global_parameters())
+        p = [dict((k, 0) for k in get_HW_parameters()) for ii in range(pyhalbe.FGControl.number_neurons)]
         self.write_fg(g_p, p)
 
     ## Sweep output to a given neuron number
     # @param i The neuron number
     # @param side The side of the chip, can be "top" or "bottom"
     # @param current The current to inject in the neuron, values from 0 to 1023
-    def sweep_neuron(self, neuron, side = None, current=0):
+    def sweep_neuron(self, neuron, side=None, current=0):
         neuron = int(neuron)
         assert neuron >= 0 and neuron < 512
         assert current == 0
@@ -187,42 +189,41 @@ class HalbeInterface:
         neurons.enable_aout(neuron)
         neurons.write(self.h)
 
-
-
     ## Configure one neuron only
     # @param neuron The neuron to configure
     # @param current The current to inject, values from 0 to 1023
-    def set_one_neuron_current(self,neuron,current):
+    def set_one_neuron_current(self, neuron, current):
         keys = ["q", str(current), "n", str(neuron)]
         self.call_testmode('tm_neuron', keys, ['-c', self.xmlfile])
 
     ## Set stimulus
     # @param i Set the current stimulus to the value i
-    def set_stimulus(self,i):
+    def set_stimulus(self, i):
         # Convert to digital value
         self.configure_hardware(["s", str(i), "x"])
 
     ## Set ramp stimulus
     # @param i Set the current stimulus to the value i
-    def set_ramp_stimulus(self,i):
+    def set_ramp_stimulus(self, i):
         # Convert to digital value
         self.configure_hardware(["q", str(i), "x"])
 
     ## Set stimulus
     # @param i Set the current stimulus to the value i
-    def set_constant_stimulus(self,i):
+    def set_constant_stimulus(self, i):
         # Convert to digital value
         self.configure_hardware(["s", str(i), "x"])
 
     ## Set stimulus in nA
     # @param i Set the current stimulus to the value i, in nA
-    def set_stimulus_nA(self,i):
+    def set_stimulus_nA(self, i):
 
         # Calculate FG value
+        # FIXME hardcoded values
         a = -0.0007
         b = 0.56
         c = 2.94
-        i = a*i*i+b*i+c
+        i = a * i * i + b * i + c
 
         # Convert to digital value
         self.configure_hardware(["q", str(i), "x"])
@@ -230,16 +231,18 @@ class HalbeInterface:
     ## Init HICANN, todo rename?
     def init_L1(self):
         print "hicann reset.. ",
-        pyhalbe.HICANN.full_reset(self.h, False);
+        pyhalbe.HICANN.full_reset(self.h, False)
         print "done"
 
-        print "Setting PLL to", config.pll
-        pyhalbe.HICANN.set_PLL_frequency(self.h, config.pll)
+        # setting PLL frequency is disabled
+        # because it is not well understood
+        #print "Setting PLL to", config.pll
+        #pyhalbe.HICANN.set_PLL_frequency(self.h, config.pll)
 
     ## Init iBoard and HICANN
     def init_HW(self):
         print "Full hicann reset...",
-        pyhalbe.HICANN.full_reset(self.h, True);
+        pyhalbe.HICANN.full_reset(self.h, True)
         print "done"
 
         self.init_L1()
@@ -247,7 +250,6 @@ class HalbeInterface:
         #print "Clearing floating gates array... ",
         #self.erase_fg()
         #print "done"
-
 
 #        # Reset JTAG and HICANN
 #        keys = ['1', '2', '3']
@@ -261,20 +263,19 @@ class HalbeInterface:
 #        self.configure_hardware(["0","x"])
 #        print "Synapse array cleared"
 
-
     ## Activate background event generator
     # @param BEG_status The status of the BEG, can be "ON" or "OFF"
     # @param BEG_type The mode of the BEG, can be "REGULAR" or "POISSON"
     # @param cycles The number of cycles of the BEG
     # @param neuron The neuron to stimulate witht the BEG
-    def activate_BEG(self,BEG_status,BEG_type,cycles,neuron):
+    def activate_BEG(self, BEG_status, BEG_type, cycles, neuron):
 
         # Key file
         if (BEG_status == 'ON'):
             if (BEG_type == 'REGULAR'):
-                keys = ['f','h',str(neuron),str(cycles),'H',str(cycles),'0']
+                keys = ['f', 'h', str(neuron), str(cycles), 'H', str(cycles), '0']
             if (BEG_type == 'POISSON'):
-                keys = ['f','h',str(neuron),str(cycles),'H',str(cycles),'1','100']
+                keys = ['f', 'h', str(neuron), str(cycles), 'H', str(cycles), '1', '100']
         if (BEG_status == 'OFF'):
             keys = ['7']
 
@@ -288,16 +289,16 @@ class HalbeInterface:
     ## Read all spikes
     # @param neuron_index The neuron index
     # @param range The number of neuron circuits to read from at a time
-    def read_spikes_freq(self,neuron_index,range=4):
-        def measure_top_half(neuron_index,range):
-            neuron_list, freqs = self.read_spikes_half(neuron_index,range)
+    def read_spikes_freq(self, neuron_index, range=4):
+        def measure_top_half(neuron_index, range):
+            neuron_list, freqs = self.read_spikes_half(neuron_index, range)
 
             freqs = list(freqs)
-            for i,item in enumerate(neuron_index):
+            for i, item in enumerate(neuron_index):
                 if (item in neuron_list):
                     pass
                 else:
-                    freqs.insert(i,0)
+                    freqs.insert(i, 0)
 
             freqs_new = []
 
@@ -305,31 +306,31 @@ class HalbeInterface:
             print len(freqs), freqs
             print len(neuron_list), neuron_list
 
-            for i,item in enumerate(neuron_index):
+            for i, item in enumerate(neuron_index):
 
                 if (item < 128):
                     freqs_new.append(freqs[i])
 
                 if (item > 127 and item < 256):
-                    freqs_new.append(freqs[-i+255+128])
+                    freqs_new.append(freqs[-i + 255 + 128])
 
             return neuron_index, freqs_new
 
     ## Read spikes from half the chip
     # @param neuron_index The neuron index
     # @param range The number of neuron circuits to read from at a time
-    def read_spikes_half(self,neuron_index,range=4):
+    def read_spikes_half(self, neuron_index, range=4):
 
         keys = []
-        for n in np.arange(min(neuron_index),max(neuron_index),range):
+        for n in np.arange(min(neuron_index), max(neuron_index), range):
             keys.append('R')
             keys.append(str(n))
-            keys.append(str(n+range-1))
+            keys.append(str(n + range - 1))
         keys.append("x")
 
         # Remove spike file
         import os
-        os.system("rm " + self.tm_path + 'train') # FIXME this is bad
+        os.system("rm " + self.tm_path + 'train')  # FIXME this is bad
 
         # Launch test mode
         self.configure_hardware(keys)
@@ -348,7 +349,7 @@ class HalbeInterface:
 
             # Sort data
             for i in data:
-                neuron_number = (-i[1]+7)*64 + i[2]
+                neuron_number = (-i[1] + 7) * 64 + i[2]
 
                 if (not (neuron_number in neuron_list)):
                     neuron_list.append(int(neuron_number))
@@ -358,13 +359,12 @@ class HalbeInterface:
                 spikes_lists.append([])
 
             for i in data:
-                neuron_number = (-i[1]+7)*64 + i[2]
+                neuron_number = (-i[1] + 7) * 64 + i[2]
                 spikes_lists[neuron_list.index(neuron_number)].append(i[0])
 
             # Calc freq for spikes_lists
             freqs = []
-            err_freqs = []
-            for i,item in enumerate(spikes_lists):
+            for i, item in enumerate(spikes_lists):
                 frequency = self.calc_freq(item)
                 if (frequency > 0):
                     freqs.append(frequency)
@@ -378,7 +378,7 @@ class HalbeInterface:
 
             # Cut to match neuron_index
             measured_freq = []
-            for i,item in enumerate(neuron_list):
+            for i, item in enumerate(neuron_list):
                 if item in neuron_index:
                     measured_freq.append(freqs[i])
 
@@ -388,13 +388,13 @@ class HalbeInterface:
                 if (i > -1 and i < 32):
                     neuron_list_new.append(i)
                 if (i > 95 and i < 160):
-                    neuron_list_new.append(i-96+32)
+                    neuron_list_new.append(i - 96 + 32)
                 if (i > 223 and i < 288):
-                    neuron_list_new.append(i-224+32+64)
+                    neuron_list_new.append(i - 224 + 32 + 64)
                 if (i > 351 and i < 416):
-                    neuron_list_new.append(i-352+32+128)
+                    neuron_list_new.append(i - 352 + 32 + 128)
                 if (i > 479 and i < 512):
-                    neuron_list_new.append(i-480+32+128+64)
+                    neuron_list_new.append(i - 480 + 32 + 128 + 64)
 
         else:
             neuron_list_new = []
@@ -402,7 +402,7 @@ class HalbeInterface:
 
         return neuron_list_new, freqs
 
-    def plot_spikes(self,neuron_index,range=4):
+    def plot_spikes(self, neuron_index, range=4):
         """Read spikes and plot for one half"""
 
         # Measure top half
@@ -646,4 +646,3 @@ class HalbeInterface:
                     meas_array.append(fit)
             measurement_array = meas_array
         return measurement_array
-
