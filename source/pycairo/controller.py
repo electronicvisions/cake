@@ -109,7 +109,7 @@ class CalibrationController(object):
         if config.verbose:
             print "Init phase started"
 
-        parameters = self.get_parameters(parameter)
+        parameters = get_parameters(parameter)
 
         # Create input_array
         input_array = self.get_steps(parameter)
@@ -229,52 +229,6 @@ class CalibrationController(object):
             print "## Calibration of parameter " + parameter + " completed in " + str(time.time() - start_time) + "s ##"
             print "## Calibration took " + str((time.time() - start_time) / len(neurons)) + "s per neuron ##"
             print ""
-
-    def get_parameters(self, parameter):
-        """Loads parameter values needed for the requested parameter calibration from configuration.
-
-        Args:
-            parameter: the parameter which is calibrated.
-
-        Returns:
-            dictionary containing values for all parameters.
-        """
-
-        parameters = {}
-        # Parameter specific initialization
-        if parameter == 'EL':
-            parameters.update({'Vt': config.parameter_max['Vt'], 'gL': config.parameter_default['gL']})
-        elif parameter in ('Vreset', 'Vt'):
-            parameters.update({'EL': config.parameter_max['EL'], 'gL': config.parameter_default['gL']})
-        elif parameter == 'gL':
-            parameters.update({'Vreset': config.parameter_IF['Vreset'], 'EL': config.parameter_IF['EL'],
-                               'Vt': config.parameter_IF['Vt']})
-        elif parameter == 'tauref':
-            parameters.update(config.parameter_IF)
-        elif parameter == 'a':
-            parameters.update(config.parameter_IF)
-            parameters['tauw'] = config.parameter_default['tauw']
-        elif parameter == 'tw':
-            parameters.update(config.parameter_IF)
-            parameters['a'] = config.parameter_default['a']
-        elif parameter == 'b':
-            parameters.update(config.parameter_IF)
-            parameters.update({'a': config.parameter_default['a'], 'tauw': config.parameter_default['tauw']})
-        elif parameter in ('tausynx', 'tausyni'):
-            parameters.update(config.parameter_IF)
-            parameters['EL'] = config.parameter_default['EL']
-            parameters['Vt'] = config.parameter_max['Vt']
-            parameters['Esynx'] = config.parameter_default['Esynx']
-            parameters['Esyni'] = config.parameter_default['Esyni']
-        elif parameter == 'dT':
-            parameters.update(config.parameter_IF)
-            parameters['Ibexp'] = config.parameter_special['Ibexp']
-            parameters['Vexp'] = config.parameter_default['Vexp']
-        elif parameter == 'Vexp':
-            parameters.update(config.parameter_IF)
-            parameters['Ibexp'] = config.parameter_special['Ibexp']
-            parameters['dT'] = config.parameter_default['dT']
-        return parameters
 
     def process_result(self, parameter, parameters, sorted_array_mean, sorted_array_err):
         if parameter in ('EL', 'Vt', 'Vreset', 'tw', 'dT'):
@@ -410,3 +364,50 @@ class CalibrationController(object):
         c = float(calibCoeff[2])
         fit = (a, b, c)
         return fit
+
+
+def get_parameters(parameter):
+        """Loads parameter values needed for the requested parameter calibration from configuration.
+
+        Args:
+            parameter: the parameter which is calibrated.
+
+        Returns:
+            dictionary containing values for all parameters.
+        """
+
+        parameters = {}
+        # Parameter specific initialization
+        if parameter == 'EL':
+            parameters.update({'Vt': config.parameter_max['Vt'], 'gL': config.parameter_default['gL']})
+        elif parameter in ('Vreset', 'Vt'):
+            parameters.update({'EL': config.parameter_max['EL'], 'gL': config.parameter_default['gL']})
+        elif parameter == 'gL':
+            parameters.update({'Vreset': config.parameter_IF['Vreset'], 'EL': config.parameter_IF['EL'],
+                               'Vt': config.parameter_IF['Vt']})
+        elif parameter == 'tauref':
+            parameters.update(config.parameter_IF)
+        elif parameter == 'a':
+            parameters.update(config.parameter_IF)
+            parameters['tauw'] = config.parameter_default['tauw']
+        elif parameter == 'tw':
+            parameters.update(config.parameter_IF)
+            parameters['a'] = config.parameter_default['a']
+        elif parameter == 'b':
+            parameters.update(config.parameter_IF)
+            parameters.update({'a': config.parameter_default['a'], 'tauw': config.parameter_default['tauw']})
+        elif parameter in ('tausynx', 'tausyni'):
+            parameters.update(config.parameter_IF)
+            parameters['EL'] = config.parameter_default['EL']
+            parameters['Vt'] = config.parameter_max['Vt']
+            parameters['Esynx'] = config.parameter_default['Esynx']
+            parameters['Esyni'] = config.parameter_default['Esyni']
+        elif parameter == 'dT':
+            parameters.update(config.parameter_IF)
+            parameters['Ibexp'] = config.parameter_special['Ibexp']
+            parameters['Vexp'] = config.parameter_default['Vexp']
+        elif parameter == 'Vexp':
+            parameters.update(config.parameter_IF)
+            parameters['Ibexp'] = config.parameter_special['Ibexp']
+            parameters['dT'] = config.parameter_default['dT']
+        return parameters
