@@ -4,9 +4,6 @@
 
 FPGA_PORT = 1701
 
-# Voltage conversion
-vCoeff = 1000  # FIXME: should be in calibration
-
 current_default = 600  # Default current, DAC value
 
 # sample times, maybe move into pycairo.config.adc?

@@ -586,15 +586,15 @@ class HalbeInterface:
 
                 # Parameter specific measurement
                 if (parameter == 'EL'):
-                    measured_value = self.adc.get_mean() * config.vCoeff
+                    measured_value = self.adc.get_mean() * 1000
                     print "Measured value for EL : " + str(measured_value) + " mV"
                     meas_array.append(measured_value)
                 elif (parameter == 'Vreset'):
-                    measured_value = self.adc.get_min() * config.vCoeff
+                    measured_value = self.adc.get_min() * 1000
                     print "Measured value for Vreset : " + str(measured_value) + " mV"
                     meas_array.append(measured_value)
                 elif (parameter == 'Vt'):
-                    measured_value = self.adc.get_max() * config.vCoeff
+                    measured_value = self.adc.get_max() * 1000
                     print "Measured value for Vt : " + str(measured_value) + " mV"
                     meas_array.append(measured_value)
                 elif (parameter == 'gL' or parameter == 'tauref' or parameter == 'a' or parameter == 'b' or parameter == 'Vexp'):
@@ -634,7 +634,6 @@ class HalbeInterface:
 
                     # Convert v with scaling
                     for i in range(len(v)):
-                        v[i] = v[i]*self.config.vCoeff/1000
                         t[i] = t[i]*1000
 
                     if (parameter == 'tausynx'):
