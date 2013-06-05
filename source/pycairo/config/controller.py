@@ -1,4 +1,3 @@
-debug_mode = False
 debug_print_results = True
 verbose = True  # print what is going on
 

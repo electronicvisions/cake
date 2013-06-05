@@ -112,7 +112,7 @@ class CalibrationController(object):
         parameters = get_parameters(parameter)
 
         # Create input_array
-        input_array = self.get_steps(parameter)
+        input_array = get_steps(parameter)
         repetitions = config.parameter_ranges[parameter]['reps']
 
         output_array_mean = []
@@ -198,7 +198,7 @@ class CalibrationController(object):
         for n, neuron in enumerate(neurons):
             # Compute calibration function
             try:
-                parameter_fit = self.compute_calib_function(processed_array_mean[n], db_input_array)
+                parameter_fit = compute_calib_function(processed_array_mean[n], db_input_array)
 
                 # Set the parameter as calibrated
                 self.dbi.change_parameter_neuron(fpga_id, neuron, parameter+"_calibrated", True)
@@ -311,20 +311,14 @@ class CalibrationController(object):
             print "Configuring the hardware ..."
             config_start = time.time()
 
-        # If no debug mode, configure the hardware. If debug, do nothing
-        if not config.debug_mode:
-            self.hwi.send_fg_configure(neurons, calibrated_parameters)
+        self.hwi.send_fg_configure(neurons, calibrated_parameters)
 
         if config.verbose:
             print "Hardware configuration completed in {:.2}s".format(time.time() - config_start)
             print "Measuring the hardware ..."
             meas_start = time.time()
 
-        # If no debug mode, measure the hardware. If debug, return 0
-        if not config.debug_mode:
-            measurement = self.hwi.measure(neurons, parameter, parameters, 0, value)
-        else:
-            measurement = neuron_index  # FIXME this looks wrong
+        measurement = self.hwi.measure(neurons, parameter, parameters, 0, value)
 
         if config.verbose:
             print "Measurement completed in " + str(time.time() - meas_start) + " s"
@@ -344,26 +338,28 @@ class CalibrationController(object):
             poly_array.append(float(np.polyval(coefficients, i)))
         return poly_array
 
-    def get_steps(self, p):
-        # Create input_array
-        start, stop = config.parameter_ranges[p]['min'], config.parameter_ranges[p]['max']
-        pts = config.parameter_ranges[p]['pts']
-        return np.linspace(start, stop, pts)
 
-    def compute_calib_function(self, measuredValues, values):
-        """Compute calibration function.
+def get_steps(p):
+    # Create input_array
+    start, stop = config.parameter_ranges[p]['min'], config.parameter_ranges[p]['max']
+    pts = config.parameter_ranges[p]['pts']
+    return np.linspace(start, stop, pts)
 
-        Args:
-            measuredValues: The measured values.
-            values: The input values.
-        """
 
-        calibCoeff = np.polyfit(measuredValues, values, 2)
-        a = float(calibCoeff[0])
-        b = float(calibCoeff[1])
-        c = float(calibCoeff[2])
-        fit = (a, b, c)
-        return fit
+def compute_calib_function(measuredValues, values):
+    """Compute calibration function.
+
+    Args:
+        measuredValues: The measured values.
+        values: The input values.
+    """
+
+    calibCoeff = np.polyfit(measuredValues, values, 2)
+    a = float(calibCoeff[0])
+    b = float(calibCoeff[1])
+    c = float(calibCoeff[2])
+    fit = (a, b, c)
+    return fit
 
 
 def get_parameters(parameter):
