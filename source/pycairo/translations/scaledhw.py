@@ -2,7 +2,7 @@
 
 from numpy import polyval, sqrt
 from pycairo.interfaces import database as DB
-from pycairo.config import default_hardware_params as dflt
+from pycairo.config import hardware as dflt
 from pycairo.config import idealtrafo as ideal
 
 

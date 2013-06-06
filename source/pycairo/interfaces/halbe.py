@@ -8,7 +8,6 @@ import numpy as np
 import pycairo.interfaces.adc
 import pycairo.logic.helpers
 import pycairo.config.hardware as config
-from pycairo.config.default_hardware_params import get_global_parameters, get_HW_parameters
 
 
 class HWNeurons(object):
@@ -89,9 +88,9 @@ class HalbeInterface:
         if len(set(p["Vreset"] for p in parameters)) != 1:
             raise RuntimeError("Vreset must be equal for all neurons")
 
-        g_p = get_global_parameters()
+        g_p = config.get_global_parameters()
         g_p["V_reset"] = self.convert_to_voltage_fg(parameters[0]['Vreset'])
-        params = [dict((k, 0) for k in get_HW_parameters()) for ii in range(pyhalbe.FGControl.number_neurons)]
+        params = [dict((k, 0) for k in config.get_HW_parameters()) for ii in range(pyhalbe.FGControl.number_neurons)]
 
         for ii, neuron in enumerate(neurons):
             params[neuron] = parameters[ii]
@@ -155,8 +154,8 @@ class HalbeInterface:
 
     ## Erase FGArra
     def erase_fg(self):
-        g_p = dict((k, 0) for k in get_global_parameters())
-        p = [dict((k, 0) for k in get_HW_parameters()) for ii in range(pyhalbe.FGControl.number_neurons)]
+        g_p = dict((k, 0) for k in config.get_global_parameters())
+        p = [dict((k, 0) for k in config.get_HW_parameters()) for ii in range(pyhalbe.FGControl.number_neurons)]
         self.write_fg(g_p, p)
 
     def sweep_neuron(self, neuron, side=None, current=0):
