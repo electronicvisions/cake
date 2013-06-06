@@ -1,4 +1,4 @@
-'''Cairo interface to HALbe via pyhalbe. Adresses a single HICANN.'''
+"""Cairo interface to HALbe via pyhalbe. Adresses a single HICANN."""
 
 import pyhalbe
 from pyhalbe.geometry import Enum
@@ -38,13 +38,13 @@ class HWNeurons(object):
 
 class HalbeInterface:
     def __init__(self, hicann_id, setup_ip, setup_port=config.FPGA_PORT):
-        '''Connect to a vertical setup at a given IP.
+        """Connect to a vertical setup at a given IP.
 
         Vars:
             hicann_id: HICANN id
             setup_ip (str): string containing of IPv4 adress
             setup_port (int): port
-        '''
+        """
 
         self.helpers = pycairo.logic.helpers.Helpers()
         self.adc = pycairo.interfaces.adc.ADCInterface()  # TODO WSS case?
@@ -82,7 +82,7 @@ class HalbeInterface:
         """Main configuration function. Erase and write FGarray and read out neuron neuronID.
 
         Args:
-            neuron_index The index of neurons. For example : [[1,2,3],[1,2,3]]
+            neuron_index The index of neurons. For example : [[1, 2, 3], [1, 2, 3]]
             parameter The parameter to measure. Example : "EL"
         """
 
@@ -159,11 +159,13 @@ class HalbeInterface:
         p = [dict((k, 0) for k in get_HW_parameters()) for ii in range(pyhalbe.FGControl.number_neurons)]
         self.write_fg(g_p, p)
 
-    ## Sweep output to a given neuron number
-    # @param i The neuron number
-    # @param side The side of the chip, can be "top" or "bottom"
-    # @param current The current to inject in the neuron, values from 0 to 1023
     def sweep_neuron(self, neuron, side=None, current=0):
+        """Sweep output to a given neuron number
+            i: The neuron number
+            side: The side of the chip, can be "top" or "bottom"
+            current: The current to inject in the neuron, values from 0 to 1023
+        """
+
         neuron = int(neuron)
         assert neuron >= 0 and neuron < 512
         assert current == 0
@@ -189,34 +191,50 @@ class HalbeInterface:
         neurons.enable_aout(neuron)
         neurons.write(self.h)
 
-    ## Configure one neuron only
-    # @param neuron The neuron to configure
-    # @param current The current to inject, values from 0 to 1023
     def set_one_neuron_current(self, neuron, current):
+        """Configure one neuron only
+
+        Args:
+            neuron: The neuron to configure
+            current: The current to inject, values from 0 to 1023
+        """
+
         keys = ["q", str(current), "n", str(neuron)]
         self.call_testmode('tm_neuron', keys, ['-c', self.xmlfile])
 
-    ## Set stimulus
-    # @param i Set the current stimulus to the value i
     def set_stimulus(self, i):
+        """Set stimulus
+
+        Args:
+            i: Set the current stimulus to the value i
+        """
         # Convert to digital value
         self.configure_hardware(["s", str(i), "x"])
 
-    ## Set ramp stimulus
-    # @param i Set the current stimulus to the value i
     def set_ramp_stimulus(self, i):
+        """Set ramp stimulus
+
+        Args:
+            i: Set the current stimulus to the value i
+        """
         # Convert to digital value
         self.configure_hardware(["q", str(i), "x"])
 
-    ## Set stimulus
-    # @param i Set the current stimulus to the value i
     def set_constant_stimulus(self, i):
+        """Set stimulus
+
+        Args:
+            i Set the current stimulus to the value i
+        """
         # Convert to digital value
         self.configure_hardware(["s", str(i), "x"])
 
-    ## Set stimulus in nA
-    # @param i Set the current stimulus to the value i, in nA
     def set_stimulus_nA(self, i):
+        """Set stimulus in nA
+
+        Args:
+            i: Set the current stimulus to the value i, in nA
+        """
 
         # Calculate FG value
         # FIXME hardcoded values
@@ -228,8 +246,7 @@ class HalbeInterface:
         # Convert to digital value
         self.configure_hardware(["q", str(i), "x"])
 
-    ## Init HICANN, todo rename?
-    def init_L1(self):
+    def init_HICANN(self):
         print "hicann reset.. ",
         pyhalbe.HICANN.full_reset(self.h, False)
         print "done"
@@ -239,36 +256,23 @@ class HalbeInterface:
         #print "Setting PLL to", config.pll
         #pyhalbe.HICANN.set_PLL_frequency(self.h, config.pll)
 
-    ## Init iBoard and HICANN
     def init_HW(self):
+        """Init iBoard and HICANN"""
         print "Full hicann reset...",
         pyhalbe.HICANN.full_reset(self.h, True)
         print "done"
 
-        self.init_L1()
+        self.init_HICANN()
 
-        #print "Clearing floating gates array... ",
-        #self.erase_fg()
-        #print "done"
-
-#        # Reset JTAG and HICANN
-#        keys = ['1', '2', '3']
-#        # Set voltages on iBoard and analog out
-#        keys += ['7', 'c', 'x']
-#
-#        self.call_testmode('tmak_iboardv2', keys)
-#        print "iBoard configured"
-#
-#        # Clear synapse array
-#        self.configure_hardware(["0","x"])
-#        print "Synapse array cleared"
-
-    ## Activate background event generator
-    # @param BEG_status The status of the BEG, can be "ON" or "OFF"
-    # @param BEG_type The mode of the BEG, can be "REGULAR" or "POISSON"
-    # @param cycles The number of cycles of the BEG
-    # @param neuron The neuron to stimulate witht the BEG
     def activate_BEG(self, BEG_status, BEG_type, cycles, neuron):
+        """Activate background event generator.
+
+        Args:
+            BEG_status: The status of the BEG, can be "ON" or "OFF"
+            BEG_type: The mode of the BEG, can be "REGULAR" or "POISSON"
+            cycles: The number of cycles of the BEG
+            neuron: The neuron to stimulate witht the BEG
+        """
 
         # Key file
         if (BEG_status == 'ON'):
@@ -279,17 +283,18 @@ class HalbeInterface:
         if (BEG_status == 'OFF'):
             keys = ['7']
 
-        # Launch test mode
         self.configure_hardware(keys + ["x"])
 
-    ## Deactivate background event generator
     def deactivate_BEG(self):
+        """Deactivate background event generator"""
         self.configure_hardware(["0", "x"])
 
-    ## Read all spikes
-    # @param neuron_index The neuron index
-    # @param range The number of neuron circuits to read from at a time
+    # FIXME the following two functions look wrong, still in use?
     def read_spikes_freq(self, neuron_index, range=4):
+        """Read all spikes
+            neuron_index: The neuron index
+            range: The number of neuron circuits to read from at a time
+        """
         def measure_top_half(neuron_index, range):
             neuron_list, freqs = self.read_spikes_half(neuron_index, range)
 
@@ -316,10 +321,13 @@ class HalbeInterface:
 
             return neuron_index, freqs_new
 
-    ## Read spikes from half the chip
-    # @param neuron_index The neuron index
-    # @param range The number of neuron circuits to read from at a time
     def read_spikes_half(self, neuron_index, range=4):
+        """Read spikes from half the chip.
+
+        Args:
+            neuron_index: The neuron index
+            range: The number of neuron circuits to read from at a time
+        """
 
         keys = []
         for n in np.arange(min(neuron_index), max(neuron_index), range):
@@ -407,11 +415,11 @@ class HalbeInterface:
 
         # Measure top half
         if (max(neuron_index) < 256):
-            neuron_list, spikes = self.plot_spikes_half(neuron_index,range)
+            neuron_list, spikes = self.plot_spikes_half(neuron_index, range)
 
         # Measure bottom half
         if (min(neuron_index) > 255):
-            temp_neuron_list, spikes = self.plot_spikes_half(neuron_index,range)
+            temp_neuron_list, spikes = self.plot_spikes_half(neuron_index, range)
             # Add 256 to neuron list
             neuron_list = []
             for i in temp_neuron_list:
@@ -428,8 +436,8 @@ class HalbeInterface:
                 else:
                     neuron_index_bottom.append(i)
             # Measure
-            neuron_list_top, spikes_top = self.plot_spikes_half(neuron_index_top,range)
-            neuron_list_bottom, spikes_bottom = self.plot_spikes_half(neuron_index_top,range)
+            neuron_list_top, spikes_top = self.plot_spikes_half(neuron_index_top, range)
+            neuron_list_bottom, spikes_bottom = self.plot_spikes_half(neuron_index_top, range)
 
             # Concatenate results
             new_neuron_list_bottom = []
@@ -440,16 +448,20 @@ class HalbeInterface:
             spikes = spikes_top + spikes_bottom
 
         import matplotlib.pyplot as plt
-        for i,item in enumerate(neuron_list):
-            plt.scatter(spikes[i],neuron_list[i]*np.ones(len(spikes[i])),s=3)
+        for i, item in enumerate(neuron_list):
+            plt.scatter(spikes[i], neuron_list[i]*np.ones(len(spikes[i])), s=3)
 
-    ## Read spikes and plot for one half
-    # @param neuron_index The neuron index
-    # @param range The number of neuron circuits to read from at a time
-    def plot_spikes_half(self,neuron_index,range=4):
+    def plot_spikes_half(self, neuron_index, range=4):
+        """Read spikes and plot for one half
+
+        Args:
+            neuron_index: The neuron index
+            range: The number of neuron circuits to read from at a time
+        """
 
         keys = []
-        for n in np.arange(min(neuron_index),max(neuron_index),range):
+        for n in np.arange(min(neuron_index), max(neuron_index), range):
+            commands = []  # FIXME undefined variable commands?!
             commands.append('R')
             commands.append(str(n))
             commands.append(str(n+range-1))
@@ -457,7 +469,7 @@ class HalbeInterface:
 
         # Remove spike file
         import os
-        os.system("rm " + self.tm_path + 'train') # FIXME this is bad
+        os.system("rm " + self.tm_path + 'train')  # FIXME this is bad
 
         # Launch test mode
         self.configure_hardware(keys)
@@ -505,18 +517,26 @@ class HalbeInterface:
 
         return neuron_list_new, spikes_lists
 
-    ## Calc ISI
-    # @param spikes_list The input spikes list
-    def calc_ISI(self,spikes_list):
+    def calc_ISI(self, spikes_list):
+        """Calc ISI
+
+        Args:
+            spikes_list: The input spikes list
+        """
+
         ISI = []
-        for i in np.arange(1,len(spikes_list)):
+        for i in np.arange(1, len(spikes_list)):
             ISI.append(spikes_list[i]-spikes_list[i-1])
 
         return ISI
 
-    ## Calc frequency
-    # @param spikes_list The input spikes list
-    def calc_freq(self,spikes_list):
+    def calc_freq(self, spikes_list):
+        """Calc frequency
+
+        Args:
+            spikes_list: The input spikes list
+        """
+
         ISI = self.calc_ISI(spikes_list)
         mean_ISI = np.mean(ISI)
         if (mean_ISI != 0):
@@ -524,9 +544,13 @@ class HalbeInterface:
         else:
             return 0
 
-    ## Calculate standard deviation of the spiking frequencies
-    # @param spikes_list The input spikes list
-    def calc_std(self,spikes_list):
+    def calc_std(self, spikes_list):
+        """Calculate standard deviation of the spiking frequencies
+
+        Args:
+            spikes_list: The input spikes list
+        """
+
         ISI = self.calc_ISI(spikes_list)
         freqs = []
         for i in ISI:
@@ -535,52 +559,54 @@ class HalbeInterface:
         std_freq = np.std(freqs)
         return std_freq
 
-
     def switch_neuron(self, current_neuron):
-        '''Switch to the correct hardware neuron.
+        """Switch to the correct hardware neuron.
 
         Args:
-            current_neuron: number of the desired neuron.'''
+            current_neuron: number of the desired neuron."""
 
         if(current_neuron < 128):
-            self.sweep_neuron(current_neuron,'top')
+            self.sweep_neuron(current_neuron, 'top')
             side = 'left'
         elif(current_neuron > 127 and current_neuron < 256):
-            self.sweep_neuron(-current_neuron + 383,'top')
+            self.sweep_neuron(-current_neuron + 383, 'top')
             side = 'right'
         elif(current_neuron > 255 and current_neuron < 384):
-            self.sweep_neuron(current_neuron,'bottom')
+            self.sweep_neuron(current_neuron, 'bottom')
             side = 'left'
         elif(current_neuron > 383):
-            self.sweep_neuron(-current_neuron + 895,'bottom')
+            self.sweep_neuron(-current_neuron + 895, 'bottom')
             side = 'right'
 
+        return side
+
     def measure(self, neurons, parameter, parameters, stimulus=0, spike_stimulus=[]):
-        '''Main measurement function.
+        """Main measurement function.
 
         Args:
-            neuron_index The index of neurons. For example : [[1,2,3],[1,2,3]]
+            neuron_index The index of neurons. For example : [[1, 2, 3], [1, 2, 3]]
             parameter The parameter to measure. Example : "EL"
             parameters The neuron parameters
             stimulus Value of the current stimulus
             value The hardware value of the parameter that is currently being measured
             spike_stimulus The list of spikes to send to the hardware
-        '''
+        """
 
-        measurement_array = [] # main measurement array for all HICANNs
+        # main measurement array for all HICANNs
+        measurement_array = []
 
         #if parameter in ['gL', 'digital_freq']:
-        if parameter in ['digital_freq']: # do digital measurement
-            self.init_L1() # Init HICANN
+        if parameter in ['digital_freq']:  # do digital measurement
+            self.init_HICANN()
 
             # Get frequencies for all neurons in current HICANN
             print 'Measuring frequencies ...'
-            neurons, freqs = self.read_spikes_freq(neurons,range=32)
+            neurons, freqs = self.read_spikes_freq(neurons, range=32)
 
             measurement_array.append(freqs)
         else:
-            meas_array = [] # Init measurement array
-            for n,current_neuron in enumerate(neurons):
+            meas_array = []  # measurement array
+            for n, current_neuron in enumerate(neurons):
                 print "Measuring neuron " + str(current_neuron)
                 self.switch_neuron(current_neuron)
 
@@ -607,39 +633,39 @@ class HalbeInterface:
 
                     # Get trace
                     trace = self.adc.read_adc(config.sample_time_tw)
-                    t,v = trace.time, trace.voltage
+                    t, v = trace.time, trace.voltage
 
                     # Apply fit
-                    tw = self.helpers.tw_fit(t,v,parameters['C'],parameters['gL'])
+                    tw = self.helpers.tw_fit(t, v, parameters['C'], parameters['gL'])
 
                     print "Measured value : " + str(tw)
                     meas_array.append(tw)
                 elif (parameter == 'dT'):
                     # Get trace
                     trace = self.adc.read_adc(config.sample_time_dT)
-                    t,v = trace.time, trace.voltage
+                    t, v = trace.time, trace.voltage
 
                     # Calc dT
-                    dT = self.helpers.calc_dT(t,v,parameters['C'],parameters['gL'],parameters['EL'])
+                    dT = self.helpers.calc_dT(t, v, parameters['C'], parameters['gL'], parameters['EL'])
 
                     print "Measured value : " + str(dT)
                     meas_array.append(dT)
-                elif (parameter == 'tausynx' or parameter=='tausyni'):
+                elif parameter in ('tausynx', 'tausyni'):
                     # Activate BEG
-                    self.activate_BEG('ON','REGULAR',2000,current_neuron)
+                    self.activate_BEG('ON', 'REGULAR', 2000, current_neuron)
                     print 'BEG active'
 
                     # Get trace
-                    t,v = self.adc.adc_sta(20e-6)
+                    t, v = self.adc.adc_sta(20e-6)
 
                     # Convert v with scaling
                     for i in range(len(v)):
                         t[i] = t[i]*1000
 
                     if (parameter == 'tausynx'):
-                        fit = self.helpers.fit_PSP(t,v,parameter,parameters[parameter],parameters['Esynx'])
+                        fit = self.helpers.fit_PSP(t, v, parameter, parameters[parameter], parameters['Esynx'])
                     if (parameter == 'tausyni'):
-                        fit = self.helpers.fit_PSP(t,v,parameter,parameters[parameter],parameters['Esyni'])
+                        fit = self.helpers.fit_PSP(t, v, parameter, parameters[parameter], parameters['Esyni'])
 
                     print "Measured value : " + str(fit)
                     meas_array.append(fit)
