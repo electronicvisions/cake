@@ -289,234 +289,6 @@ class HalbeInterface:
         """Deactivate background event generator"""
         self.configure_hardware(["0", "x"])
 
-    # FIXME the following two functions look wrong, still in use?
-    def read_spikes_freq(self, neuron_index, range=4):
-        """Read all spikes
-            neuron_index: The neuron index
-            range: The number of neuron circuits to read from at a time
-        """
-        def measure_top_half(neuron_index, range):
-            neuron_list, freqs = self.read_spikes_half(neuron_index, range)
-
-            freqs = list(freqs)
-            for i, item in enumerate(neuron_index):
-                if (item in neuron_list):
-                    pass
-                else:
-                    freqs.insert(i, 0)
-
-            freqs_new = []
-
-            print neuron_index
-            print len(freqs), freqs
-            print len(neuron_list), neuron_list
-
-            for i, item in enumerate(neuron_index):
-
-                if (item < 128):
-                    freqs_new.append(freqs[i])
-
-                if (item > 127 and item < 256):
-                    freqs_new.append(freqs[-i + 255 + 128])
-
-            return neuron_index, freqs_new
-
-    def read_spikes_half(self, neuron_index, range=4):
-        """Read spikes from half the chip.
-
-        Args:
-            neuron_index: The neuron index
-            range: The number of neuron circuits to read from at a time
-        """
-
-        keys = []
-        for n in np.arange(min(neuron_index), max(neuron_index), range):
-            keys.append('R')
-            keys.append(str(n))
-            keys.append(str(n + range - 1))
-        keys.append("x")
-
-        # Remove spike file
-        import os
-        os.system("rm " + self.tm_path + 'train')  # FIXME this is bad
-
-        # Launch test mode
-        self.configure_hardware(keys)
-
-        # Read file
-        try:
-            data = np.genfromtxt(self.tm_path + "train")
-        except:
-            data = []
-
-        # Neuron index
-        neuron_list = []
-        spikes_lists = []
-
-        if (data != []):
-
-            # Sort data
-            for i in data:
-                neuron_number = (-i[1] + 7) * 64 + i[2]
-
-                if (not (neuron_number in neuron_list)):
-                    neuron_list.append(int(neuron_number))
-
-            # Organize spikes lists
-            for i in neuron_list:
-                spikes_lists.append([])
-
-            for i in data:
-                neuron_number = (-i[1] + 7) * 64 + i[2]
-                spikes_lists[neuron_list.index(neuron_number)].append(i[0])
-
-            # Calc freq for spikes_lists
-            freqs = []
-            for i, item in enumerate(spikes_lists):
-                frequency = self.calc_freq(item)
-                if (frequency > 0):
-                    freqs.append(frequency)
-                else:
-                    freqs.append(0)
-
-            # Sort
-            neuronsfreq = zip(neuron_list, freqs)
-            neuronsfreq.sort()
-            neuron_list, freqs = zip(*neuronsfreq)
-
-            # Cut to match neuron_index
-            measured_freq = []
-            for i, item in enumerate(neuron_list):
-                if item in neuron_index:
-                    measured_freq.append(freqs[i])
-
-            # Calculate new neuron list
-            neuron_list_new = []
-            for i in neuron_list:
-                if (i > -1 and i < 32):
-                    neuron_list_new.append(i)
-                if (i > 95 and i < 160):
-                    neuron_list_new.append(i - 96 + 32)
-                if (i > 223 and i < 288):
-                    neuron_list_new.append(i - 224 + 32 + 64)
-                if (i > 351 and i < 416):
-                    neuron_list_new.append(i - 352 + 32 + 128)
-                if (i > 479 and i < 512):
-                    neuron_list_new.append(i - 480 + 32 + 128 + 64)
-
-        else:
-            neuron_list_new = []
-            freqs = []
-
-        return neuron_list_new, freqs
-
-    def plot_spikes(self, neuron_index, range=4):
-        """Read spikes and plot for one half"""
-
-        # Measure top half
-        if (max(neuron_index) < 256):
-            neuron_list, spikes = self.plot_spikes_half(neuron_index, range)
-
-        # Measure bottom half
-        if (min(neuron_index) > 255):
-            temp_neuron_list, spikes = self.plot_spikes_half(neuron_index, range)
-            # Add 256 to neuron list
-            neuron_list = []
-            for i in temp_neuron_list:
-                neuron_list.append(i+256)
-
-        # Measure all chip
-        if (max(neuron_index) > 256 and min(neuron_index) < 255):
-            # Split index
-            neuron_index_top = []
-            neuron_index_bottom = []
-            for i in neuron_index:
-                if (i < 256):
-                    neuron_index_top.append(i)
-                else:
-                    neuron_index_bottom.append(i)
-            # Measure
-            neuron_list_top, spikes_top = self.plot_spikes_half(neuron_index_top, range)
-            neuron_list_bottom, spikes_bottom = self.plot_spikes_half(neuron_index_top, range)
-
-            # Concatenate results
-            new_neuron_list_bottom = []
-            for i in neuron_list_bottom:
-                new_neuron_list_bottom.append(i+256)
-
-            neuron_list = neuron_list_top + new_neuron_list_bottom
-            spikes = spikes_top + spikes_bottom
-
-        import matplotlib.pyplot as plt
-        for i, item in enumerate(neuron_list):
-            plt.scatter(spikes[i], neuron_list[i]*np.ones(len(spikes[i])), s=3)
-
-    def plot_spikes_half(self, neuron_index, range=4):
-        """Read spikes and plot for one half
-
-        Args:
-            neuron_index: The neuron index
-            range: The number of neuron circuits to read from at a time
-        """
-
-        keys = []
-        for n in np.arange(min(neuron_index), max(neuron_index), range):
-            commands = []  # FIXME undefined variable commands?!
-            commands.append('R')
-            commands.append(str(n))
-            commands.append(str(n+range-1))
-        keys.append("x")
-
-        # Remove spike file
-        import os
-        os.system("rm " + self.tm_path + 'train')  # FIXME this is bad
-
-        # Launch test mode
-        self.configure_hardware(keys)
-
-        # Read file
-        try:
-            data = np.genfromtxt(self.tm_path + "train")
-        except:
-            data = []
-
-        if (data != []):
-
-            # Neuron index
-            neuron_list = []
-            spikes_lists = []
-
-            # Sort data
-            for i in data:
-                neuron_number = (-i[1]+7)*64 + i[2]
-
-                if (not (neuron_number in neuron_list)):
-                    neuron_list.append(int(neuron_number))
-
-            # Organize spikes lists
-            for i in neuron_list:
-                spikes_lists.append([])
-
-            for i in data:
-                neuron_number = (-i[1]+7)*64 + i[2]
-                spikes_lists[neuron_list.index(neuron_number)].append(i[0]*1e6)
-
-            # Calculate new neuron list
-            neuron_list_new = []
-            for i in neuron_list:
-                if (i > -1 and i < 32):
-                    neuron_list_new.append(i)
-                if (i > 95 and i < 160):
-                    neuron_list_new.append(i-96+32)
-                if (i > 223 and i < 288):
-                    neuron_list_new.append(i-224+32+64)
-                if (i > 351 and i < 416):
-                    neuron_list_new.append(i-352+32+128)
-                if (i > 479 and i < 512):
-                    neuron_list_new.append(i-480+32+128+64)
-
-        return neuron_list_new, spikes_lists
-
     def calc_ISI(self, spikes_list):
         """Calc ISI
 
@@ -592,82 +364,69 @@ class HalbeInterface:
             spike_stimulus The list of spikes to send to the hardware
         """
 
-        # main measurement array for all HICANNs
-        measurement_array = []
+        meas_array = []  # measurement array
+        for n, current_neuron in enumerate(neurons):
+            print "Measuring neuron " + str(current_neuron)
+            self.switch_neuron(current_neuron)
 
-        #if parameter in ['gL', 'digital_freq']:
-        if parameter in ['digital_freq']:  # do digital measurement
-            self.init_HICANN()
+            # Parameter specific measurement
+            if (parameter == 'EL'):
+                measured_value = self.adc.get_mean() * 1000  # ADC interface returns volts, multiply by 1000 for millivolts
+                print "Measured value for EL : " + str(measured_value) + " mV"
+                meas_array.append(measured_value)
+            elif (parameter == 'Vreset'):
+                measured_value = self.adc.get_min() * 1000
+                print "Measured value for Vreset : " + str(measured_value) + " mV"
+                meas_array.append(measured_value)
+            elif (parameter == 'Vt'):
+                measured_value = self.adc.get_max() * 1000
+                print "Measured value for Vt : " + str(measured_value) + " mV"
+                meas_array.append(measured_value)
+            elif (parameter == 'gL' or parameter == 'tauref' or parameter == 'a' or parameter == 'b' or parameter == 'Vexp'):
+                measured_value = self.adc.get_freq()
+                print "Measured frequency : " + str(measured_value) + " Hz"
+                meas_array.append(measured_value)
+            elif (parameter == 'tw'):
+                # Inject current
+                self.set_stimulus(config.current_default)
 
-            # Get frequencies for all neurons in current HICANN
-            print 'Measuring frequencies ...'
-            neurons, freqs = self.read_spikes_freq(neurons, range=32)
+                # Get trace
+                trace = self.adc.read_adc(config.sample_time_tw)
+                t, v = trace.time, trace.voltage
 
-            measurement_array.append(freqs)
-        else:
-            meas_array = []  # measurement array
-            for n, current_neuron in enumerate(neurons):
-                print "Measuring neuron " + str(current_neuron)
-                self.switch_neuron(current_neuron)
+                # Apply fit
+                tw = self.helpers.tw_fit(t, v, parameters['C'], parameters['gL'])
 
-                # Parameter specific measurement
-                if (parameter == 'EL'):
-                    measured_value = self.adc.get_mean() * 1000
-                    print "Measured value for EL : " + str(measured_value) + " mV"
-                    meas_array.append(measured_value)
-                elif (parameter == 'Vreset'):
-                    measured_value = self.adc.get_min() * 1000
-                    print "Measured value for Vreset : " + str(measured_value) + " mV"
-                    meas_array.append(measured_value)
-                elif (parameter == 'Vt'):
-                    measured_value = self.adc.get_max() * 1000
-                    print "Measured value for Vt : " + str(measured_value) + " mV"
-                    meas_array.append(measured_value)
-                elif (parameter == 'gL' or parameter == 'tauref' or parameter == 'a' or parameter == 'b' or parameter == 'Vexp'):
-                    measured_value = self.adc.get_freq()
-                    print "Measured frequency : " + str(measured_value) + " Hz"
-                    meas_array.append(measured_value)
-                elif (parameter == 'tw'):
-                    # Inject current
-                    self.set_stimulus(config.current_default)
+                print "Measured value : " + str(tw)
+                meas_array.append(tw)
+            elif (parameter == 'dT'):
+                # Get trace
+                trace = self.adc.read_adc(config.sample_time_dT)
+                t, v = trace.time, trace.voltage
 
-                    # Get trace
-                    trace = self.adc.read_adc(config.sample_time_tw)
-                    t, v = trace.time, trace.voltage
+                # Calc dT
+                dT = self.helpers.calc_dT(t, v, parameters['C'], parameters['gL'], parameters['EL'])
 
-                    # Apply fit
-                    tw = self.helpers.tw_fit(t, v, parameters['C'], parameters['gL'])
+                print "Measured value : " + str(dT)
+                meas_array.append(dT)
+            elif parameter in ('tausynx', 'tausyni'):
+                # Activate BEG
+                self.activate_BEG('ON', 'REGULAR', 2000, current_neuron)
+                print 'BEG active'
 
-                    print "Measured value : " + str(tw)
-                    meas_array.append(tw)
-                elif (parameter == 'dT'):
-                    # Get trace
-                    trace = self.adc.read_adc(config.sample_time_dT)
-                    t, v = trace.time, trace.voltage
+                # Get trace
+                t, v = self.adc.adc_sta(20e-6)
 
-                    # Calc dT
-                    dT = self.helpers.calc_dT(t, v, parameters['C'], parameters['gL'], parameters['EL'])
+                # Convert v with scaling
+                for i in range(len(v)):
+                    t[i] = t[i]*1000
 
-                    print "Measured value : " + str(dT)
-                    meas_array.append(dT)
-                elif parameter in ('tausynx', 'tausyni'):
-                    # Activate BEG
-                    self.activate_BEG('ON', 'REGULAR', 2000, current_neuron)
-                    print 'BEG active'
+                if (parameter == 'tausynx'):
+                    fit = self.helpers.fit_PSP(t, v, parameter, parameters[parameter], parameters['Esynx'])
+                if (parameter == 'tausyni'):
+                    fit = self.helpers.fit_PSP(t, v, parameter, parameters[parameter], parameters['Esyni'])
 
-                    # Get trace
-                    t, v = self.adc.adc_sta(20e-6)
+                print "Measured value : " + str(fit)
+                meas_array.append(fit)
 
-                    # Convert v with scaling
-                    for i in range(len(v)):
-                        t[i] = t[i]*1000
-
-                    if (parameter == 'tausynx'):
-                        fit = self.helpers.fit_PSP(t, v, parameter, parameters[parameter], parameters['Esynx'])
-                    if (parameter == 'tausyni'):
-                        fit = self.helpers.fit_PSP(t, v, parameter, parameters[parameter], parameters['Esyni'])
-
-                    print "Measured value : " + str(fit)
-                    meas_array.append(fit)
-            measurement_array = meas_array
-        return measurement_array
+        return meas_array
