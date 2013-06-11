@@ -1,6 +1,22 @@
-"""Helper functions used in interfaces/hardware.py"""
+"""Helper functions"""
+
+import pycalibtic
+from scipy import optimize
+import numpy as np
+
+
+def create_pycalibtic_polynomial(coefficients):
+    """Create a pycalibtic.Polynomial from a list of coefficients.
+
+    Order: [c0, c1, c2, ...] resulting in c0*x^0 + c1*x^1 + c2*x^2 + ..."""
+    data = pycalibtic.vector_less__double__greater_()
+    for i in coefficients:
+        data.append(i)
+    return pycalibtic.Polynomial(data)
+
 
 class Helpers(object):
+    """Helper functions used in interfaces/hardware.py"""
 ########### Helpers functions ##############
 
     ## Fit PSP
@@ -9,7 +25,7 @@ class Helpers(object):
     # @param parameter Parameter to be fitted, can be 'tausynx' or 'tausyni'
     # @param Esyn Synaptic reversal potential
     # @param Cm Capacitance of the neuron
-    def fit_psp(self,tm,psp,parameter,Esyn,Cm):
+    def fit_psp(self, tm, psp, parameter, Esyn, Cm):
         # Seperate between exc and inh
         if (parameter == 'tausynx'):
 
@@ -66,8 +82,8 @@ class Helpers(object):
 
     ## Fit PSP
     # @param t Time array
-    def theta(self,t):
-        return (t>0)*1.
+    def theta(self, t):
+        return (t > 0) * 1.
 
     ## Fit tw trace
     # @param p Array with the parameters of the fit
@@ -80,10 +96,10 @@ class Helpers(object):
     # @param trace Voltage array
     # @param C Capacitance of the neuron
     # @param gL Membrane leakage conductance of the neuron
-    def tw_fit(self,tm,trace, C, gL):
+    def tw_fit(self, tm, trace, C, gL):
         # Initial fit params (see pfit below)
         # l, w, A, B, v_inf, dt
-        p0 = [300000,400000,-0.02, 0.15, 0.63]
+        p0 = [300000, 400000, -0.02, 0.15, 0.63]
 
         # Fit the data
         errfunc = lambda p, t, y: self.fit_tw_trace(p, t) - y
@@ -107,16 +123,16 @@ class Helpers(object):
     ## Fit trace to find dT
     # @param voltage Voltage array
     # @param current Current array
-    def exp_fit(self,voltage,current):
+    def exp_fit(self, voltage, current):
         # Initial fit params (see pfit below)
         # l, w, A, B, v_inf, dt
-        p0 = [0.2e-10,12e-3]
+        p0 = [0.2e-10, 12e-3]
 
         # Fit the data
         errfunc = lambda p, t, y: self.fit_exp_trace(p, t) - y
         tfit, success = optimize.leastsq(errfunc, p0[:], args=(voltage, current))
 
-        i0,dT = tfit
+        i0, dT = tfit
 
         trace_fit = self.fit_exp_trace(tfit, voltage)
 
@@ -128,10 +144,10 @@ class Helpers(object):
     # @param C Capacitance of the neuron
     # @param gL Membrane leakage conductance of the neuron
     # @param EL Membrane resting potential of the neuron
-    def calc_dT(self,t,v,C,gL,EL):
+    def calc_dT(self, t, v, C, gL, EL):
         # Calculate exp current
         diff = []
-        for i in range(1,len(v)):
+        for i in range(1, len(v)):
             diff.append((v[i]-v[i-1])/(t[i]-t[i-1]))
 
         exp = []
@@ -141,8 +157,8 @@ class Helpers(object):
         # Cut the right part
         end_found = False
         end = 0
-        for i in range(1,len(exp)):
-            if (((exp[i] - exp[i-1]) > 2) and end_found==False):
+        for i in range(1, len(exp)):
+            if (((exp[i] - exp[i-1]) > 2) and end_found is False):
                 end_found = True
                 end = i-10
 
@@ -165,4 +181,4 @@ class Helpers(object):
         exp = new_exp
         t = new_t
 
-        return self.exp_fit(v,exp)
+        return self.exp_fit(v, exp)
