@@ -1,0 +1,7 @@
+* parameter translation needs to be changed to calibtic
+* interfaces/halbe contains parameter specific measurement routines
+* controller contains old non-working code for some parameters
+* config contains "cable db" values
+* config contains default values, as does halbe
+* why is there still simulator code running?
+* interfaces/adc is very similar to code in ADC calibration
