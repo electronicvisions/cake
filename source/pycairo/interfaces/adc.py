@@ -3,14 +3,15 @@ import numpy as np
 import pyhalbe
 import pycairo.config.adc
 
-class ADCTrace(object):
-    '''Container to store a measured ADC trace.
 
-    Automatically adds time.'''
+class ADCTrace(object):
+    """Container to store a measured ADC trace.
+
+    Automatically adds time."""
 
     def __init__(self, voltage):
         self.voltage = voltage
-        self.time = np.arange(len(voltage))*1e-6
+        self.time = np.arange(len(voltage)) * 0.00000001733853  # time in seconds
 
     def get_mean(self):
         return np.mean(self.voltage)
@@ -25,22 +26,21 @@ class ADCTrace(object):
         return np.std(self.voltage)
 
 
-
 class ADCInterface():
-    '''This class encapsulates the methods to readout from the ADC, as well as higher level methods to read the spiking frequency of signal.'''
+    """This class encapsulates the methods to readout from the ADC, as well as higher level methods to read the spiking frequency of signal."""
 
     def __init__(self):
-        self.sampletime = pycairo.config.adc.SampleTime() # default sample times (constant values)
+        self.sampletime = pycairo.config.adc.SampleTime()  # default sample times (constant values)
 
         # initialize ADC calibration backend
         self.adc_calib = pycairo.config.adc.init_adc_calibration_backend()
 
     def read_adc(self, sample_time, input_channel=pycairo.config.adc.INPUT_CHANNEL):
-        '''Start the acquisition from the ADC and return times and voltages.
+        """Start the acquisition from the ADC and return times and voltages.
 
         Args:
             sample_time: The desired sample time in us
-        '''
+        """
 
         h_adc = pyhalbe.Handle.ADC()
         if True:  # TODO replace previous line by 'with ... as ...'
@@ -53,29 +53,29 @@ class ADCInterface():
         del h_adc
 
         raw = np.array(raw, dtype=np.ushort)
-        voltage = self.adc_calib.apply(int(input_channel), raw) # FIXME int() should not be neccessary in the future
+        voltage = self.adc_calib.apply(int(input_channel), raw)  # FIXME int() should not be neccessary in the future
         return ADCTrace(voltage)
 
     def get_mean(self):
-        '''Get a voltage trace and calculate the mean value of the signal in a preconfigured sample time.'''
+        """Get a voltage trace and calculate the mean value of the signal in a preconfigured sample time."""
 
         trace = self.read_adc(self.sampletime.mean)
         return trace.get_mean()
 
     def get_min(self):
-        '''Get a voltage trace and calculate the minimum value of the signal in a preconfigured sample time.'''
+        """Get a voltage trace and calculate the minimum value of the signal in a preconfigured sample time."""
 
         trace = self.read_adc(self.sampletime.min)
         return trace.get_min()
 
     def get_max(self):
-        '''Get a voltage trace and calculate the maximum value of the signal in a preconfigured sample time.'''
+        """Get a voltage trace and calculate the maximum value of the signal in a preconfigured sample time."""
 
         trace = self.read_adc(self.sampletime.max)
         return trace.get_max()
 
     def get_freq(self):
-        '''Get a voltage trace and calculate the spiking frequency of the signal'''
+        """Get a voltage trace and calculate the spiking frequency of the signal"""
 
         spikes = self.get_spikes()
 
@@ -88,10 +88,10 @@ class ADCInterface():
             return 1.0/np.mean(ISI)*1e6
 
     def get_spikes(self):
-        '''Get a voltage trace and calculate the spikes from the signal'''
+        """Get a voltage trace and calculate the spikes from the signal"""
 
         trace = self.read_adc(self.sampletime.spikes)
-        t,v = trace.time, trace.voltage
+        t, v = trace.time, trace.voltage
         v = np.array(v)
         # Derivative of voltages
         dv = v[1:] - v[:-1]
@@ -109,7 +109,7 @@ class ADCInterface():
             # write raw data to file for debug purposes
             from time import time
             filename = "get_spikes_" + str(time()) + ".npy"
-            np.save(filename, (t,v))
+            np.save(filename, (t, v))
 
             x = smooth_dv
             print "Stored rawdata to:", filename
@@ -121,33 +121,32 @@ class ADCInterface():
 
         return spikes
 
-
     def get_spikes_bio(self):
-        '''Get a voltage trace and calculate the spikes from the signal and convert to bio domain'''
+        """Get a voltage trace and calculate the spikes from the signal and convert to bio domain"""
 
         spikes = self.get_spikes()
-        for i,item in enumerate(spikes):
+        for i, item in enumerate(spikes):
             spikes[i] = spikes[i]/1e6*1e7
 
         return spikes
 
     def get_freq_bio(self):
-        '''Get a voltage trace and calculate the frequency in the bio domain'''
+        """Get a voltage trace and calculate the frequency in the bio domain"""
 
         freq = self.get_freq()
         return freq/1e4
 
     def adc_sta(self, period):
-        '''Perform Spike-Triggered Averaging
+        """Perform Spike-Triggered Averaging
 
         Args:
             period: The period of the stimulus
-        '''
+        """
 
         mean_v_all = []
         mean_v = []
 
-        t,v = self.start_and_read_adc(self.sampletime.spikes)
+        t, v = self.start_and_read_adc(self.sampletime.spikes)
 
         dt = t[1]-t[0]
         period_pts = int(period/dt)
@@ -157,7 +156,7 @@ class ADCInterface():
 
         v_middle = v[int(len(v)/2-period_pts/2):int(len(v)/2+period_pts/2)]
         t_middle = t[int(len(v)/2-period_pts/2):int(len(v)/2+period_pts/2)]
-        t_ref = t_middle[np.where(v_middle==max(v_middle))[0][0]]
+        t_ref = t_middle[np.where(v_middle == max(v_middle))[0][0]]
 
         nb_periods = int((len(t)/2-1)/period_pts)
         t_cut_ref = t[int(t_ref/dt)-shift:int(t_ref/dt)-shift + period_pts]
@@ -192,4 +191,4 @@ class ADCInterface():
         for i, item in enumerate(t_cut_ref):
             t_cut_ref[i] = t_cut_ref[i] - init_t
 
-        return t_cut_ref,mean_v
+        return t_cut_ref, mean_v
