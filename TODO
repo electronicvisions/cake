@@ -5,3 +5,7 @@
 * config contains default values, as does halbe
 * why is there still simulator code running?
 * interfaces/adc is very similar to code in ADC calibration
+
+* detect working synapses
+* calibrate synapses (tau_syn, g_syn)
+* calibrate whole wafer
