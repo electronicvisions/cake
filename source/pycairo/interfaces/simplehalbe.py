@@ -42,6 +42,9 @@ class ActiveConnection(object):
         pyhalbe.HICANN.init(handle_hicann)  # initialize communication route, run after each reset!
         self.handle_hicann = handle_hicann
 
+        self.set_neuron_config()
+        self.active_neuron = None
+
         self.handle_adc = pyhalbe.Handle.ADC()
         self.adc_input_channel = adc_input_channel
         self.adc_trigger_channel = adc_trigger_channel
@@ -56,9 +59,7 @@ class ActiveConnection(object):
         calib_adc.load(backend_adc, coord_adc)
         self.calib_adc = calib_adc
 
-    def activate_neuron(self, neuron_id=0):
-        """Activate firing of a single neuron and connect it to analog output."""
-        # TODO disable other neurons (at least aout)
+    def set_neuron_config(self):
         nconf = pyhalbe.HICANN.NeuronConfig()
         for side in (int(pyhalbe.geometry.TOP), int(pyhalbe.geometry.BOTTOM)):
             # use big capacitance
@@ -68,9 +69,13 @@ class ActiveConnection(object):
             nconf.slow_I_gl[side] = False
         pyhalbe.HICANN.set_neuron_config(self.handle_hicann, nconf)
 
-        nquad = pyhalbe.HICANN.NeuronQuad()
-        nactive = pyhalbe.HICANN.Neuron()
+    def activate_neuron(self, neuron_id=0):
+        """Activate firing of a single neuron and connect it to analog output."""
 
+        if self.active_neuron:
+            self.deactivate_neuron(self.active_neuron)
+
+        nactive = pyhalbe.HICANN.Neuron()
         nactive.activate_firing(True)
         nactive.enable_fire_input(False)
         nactive.enable_current_input(False)
@@ -78,6 +83,29 @@ class ActiveConnection(object):
         # there are limited combinations of these options.
         # see HICANN doc 2012-09-13, p. 32, last table in 4.4.4
 
+        nquad = pyhalbe.HICANN.NeuronQuad()
+        if (neuron_id > 255):
+            # this configures only a single neuron
+            nquad[pyhalbe.Coordinate.NeuronOnQuad(pyhalbe.Coordinate.X(neuron_id % 2), pyhalbe.Coordinate.Y(1))] = nactive
+            # to configure all neurons in this quad, assign Neuron instances to the other quad neurons as well
+            pyhalbe.HICANN.set_denmem_quad(self.handle_hicann, pyhalbe.Coordinate.QuadOnHICANN((neuron_id-256)/2), nquad)
+        else:
+            nquad[pyhalbe.Coordinate.NeuronOnQuad(pyhalbe.Coordinate.X(neuron_id % 2), pyhalbe.Coordinate.Y(0))] = nactive
+            pyhalbe.HICANN.set_denmem_quad(self.handle_hicann, pyhalbe.Coordinate.QuadOnHICANN(neuron_id/2), nquad)
+
+        # flush configuration
+        pyhalbe.FPGA.start(self.handle_fpga)
+        self.active_neuron = neuron_id
+
+    def deactivate_neuron(self, neuron_id):
+        """Deactivates a single neuron."""
+        nactive = pyhalbe.HICANN.Neuron()
+        nactive.activate_firing(False)
+        nactive.enable_fire_input(False)
+        nactive.enable_current_input(False)
+        nactive.enable_aout(False)
+
+        nquad = pyhalbe.HICANN.NeuronQuad()
         if (neuron_id > 255):
             # this configures only a single neuron
             nquad[pyhalbe.Coordinate.NeuronOnQuad(pyhalbe.Coordinate.X(neuron_id % 2), pyhalbe.Coordinate.Y(1))] = nactive
@@ -90,9 +118,14 @@ class ActiveConnection(object):
         # flush configuration
         pyhalbe.FPGA.start(self.handle_fpga)
 
+        if self.active_neuron == neuron_id:
+            self.active_neuron = None
+
     def enable_analog_output(self, neuron_id, aout_id=0):
-        # TODO disable previous aout?
         aout = pyhalbe.HICANN.Analog()
+        #aout.disable(pyhalbe.Coordinate.AnalogOnHICANN(0))
+        #aout.disable(pyhalbe.Coordinate.AnalogOnHICANN(1))
+
         coord_aout = pyhalbe.Coordinate.AnalogOnHICANN(aout_id)
         aout.enable(coord_aout)
         if (neuron_id > 255):
@@ -107,8 +140,36 @@ class ActiveConnection(object):
                 aout.set_membrane_top_even(coord_aout)
         pyhalbe.HICANN.set_analog(self.handle_hicann, aout)
 
+    def convert_voltage_to_fgvalue(self, value):
+        """Converts a voltage in millivolts to its corresponding floating gate value.
+
+        The maximum voltage is 1800 millivolts."""
+        return self._convert_to_fgvalue(value, 1800)
+
+    def convert_current_to_fgvalue(self, value):
+        """Converts a voltage in nanoampere to its corresponding floating gate value.
+
+        The maximum current is 2500 nanoamperes."""
+        return self._convert_to_fgvalue(value, 2500)
+
+    def _convert_to_fgvalue(self, value, max_value):
+        """General conversion function for voltage and current.
+
+        See convert_voltage_to_fgvalue / convert_current_to_fgvalue.
+        The floating gate resolution is 1024."""
+        fgvalue = int(float(value) / max_value * 1023)
+        if fgvalue < 0 or fgvalue > 1023:
+            raise ValueError("Floating gate value {} out of range".format(fgvalue))
+        return fgvalue
+
     def write_floating_gates(self, neuron_id, neuron_parameters, shared_parameters):
-        """Write floating gate parameters of a single neuron and parameters shared between neurons."""
+        """Write floating gate parameters of a single neuron and parameters shared between neurons.
+
+        Args:
+            neuron_id: desired neuron
+            neuron_parameters: parameters for the desired neuron in floating gate values
+            shared_parameters: global parameters for all neurons in floating gate values
+            """
 
         fgc = pyhalbe.FGControl()
 
