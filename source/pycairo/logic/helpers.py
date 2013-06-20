@@ -182,3 +182,31 @@ class Helpers(object):
         t = new_t
 
         return self.exp_fit(v, exp)
+
+
+def marco2halbe(parameters):
+    """Converts Marco's parameter names to HALbe parameter names."""
+
+    return {
+        "E_l": parameters["EL"],
+        "E_syni": parameters["Esyni"],
+        "E_synx": parameters["Esynx"],
+        "I_bexp": parameters["Ibexp"],
+        "I_convi": parameters["gsyni"],
+        "I_convx": parameters["gsynx"],
+        "I_fire": parameters["b"],
+        "I_gl": parameters["gL"],
+        "I_gladapt": parameters["a"],
+        "I_intbbi": parameters["Iintbbi"],
+        "I_intbbx": parameters["Iintbbx"],
+        "I_pl": parameters["tauref"],
+        "I_radapt": parameters["tw"],
+        "I_rexp": parameters["dT"],
+        "I_spikeamp": parameters["Ispikeamp"],
+        "V_exp": parameters["Vexp"],
+        "V_syni": parameters["Vsyni"],
+        "V_synx": parameters["Vsynx"],
+        "V_syntci": parameters["tausyni"],
+        "V_syntcx": parameters["tausynx"],
+        "V_t": parameters["Vt"]
+    }
