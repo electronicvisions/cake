@@ -53,6 +53,7 @@ _HW_parameters = {
 
 V_gmax = 800
 _Global_HW_parameters = {
+    # these are floating gate values, except for V_reset
     "I_breset": 1023,
     "I_bstim": 1023,
     "int_op_bias": 1023,
