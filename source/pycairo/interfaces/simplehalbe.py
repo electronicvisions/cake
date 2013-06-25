@@ -30,17 +30,14 @@ class ActiveConnection(object):
         arq = True
         pb.SetupReticle(highspeed, coord_ip, port, 1, arq)
 
-        handle_hicann = pyhalbe.Handle.HICANN(pyhalbe.Coordinate.HICANNGlobal(pyhalbe.geometry.Enum(hicann_id)))
+        self.handle_hicann = pyhalbe.Handle.HICANN(pyhalbe.Coordinate.HICANNGlobal(pyhalbe.geometry.Enum(hicann_id)))
 
         # TODO coord_dnc is not used?
         #coord_dnc = pyhalbe.Coordinate.DNCGlobal(pyhalbe.geometry.Enum(dnc_id))
 
         self.handle_fpga = pyhalbe.Handle.FPGA(pyhalbe.Coordinate.FPGAGlobal(pyhalbe.geometry.Enum(fpga_id)))
 
-        reset_synapses = True  # also reset synapses, needs more time
-        pyhalbe.HICANN.full_reset(handle_hicann, reset_synapses)  # does not reset floating gate values
-        pyhalbe.HICANN.init(handle_hicann)  # initialize communication route, run after each reset!
-        self.handle_hicann = handle_hicann
+        self.reset()
 
         self.set_neuron_config()
         self.active_neuron = None
@@ -58,6 +55,14 @@ class ActiveConnection(object):
         calib_adc = pycalibtic.ADCCalibration()
         calib_adc.load(backend_adc, coord_adc)
         self.calib_adc = calib_adc
+
+    def configure(self):
+        self.set_neuron_config()
+
+    def reset(self):
+        reset_synapses = True  # also reset synapses, needs more time
+        pyhalbe.HICANN.full_reset(self.handle_hicann, reset_synapses)  # does not reset floating gate values
+        pyhalbe.HICANN.init(self.handle_hicann)  # initialize communication route, run after each reset!
 
     def set_neuron_config(self):
         nconf = pyhalbe.HICANN.NeuronConfig()
@@ -192,6 +197,40 @@ class ActiveConnection(object):
                 param = getattr(pyhalbe.HICANN.shared_parameter, parameter)
                 value = shared_parameters[parameter]
                 fgc.setShared(coord, param, value)
+
+        # program multiple times for better accuracy
+        for repetition in range(2):
+            for fgblock in range(4):
+                pyhalbe.HICANN.set_fg_values(self.handle_hicann, fgc.extractBlock(pyhalbe.Coordinate.FGBlockOnHICANN(fgblock)))
+
+        # flush configuration
+        pyhalbe.FPGA.start(self.handle_fpga)
+
+    def program_fg(self, multi_neuron_parameters):
+        """Write floating gates of multiple neurons. Uses halbe default shared parameters.
+
+        Args:
+            multi_neuron_parameters: dict of neuron id -> dict of neuron parameters -> DAC value
+        """
+        V_reset = None
+
+        fgc = pyhalbe.FGControl()
+        for neuron_id in multi_neuron_parameters:
+            coord = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.geometry.Enum(neuron_id))
+            for parameter in multi_neuron_parameters[neuron_id]:
+                if parameter == "V_reset":
+                    V_reset = multi_neuron_parameters[neuron_id]["V_reset"]
+                    # maybe make sure that all neurons have the same value for
+                    # V_reset here?
+                    continue
+                param = getattr(pyhalbe.HICANN.neuron_parameter, parameter)
+                value = multi_neuron_parameters[neuron_id][parameter]
+                fgc.setNeuron(coord, param, value)
+
+        if V_reset:
+            for fgblock in range(4):
+                coord = pyhalbe.Coordinate.FGBlockOnHICANN(fgblock)
+                fgc.setShared(coord, pyhalbe.HICANN.shared_parameter.V_reset, V_reset)
 
         # program multiple times for better accuracy
         for repetition in range(2):
