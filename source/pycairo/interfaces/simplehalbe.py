@@ -227,6 +227,45 @@ class ActiveConnection(object):
                 value = multi_neuron_parameters[neuron_id][parameter]
                 fgc.setNeuron(coord, param, value)
 
+        # overwrite default shared parameters
+        shared_parameters = {
+            'I_breset': 1023,
+            'I_bstim': 1023,
+            'V_bexp': 1023,
+            'V_bout': 1023,
+            'V_br': 0,
+            'V_bstdf': 0,
+            'V_ccas': 800,
+            'V_clra': 0,
+            'V_clrc': 0,
+            'V_dep': 0,
+            'V_dllres': 400,
+            'V_dtc': 0,
+            'V_fac': 0,
+            'V_gmax0': 800,
+            'V_gmax1': 800,
+            'V_gmax2': 800,
+            'V_gmax3': 800,
+            'V_m': 0,
+            'V_reset': 500,
+            'V_stdf': 0,
+            'V_thigh': 0,
+            'V_tlow': 0,
+            'int_op_bias': 1023
+        }
+        for fgblock in range(4):
+            coord = pyhalbe.Coordinate.FGBlockOnHICANN(fgblock)
+            for parameter in shared_parameters:
+                if parameter in ('V_clrc', 'V_bexp') and fgblock in (0, 2):
+                    # right only parameter in left block, skip
+                    continue
+                if parameter in ('V_clra', 'V_bout') and fgblock in (1, 3):
+                    # left only parameter in right block, skip
+                    continue
+                param = getattr(pyhalbe.HICANN.shared_parameter, parameter)
+                value = shared_parameters[parameter]
+                fgc.setShared(coord, param, value)
+
         if V_reset:
             for fgblock in range(4):
                 coord = pyhalbe.Coordinate.FGBlockOnHICANN(fgblock)

@@ -8,6 +8,8 @@ TODO
 * what if source does not contain calibration data? ideal calibration?
 """
 
+import numpy as np
+
 
 class Unit(object):
     """Base class for Current, Voltage and DAC parameter values."""
@@ -82,6 +84,13 @@ class DAC(Unit):
 
 
 class BaseExperiment(object):
+    """Base class for running experiments on individual neurons.
+
+    Defines experiment base parameters, steps varying parameters, repetitions.
+    Defines measurement procedure and postprocessing.
+
+    Provides a function to run and process an experiment.
+    """
     def __init__(self):
         self.hicann = None  # Stateful HICANN Container
         self.adc = None
@@ -196,6 +205,7 @@ class BaseExperiment(object):
         return [0]  # only neuron 0
 
     def run_experiment(self):
+        """Run the experiment and process results."""
         parameters = self.get_parameters()
         neuron_ids = self.get_neurons()
         self.results = []
@@ -203,10 +213,14 @@ class BaseExperiment(object):
             step_parameters = self.prepare_parameters(parameters, step, neuron_ids)
             for r in range(self.get_repetitions()):
                 self.prepare_measurement(step_parameters)
-                self.results.append(self.measure(step, neuron_ids))
-        self.process_results()
+                result = self.measure(step, neuron_ids)
+                self.results.append(result)
+                # TODO differentiate between repetitons in results
+            # TODO differentiate between steps in results
+        self.process_results(neuron_ids)
 
     def measure(self, step, neuron_ids):
+        """Perform measurement(s) for a single step on one or multiple neurons."""
         results = {}
         for neuron_id in neuron_ids:
             self.hicann.activate_neuron(neuron_id)
@@ -215,9 +229,42 @@ class BaseExperiment(object):
             results[neuron_id] = v
         return results
 
-    def process_results(self):
+    def process_results(self, neuron_ids):
+        """Process measured data."""
         pass  # no processing
 
 
 class Calibrate_E_l(BaseExperiment):
-    pass
+    def get_parameters(self):
+        parameters = super(Calibrate_E_l, self).get_parameters()
+        parameters.update({
+            'I_gl': Current(1000),
+            'V_t': Voltage(1700)
+        })
+        return parameters
+
+    def get_steps(self):
+        return [
+            {'E_l': Voltage(300)},
+            {'E_l': Voltage(400)},
+            {'E_l': Voltage(500)},
+            {'E_l': Voltage(600)},
+            {'E_l': Voltage(700)},
+            {'E_l': Voltage(800)}
+        ]
+
+    def get_repetitions(self):
+        return 3
+
+    def measure(self, step, neuron_ids):
+        results = {}
+        for neuron_id in neuron_ids:
+            self.hicann.activate_neuron(neuron_id)
+            self.hicann.enable_analog_output(neuron_id)
+            t, v = self.adc.measure_adc(1000)
+            results[neuron_id] = np.mean(v)*1000  # multiply by 1000 for mV
+        return results
+
+    def process_results(self):
+        # TODO average repetitions, stderr
+        pass
