@@ -94,6 +94,7 @@ class BaseExperiment(object):
     def __init__(self):
         self.hicann = None  # Stateful HICANN Container
         self.adc = None
+        self.verbosity = 0  # print output depending on verbosity level
 
     def get_parameters(self):
         """Return neuron parameters for this experiment. Values can be of type Current, Voltage or DAC."""
@@ -208,15 +209,21 @@ class BaseExperiment(object):
         """Run the experiment and process results."""
         parameters = self.get_parameters()
         neuron_ids = self.get_neurons()
-        self.results = []
+        self.all_results = []
         for step in self.get_steps():
+            if self.verbosity > 0:
+                print "step {}".format(step)
             step_parameters = self.prepare_parameters(parameters, step, neuron_ids)
+            step_results = []
             for r in range(self.get_repetitions()):
+                if self.verbosity > 0:
+                    print "repetition {}".format(r)
                 self.prepare_measurement(step_parameters)
                 result = self.measure(step, neuron_ids)
-                self.results.append(result)
-                # TODO differentiate between repetitons in results
-            # TODO differentiate between steps in results
+                step_results.append(result)
+            self.all_results.append(step_results)
+        if self.verbosity > 0:
+            print "processing results"
         self.process_results(neuron_ids)
 
     def measure(self, step, neuron_ids):
@@ -262,9 +269,17 @@ class Calibrate_E_l(BaseExperiment):
             self.hicann.activate_neuron(neuron_id)
             self.hicann.enable_analog_output(neuron_id)
             t, v = self.adc.measure_adc(1000)
-            results[neuron_id] = np.mean(v)*1000  # multiply by 1000 for mV
+            E_l = np.mean(v)*1000  # multiply by 1000 for mV
+            results[neuron_id] = E_l
         return results
 
-    def process_results(self):
-        # TODO average repetitions, stderr
-        pass
+    def process_results(self, neuron_ids):
+        results_mean = []
+        results_std = []
+        for step in self.all_results:
+            for neuron_id in neuron_ids:
+                single_neuron_results = [measurement[neuron_id] for measurement in step]
+                results_mean.append(np.mean(single_neuron_results))
+                results_std.append(np.std(single_neuron_results))
+        self.results_mean = np.array(results_mean)
+        self.results_std = np.array(results_std)
