@@ -74,7 +74,7 @@ class ActiveConnection(object):
             nconf.slow_I_gl[side] = False
         pyhalbe.HICANN.set_neuron_config(self.handle_hicann, nconf)
 
-    def activate_neuron(self, neuron_id=0):
+    def activate_neuron(self, neuron_id):
         """Activate firing of a single neuron and connect it to analog output."""
 
         if self.active_neuron:
@@ -144,6 +144,9 @@ class ActiveConnection(object):
             else:
                 aout.set_membrane_top_even(coord_aout)
         pyhalbe.HICANN.set_analog(self.handle_hicann, aout)
+
+        # flush configuration
+        pyhalbe.FPGA.start(self.handle_fpga)
 
     def convert_voltage_to_fgvalue(self, value):
         """Converts a voltage in millivolts to its corresponding floating gate value.
@@ -247,7 +250,7 @@ class ActiveConnection(object):
             'V_gmax2': 800,
             'V_gmax3': 800,
             'V_m': 0,
-            'V_reset': 500,
+            'V_reset': 284,  # 500 mV
             'V_stdf': 0,
             'V_thigh': 0,
             'V_tlow': 0,
