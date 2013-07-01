@@ -9,6 +9,7 @@ TODO
 """
 
 import numpy as np
+from pycairo.logic.helpers import create_pycalibtic_polynomial
 
 
 class Unit(object):
@@ -274,12 +275,30 @@ class Calibrate_E_l(BaseExperiment):
         return results
 
     def process_results(self, neuron_ids):
-        results_mean = []
-        results_std = []
+        results_mean = {}
+        results_std = {}
+        results_polynomial = {}
+        for neuron_id in neuron_ids:
+            results_mean[neuron_id] = []
+            results_std[neuron_id] = []
+
         for step in self.all_results:
             for neuron_id in neuron_ids:
                 single_neuron_results = [measurement[neuron_id] for measurement in step]
-                results_mean.append(np.mean(single_neuron_results))
-                results_std.append(np.std(single_neuron_results))
-        self.results_mean = np.array(results_mean)
-        self.results_std = np.array(results_std)
+                results_mean[neuron_id].append(np.mean(single_neuron_results))
+                results_std[neuron_id].append(np.std(single_neuron_results))
+
+        for neuron_id in neuron_ids:
+            results_mean[neuron_id] = np.array(results_mean[neuron_id])
+            results_std[neuron_id] = np.array(results_std[neuron_id])
+            steps = [step['E_l'].value for step in self.get_steps()]
+            weight = 1./results_std[neuron_id]
+            # note that np.polynomial.polynomial.polyfit coefficients have
+            # reverse order compared to np.polyfit
+            # to reverse coefficients: rcoeffs = coeffs[::-1]
+            coeffs = np.polynomial.polynomial.polyfit(results_mean[neuron_id], steps, 2, w=weight)
+            results_polynomial[neuron_id] = create_pycalibtic_polynomial(coeffs)
+
+        self.results_mean = results_mean
+        self.results_std = results_std
+        self.results_polynomial = results_polynomial
