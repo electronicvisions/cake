@@ -9,7 +9,9 @@ TODO
 """
 
 import numpy as np
+import logging #TODO use
 from pycairo.logic.helpers import create_pycalibtic_polynomial
+
 
 
 class Unit(object):
@@ -81,7 +83,7 @@ class DAC(Unit):
         return self
 
     def __repr__(self):
-        return "{}".format(self.value)
+        return "{} (DAC)".format(self.value)
 
 
 class BaseExperiment(object):
@@ -92,14 +94,33 @@ class BaseExperiment(object):
 
     Provides a function to run and process an experiment.
     """
-    def __init__(self):
-        self.hicann = None  # Stateful HICANN Container
-        self.adc = None
+    def __init__(self, hicann, adc, neuron_ids):
+        self.hicann = hicann # Stateful HICANN Container
+        self.adc = adc
+        self.neuron_ids = neuron_ids
         self.verbosity = 0  # print output depending on verbosity level
 
-    def get_parameters(self):
+    def get_parameters(self, neuron_id):
         """Return neuron parameters for this experiment. Values can be of type Current, Voltage or DAC."""
 
+        import pyhalbe as p
+
+        neuron = p.Coordinate.NeuronOnHICANN(p.Coordinate.Enum(0))
+        params = dict(p.HICANN.neuron_parameter.names)
+
+        # Vreset fehlt :p
+        result = {}
+        for name, param in p.HICANN.neuron_parameter.names :
+            if name[0] == 'E' or name[0] == V:
+                result[param] = Voltage(fg.getNeuron(neuron, param))
+            elif name[0] = 'I':
+                result[param] = Current(fg.getNeuron(neuron, param))
+            else:
+                pass
+        return result
+
+        # TODO use halbe default parameter
+        # TODO use halbe enum keys
         return {'E_l': Voltage(1000),
                 'E_syni': Voltage(900),
                 'E_synx': Voltage(900),
@@ -149,22 +170,12 @@ class BaseExperiment(object):
         for neuron_id in neuron_ids:
             neuron_step_parameters[neuron_id] = {}
 
+        step_parameters = dict(parameters)
+        step_parameters.update(step)
+
         for p in parameters:
-            if p in step:
-                continue  # skip parameter
             value = parameters[p].toDAC().value
             apply_calibration = parameters[p].apply_calibration
-            for neuron_id in neuron_ids:
-                if apply_calibration:
-                    # apply calibration
-                    calibrated_value = value  # TODO
-                    neuron_step_parameters[neuron_id][p] = calibrated_value
-                else:
-                    neuron_step_parameters[neuron_id][p] = value
-
-        for p in step:
-            value = step[p].toDAC().value
-            apply_calibration = step[p].apply_calibration
             for neuron_id in neuron_ids:
                 if apply_calibration:
                     # apply calibration
@@ -180,8 +191,8 @@ class BaseExperiment(object):
         Perform reset, write general hardware settings.
         """
         self.hicann.reset()
-        self.hicann.configure()
         self.hicann.program_fg(neuron_parameters)
+        self.hicann.configure()
 
     def get_repetitions(self):
         """How many times should each step be repeated?"""
@@ -197,6 +208,11 @@ class BaseExperiment(object):
         """
         return [{}]  # single step using default parameters
 
+        #Idee, think about it
+        return [
+            defaultdict(lambda: {'E_l': Voltage(400)},
+            defaultdict(lambda: {'E_l': Voltage(600)} ]
+
     def get_neurons(self):
         """Which neurons should this experiment run on?
 
@@ -208,8 +224,13 @@ class BaseExperiment(object):
 
     def run_experiment(self):
         """Run the experiment and process results."""
+
+        self.init_experiment()
         parameters = self.get_parameters()
         neuron_ids = self.get_neurons()
+        parameters = { (neuron, self.get_parameters(neuron)
+            for neuron in self.get_neurons() }
+
         self.all_results = []
         for step in self.get_steps():
             if self.verbosity > 0:
@@ -220,9 +241,9 @@ class BaseExperiment(object):
                 if self.verbosity > 0:
                     print "repetition {}".format(r)
                 self.prepare_measurement(step_parameters)
-                result = self.measure(step, neuron_ids)
+                result = self.measure(step, neuron_ids) # TODO: let measure save results?
                 step_results.append(result)
-            self.all_results.append(step_results)
+            self.all_results.append(step_results) # TODO: see measure
         if self.verbosity > 0:
             print "processing results"
         self.process_results(neuron_ids)
@@ -252,17 +273,17 @@ class Calibrate_E_l(BaseExperiment):
         return parameters
 
     def get_steps(self):
-        return [
-            {'E_l': Voltage(300)},
-            {'E_l': Voltage(400)},
-            {'E_l': Voltage(500)},
-            {'E_l': Voltage(600)},
-            {'E_l': Voltage(700)},
-            {'E_l': Voltage(800)}
-        ]
+        for voltage in range(300, 900, 100):
+            yield {'E_l': Voltage(voltage) }
+        return
+        # TODO per neuron?
 
     def get_repetitions(self):
         return 3
+
+# TODO
+#    def init_exeperiment(self):
+#        self.repetions = 3
 
     def measure(self, step, neuron_ids):
         results = {}
