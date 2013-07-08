@@ -1,17 +1,43 @@
 """Framework for experiments on the hardware.
 
-Derive your custom experiment classes with functions for setup, measurement and processing
-from BaseExperiment or child classes.
+Derive your custom experiment classes with functions for setup,
+measurement and processing from BaseExperiment or child classes.
 
 TODO
-* source for applying calibration?
-* what if source does not contain calibration data? ideal calibration?
+* calibtic source for applying calibration?
 """
 
 import numpy as np
-import logging #TODO use
+import logging
+from collections import defaultdict
+import pyhalbe
+import pycalibtic
 from pycairo.logic.helpers import create_pycalibtic_polynomial
 
+
+halbe2calibtic = {
+    pyhalbe.HICANN.neuron_parameter.E_l: 0,
+    pyhalbe.HICANN.neuron_parameter.E_syni: 1,
+    pyhalbe.HICANN.neuron_parameter.E_synx: 2,
+    pyhalbe.HICANN.neuron_parameter.I_bexp: 3,
+    pyhalbe.HICANN.neuron_parameter.I_convi: 4,
+    pyhalbe.HICANN.neuron_parameter.I_convx: 5,
+    pyhalbe.HICANN.neuron_parameter.I_fire: 6,
+    pyhalbe.HICANN.neuron_parameter.I_gl: 7,
+    pyhalbe.HICANN.neuron_parameter.I_gladapt: 8,
+    pyhalbe.HICANN.neuron_parameter.I_intbbi: 9,
+    pyhalbe.HICANN.neuron_parameter.I_intbbx: 10,
+    pyhalbe.HICANN.neuron_parameter.I_pl: 11,
+    pyhalbe.HICANN.neuron_parameter.I_radapt: 12,
+    pyhalbe.HICANN.neuron_parameter.I_rexp: 13,
+    pyhalbe.HICANN.neuron_parameter.I_spikeamp: 14,
+    pyhalbe.HICANN.neuron_parameter.V_exp: 15,
+    pyhalbe.HICANN.neuron_parameter.V_syni: 16,
+    pyhalbe.HICANN.neuron_parameter.V_syntci: 17,
+    pyhalbe.HICANN.neuron_parameter.V_syntcx: 18,
+    pyhalbe.HICANN.neuron_parameter.V_synx: 19,
+    pyhalbe.HICANN.neuron_parameter.V_t: 20
+}
 
 
 class Unit(object):
@@ -95,55 +121,48 @@ class BaseExperiment(object):
     Provides a function to run and process an experiment.
     """
     def __init__(self, hicann, adc, neuron_ids):
-        self.hicann = hicann # Stateful HICANN Container
+        self.hicann = hicann  # Stateful HICANN Container
         self.adc = adc
         self.neuron_ids = neuron_ids
-        self.verbosity = 0  # print output depending on verbosity level
+        self._repetitions = 1
+        self._calib_nc = None
 
-    def get_parameters(self, neuron_id):
-        """Return neuron parameters for this experiment. Values can be of type Current, Voltage or DAC."""
+    def init_experiment(self):
+        """Hook for child classes. Executed by run_experiment()."""
+        pass
 
-        import pyhalbe as p
+    def init_calibration(self, backend):
+        nc = pycalibtic.NeuronCollection()
+        md = pycalibtic.MetaData()
+        backend.load("TODO", md, nc)  # TODO
+        self._calib_nc = nc
 
-        neuron = p.Coordinate.NeuronOnHICANN(p.Coordinate.Enum(0))
-        params = dict(p.HICANN.neuron_parameter.names)
+    def get_parameters(self):
+        """Return neuron parameters for this experiment. Values can be of type Current, Voltage or DAC.
 
-        # Vreset fehlt :p
+        Returns:
+            dict of neuron id -> dict of parameters -> values
+        """
+
+        # use halbe default parameters
+        coord_neuron = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(0))
+        coord_block = pyhalbe.Coordinate.FGBlockOnHICANN(pyhalbe.Coordinate.Enum(0))
+        fgc = pyhalbe.HICANN.FGControl()
+
         result = {}
-        for name, param in p.HICANN.neuron_parameter.names :
-            if name[0] == 'E' or name[0] == V:
-                result[param] = Voltage(fg.getNeuron(neuron, param))
-            elif name[0] = 'I':
-                result[param] = Current(fg.getNeuron(neuron, param))
-            else:
+        for name, param in pyhalbe.HICANN.neuron_parameter.names:
+            if name[0] in ('E', 'V'):
+                result[param] = Voltage(fgc.getNeuron(coord_neuron, param))
+            elif name[0] == 'I':
+                result[param] = Current(fgc.getNeuron(coord_neuron, param))
+            else:  # '__last_neuron'
                 pass
-        return result
 
-        # TODO use halbe default parameter
-        # TODO use halbe enum keys
-        return {'E_l': Voltage(1000),
-                'E_syni': Voltage(900),
-                'E_synx': Voltage(900),
-                'I_bexp': Current(0),
-                'I_convi': Current(1000),
-                'I_convx': Current(1000),
-                'I_fire': Current(0),
-                'I_gl': Current(400),
-                'I_gladapt': Current(0),
-                'I_intbbi': Current(2000),
-                'I_intbbx': Current(2000),
-                'I_pl': Current(2000),
-                'I_radapt': Current(2000),
-                'I_rexp': Current(750),
-                'I_spikeamp': Current(2000),
-                'V_exp': Voltage(536),
-                'V_syni': Voltage(1000),
-                'V_syntci': Voltage(900),
-                'V_syntcx': Voltage(900),
-                'V_synx': Voltage(1000),
-                'V_t': Voltage(1000),  # recommended threshold, maximum is 1100
-                'V_reset': Voltage(500)  # shared between all neurons
-                }
+        # add V_reset
+        param = pyhalbe.HICANN.shared_parameter.V_reset
+        result[param] = fgc.getShared(coord_block, param)
+
+        return defaultdict(lambda: result)
 
     def prepare_parameters(self, parameters, step, neuron_ids):
         """Prepare parameters before writing them to the hardware.
@@ -155,36 +174,36 @@ class BaseExperiment(object):
         for each neuron, even though the parameter value is the same.
 
         Args:
-            parameters: dict of all neuron parameters and values of type Current, Voltage or DAC
+            parameters: dict of neuron ids -> dict of all neuron parameters
+                        and values of type Current, Voltage or DAC
             step: dict of all neuron parameters different in this specific step
             neuron_ids: list of neuron ids that should get the parameters
 
         Returns:
             dict of neuron ids -> dict of neuron parameters -> DAC values (int)
 
-            Example: {0: {'E_l': 400, ...},
-                      1: {'E_l': 450, ...}}
+            Example: {0: {pyhalbe.HICANN.neuron_parameter.E_l: 400, ...},
+                      1: {pyhalbe.HICANN.neuron_parameter.E_l: 450, ...}}
         """
 
-        neuron_step_parameters = {}
-        for neuron_id in neuron_ids:
-            neuron_step_parameters[neuron_id] = {}
-
+        # copy parameter dict to merge step changes
         step_parameters = dict(parameters)
-        step_parameters.update(step)
-
-        for p in parameters:
-            value = parameters[p].toDAC().value
-            apply_calibration = parameters[p].apply_calibration
-            for neuron_id in neuron_ids:
+        for neuron_id in neuron_ids:
+            step_parameters[neuron_id].update(step[neuron_id])
+            for param in step_parameters[neuron_id]:
+                # convert to DAC and apply calibration
+                value = step_parameters[neuron_id][param].toDAC().value
+                apply_calibration = step_parameters[neuron_id][param].apply_calibration
                 if apply_calibration:
                     # apply calibration
-                    calibrated_value = value  # TODO
-                    neuron_step_parameters[neuron_id][p] = calibrated_value
+                    ncal = self._calib_nc.at(neuron_id)
+                    calibration = ncal.at(halbe2calibtic[param])
+                    calibrated_value = calibration.apply(value)
+                    step_parameters[neuron_id][param] = calibrated_value
                 else:
-                    neuron_step_parameters[neuron_id][p] = value
+                    step_parameters[neuron_id][param] = value
 
-        return neuron_step_parameters
+        return step_parameters
 
     def prepare_measurement(self, neuron_parameters):
         """Prepare measurement.
@@ -194,24 +213,41 @@ class BaseExperiment(object):
         self.hicann.program_fg(neuron_parameters)
         self.hicann.configure()
 
-    def get_repetitions(self):
+    @property
+    def repetitions(self):
         """How many times should each step be repeated?"""
-        return 1
+        return self._repetitions
+
+    @repetitions.setter
+    def repetitions(self, value):
+        self._repetitions = int(value)
 
     def get_steps(self):
-        """Measurement steps for sweeping.
+        """Measurement steps for sweeping. Individual neurons may have
+        different steps, but all neurons must have the same total number
+        of steps.
 
         Returns:
-            list of parameter dicts for each step
+            list of neuron dicts of parameter dicts for each step
 
-            Example: [{'E_l': Voltage(400)}, {'E_l': Voltage(600)}, {'E_l': Voltage(800)}]
+            Example: [
+                        { # first step
+                            # neuron 0
+                            0: {pyhalbe.HICANN.neuron_parameter.E_l: Voltage(400)},
+                            1: {pyhalbe.HICANN.neuron_parameter.E_l: Voltage(400)},
+                        },
+                        { # second step
+                            0: pyhalbe.HICANN.neuron_parameter.E_l: Voltage(600)},
+                            1: pyhalbe.HICANN.neuron_parameter.E_l: Voltage(650)},
+                        },
+                            0: {pyhalbe.HICANN.neuron_parameter.E_l: Voltage(800)}
+                            1: {pyhalbe.HICANN.neuron_parameter.E_l: Voltage(800)}
+                        }
+                    ]
         """
-        return [{}]  # single step using default parameters
 
-        #Idee, think about it
-        return [
-            defaultdict(lambda: {'E_l': Voltage(400)},
-            defaultdict(lambda: {'E_l': Voltage(600)} ]
+        # single step using default parameters
+        return [defaultdict(lambda: {}) for neuron_id in self.get_neurons()]
 
     def get_neurons(self):
         """Which neurons should this experiment run on?
@@ -226,30 +262,25 @@ class BaseExperiment(object):
         """Run the experiment and process results."""
 
         self.init_experiment()
-        parameters = self.get_parameters()
         neuron_ids = self.get_neurons()
-        parameters = { (neuron, self.get_parameters(neuron)
-            for neuron in self.get_neurons() }
+        parameters = self.get_parameters()
 
         self.all_results = []
         for step in self.get_steps():
-            if self.verbosity > 0:
-                print "step {}".format(step)
+            logging.info("step {}".format(step))
             step_parameters = self.prepare_parameters(parameters, step, neuron_ids)
             step_results = []
-            for r in range(self.get_repetitions()):
-                if self.verbosity > 0:
-                    print "repetition {}".format(r)
+            for r in range(self.repetitions):
+                logging.info("repetition {}".format(r))
                 self.prepare_measurement(step_parameters)
-                result = self.measure(step, neuron_ids) # TODO: let measure save results?
+                result = self.measure(step, neuron_ids)  # TODO: let measure save results?
                 step_results.append(result)
-            self.all_results.append(step_results) # TODO: see measure
-        if self.verbosity > 0:
-            print "processing results"
+            self.all_results.append(step_results)  # TODO: see measure
+        logging.info("processing results")
         self.process_results(neuron_ids)
 
     def measure(self, step, neuron_ids):
-        """Perform measurement(s) for a single step on one or multiple neurons."""
+        """Perform measurements for a single step on one or multiple neurons."""
         results = {}
         for neuron_id in neuron_ids:
             self.hicann.activate_neuron(neuron_id)
@@ -263,37 +294,33 @@ class BaseExperiment(object):
         pass  # no processing
 
 
-class Calibrate_E_l(BaseExperiment):
+class BaseCalibration(BaseExperiment):
+    """Base class for calibration experiments."""
     def get_parameters(self):
-        parameters = super(Calibrate_E_l, self).get_parameters()
-        parameters.update({
-            'I_gl': Current(1000),
-            'V_t': Voltage(1700)
-        })
-        return parameters
-
-    def get_steps(self):
-        for voltage in range(300, 900, 100):
-            yield {'E_l': Voltage(voltage) }
-        return
-        # TODO per neuron?
-
-    def get_repetitions(self):
-        return 3
-
-# TODO
-#    def init_exeperiment(self):
-#        self.repetions = 3
-
-    def measure(self, step, neuron_ids):
-        results = {}
-        for neuron_id in neuron_ids:
-            self.hicann.activate_neuron(neuron_id)
-            self.hicann.enable_analog_output(neuron_id)
-            t, v = self.adc.measure_adc(1000)
-            E_l = np.mean(v)*1000  # multiply by 1000 for mV
-            results[neuron_id] = E_l
-        return results
+        parameters = {pyhalbe.HICANN.neuron_parameter.E_l: Voltage(1000),
+                      pyhalbe.HICANN.neuron_parameter.E_syni: Voltage(900),
+                      pyhalbe.HICANN.neuron_parameter.E_synx: Voltage(900),
+                      pyhalbe.HICANN.neuron_parameter.I_bexp: Current(0),
+                      pyhalbe.HICANN.neuron_parameter.I_convi: Current(1000),
+                      pyhalbe.HICANN.neuron_parameter.I_convx: Current(1000),
+                      pyhalbe.HICANN.neuron_parameter.I_fire: Current(0),
+                      pyhalbe.HICANN.neuron_parameter.I_gl: Current(400),
+                      pyhalbe.HICANN.neuron_parameter.I_gladapt: Current(0),
+                      pyhalbe.HICANN.neuron_parameter.I_intbbi: Current(2000),
+                      pyhalbe.HICANN.neuron_parameter.I_intbbx: Current(2000),
+                      pyhalbe.HICANN.neuron_parameter.I_pl: Current(2000),
+                      pyhalbe.HICANN.neuron_parameter.I_radapt: Current(2000),
+                      pyhalbe.HICANN.neuron_parameter.I_rexp: Current(750),
+                      pyhalbe.HICANN.neuron_parameter.I_spikeamp: Current(2000),
+                      pyhalbe.HICANN.neuron_parameter.V_exp: Voltage(536),
+                      pyhalbe.HICANN.neuron_parameter.V_syni: Voltage(1000),
+                      pyhalbe.HICANN.neuron_parameter.V_syntci: Voltage(900),
+                      pyhalbe.HICANN.neuron_parameter.V_syntcx: Voltage(900),
+                      pyhalbe.HICANN.neuron_parameter.V_synx: Voltage(1000),
+                      pyhalbe.HICANN.neuron_parameter.V_t: Voltage(1000),  # recommended threshold, maximum is 1100
+                      pyhalbe.HICANN.shared_parameter.V_reset: Voltage(500)
+                      }
+        return defaultdict(lambda: parameters)
 
     def process_results(self, neuron_ids):
         results_mean = {}
@@ -312,7 +339,7 @@ class Calibrate_E_l(BaseExperiment):
         for neuron_id in neuron_ids:
             results_mean[neuron_id] = np.array(results_mean[neuron_id])
             results_std[neuron_id] = np.array(results_std[neuron_id])
-            steps = [step['E_l'].value for step in self.get_steps()]
+            steps = [step[pyhalbe.HICANN.neuron_parameter.E_l].value for step in self.get_steps()]
             weight = 1./results_std[neuron_id]
             # note that np.polynomial.polynomial.polyfit coefficients have
             # reverse order compared to np.polyfit
@@ -323,3 +350,34 @@ class Calibrate_E_l(BaseExperiment):
         self.results_mean = results_mean
         self.results_std = results_std
         self.results_polynomial = results_polynomial
+
+
+class Calibrate_E_l(BaseCalibration):
+    """E_l calibration."""
+    def get_parameters(self):
+        parameters = super(Calibrate_E_l, self).get_parameters()
+        for neuron_id in self.get_neurons():
+            parameters[neuron_id].update({
+                pyhalbe.HICANN.neuron_parameter.I_gl: Current(1000),
+                pyhalbe.HICANN.neuron_parameter.V_t: Voltage(1700)
+            })
+        return parameters
+
+    def get_steps(self):
+        steps = []
+        for voltage in range(300, 900, 100):
+            steps.append({pyhalbe.HICANN.neuron_parameter.E_l: Voltage(voltage)})
+        return defaultdict(lambda: steps)
+
+    def init_experiment(self):
+        self.repetitions = 3
+
+    def measure(self, step, neuron_ids):
+        results = {}
+        for neuron_id in neuron_ids:
+            self.hicann.activate_neuron(neuron_id)
+            self.hicann.enable_analog_output(neuron_id)
+            t, v = self.adc.measure_adc(1000)
+            E_l = np.mean(v)*1000  # multiply by 1000 for mV
+            results[neuron_id] = E_l
+        return results

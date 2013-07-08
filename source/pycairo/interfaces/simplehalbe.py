@@ -21,14 +21,17 @@ class ActiveConnection(object):
         # TODO get adc_input_channel, adc_trigger_channel from cable db,
         # maybe even get ip and port
 
+        hicann_num = 1
+
         if vertical_setup:
             pb = pyhalbe.PowerBackend.instanceVerticalSetup()
         else:
             pb = pyhalbe.PowerBackend.instanceWafer()
+            hicann_num = 8
 
         highspeed = True
         arq = True
-        pb.SetupReticle(highspeed, coord_ip, port, 1, arq)
+        pb.SetupReticle(highspeed, coord_ip, port, hicann_num, arq)
 
         self.handle_hicann = pyhalbe.Handle.HICANN(pyhalbe.Coordinate.HICANNGlobal(pyhalbe.geometry.Enum(hicann_id)))
 
@@ -42,7 +45,8 @@ class ActiveConnection(object):
         self.set_neuron_config()
         self.active_neuron = None
 
-        self.handle_adc = pyhalbe.Handle.ADC()
+        coord_adc = pyhalbe.Coordinate.ADC(adc_board_id)
+        self.handle_adc = pyhalbe.Handle.ADC(coord_adc)
         self.adc_input_channel = adc_input_channel
         self.adc_trigger_channel = adc_trigger_channel
 
@@ -51,7 +55,6 @@ class ActiveConnection(object):
         backend_adc.config("host", "cetares")
         backend_adc.config("collection", "adc")
         backend_adc.init()
-        coord_adc = pyhalbe.Coordinate.ADC(adc_board_id)
         calib_adc = pycalibtic.ADCCalibration()
         calib_adc.load(backend_adc, coord_adc)
         self.calib_adc = calib_adc
@@ -179,7 +182,7 @@ class ActiveConnection(object):
             shared_parameters: global parameters for all neurons in floating gate values
             """
 
-        fgc = pyhalbe.FGControl()
+        fgc = pyhalbe.HICANN.FGControl()
 
         for neuron_id in range(512):
             coord = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.geometry.Enum(neuron_id))
@@ -215,20 +218,20 @@ class ActiveConnection(object):
         Args:
             multi_neuron_parameters: dict of neuron id -> dict of neuron parameters -> DAC value
         """
+
         V_reset = None
 
-        fgc = pyhalbe.FGControl()
+        fgc = pyhalbe.HICANN.FGControl()
         for neuron_id in multi_neuron_parameters:
             coord = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.geometry.Enum(neuron_id))
             for parameter in multi_neuron_parameters[neuron_id]:
-                if parameter == "V_reset":
-                    V_reset = multi_neuron_parameters[neuron_id]["V_reset"]
+                if parameter is pyhalbe.HICANN.shared_parameters.V_reset:
+                    V_reset = multi_neuron_parameters[neuron_id][parameter]
                     # maybe make sure that all neurons have the same value for
                     # V_reset here?
                     continue
-                param = getattr(pyhalbe.HICANN.neuron_parameter, parameter)
                 value = multi_neuron_parameters[neuron_id][parameter]
-                fgc.setNeuron(coord, param, value)
+                fgc.setNeuron(coord, parameter, value)
 
         # overwrite default shared parameters
         shared_parameters = {
