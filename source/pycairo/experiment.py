@@ -2,9 +2,6 @@
 
 Derive your custom experiment classes with functions for setup,
 measurement and processing from BaseExperiment or child classes.
-
-TODO
-* calibtic source for applying calibration?
 """
 
 import numpy as np
@@ -71,7 +68,7 @@ class Voltage(Unit):
 
 class DAC(Unit):
     def __init__(self, value, apply_calibration=False):
-        super(DAC, self).__init__(int(value), apply_calibration)
+        super(DAC, self).__init__(int(round(value)), apply_calibration)
 
     @classmethod
     def _check(self, value):
@@ -95,12 +92,15 @@ class BaseExperiment(object):
 
     Provides a function to run and process an experiment.
     """
-    def __init__(self, hicann, adc, neuron_ids):
+    def __init__(self, hicann, adc, neuron_ids, calibtic_backend=None):
         self.hicann = hicann  # Stateful HICANN Container
         self.adc = adc
         self.neuron_ids = neuron_ids
         self._repetitions = 1
         self._calib_nc = None
+
+        if calibtic_backend:
+            self.init_calibration(calibtic_backend)
 
     def init_experiment(self):
         """Hook for child classes. Executed by run_experiment()."""
@@ -109,7 +109,7 @@ class BaseExperiment(object):
     def init_calibration(self, backend):
         nc = pycalibtic.NeuronCollection()
         md = pycalibtic.MetaData()
-        backend.load("TODO", md, nc)  # TODO
+        backend.load("cairo", md, nc)
         self._calib_nc = nc
 
     def get_parameters(self):
@@ -126,11 +126,11 @@ class BaseExperiment(object):
 
         result = {}
         for name, param in pyhalbe.HICANN.neuron_parameter.names:
-            if name[0] in ('E', 'V'):
+            if name[0] in ("E", "V"):
                 result[param] = Voltage(fgc.getNeuron(coord_neuron, param))
-            elif name[0] == 'I':
+            elif name[0] == "I":
                 result[param] = Current(fgc.getNeuron(coord_neuron, param))
-            else:  # '__last_neuron'
+            else:  # "__last_neuron"
                 pass
 
         # add V_reset
@@ -244,15 +244,13 @@ class BaseExperiment(object):
         for step in self.get_steps():
             logging.info("step {}".format(step))
             step_parameters = self.prepare_parameters(parameters, step, neuron_ids)
-            step_results = []
             for r in range(self.repetitions):
                 logging.info("repetition {}".format(r))
                 self.prepare_measurement(step_parameters)
-                result = self.measure(step, neuron_ids)  # TODO: let measure save results?
-                step_results.append(result)
-            self.all_results.append(step_results)  # TODO: see measure
+                self.measure(step, neuron_ids)
         logging.info("processing results")
         self.process_results(neuron_ids)
+        self.store_results()
 
     def measure(self, step, neuron_ids):
         """Perform measurements for a single step on one or multiple neurons."""
@@ -262,11 +260,15 @@ class BaseExperiment(object):
             self.hicann.enable_analog_output(neuron_id)
             t, v = self.adc.measure_adc(1000)
             results[neuron_id] = v
-        return results
+        self.all_results.append[results]
 
     def process_results(self, neuron_ids):
         """Process measured data."""
         pass  # no processing
+
+    def store_results(self):
+        """Hook for storing results in child classes."""
+        pass
 
 
 class BaseCalibration(BaseExperiment):
@@ -298,19 +300,29 @@ class BaseCalibration(BaseExperiment):
         return defaultdict(lambda: parameters)
 
     def process_results(self, neuron_ids):
-        results_mean = {}
-        results_std = {}
+        # containers for final results
+        results_mean = defaultdict(list)
+        results_std = defaultdict(list)
         results_polynomial = {}
-        for neuron_id in neuron_ids:
-            results_mean[neuron_id] = []
-            results_std[neuron_id] = []
 
-        for step in self.all_results:
+        # self.all_results contains all measurements, need to untangle
+        # repetitions and steps
+        repetition = 1
+        step_results = defaultdict(list)
+        for result in self.all_results:
+            # still in the same step, collect repetitions for averaging
             for neuron_id in neuron_ids:
-                single_neuron_results = [measurement[neuron_id] for measurement in step]
-                results_mean[neuron_id].append(np.mean(single_neuron_results))
-                results_std[neuron_id].append(np.std(single_neuron_results))
+                step_results[neuron_id].append(result[neuron_id])
+            repetition += 1
+            if repetition > self.repetitions:
+                # step is done; average, store and reset
+                for neuron_id in neuron_ids:
+                    results_mean[neuron_id].append(np.mean(step_results[neuron_id]))
+                    results_std[neuron_id].append(np.std(step_results[neuron_id]))
+                repetition = 1
+                step_results = defaultdict(list)
 
+        # fit polynomial to results
         for neuron_id in neuron_ids:
             results_mean[neuron_id] = np.array(results_mean[neuron_id])
             results_std[neuron_id] = np.array(results_std[neuron_id])
@@ -322,6 +334,7 @@ class BaseCalibration(BaseExperiment):
             coeffs = np.polynomial.polynomial.polyfit(results_mean[neuron_id], steps, 2, w=weight)
             results_polynomial[neuron_id] = create_pycalibtic_polynomial(coeffs)
 
+        # make final results available
         self.results_mean = results_mean
         self.results_std = results_std
         self.results_polynomial = results_polynomial
@@ -356,3 +369,14 @@ class Calibrate_E_l(BaseCalibration):
             E_l = np.mean(v)*1000  # multiply by 1000 for mV
             results[neuron_id] = E_l
         return results
+
+    def store_results(self):
+        results = self.results_polynomial
+        md = pycalibtic.MetaData()
+        md.setAuthor("pycairo")
+        md.setComment("E_l calibration")
+        nc = pycalibtic.NeuronCollection()
+        for neuron_id in results:
+            nc.at(neuron_id).reset(pyhalbe.HICANN.neuron_parameter.E_l, results[neuron_id])
+        #backend.store("cairo", md, nc)
+        # TODO
