@@ -15,31 +15,6 @@ import pycalibtic
 from pycairo.logic.helpers import create_pycalibtic_polynomial
 
 
-halbe2calibtic = {
-    pyhalbe.HICANN.neuron_parameter.E_l: 0,
-    pyhalbe.HICANN.neuron_parameter.E_syni: 1,
-    pyhalbe.HICANN.neuron_parameter.E_synx: 2,
-    pyhalbe.HICANN.neuron_parameter.I_bexp: 3,
-    pyhalbe.HICANN.neuron_parameter.I_convi: 4,
-    pyhalbe.HICANN.neuron_parameter.I_convx: 5,
-    pyhalbe.HICANN.neuron_parameter.I_fire: 6,
-    pyhalbe.HICANN.neuron_parameter.I_gl: 7,
-    pyhalbe.HICANN.neuron_parameter.I_gladapt: 8,
-    pyhalbe.HICANN.neuron_parameter.I_intbbi: 9,
-    pyhalbe.HICANN.neuron_parameter.I_intbbx: 10,
-    pyhalbe.HICANN.neuron_parameter.I_pl: 11,
-    pyhalbe.HICANN.neuron_parameter.I_radapt: 12,
-    pyhalbe.HICANN.neuron_parameter.I_rexp: 13,
-    pyhalbe.HICANN.neuron_parameter.I_spikeamp: 14,
-    pyhalbe.HICANN.neuron_parameter.V_exp: 15,
-    pyhalbe.HICANN.neuron_parameter.V_syni: 16,
-    pyhalbe.HICANN.neuron_parameter.V_syntci: 17,
-    pyhalbe.HICANN.neuron_parameter.V_syntcx: 18,
-    pyhalbe.HICANN.neuron_parameter.V_synx: 19,
-    pyhalbe.HICANN.neuron_parameter.V_t: 20
-}
-
-
 class Unit(object):
     """Base class for Current, Voltage and DAC parameter values."""
     def __init__(self, value, apply_calibration=False):
@@ -197,7 +172,7 @@ class BaseExperiment(object):
                 if apply_calibration:
                     # apply calibration
                     ncal = self._calib_nc.at(neuron_id)
-                    calibration = ncal.at(halbe2calibtic[param])
+                    calibration = ncal.at(param)
                     calibrated_value = calibration.apply(value)
                     step_parameters[neuron_id][param] = calibrated_value
                 else:
