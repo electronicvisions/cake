@@ -18,27 +18,32 @@ class ActiveConnection(object):
 
         coord_ip = pyhalbe.Coordinate.IPv4.from_string(ip)
         port = int(port)
+        coord_port = pyhalbe.Coordinate.UDPPort(port)
         # TODO get adc_input_channel, adc_trigger_channel from cable db,
         # maybe even get ip and port
 
-        hicann_num = 1
-
-        if vertical_setup:
-            pb = pyhalbe.PowerBackend.instanceVerticalSetup()
-        else:
-            pb = pyhalbe.PowerBackend.instanceWafer()
-            hicann_num = 8
-
         highspeed = True
         arq = True
-        pb.SetupReticle(highspeed, coord_ip, port, hicann_num, arq)
 
-        self.handle_hicann = pyhalbe.Handle.HICANN(pyhalbe.Coordinate.HICANNGlobal(pyhalbe.geometry.Enum(hicann_id)))
+        if vertical_setup:
+            hicann_num = 1
+            pb = pyhalbe.PowerBackend.instanceVerticalSetup()
+            pb.SetupReticle(highspeed, coord_ip, port, hicann_num, arq)
+        else:
+            pb = pyhalbe.PowerBackend.instanceWafer()
+            pb.SetupReticle(coord_ip, port, highspeed, arq)
+
+
+        coord_hicann = pyhalbe.Coordinate.HICANNGlobal(pyhalbe.geometry.Enum(hicann_id))
+        self.handle_hicann = pyhalbe.Handle.HICANN(coord_hicann)
 
         # TODO coord_dnc is not used?
         #coord_dnc = pyhalbe.Coordinate.DNCGlobal(pyhalbe.geometry.Enum(dnc_id))
 
-        self.handle_fpga = pyhalbe.Handle.FPGA(pyhalbe.Coordinate.FPGAGlobal(pyhalbe.geometry.Enum(fpga_id)))
+        if vertical_setup:
+            self.handle_fpga = pyhalbe.Handle.FPGA(pyhalbe.Coordinate.FPGAGlobal(pyhalbe.geometry.Enum(0)))
+        else:
+            self.handle_fpga = pyhalbe.Handle.FPGA(coord_ip, coord_port)
 
         self.reset()
 
@@ -63,13 +68,12 @@ class ActiveConnection(object):
         self.set_neuron_config()
 
     def reset(self):
-        reset_synapses = True  # also reset synapses, needs more time
-        pyhalbe.HICANN.full_reset(self.handle_hicann, reset_synapses)  # does not reset floating gate values
+        pyhalbe.HICANN.reset(self.handle_hicann)  # does not reset floating gate values
         pyhalbe.HICANN.init(self.handle_hicann)  # initialize communication route, run after each reset!
 
     def set_neuron_config(self):
         nconf = pyhalbe.HICANN.NeuronConfig()
-        for side in (int(pyhalbe.geometry.TOP), int(pyhalbe.geometry.BOTTOM)):
+        for side in (int(pyhalbe.geometry.top), int(pyhalbe.geometry.bottom)):
             # use big capacitance
             nconf.bigcap[side] = True
             # use fastest membrane possible
