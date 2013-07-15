@@ -13,7 +13,7 @@ class ActiveConnection(object):
     Keeps handles and initial HICANN configuration.
     Floating gate values can be modified at runtime."""
 
-    def __init__(self, ip, port, adc_board_id, adc_input_channel, adc_trigger_channel, vertical_setup=True, hicann_id=0, dnc_id=0, fpga_id=0):
+    def __init__(self, ip, port, adc_board_id, adc_input_channel, adc_trigger_channel, vertical_setup=False, hicann_id=0, dnc_id=0, fpga_id=0):
         """Grab required handles and initialize HICANN."""
 
         coord_ip = pyhalbe.Coordinate.IPv4.from_string(ip)
@@ -22,28 +22,14 @@ class ActiveConnection(object):
         # TODO get adc_input_channel, adc_trigger_channel from cable db,
         # maybe even get ip and port
 
-        highspeed = True
-        arq = True
-
         if vertical_setup:
-            hicann_num = 1
-            pb = pyhalbe.PowerBackend.instanceVerticalSetup()
-            pb.SetupReticle(highspeed, coord_ip, port, hicann_num, arq)
-        else:
-            pb = pyhalbe.PowerBackend.instanceWafer()
-            pb.SetupReticle(coord_ip, port, highspeed, arq)
+            raise (Exception, "not implemented without PowerBackend")
 
-
-        coord_hicann = pyhalbe.Coordinate.HICANNGlobal(pyhalbe.geometry.Enum(hicann_id))
-        self.handle_hicann = pyhalbe.Handle.HICANN(coord_hicann)
-
-        # TODO coord_dnc is not used?
         #coord_dnc = pyhalbe.Coordinate.DNCGlobal(pyhalbe.geometry.Enum(dnc_id))
-
-        if vertical_setup:
-            self.handle_fpga = pyhalbe.Handle.FPGA(pyhalbe.Coordinate.FPGAGlobal(pyhalbe.geometry.Enum(0)))
-        else:
-            self.handle_fpga = pyhalbe.Handle.FPGA(coord_ip, coord_port)
+        coord_port = pyhalbe.Coordinate.UDPPort(port)
+        coord_fpga = pyhalbe.Coordinate.FPGAGlobal(pyhalbe.geometry.Enum(fpga_id))
+        self.handle_fpga = pyhalbe.Handle.FPGA(coord_fpga, coord_ip, coord_port, True)
+        self.handle_hicann = self.handle_fpga.get(pyhalbe.Coordinate.HICANNOnFPGA(pyhalbe.geometry.Enum(hicann_id)))
 
         self.reset()
 
