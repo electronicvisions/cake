@@ -231,7 +231,7 @@ class BaseExperiment(object):
         and each neuron will be measured in the measure step.
         """
 
-        return [0]  # only neuron 0
+        return self.neuron_ids  # TODO move this to a property
 
     def run_experiment(self):
         """Run the experiment and process results."""
@@ -299,7 +299,8 @@ class BaseCalibration(BaseExperiment):
                       }
         return defaultdict(lambda: parameters)
 
-    def process_results(self, neuron_ids):
+    def process_calibration_results(self, neuron_ids, parameter):
+        """This base class function can be used by child classes as process_results."""
         # containers for final results
         results_mean = defaultdict(list)
         results_std = defaultdict(list)
@@ -323,10 +324,11 @@ class BaseCalibration(BaseExperiment):
                 step_results = defaultdict(list)
 
         # fit polynomial to results
+        all_steps = self.get_steps()
         for neuron_id in neuron_ids:
             results_mean[neuron_id] = np.array(results_mean[neuron_id])
             results_std[neuron_id] = np.array(results_std[neuron_id])
-            steps = [step[pyhalbe.HICANN.neuron_parameter.E_l].value for step in self.get_steps()]
+            steps = [step[parameter].value for step in all_steps[neuron_id]]
             weight = 1./results_std[neuron_id]
             # note that np.polynomial.polynomial.polyfit coefficients have
             # reverse order compared to np.polyfit
@@ -368,7 +370,10 @@ class Calibrate_E_l(BaseCalibration):
             t, v = self.adc.measure_adc(1000)
             E_l = np.mean(v)*1000  # multiply by 1000 for mV
             results[neuron_id] = E_l
-        return results
+        self.all_results.append(results)
+
+    def process_results(self, neuron_ids):
+        super(Calibrate_E_l, self).process_calibration_results(neuron_ids, pyhalbe.HICANN.neuron_parameter.E_l)
 
     def store_results(self):
         results = self.results_polynomial
