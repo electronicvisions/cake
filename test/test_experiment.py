@@ -103,7 +103,7 @@ class TestExperiment(unittest.TestCase):
 
         # check measure
         e.all_results = []
-        e.measure(None, neurons)
+        e.measure(neurons)
         for results in e.all_results:
             for neuron_id in neurons:
                 self.assertTrue(fake_adc.average - fake_adc.randrange <= results[neuron_id] <= fake_adc.average + fake_adc.randrange,

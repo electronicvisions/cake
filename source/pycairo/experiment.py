@@ -139,7 +139,7 @@ class BaseExperiment(object):
 
         return defaultdict(lambda: result)
 
-    def prepare_parameters(self, parameters, step, neuron_ids):
+    def prepare_parameters(self, parameters, step_id, neuron_ids):
         """Prepare parameters before writing them to the hardware.
 
         This includes converting to DAC values, applying calibration and
@@ -151,7 +151,7 @@ class BaseExperiment(object):
         Args:
             parameters: dict of neuron ids -> dict of all neuron parameters
                         and values of type Current, Voltage or DAC
-            step: dict of all neuron parameters different in this specific step
+            step_id: index of current step
             neuron_ids: list of neuron ids that should get the parameters
 
         Returns:
@@ -161,10 +161,12 @@ class BaseExperiment(object):
                       1: {pyhalbe.HICANN.neuron_parameter.E_l: 450, ...}}
         """
 
+        steps = self.get_steps()
+
         # copy parameter dict to merge step changes
         step_parameters = dict(parameters)
         for neuron_id in neuron_ids:
-            step_parameters[neuron_id].update(step[neuron_id])
+            step_parameters[neuron_id].update(steps[neuron_id][step_id])
             for param in step_parameters[neuron_id]:
                 # convert to DAC and apply calibration
                 value = step_parameters[neuron_id][param].toDAC().value
@@ -241,18 +243,20 @@ class BaseExperiment(object):
         parameters = self.get_parameters()
 
         self.all_results = []
-        for step in self.get_steps():
-            logging.info("step {}".format(step))
-            step_parameters = self.prepare_parameters(parameters, step, neuron_ids)
+        steps = self.get_steps()
+        num_steps = len(steps[neuron_ids[0]])
+        for step_id in range(num_steps):
+            logging.info("step {}".format(step_id))
+            step_parameters = self.prepare_parameters(parameters, step_id, neuron_ids)
             for r in range(self.repetitions):
                 logging.info("repetition {}".format(r))
                 self.prepare_measurement(step_parameters)
-                self.measure(step, neuron_ids)
+                self.measure(neuron_ids)
         logging.info("processing results")
         self.process_results(neuron_ids)
         self.store_results()
 
-    def measure(self, step, neuron_ids):
+    def measure(self, neuron_ids):
         """Perform measurements for a single step on one or multiple neurons."""
         results = {}
         for neuron_id in neuron_ids:
@@ -362,7 +366,7 @@ class Calibrate_E_l(BaseCalibration):
     def init_experiment(self):
         self.repetitions = 3
 
-    def measure(self, step, neuron_ids):
+    def measure(self, neuron_ids):
         results = {}
         for neuron_id in neuron_ids:
             self.hicann.activate_neuron(neuron_id)

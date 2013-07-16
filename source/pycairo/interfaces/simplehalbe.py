@@ -182,7 +182,7 @@ class ActiveConnection(object):
                 fgc.setNeuron(coord, param, value)
 
         for fgblock in range(4):
-            coord = pyhalbe.Coordinate.FGBlockOnHICANN(fgblock)
+            coord = pyhalbe.Coordinate.FGBlockOnHICANN(pyhalbe.geometry.Enum(fgblock))
             for parameter in shared_parameters:
                 if parameter in ('V_clrc', 'V_bexp') and fgblock in (0, 2):
                     # right only parameter in left block, skip
@@ -197,7 +197,7 @@ class ActiveConnection(object):
         # program multiple times for better accuracy
         for repetition in range(2):
             for fgblock in range(4):
-                pyhalbe.HICANN.set_fg_values(self.handle_hicann, fgc.extractBlock(pyhalbe.Coordinate.FGBlockOnHICANN(fgblock)))
+                pyhalbe.HICANN.set_fg_values(self.handle_hicann, fgc.extractBlock(pyhalbe.Coordinate.FGBlockOnHICANN(pyhalbe.geometry.Enum(fgblock))))
 
         # flush configuration
         pyhalbe.FPGA.start(self.handle_fpga)
@@ -215,7 +215,7 @@ class ActiveConnection(object):
         for neuron_id in multi_neuron_parameters:
             coord = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.geometry.Enum(neuron_id))
             for parameter in multi_neuron_parameters[neuron_id]:
-                if parameter is pyhalbe.HICANN.shared_parameters.V_reset:
+                if parameter is pyhalbe.HICANN.shared_parameter.V_reset:
                     V_reset = multi_neuron_parameters[neuron_id][parameter]
                     # maybe make sure that all neurons have the same value for
                     # V_reset here?
@@ -250,7 +250,7 @@ class ActiveConnection(object):
             'int_op_bias': 1023
         }
         for fgblock in range(4):
-            coord = pyhalbe.Coordinate.FGBlockOnHICANN(fgblock)
+            coord = pyhalbe.Coordinate.FGBlockOnHICANN(pyhalbe.geometry.Enum(fgblock))
             for parameter in shared_parameters:
                 if parameter in ('V_clrc', 'V_bexp') and fgblock in (0, 2):
                     # right only parameter in left block, skip
@@ -264,13 +264,10 @@ class ActiveConnection(object):
 
         if V_reset:
             for fgblock in range(4):
-                coord = pyhalbe.Coordinate.FGBlockOnHICANN(fgblock)
+                coord = pyhalbe.Coordinate.FGBlockOnHICANN(pyhalbe.geometry.Enum(fgblock))
                 fgc.setShared(coord, pyhalbe.HICANN.shared_parameter.V_reset, V_reset)
 
-        # program multiple times for better accuracy
-        for repetition in range(2):
-            for fgblock in range(4):
-                pyhalbe.HICANN.set_fg_values(self.handle_hicann, fgc.extractBlock(pyhalbe.Coordinate.FGBlockOnHICANN(fgblock)))
+        pyhalbe.HICANN.set_fg_values(self.handle_hicann, fgc)
 
         # flush configuration
         pyhalbe.FPGA.start(self.handle_fpga)
