@@ -13,23 +13,25 @@ class ActiveConnection(object):
     Keeps handles and initial HICANN configuration.
     Floating gate values can be modified at runtime."""
 
-    def __init__(self, ip, port, adc_board_id, adc_input_channel, adc_trigger_channel, vertical_setup=False, hicann_id=0, dnc_id=0, fpga_id=0):
+    def __init__(self, ip, port, adc_board_id, adc_input_channel, adc_trigger_channel, vertical_setup=False, hicann_id=0, dnc_id=1, fpga_id=0):
         """Grab required handles and initialize HICANN."""
 
         coord_ip = pyhalbe.Coordinate.IPv4.from_string(ip)
         port = int(port)
-        coord_port = pyhalbe.Coordinate.UDPPort(port)
         # TODO get adc_input_channel, adc_trigger_channel from cable db,
         # maybe even get ip and port
 
+        #coord_port = pyhalbe.Coordinate.UDPPort(port)
         if vertical_setup:
-            raise (Exception, "not implemented without PowerBackend")
-
-        #coord_dnc = pyhalbe.Coordinate.DNCGlobal(pyhalbe.geometry.Enum(dnc_id))
-        coord_port = pyhalbe.Coordinate.UDPPort(port)
-        coord_fpga = pyhalbe.Coordinate.FPGAGlobal(pyhalbe.geometry.Enum(fpga_id))
-        self.handle_fpga = pyhalbe.Handle.FPGA(coord_fpga, coord_ip, coord_port, True)
-        self.handle_hicann = self.handle_fpga.get(pyhalbe.Coordinate.HICANNOnFPGA(pyhalbe.geometry.Enum(hicann_id)))
+            self.handle_fpga = pyhalbe.Handle.FPGA(coord_ip)
+            self.handle_hicann = pyhalbe.Handle.HICANN(pyhalbe.Coordinate.HICANNGlobal(pyhalbe.geometry.Enum(0)))
+            pb = pyhalbe.PowerBackend.instanceVerticalSetup()
+            pb.SetupReticle(True, coord_ip, port, 1, True)
+        else:
+            coord_dnc = pyhalbe.Coordinate.DNCOnFPGA(pyhalbe.geometry.Enum(dnc_id))
+            coord_fpga = pyhalbe.Coordinate.FPGAGlobal(pyhalbe.geometry.Enum(fpga_id))
+            self.handle_fpga = pyhalbe.Handle.FPGA(coord_fpga, coord_ip, coord_dnc, not vertical_setup)
+            self.handle_hicann = self.handle_fpga.get(pyhalbe.Coordinate.HICANNOnFPGA(pyhalbe.geometry.Enum(hicann_id)))
 
         self.reset()
 
@@ -54,6 +56,7 @@ class ActiveConnection(object):
         self.set_neuron_config()
 
     def reset(self):
+        pyhalbe.FPGA.reset(self.handle_fpga)
         pyhalbe.HICANN.reset(self.handle_hicann)  # does not reset floating gate values
         pyhalbe.HICANN.init(self.handle_hicann)  # initialize communication route, run after each reset!
 
@@ -92,7 +95,7 @@ class ActiveConnection(object):
             pyhalbe.HICANN.set_denmem_quad(self.handle_hicann, pyhalbe.Coordinate.QuadOnHICANN(neuron_id/2), nquad)
 
         # flush configuration
-        pyhalbe.FPGA.start(self.handle_fpga)
+        pyhalbe.FPGA.flush(self.handle_fpga)
         self.active_neuron = neuron_id
 
     def deactivate_neuron(self, neuron_id):
@@ -114,7 +117,7 @@ class ActiveConnection(object):
             pyhalbe.HICANN.set_denmem_quad(self.handle_hicann, pyhalbe.Coordinate.QuadOnHICANN(neuron_id/2), nquad)
 
         # flush configuration
-        pyhalbe.FPGA.start(self.handle_fpga)
+        pyhalbe.FPGA.flush(self.handle_fpga)
 
         if self.active_neuron == neuron_id:
             self.active_neuron = None
@@ -139,7 +142,7 @@ class ActiveConnection(object):
         pyhalbe.HICANN.set_analog(self.handle_hicann, aout)
 
         # flush configuration
-        pyhalbe.FPGA.start(self.handle_fpga)
+        pyhalbe.FPGA.flush(self.handle_fpga)
 
     def convert_voltage_to_fgvalue(self, value):
         """Converts a voltage in millivolts to its corresponding floating gate value.
@@ -200,7 +203,7 @@ class ActiveConnection(object):
                 pyhalbe.HICANN.set_fg_values(self.handle_hicann, fgc.extractBlock(pyhalbe.Coordinate.FGBlockOnHICANN(pyhalbe.geometry.Enum(fgblock))))
 
         # flush configuration
-        pyhalbe.FPGA.start(self.handle_fpga)
+        pyhalbe.FPGA.flush(self.handle_fpga)
 
     def program_fg(self, multi_neuron_parameters):
         """Write floating gates of multiple neurons. Uses halbe default shared parameters.
@@ -270,7 +273,7 @@ class ActiveConnection(object):
         pyhalbe.HICANN.set_fg_values(self.handle_hicann, fgc)
 
         # flush configuration
-        pyhalbe.FPGA.start(self.handle_fpga)
+        pyhalbe.FPGA.flush(self.handle_fpga)
 
     def measure_adc(self, trace_length):
         """Trigger ADC recording. Converts raw data to voltage using ADC calibration data. Adds time.
