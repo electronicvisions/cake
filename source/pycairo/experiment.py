@@ -97,20 +97,40 @@ class BaseExperiment(object):
         self.adc = adc
         self.neuron_ids = neuron_ids
         self._repetitions = 1
+
+        self._calib_backend = None
         self._calib_nc = None
 
         if calibtic_backend:
-            self.init_calibration(calibtic_backend)
+            self._calib_backend = calibtic_backend
+            self.init_calibration()
 
     def init_experiment(self):
         """Hook for child classes. Executed by run_experiment()."""
         pass
 
-    def init_calibration(self, backend):
+    def init_calibration(self):
+        """Initialize Calibtic backend, load existing calibration data."""
+
         nc = pycalibtic.NeuronCollection()
         md = pycalibtic.MetaData()
-        backend.load("cairo", md, nc)
+        try:  # TODO replace by 'if backend.exists("cairo")' in the future, when this function is written
+            self._calib_backend.load("cairo", md, nc)
+        except RuntimeError, e:
+            if e.message != "data set not found":
+                raise RuntimeError(e)
+            else:
+                # backend does not exist
+                pass
         self._calib_nc = nc
+        self._calib_md = md
+
+    def store_calibration(self, metadata=None):
+        """Write calibration data to backend"""
+
+        if not metadata:
+            metadata = self._calib_md
+        self._calib_backend.store("cairo", metadata, self._calib_nc)
 
     def get_parameters(self):
         """Return neuron parameters for this experiment. Values can be of type Current, Voltage or DAC.
@@ -139,7 +159,7 @@ class BaseExperiment(object):
 
         return defaultdict(lambda: result)
 
-    def prepare_parameters(self, parameters, step_id, neuron_ids):
+    def prepare_parameters(self, step_id):
         """Prepare parameters before writing them to the hardware.
 
         This includes converting to DAC values, applying calibration and
@@ -162,9 +182,9 @@ class BaseExperiment(object):
         """
 
         steps = self.get_steps()
+        neuron_ids = self.get_neurons()
 
-        # copy parameter dict to merge step changes
-        step_parameters = dict(parameters)
+        step_parameters = self.get_parameters()
         for neuron_id in neuron_ids:
             step_parameters[neuron_id].update(steps[neuron_id][step_id])
             for param in step_parameters[neuron_id]:
@@ -240,14 +260,14 @@ class BaseExperiment(object):
 
         self.init_experiment()
         neuron_ids = self.get_neurons()
-        parameters = self.get_parameters()
+        #parameters = self.get_parameters()
 
         self.all_results = []
         steps = self.get_steps()
         num_steps = len(steps[neuron_ids[0]])
         for step_id in range(num_steps):
             logging.info("step {}".format(step_id))
-            step_parameters = self.prepare_parameters(parameters, step_id, neuron_ids)
+            step_parameters = self.prepare_parameters(step_id)
             for r in range(self.repetitions):
                 logging.info("repetition {}".format(r))
                 self.prepare_measurement(step_parameters)
@@ -364,6 +384,8 @@ class Calibrate_E_l(BaseCalibration):
         return defaultdict(lambda: steps)
 
     def init_experiment(self):
+        if not self._calib_backend:
+            raise TypeError("can not store results without Calibtic backend")
         self.repetitions = 3
 
     def measure(self, neuron_ids):
@@ -384,8 +406,12 @@ class Calibrate_E_l(BaseCalibration):
         md = pycalibtic.MetaData()
         md.setAuthor("pycairo")
         md.setComment("E_l calibration")
-        nc = pycalibtic.NeuronCollection()
+        nc = self._calib_nc
         for neuron_id in results:
+            if not nc.exists(neuron_id):
+                logging.info("no existing calibration data for neuron {} found, creating default dataset")
+                ncal = pycalibtic.NeuronCalibration()
+                nc.insert(neuron_id, ncal)
             nc.at(neuron_id).reset(pyhalbe.HICANN.neuron_parameter.E_l, results[neuron_id])
-        #backend.store("cairo", md, nc)
-        # TODO
+
+        self.store_calibration(md)
