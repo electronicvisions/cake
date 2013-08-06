@@ -365,6 +365,22 @@ class BaseCalibration(BaseExperiment):
         self.results_std = results_std
         self.results_polynomial = results_polynomial
 
+    def store_results(self, parameter):
+        """This base class function can be used by child classes as store_results."""
+        results = self.results_polynomial
+        md = pycalibtic.MetaData()
+        md.setAuthor("pycairo")
+        md.setComment("calibration")
+        nc = self._calib_nc
+        for neuron_id in results:
+            if not nc.exists(neuron_id):
+                logging.info("no existing calibration data for neuron {} found, creating default dataset")
+                ncal = pycalibtic.NeuronCalibration()
+                nc.insert(neuron_id, ncal)
+            nc.at(neuron_id).reset(parameter, results[neuron_id])
+
+        self.store_calibration(md)
+
 
 class Calibrate_E_l(BaseCalibration):
     """E_l calibration."""
@@ -405,7 +421,58 @@ class Calibrate_E_l(BaseCalibration):
         results = self.results_polynomial
         md = pycalibtic.MetaData()
         md.setAuthor("pycairo")
-        md.setComment("E_l calibration")
+        md.setComment("calibration")
+        nc = self._calib_nc
+        for neuron_id in results:
+            if not nc.exists(neuron_id):
+                logging.info("no existing calibration data for neuron {} found, creating default dataset")
+                ncal = pycalibtic.NeuronCalibration()
+                nc.insert(neuron_id, ncal)
+            nc.at(neuron_id).reset(pyhalbe.HICANN.neuron_parameter.E_l, results[neuron_id])
+
+        self.store_calibration(md)
+
+
+class Calibrate_V_t(BaseCalibration):
+    """V_t calibration."""
+    def get_parameters(self):
+        parameters = super(Calibrate_V_t, self).get_parameters()
+        for neuron_id in self.get_neurons():
+            parameters[neuron_id].update({
+                pyhalbe.HICANN.neuron_parameter.E_l: Voltage(1100),
+                pyhalbe.HICANN.neuron_parameter.I_gl: Current(1000)
+            })
+        return parameters
+
+    def get_steps(self):
+        steps = []
+        for voltage in (600, 700, 800):
+            steps.append({pyhalbe.HICANN.neuron_parameter.V_t: Voltage(voltage)})
+        return defaultdict(lambda: steps)
+
+    def init_experiment(self):
+        if not self._calib_backend:
+            raise TypeError("can not store results without Calibtic backend")
+        self.repetitions = 2
+
+    def measure(self, neuron_ids):
+        results = {}
+        for neuron_id in neuron_ids:
+            self.hicann.activate_neuron(neuron_id)
+            self.hicann.enable_analog_output(neuron_id)
+            t, v = self.adc.measure_adc(1000)
+            V_t = np.max(v)*1000  # multiply by 1000 for mV
+            results[neuron_id] = V_t
+        self.all_results.append(results)
+
+    def process_results(self, neuron_ids):
+        super(Calibrate_V_t, self).process_calibration_results(neuron_ids, pyhalbe.HICANN.neuron_parameter.V_t)
+
+    def store_results(self):
+        results = self.results_polynomial
+        md = pycalibtic.MetaData()
+        md.setAuthor("pycairo")
+        md.setComment("calibration")
         nc = self._calib_nc
         for neuron_id in results:
             if not nc.exists(neuron_id):
