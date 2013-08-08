@@ -13,7 +13,7 @@ class ActiveConnection(object):
     Keeps handles and initial HICANN configuration.
     Floating gate values can be modified at runtime."""
 
-    def __init__(self, ip, port, adc_board_id, adc_input_channel, adc_trigger_channel, vertical_setup=False, hicann_id=0, dnc_id=1, fpga_id=0):
+    def __init__(self, ip, port, adc_board_id, adc_input_channel, adc_trigger_channel, vertical_setup=False, hicann_id=0, dnc_id=1, fpga_id=0, branch="master"):
         """Grab required handles and initialize HICANN."""
 
         coord_ip = pyhalbe.Coordinate.IPv4.from_string(ip)
@@ -22,7 +22,7 @@ class ActiveConnection(object):
         # maybe even get ip and port
 
         #coord_port = pyhalbe.Coordinate.UDPPort(port)
-        if vertical_setup:
+        if branch == "master" and vertical_setup:
             self.handle_fpga = pyhalbe.Handle.FPGA(coord_ip)
             self.handle_hicann = pyhalbe.Handle.HICANN(pyhalbe.Coordinate.HICANNGlobal(pyhalbe.geometry.Enum(0)))
             pb = pyhalbe.PowerBackend.instanceVerticalSetup()
@@ -31,7 +31,7 @@ class ActiveConnection(object):
             coord_dnc = pyhalbe.Coordinate.DNCOnFPGA(pyhalbe.geometry.Enum(dnc_id))
             coord_fpga = pyhalbe.Coordinate.FPGAGlobal(pyhalbe.geometry.Enum(fpga_id))
             self.handle_fpga = pyhalbe.Handle.FPGA(coord_fpga, coord_ip, coord_dnc, not vertical_setup)
-            self.handle_hicann = self.handle_fpga.get(pyhalbe.Coordinate.HICANNOnFPGA(pyhalbe.geometry.Enum(hicann_id)))
+            self.handle_hicann = self.handle_fpga.get(coord_dnc, pyhalbe.Coordinate.HICANNOnDNC(pyhalbe.geometry.Enum(hicann_id)))
 
         self.reset()
 
@@ -197,10 +197,7 @@ class ActiveConnection(object):
                 value = shared_parameters[parameter]
                 fgc.setShared(coord, param, value)
 
-        # program multiple times for better accuracy
-        for repetition in range(2):
-            for fgblock in range(4):
-                pyhalbe.HICANN.set_fg_values(self.handle_hicann, fgc.extractBlock(pyhalbe.Coordinate.FGBlockOnHICANN(pyhalbe.geometry.Enum(fgblock))))
+        pyhalbe.HICANN.set_fg_values(self.handle_hicann, fgc)
 
         # flush configuration
         pyhalbe.FPGA.flush(self.handle_fpga)
