@@ -10,7 +10,8 @@ from collections import defaultdict
 import pyhalbe
 import pycalibtic
 import pysthal
-from pycairo.logic.helpers import create_pycalibtic_polynomial
+from pycairo.helpers.calibtic import create_pycalibtic_polynomial
+from pycairo.helpers.sthal import UpdateAnalogOutputConfigurator
 
 
 class Unit(object):
@@ -112,6 +113,7 @@ class BaseExperiment(object):
         self.hicann = hicann
         self.adc = adc
         self.cfg = pysthal.HICANNConfigurator()
+        self.cfg_analog = UpdateAnalogOutputConfigurator()
 
         self.neuron_ids = neuron_ids
         self._repetitions = 1
@@ -456,6 +458,7 @@ class Calibrate_E_l(BaseCalibration):
             coord_neuron = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(neuron_id))
             self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(0))
             self.hicann.enable_aout(coord_neuron, pyhalbe.Coordinate.AnalogOnHICANN(0))
+            self.wafer.configure(self.cfg_analog)
             v = self.adc.read()
             E_l = np.mean(v)*1000  # multiply by 1000 for mV
             results[neuron_id] = E_l
@@ -465,6 +468,8 @@ class Calibrate_E_l(BaseCalibration):
         super(Calibrate_E_l, self).process_calibration_results(neuron_ids, pyhalbe.HICANN.neuron_parameter.E_l)
 
     def store_results(self):
+        # TODO sanity check on self.results_polynomial
+        # before storing anything
         super(Calibrate_E_l, self).store_calibration_results(pyhalbe.HICANN.neuron_parameter.E_l)
 
 
