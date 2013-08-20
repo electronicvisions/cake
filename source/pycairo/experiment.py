@@ -86,18 +86,11 @@ class DAC(Unit):
         return "{} (DAC)".format(self.value)
 
 
-class BaseExperiment(object):
-    """Base class for running experiments on individual neurons.
-
-    Defines experiment base parameters, steps varying parameters, repetitions.
-    Defines measurement procedure and postprocessing.
-
-    Provides a function to run and process an experiment.
-    """
-    def __init__(self, neuron_ids,
-                 coord_wafer=pyhalbe.Coordinate.Wafer(),
+class StHALContainer(object):
+    """Contains StHAL objects for hardware access. Multiple experiments can share one container."""
+    def __init__(self, coord_wafer=pyhalbe.Coordinate.Wafer(),
                  coord_hicann=pyhalbe.Coordinate.HICANNOnWafer(pyhalbe.geometry.Enum(0)),
-                 calibtic_backend=None):
+                 coord_analog=pyhalbe.Coordinate.AnalogOnHICANN(0)):
 
         wafer = pysthal.Wafer(coord_wafer)  # Stateful HICANN Container
         wafer.allocateHICANN(coord_hicann)
@@ -106,14 +99,37 @@ class BaseExperiment(object):
         wafer.connect(pysthal.MagicHardwareDatabase())
 
         # analogRecorder() MUST be called after wafer.connect()
-        adc = hicann.analogRecorder(pyhalbe.Coordinate.AnalogOnHICANN(0))
+        adc = hicann.analogRecorder(coord_analog)
         adc.setReadoutTime(0.01)
 
         self.wafer = wafer
         self.hicann = hicann
         self.adc = adc
-        self.cfg = pysthal.HICANNConfigurator()
-        self.cfg_analog = UpdateAnalogOutputConfigurator()
+        self._cfg = pysthal.HICANNConfigurator()
+        self._cfg_analog = UpdateAnalogOutputConfigurator()
+
+    def write_config(self):
+        """Write full configuration."""
+        self.wafer.configure(self._cfg)
+
+    def switch_analog_output(self, neuron_id, l1address=0, analog=0):
+        """Write analog output configuration (only)."""
+        coord_neuron = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(neuron_id))
+        self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(l1address))
+        self.hicann.enable_aout(coord_neuron, pyhalbe.Coordinate.AnalogOnHICANN(analog))
+        self.wafer.configure(self._cfg_analog)
+
+
+class BaseExperiment(object):
+    """Base class for running experiments on individual neurons.
+
+    Defines experiment base parameters, steps varying parameters, repetitions.
+    Defines measurement procedure and postprocessing.
+
+    Provides a function to run and process an experiment.
+    """
+    def __init__(self, neuron_ids, sthal_container, calibtic_backend=None):
+        self.sthal = sthal_container
 
         self.neuron_ids = neuron_ids
         self._repetitions = 1
@@ -209,7 +225,13 @@ class BaseExperiment(object):
             step_parameters[neuron_id].update(steps[neuron_id][step_id])
             for param in step_parameters[neuron_id]:
                 # convert to DAC and apply calibration
-                value = step_parameters[neuron_id][param].toDAC().value
+                try:
+                    value = step_parameters[neuron_id][param].toDAC().value
+                except:
+                    print neuron_id, param
+                    print step_parameters
+                    print step_parameters[3]
+                    raise
                 apply_calibration = step_parameters[neuron_id][param].apply_calibration
                 if apply_calibration:
                     # apply calibration
@@ -229,7 +251,7 @@ class BaseExperiment(object):
 
         for neuron_id in neuron_parameters:
             coord = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.geometry.Enum(neuron_id))
-            neuron = self.hicann.neurons[coord]
+            neuron = self.sthal.hicann.neurons[coord]
             # use fastest membrane possible
             neuron.bigcap = True
             neuron.fast_I_gl = True
@@ -253,8 +275,8 @@ class BaseExperiment(object):
                 coord = pyhalbe.Coordinate.FGBlockOnHICANN(pyhalbe.Coordinate.Enum(block))
                 fgc.setShared(coord, pyhalbe.HICANN.shared_parameter.V_reset, V_reset)
 
-        self.hicann.floating_gates = fgc
-        self.wafer.configure(self.cfg)
+        self.sthal.hicann.floating_gates = fgc
+        self.sthal.write_config()
 
     @property
     def repetitions(self):
@@ -326,11 +348,8 @@ class BaseExperiment(object):
         """Perform measurements for a single step on one or multiple neurons."""
         results = {}
         for neuron_id in neuron_ids:
-            coord_neuron = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(neuron_id))
-            self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(0))
-            self.hicann.enable_aout(coord_neuron, pyhalbe.Coordinate.AnalogOnHICANN(0))
-            self.wafer.configure(self.cfg)
-            v = self.adc.read()
+            self.sthal.switch_analog_output(neuron_id)
+            v = self.sthal.adc.read()
             results[neuron_id] = v
         self.all_results.append[results]
 
@@ -369,7 +388,7 @@ class BaseCalibration(BaseExperiment):
                       pyhalbe.HICANN.neuron_parameter.V_t: Voltage(1000),  # recommended threshold, maximum is 1100
                       pyhalbe.HICANN.shared_parameter.V_reset: Voltage(500)
                       }
-        return defaultdict(lambda: parameters)
+        return defaultdict(lambda: dict(parameters))
 
     def process_calibration_results(self, neuron_ids, parameter):
         """This base class function can be used by child classes as process_results."""
@@ -455,11 +474,8 @@ class Calibrate_E_l(BaseCalibration):
     def measure(self, neuron_ids):
         results = {}
         for neuron_id in neuron_ids:
-            coord_neuron = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(neuron_id))
-            self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(0))
-            self.hicann.enable_aout(coord_neuron, pyhalbe.Coordinate.AnalogOnHICANN(0))
-            self.wafer.configure(self.cfg_analog)
-            v = self.adc.read()
+            self.sthal.switch_analog_output(neuron_id)
+            v = self.sthal.adc.read()
             E_l = np.mean(v)*1000  # multiply by 1000 for mV
             results[neuron_id] = E_l
         self.all_results.append(results)
@@ -498,9 +514,9 @@ class Calibrate_V_t(BaseCalibration):
         results = {}
         for neuron_id in neuron_ids:
             coord_neuron = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(neuron_id))
-            self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(0))
-            self.hicann.enable_aout(coord_neuron, pyhalbe.Coordinate.AnalogOnHICANN(0))
-            v = self.adc.read()
+            self.sthal.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(0))
+            self.sthal.hicann.enable_aout(coord_neuron, pyhalbe.Coordinate.AnalogOnHICANN(0))
+            v = self.sthal.adc.read()
             V_t = np.max(v)*1000  # multiply by 1000 for mV
             results[neuron_id] = V_t
         self.all_results.append(results)
@@ -536,10 +552,8 @@ class Calibrate_V_reset(BaseCalibration):
     def measure(self, neuron_ids):
         results = {}
         for neuron_id in neuron_ids:
-            coord_neuron = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(neuron_id))
-            self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(0))
-            self.hicann.enable_aout(coord_neuron, pyhalbe.Coordinate.AnalogOnHICANN(0))
-            v = self.adc.read()
+            self.sthal.switch_analog_output(neuron_id)
+            v = self.sthal.adc.read()
             V_reset = np.min(v)*1000  # multiply by 1000 for mV
             results[neuron_id] = V_reset
         self.all_results.append(results)
