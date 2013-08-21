@@ -1,4 +1,8 @@
-"""Controller for the calibration of the BrainScaleS hardware"""
+"""Controller for the calibration of the BrainScaleS hardware.
+
+CalibrationController is outdated, current way of doing it is
+using pycairo.experiment.*
+"""
 
 import time
 import numpy as np
