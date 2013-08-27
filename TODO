@@ -1,3 +1,4 @@
+old issues
 * parameter translation needs to be changed to calibtic
 * interfaces/halbe contains parameter specific measurement routines
 * controller contains old non-working code for some parameters
@@ -6,6 +7,16 @@
 * why is there still simulator code running?
 * interfaces/adc is very similar to code in ADC calibration
 
-* detect working synapses
+these are solved by pycairo.experiment, remaining tasks:
+* check and drop interfaces/*
+* check and drop config/*
+* check (and drop) visualization/*
+* drop translations/*
+* drop simulator.py
+* rewrite controller.py
+
+long term issues
+* detect working neurons for given parameter sets (store in redman)
+* detect working synapses (see also sunscreen repo)
 * calibrate synapses (tau_syn, g_syn)
 * calibrate whole wafer
