@@ -513,6 +513,7 @@ class Calibrate_V_t(BaseCalibration):
     def measure(self, neuron_ids):
         results = {}
         for neuron_id in neuron_ids:
+            logging.info("measuring neuron {}".format(neuron_id))
             coord_neuron = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(neuron_id))
             self.sthal.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(0))
             self.sthal.hicann.enable_aout(coord_neuron, pyhalbe.Coordinate.AnalogOnHICANN(0))
