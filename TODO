@@ -7,7 +7,7 @@ old issues
 * why is there still simulator code running?
 * interfaces/adc is very similar to code in ADC calibration
 
-these are solved by pycairo.experiment, remaining tasks:
+the issues above are solved by pycairo.experiment, remaining tasks:
 * check and drop interfaces/*
 * check and drop config/*
 * check (and drop) visualization/*
