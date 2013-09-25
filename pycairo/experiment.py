@@ -420,7 +420,7 @@ class BaseCalibration(BaseExperiment):
             results_mean[neuron_id] = np.array(results_mean[neuron_id])
             results_std[neuron_id] = np.array(results_std[neuron_id])
             steps = [step[parameter].value for step in all_steps[neuron_id]]
-            weight = 1./results_std[neuron_id]
+            weight = 1./(results_std[neuron_id] + 1e-8)  # add a tiny value because std may be zero
             # note that np.polynomial.polynomial.polyfit coefficients have
             # reverse order compared to np.polyfit
             # to reverse coefficients: rcoeffs = coeffs[::-1]
@@ -486,6 +486,7 @@ class Calibrate_E_l(BaseCalibration):
     def store_results(self):
         # TODO sanity check on self.results_polynomial
         # before storing anything
+        # TODO detect broken neurons, store to redman
         super(Calibrate_E_l, self).store_calibration_results(pyhalbe.HICANN.neuron_parameter.E_l)
 
 
@@ -495,7 +496,7 @@ class Calibrate_V_t(BaseCalibration):
         parameters = super(Calibrate_V_t, self).get_parameters()
         for neuron_id in self.get_neurons():
             parameters[neuron_id].update({
-                pyhalbe.HICANN.neuron_parameter.E_l: Voltage(1100),
+                pyhalbe.HICANN.neuron_parameter.E_l: Voltage(1100),  # TODO apply calibration?
                 pyhalbe.HICANN.neuron_parameter.I_gl: Current(1000)
             })
         return parameters
@@ -514,9 +515,7 @@ class Calibrate_V_t(BaseCalibration):
         results = {}
         for neuron_id in neuron_ids:
             logging.info("measuring neuron {}".format(neuron_id))
-            coord_neuron = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(neuron_id))
-            self.sthal.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(0))
-            self.sthal.hicann.enable_aout(coord_neuron, pyhalbe.Coordinate.AnalogOnHICANN(0))
+            self.sthal.switch_analog_output(neuron_id)
             v = self.sthal.adc.read()
             V_t = np.max(v)*1000  # multiply by 1000 for mV
             results[neuron_id] = V_t
@@ -526,6 +525,7 @@ class Calibrate_V_t(BaseCalibration):
         super(Calibrate_V_t, self).process_calibration_results(neuron_ids, pyhalbe.HICANN.neuron_parameter.V_t)
 
     def store_results(self):
+        # TODO detect and store broken neurons
         super(Calibrate_V_t, self).store_calibration_results(pyhalbe.HICANN.neuron_parameter.V_t)
 
 
@@ -535,9 +535,10 @@ class Calibrate_V_reset(BaseCalibration):
         parameters = super(Calibrate_V_reset, self).get_parameters()
         for neuron_id in self.get_neurons():
             parameters[neuron_id].update({
-                pyhalbe.HICANN.neuron_parameter.E_l: Voltage(1100),
+                pyhalbe.HICANN.neuron_parameter.E_l: Voltage(1100),  # TODO apply calibration?
                 pyhalbe.HICANN.neuron_parameter.I_gl: Current(1000)
             })
+        # TODO apply V_t calibration?
         return parameters
 
     def get_steps(self):
@@ -563,6 +564,7 @@ class Calibrate_V_reset(BaseCalibration):
         super(Calibrate_V_reset, self).process_calibration_results(neuron_ids, pyhalbe.HICANN.shared_parameter.V_reset)
 
     def store_results(self):
+        # TODO detect and store broken neurons
         super(Calibrate_V_reset, self).store_calibration_results(pyhalbe.HICANN.shared_parameter.V_reset)
 
 
