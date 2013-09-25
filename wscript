@@ -10,7 +10,7 @@ from waflib.extras.gtest import summary
 def depends(ctx):
     #ctx('halbe', 'pyhalbe')
     #ctx('pyhmf', 'pycellparameters')
-    #ctx('calibtic', 'pycalibtic')
+    ctx('calibtic', 'pycalibtic')  # sthal does not depend on pycalibtic
     ctx('sthal')
     ctx('redman')
 
