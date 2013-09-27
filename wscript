@@ -19,16 +19,19 @@ def depends(ctx):
 
 
 def options(opt):
-    pass
+    opt.load('post_task')
 
 
 def configure(cfg):
-    pass
+    cfg.load('post_task')
 
 
 def build(bld):
-    bld.install_files(
-            'lib',
-            bld.path.ant_glob('pycairo/**/*.py'),
-            relative_trick=True,
+    bld(
+        target='pycairo',
+        source=bld.path.ant_glob('pycairo/**/*.py'),
+        features='post_task',
+        post_task=['pycalibtic', '_pysthal'],
+        install_from='.',
+        install_path='lib',
     )
