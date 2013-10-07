@@ -8,8 +8,7 @@ from waflib.extras.gtest import summary
 
 
 def depends(ctx):
-    #ctx('halbe', 'pyhalbe')
-    #ctx('pyhmf', 'pycellparameters')
+    ctx('symap2ic', 'src/pylogging')
     ctx('calibtic', 'pycalibtic')  # sthal does not depend on pycalibtic
     ctx('sthal')
     ctx('redman')
@@ -31,7 +30,7 @@ def build(bld):
         target='pycairo',
         source=bld.path.ant_glob('pycairo/**/*.py'),
         features='post_task',
-        post_task=['pycalibtic', '_pysthal'],
+        post_task=['pyoneer', 'pycalibtic', '_pysthal', 'pylogging'],
         install_from='.',
         install_path='lib',
     )

@@ -5,7 +5,7 @@ measurement and processing from BaseExperiment or child classes.
 """
 
 import numpy as np
-import logging
+import pylogging
 from collections import defaultdict
 import pyhalbe
 import pycalibtic
@@ -128,7 +128,7 @@ class BaseExperiment(object):
 
     Provides a function to run and process an experiment.
     """
-    def __init__(self, neuron_ids, sthal_container, calibtic_backend=None):
+    def __init__(self, neuron_ids, sthal_container, calibtic_backend=None, loglevel=pylogging.LogLevel.INFO):
         self.sthal = sthal_container
 
         self.neuron_ids = neuron_ids
@@ -140,6 +140,10 @@ class BaseExperiment(object):
         if calibtic_backend:
             self._calib_backend = calibtic_backend
             self.init_calibration()
+
+        pylogging.reset()
+        pylogging.log_to_cout(loglevel)
+        self.logger = pylogging.get("pycairo.experiment")
 
     def init_experiment(self):
         """Hook for child classes. Executed by run_experiment()."""
@@ -325,6 +329,7 @@ class BaseExperiment(object):
 
     def run_experiment(self):
         """Run the experiment and process results."""
+        logger = self.logger
 
         self.init_experiment()
         neuron_ids = self.get_neurons()
@@ -334,13 +339,13 @@ class BaseExperiment(object):
         steps = self.get_steps()
         num_steps = len(steps[neuron_ids[0]])
         for step_id in range(num_steps):
-            logging.info("step {}".format(step_id))
+            logger.INFO("step {}".format(step_id))
             step_parameters = self.prepare_parameters(step_id)
             for r in range(self.repetitions):
-                logging.info("repetition {}".format(r))
+                logger.INFO("repetition {}".format(r))
                 self.prepare_measurement(step_parameters)
                 self.measure(neuron_ids)
-        logging.info("processing results")
+        logger.INFO("processing results")
         self.process_results(neuron_ids)
         self.store_results()
 
@@ -438,10 +443,13 @@ class BaseCalibration(BaseExperiment):
         md = pycalibtic.MetaData()
         md.setAuthor("pycairo")
         md.setComment("calibration")
+
+        logger = self.logger
+
         nc = self._calib_nc
         for neuron_id in results:
             if not nc.exists(neuron_id):
-                logging.info("no existing calibration data for neuron {} found, creating default dataset")
+                logger.INFO("no existing calibration data for neuron {} found, creating default dataset")
                 ncal = pycalibtic.NeuronCalibration()
                 nc.insert(neuron_id, ncal)
             nc.at(neuron_id).reset(parameter, results[neuron_id])
@@ -512,9 +520,10 @@ class Calibrate_V_t(BaseCalibration):
         self.repetitions = 2
 
     def measure(self, neuron_ids):
+        logger = self.logger
         results = {}
         for neuron_id in neuron_ids:
-            logging.info("measuring neuron {}".format(neuron_id))
+            logger.INFO("measuring neuron {}".format(neuron_id))
             self.sthal.switch_analog_output(neuron_id)
             v = self.sthal.adc.read()
             V_t = np.max(v)*1000  # multiply by 1000 for mV
