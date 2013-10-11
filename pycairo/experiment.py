@@ -11,7 +11,7 @@ import pyhalbe
 import pycalibtic
 import pysthal
 from pycairo.helpers.calibtic import create_pycalibtic_polynomial
-from pycairo.helpers.sthal import UpdateAnalogOutputConfigurator
+import pycairo.helpers.sthal
 
 
 class Unit(object):
@@ -105,8 +105,8 @@ class StHALContainer(object):
         self.wafer = wafer
         self.hicann = hicann
         self.adc = adc
-        self._cfg = pysthal.HICANNConfigurator()
-        self._cfg_analog = UpdateAnalogOutputConfigurator()
+        self._cfg = pycairo.helpers.sthal.WriteFGTwiceConfigurator()
+        self._cfg_analog = pycairo.helpers.sthal.UpdateAnalogOutputConfigurator()
 
     def write_config(self):
         """Write full configuration."""
