@@ -9,6 +9,7 @@ import pylogging
 from collections import defaultdict
 import pyhalbe
 import pycalibtic
+import pyredman as redman
 import pysthal
 from pycairo.helpers.calibtic import create_pycalibtic_polynomial
 import pycairo.helpers.sthal
@@ -128,17 +129,23 @@ class BaseExperiment(object):
 
     Provides a function to run and process an experiment.
     """
-    def __init__(self, neuron_ids, sthal_container, calibtic_backend=None, loglevel=pylogging.LogLevel.INFO):
+    def __init__(self, neuron_ids, sthal_container, calibtic_backend=None, redman_backend=None, loglevel=pylogging.LogLevel.INFO):
         self.sthal = sthal_container
 
         self.neuron_ids = neuron_ids
         self._repetitions = 1
 
-        self._calib_backend = None
+        self._calib_backend = calibtic_backend
         self._calib_nc = None
 
+        if redman_backend:
+            self.init_redman(redman_backend)
+        else:
+            self._red_wafer = None
+            self._red_hicann = None
+            self._red_nrns = None
+
         if calibtic_backend:
-            self._calib_backend = calibtic_backend
             self.init_calibration()
 
         pylogging.reset()
@@ -148,6 +155,19 @@ class BaseExperiment(object):
     def init_experiment(self):
         """Hook for child classes. Executed by run_experiment()."""
         pass
+
+    def init_redman(self, backend):
+        """Initialize defect management for given backend."""
+        # FIXME default coordinates
+        coord_wafer = pyhalbe.Coordinate.Wafer(0)
+        coord_hicann = pyhalbe.Coordinate.HICANNOnWafer(pyhalbe.Coordinate.Enum(0))
+        wafer = redman.Wafer(backend, coord_wafer)
+        if not wafer.hicanns().has(coord_hicann):
+            raise ValueError("HICANN {} is marked as defect.".format(int(coord_hicann.id())))
+        self._red_wafer = wafer
+        hicann = wafer.find(coord_hicann)
+        self._red_hicann = hicann
+        self._red_nrns = hicann.neurons()
 
     def init_calibration(self):
         """Initialize Calibtic backend, load existing calibration data."""
@@ -448,6 +468,10 @@ class BaseCalibration(BaseExperiment):
 
         nc = self._calib_nc
         for neuron_id in results:
+            # TODO
+            # - detect broken neurons
+            # - store broken neurons
+            # - do not store broken functions in calibtic
             if not nc.exists(neuron_id):
                 logger.INFO("no existing calibration data for neuron {} found, creating default dataset")
                 ncal = pycalibtic.NeuronCalibration()
@@ -457,8 +481,10 @@ class BaseCalibration(BaseExperiment):
         self.store_calibration(md)
 
     def init_experiment(self):
-        if not self._calib_backend:
+        if self._calib_backend is None:
             raise TypeError("can not store results without Calibtic backend")
+        if self._red_nrns is None:
+            raise TypeError("can not store defects without Redman backend")
         self.repetitions = 3
 
 

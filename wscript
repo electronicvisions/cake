@@ -8,10 +8,12 @@ from waflib.extras.gtest import summary
 
 
 def depends(ctx):
+    #ctx('sthal', branch='dev_polymorphic_handle')
+    ctx('sthal')
     ctx('symap2ic', 'src/pylogging')
     ctx('calibtic', 'pycalibtic')  # sthal does not depend on pycalibtic
-    ctx('sthal')
-    ctx('redman')
+    ctx('redman', 'pyredman')
+    ctx('redman', 'backends')
 
     if ctx.options.disable_bindings:
         ctx.fatal('Calibration depends on Python bindings.')
@@ -30,7 +32,7 @@ def build(bld):
         target='pycairo',
         source=bld.path.ant_glob('pycairo/**/*.py'),
         features='post_task',
-        post_task=['pyoneer', 'pycalibtic', '_pysthal', 'pylogging'],
+        post_task=['pyoneer', 'pycalibtic', '_pysthal', 'pylogging', 'pyredman', 'redman_xml', 'redman_mongo'],
         install_from='.',
         install_path='lib',
     )
