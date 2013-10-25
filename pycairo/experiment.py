@@ -10,9 +10,7 @@ from collections import defaultdict
 import pyhalbe
 import pycalibtic
 import pyredman as redman
-import pysthal
 from pycairo.helpers.calibtic import create_pycalibtic_polynomial
-import pycairo.helpers.sthal
 
 
 class Unit(object):
@@ -87,40 +85,6 @@ class DAC(Unit):
         return "{} (DAC)".format(self.value)
 
 
-class StHALContainer(object):
-    """Contains StHAL objects for hardware access. Multiple experiments can share one container."""
-    def __init__(self, coord_wafer=pyhalbe.Coordinate.Wafer(),
-                 coord_hicann=pyhalbe.Coordinate.HICANNOnWafer(pyhalbe.geometry.Enum(0)),
-                 coord_analog=pyhalbe.Coordinate.AnalogOnHICANN(0)):
-
-        wafer = pysthal.Wafer(coord_wafer)  # Stateful HICANN Container
-        wafer.allocateHICANN(coord_hicann)
-        hicann = wafer[coord_hicann]
-
-        wafer.connect(pysthal.MagicHardwareDatabase())
-
-        # analogRecorder() MUST be called after wafer.connect()
-        adc = hicann.analogRecorder(coord_analog)
-        adc.setReadoutTime(0.01)
-
-        self.wafer = wafer
-        self.hicann = hicann
-        self.adc = adc
-        self._cfg = pycairo.helpers.sthal.WriteFGTwiceConfigurator()
-        self._cfg_analog = pycairo.helpers.sthal.UpdateAnalogOutputConfigurator()
-
-    def write_config(self):
-        """Write full configuration."""
-        self.wafer.configure(self._cfg)
-
-    def switch_analog_output(self, neuron_id, l1address=0, analog=0):
-        """Write analog output configuration (only)."""
-        coord_neuron = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(neuron_id))
-        self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(l1address))
-        self.hicann.enable_aout(coord_neuron, pyhalbe.Coordinate.AnalogOnHICANN(analog))
-        self.wafer.configure(self._cfg_analog)
-
-
 class BaseExperiment(object):
     """Base class for running experiments on individual neurons.
 
@@ -187,6 +151,7 @@ class BaseExperiment(object):
 
     def store_calibration(self, metadata=None):
         """Write calibration data to backend"""
+        self._red_hicann.commit()
 
         if not metadata:
             metadata = self._calib_md
@@ -248,23 +213,19 @@ class BaseExperiment(object):
         for neuron_id in neuron_ids:
             step_parameters[neuron_id].update(steps[neuron_id][step_id])
             for param in step_parameters[neuron_id]:
-                # convert to DAC and apply calibration
-                try:
-                    value = step_parameters[neuron_id][param].toDAC().value
-                except:
-                    print neuron_id, param
-                    print step_parameters
-                    print step_parameters[3]
-                    raise
-                apply_calibration = step_parameters[neuron_id][param].apply_calibration
+                step_cvalue = step_parameters[neuron_id][param]
+                apply_calibration = step_cvalue.apply_calibration
                 if apply_calibration:
+                    if not type(step_cvalue) in (Voltage, Current):
+                        raise NotImplementedError("can not apply calibration on DAC value")
                     # apply calibration
                     ncal = self._calib_nc.at(neuron_id)
                     calibration = ncal.at(param)
-                    calibrated_value = calibration.apply(value)
-                    step_parameters[neuron_id][param] = calibrated_value
-                else:
-                    step_parameters[neuron_id][param] = value
+                    calibrated_value = calibration.apply(step_cvalue.value)
+                    step_cvalue = type(step_cvalue)(calibrated_value)
+                # convert to DAC
+                value = step_cvalue.toDAC().value
+                step_parameters[neuron_id][param] = value
 
         return step_parameters
 
@@ -467,16 +428,21 @@ class BaseCalibration(BaseExperiment):
         logger = self.logger
 
         nc = self._calib_nc
+        nrns = self._red_nrns
         for neuron_id in results:
-            # TODO
-            # - detect broken neurons
-            # - store broken neurons
-            # - do not store broken functions in calibtic
-            if not nc.exists(neuron_id):
-                logger.INFO("no existing calibration data for neuron {} found, creating default dataset")
-                ncal = pycalibtic.NeuronCalibration()
-                nc.insert(neuron_id, ncal)
-            nc.at(neuron_id).reset(parameter, results[neuron_id])
+            coord_neuron = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(neuron_id))
+            broken = False
+            # TODO detect broken neurons
+            if broken:
+                if nrns.has(coord_neuron):  # not disabled
+                    nrns.disable(coord_neuron)
+                # TODO reset/delete calibtic function for this neuron
+            else:  # store in calibtic
+                if not nc.exists(neuron_id):
+                    logger.INFO("no existing calibration data for neuron {} found, creating default dataset")
+                    ncal = pycalibtic.NeuronCalibration()
+                    nc.insert(neuron_id, ncal)
+                nc.at(neuron_id).reset(parameter, results[neuron_id])
 
         self.store_calibration(md)
 
