@@ -4,3 +4,6 @@
 *.so
 *.swp
 .ropeproject
+*.png
+*.npz
+*.log
