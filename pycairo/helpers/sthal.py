@@ -39,7 +39,7 @@ class StHALContainer(object):
 
         # analogRecorder() MUST be called after wafer.connect()
         adc = hicann.analogRecorder(coord_analog)
-        adc.setReadoutTime(0.01)
+        adc.setRecordingTime(0.01)
 
         self.wafer = wafer
         self.hicann = hicann
