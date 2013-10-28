@@ -376,12 +376,13 @@ class BaseCalibration(BaseExperiment):
                       }
         return defaultdict(lambda: dict(parameters))
 
-    def process_calibration_results(self, neuron_ids, parameter):
+    def process_calibration_results(self, neuron_ids, parameter, linear_fit=False):
         """This base class function can be used by child classes as process_results."""
         # containers for final results
         results_mean = defaultdict(list)
         results_std = defaultdict(list)
         results_polynomial = {}
+        results_broken = []  # will contain neuron_ids which are broken
 
         # self.all_results contains all measurements, need to untangle
         # repetitions and steps
@@ -400,23 +401,34 @@ class BaseCalibration(BaseExperiment):
                 repetition = 1
                 step_results = defaultdict(list)
 
-        # fit polynomial to results
         all_steps = self.get_steps()
         for neuron_id in neuron_ids:
             results_mean[neuron_id] = np.array(results_mean[neuron_id])
             results_std[neuron_id] = np.array(results_std[neuron_id])
             steps = [step[parameter].value for step in all_steps[neuron_id]]
-            weight = 1./(results_std[neuron_id] + 1e-8)  # add a tiny value because std may be zero
-            # note that np.polynomial.polynomial.polyfit coefficients have
-            # reverse order compared to np.polyfit
-            # to reverse coefficients: rcoeffs = coeffs[::-1]
-            coeffs = np.polynomial.polynomial.polyfit(results_mean[neuron_id], steps, 2, w=weight)
+            if linear_fit:
+                # linear fit
+                m, b = np.linalg.lstsq(zip(results_mean[neuron_id], [1]*len(results_mean[neuron_id])), steps)[0]
+                coeffs = [b, m]
+                if parameter is pyhalbe.HICANN.neuron_parameter.E_l:
+                    if not (m > 1.0 and m < 1.5 and b < 0 and b > -500):
+                        # this neuron is broken
+                        results_broken.append(neuron_id)
+            else:
+                # fit polynomial to results
+                weight = 1./(results_std[neuron_id] + 1e-8)  # add a tiny value because std may be zero
+                # note that np.polynomial.polynomial.polyfit coefficients have
+                # reverse order compared to np.polyfit
+                # to reverse coefficients: rcoeffs = coeffs[::-1]
+                coeffs = np.polynomial.polynomial.polyfit(results_mean[neuron_id], steps, 2, w=weight)
+                # TODO check coefficients for broken behavior
             results_polynomial[neuron_id] = create_pycalibtic_polynomial(coeffs)
 
         # make final results available
         self.results_mean = results_mean
         self.results_std = results_std
         self.results_polynomial = results_polynomial
+        self.results_broken = results_broken
 
     def store_calibration_results(self, parameter):
         """This base class function can be used by child classes as store_results."""
@@ -431,8 +443,7 @@ class BaseCalibration(BaseExperiment):
         nrns = self._red_nrns
         for neuron_id in results:
             coord_neuron = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(neuron_id))
-            broken = False
-            # TODO detect broken neurons
+            broken = neuron_id in self.results_broken
             if broken:
                 if nrns.has(coord_neuron):  # not disabled
                     nrns.disable(coord_neuron)
@@ -481,12 +492,9 @@ class Calibrate_E_l(BaseCalibration):
         self.all_results.append(results)
 
     def process_results(self, neuron_ids):
-        super(Calibrate_E_l, self).process_calibration_results(neuron_ids, pyhalbe.HICANN.neuron_parameter.E_l)
+        super(Calibrate_E_l, self).process_calibration_results(neuron_ids, pyhalbe.HICANN.neuron_parameter.E_l, linear_fit=True)
 
     def store_results(self):
-        # TODO sanity check on self.results_polynomial
-        # before storing anything
-        # TODO detect broken neurons, store to redman
         super(Calibrate_E_l, self).store_calibration_results(pyhalbe.HICANN.neuron_parameter.E_l)
 
 
