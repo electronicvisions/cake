@@ -1,13 +1,16 @@
 """Runs E_l calibration, plots and saves data"""
 
 import pyhalbe
-import pycalibtic
 import pycairo.experiment
 
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')  # execute before using pyplot without X
 import matplotlib.pyplot as plt
+
+from pycairo.helpers.calibtic import init_backend as init_calibtic
+from pycairo.helpers.redman import init_backend as init_redman
+from pycairo.helpers.sthal import StHALContainer
 
 import pyoneer  # needs to be imported for get_pyoneer()
 
@@ -19,17 +22,15 @@ pneer.useScheriff = False
 # config
 neurons = range(512)
 
-# Calibtic backend
-lib = pycalibtic.loadLibrary('libcalibtic_xml.so')
-backend = pycalibtic.loadBackend(lib)
-backend.config('path', '/afs/kip.uni-heidelberg.de/user/mkleider/tmp/calibtic-xml-backend')
-backend.init()
+# Calibtic and Redman backends
+backend = init_calibtic()
+backend_r = init_redman()
 
 # StHAL
-sthal = pycairo.experiment.StHALContainer()
+sthal = StHALContainer(coord_hicann=pyhalbe.Coordinate.HICANNOnWafer(pyhalbe.geometry.Enum(216)))
 
 # E_l calibration
-e = pycairo.experiment.Calibrate_E_l(neurons, sthal_container=sthal, calibtic_backend=backend)
+e = pycairo.experiment.Calibrate_E_l(neurons, sthal_container=sthal, calibtic_backend=backend, redman_backend=backend_r)
 e.run_experiment()
 
 # plot and save
@@ -45,7 +46,7 @@ for neuron_id in e.get_neurons():
     save_data["meas_y{}".format(neuron_id)] = steps
     save_data["fit_x{}".format(neuron_id)] = x
     save_data["fit_y{}".format(neuron_id)] = y
-    plt.plot(x, y, label='2nd order polynomial fit')
+    plt.plot(x, y)
 plt.savefig('calib_E_l.png')
 np.savez_compressed("calib_E_l.npz", **save_data)
 
@@ -69,7 +70,7 @@ np.savez_compressed("calib_E_l.npz", **save_data)
 #    plt.plot(x, y, label='2nd order polynomial fit')
 #plt.savefig('calib_V_t.png')
 #np.savez_compressed("calib_V_t.npz", **save_data)
-
+#
 ## V_reset calibration
 #e = pycairo.experiment.Calibrate_V_reset(neurons, sthal_container=sthal, calibtic_backend=backend)
 #e.run_experiment()
