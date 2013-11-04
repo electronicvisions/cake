@@ -210,12 +210,17 @@ class BaseExperiment(object):
         neuron_ids = self.get_neurons()
 
         step_parameters = self.get_parameters()
+        # FIXME properly handle broken neurons here?
         for neuron_id in neuron_ids:
             step_parameters[neuron_id].update(steps[neuron_id][step_id])
+            coord_neuron = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(neuron_id))
+            broken = not self._red_nrns.has(coord_neuron)
             for param in step_parameters[neuron_id]:
                 step_cvalue = step_parameters[neuron_id][param]
                 apply_calibration = step_cvalue.apply_calibration
-                if apply_calibration:
+                if broken:
+                    pass  # TODO print WARNING
+                if apply_calibration and not broken:
                     if not type(step_cvalue) in (Voltage, Current):
                         raise NotImplementedError("can not apply calibration on DAC value")
                     # apply calibration
