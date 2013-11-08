@@ -340,7 +340,8 @@ class BaseExperiment(object):
         results = {}
         for neuron_id in neuron_ids:
             self.sthal.switch_analog_output(neuron_id)
-            v = self.sthal.adc.record()
+            self.sthal.adc.record()
+            v = self.sthal.adc.trace()
             results[neuron_id] = v
         self.all_results.append[results]
 
@@ -491,7 +492,8 @@ class Calibrate_E_l(BaseCalibration):
         results = {}
         for neuron_id in neuron_ids:
             self.sthal.switch_analog_output(neuron_id)
-            v = self.sthal.adc.record()
+            self.sthal.adc.record()
+            v = self.sthal.adc.trace()
             E_l = np.mean(v)*1000  # multiply by 1000 for mV
             results[neuron_id] = E_l
         self.all_results.append(results)
@@ -530,7 +532,8 @@ class Calibrate_V_t(BaseCalibration):
         for neuron_id in neuron_ids:
             logger.INFO("measuring neuron {}".format(neuron_id))
             self.sthal.switch_analog_output(neuron_id)
-            v = self.sthal.adc.record()
+            self.sthal.adc.record()
+            v = self.sthal.adc.trace()
             V_t = np.max(v)*1000  # multiply by 1000 for mV
             results[neuron_id] = V_t
         self.all_results.append(results)
@@ -569,7 +572,8 @@ class Calibrate_V_reset(BaseCalibration):
         results = {}
         for neuron_id in neuron_ids:
             self.sthal.switch_analog_output(neuron_id)
-            v = self.sthal.adc.record()
+            self.sthal.adc.record()
+            v = self.sthal.adc.trace()
             V_reset = np.min(v)*1000  # multiply by 1000 for mV
             results[neuron_id] = V_reset
         self.all_results.append(results)
