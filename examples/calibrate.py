@@ -27,7 +27,7 @@ backend = init_calibtic()
 backend_r = init_redman()
 
 # StHAL
-sthal = StHALContainer(coord_hicann=pyhalbe.Coordinate.HICANNOnWafer(pyhalbe.geometry.Enum(216)))
+sthal = StHALContainer()
 
 # E_l calibration
 e = pycairo.experiment.Calibrate_E_l(neurons, sthal_container=sthal, calibtic_backend=backend, redman_backend=backend_r)
