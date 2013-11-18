@@ -29,24 +29,29 @@ class StHALContainer(object):
     """Contains StHAL objects for hardware access. Multiple experiments can share one container."""
     def __init__(self, coord_wafer=pyhalbe.Coordinate.Wafer(),
                  coord_hicann=pyhalbe.Coordinate.HICANNOnWafer(pyhalbe.geometry.Enum(280)),
-                 coord_analog=pyhalbe.Coordinate.AnalogOnHICANN(0)):
+                 coord_analog=pyhalbe.Coordinate.AnalogOnHICANN(0),
+                 recording_time=1.e-4):
         """Initialize StHAL, connect to hardware. kwargs default to vertical setup configuration."""
 
         wafer = pysthal.Wafer(coord_wafer)  # Stateful HICANN Container
-        wafer.allocate(coord_hicann)
         hicann = wafer[coord_hicann]
 
         wafer.connect(pysthal.MagicHardwareDatabase())
 
         # analogRecorder() MUST be called after wafer.connect()
         adc = hicann.analogRecorder(coord_analog)
-        adc.setRecordingTime(0.01)
+        adc.setRecordingTime(recording_time)
 
         self.wafer = wafer
         self.hicann = hicann
         self.adc = adc
         self._cfg = WriteFGTwiceConfigurator()
         self._cfg_analog = UpdateAnalogOutputConfigurator()
+
+    def disconnect(self):
+        """Free handles."""
+        self.wafer.disconnect()
+        self.adc.freeHandle()
 
     def write_config(self):
         """Write full configuration."""
