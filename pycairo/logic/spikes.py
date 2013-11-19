@@ -21,7 +21,7 @@ def detect_spikes(time, voltage):
     pos = np.logical_and(tmp[1:] != tmp[:-1], tmp[1:])
     spikes = t[1:-2][pos]
 
-    return spikes
+    return tmp
 
 
 def spikes_to_freqency(spikes):
@@ -33,3 +33,22 @@ def spikes_to_freqency(spikes):
         return 0
     else:
         return 1./np.mean(isi)
+
+
+def partition_by_2(seq):
+    result = []
+    for i in range(0,len(seq)-1):
+        result.append([seq[i],seq[i+1]])
+    return result
+
+def detect_min_pos(time,voltage):
+    """Detect minima between spikes from a voltage trace."""
+    t = np.array(time)
+    v = np.array(voltage)
+
+    spikes = detect_spikes(time,voltage)
+    partitions = partition_by_2(spikes)
+    # minimums in each partition between spikes
+    mins = map(lambda p: p[0] + np.argmin(v[p[0]:p[1]]), partitions)
+
+    return mins
