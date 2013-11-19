@@ -11,7 +11,9 @@ import pyhalbe
 import pycalibtic
 import pyredman as redman
 from pycairo.helpers.calibtic import create_pycalibtic_polynomial
-
+from pycairo.helpers.redman import init_backend as init_redman
+from pycairo.helpers.calibtic import init_backend as init_calibtic
+from pycairo.helpers.sthal import StHALContainer
 
 class Unit(object):
     """Base class for Current, Voltage and DAC parameter values."""
@@ -231,7 +233,6 @@ class BaseExperiment(object):
                 # convert to DAC
                 value = step_cvalue.toDAC().value
                 step_parameters[neuron_id][param] = value
-
         return step_parameters
 
     def prepare_measurement(self, neuron_parameters):
@@ -304,6 +305,8 @@ class BaseExperiment(object):
         # single step using default parameters
         return [defaultdict(lambda: {}) for neuron_id in self.get_neurons()]
 
+
+
     def get_neurons(self):
         """Which neurons should this experiment run on?
 
@@ -330,12 +333,12 @@ class BaseExperiment(object):
             for r in range(self.repetitions):
                 logger.INFO("repetition {}".format(r))
                 self.prepare_measurement(step_parameters)
-                self.measure(neuron_ids)
+                self.measure(neuron_ids, step_id)
         logger.INFO("processing results")
         self.process_results(neuron_ids)
         self.store_results()
 
-    def measure(self, neuron_ids):
+    def measure(self, neuron_ids, step_id):
         """Perform measurements for a single step on one or multiple neurons."""
         results = {}
         for neuron_id in neuron_ids:
@@ -359,7 +362,7 @@ class BaseCalibration(BaseExperiment):
     def get_parameters(self):
         parameters = {pyhalbe.HICANN.neuron_parameter.E_l: Voltage(1000),
                       pyhalbe.HICANN.neuron_parameter.E_syni: Voltage(900),
-                      pyhalbe.HICANN.neuron_parameter.E_synx: Voltage(900),
+                      pyhalbe.HICANN.neuron_parameter.E_synx: Voltage(1100),
                       pyhalbe.HICANN.neuron_parameter.I_bexp: Current(0),
                       pyhalbe.HICANN.neuron_parameter.I_convi: Current(1000),
                       pyhalbe.HICANN.neuron_parameter.I_convx: Current(1000),
@@ -488,7 +491,7 @@ class Calibrate_E_l(BaseCalibration):
             steps.append({pyhalbe.HICANN.neuron_parameter.E_l: Voltage(voltage)})
         return defaultdict(lambda: steps)
 
-    def measure(self, neuron_ids):
+    def measure(self, neuron_ids, step_id):
         results = {}
         for neuron_id in neuron_ids:
             self.sthal.switch_analog_output(neuron_id)
@@ -526,7 +529,7 @@ class Calibrate_V_t(BaseCalibration):
         super(Calibrate_V_t, self).init_experiment()
         self.repetitions = 2
 
-    def measure(self, neuron_ids):
+    def measure(self, neuron_ids, step_id):
         logger = self.logger
         results = {}
         for neuron_id in neuron_ids:
@@ -554,6 +557,8 @@ class Calibrate_V_reset(BaseCalibration):
             parameters[neuron_id].update({
                 pyhalbe.HICANN.neuron_parameter.E_l: Voltage(1100),  # TODO apply calibration?
                 pyhalbe.HICANN.neuron_parameter.I_gl: Current(1000)
+                pyhalbe.HICANN.neuron_parameter.V_t: Current(800)
+                pyhalbe.HICANN.neuron_parameter.I_pl: DAC(5)
             })
         # TODO apply V_t calibration?
         return parameters
@@ -566,14 +571,22 @@ class Calibrate_V_reset(BaseCalibration):
 
     def init_experiment(self):
         super(Calibrate_V_reset, self).init_experiment()
-        self.repetitions = 2
+        self.repetitions = 3
+        # TODO simple use of "flags". Could be more elegant!?
+        self.save_results = True
+        self.save_trace = False
 
-    def measure(self, neuron_ids):
+    def measure(self, neuron_ids, step_id):
         results = {}
         for neuron_id in neuron_ids:
+            logger.INFO("measuring neuron {}".format(neuron_id))
             self.sthal.switch_analog_output(neuron_id)
             self.sthal.adc.record()
             v = self.sthal.adc.trace()
+            # TODO Implement database system for saving traces. For now: just use a lot of files
+            # TODO Store repetitions separately. Right now, each repetition overwrites the last one
+            if self.save_trace: pickle.dump(v, open('traces/step_{}_neuron_{}.p'.format(step_id,neuron_id), 'wb'))
+            # TODO Use better classification than min()
             V_reset = np.min(v)*1000  # multiply by 1000 for mV
             results[neuron_id] = V_reset
         self.all_results.append(results)
@@ -583,6 +596,9 @@ class Calibrate_V_reset(BaseCalibration):
 
     def store_results(self):
         # TODO detect and store broken neurons
+
+        # TODO Implement database system for saving results. For now: just use a file
+        if save_results: pickle.dump(self.all_results, open('results.p', 'wb'))
         super(Calibrate_V_reset, self).store_calibration_results(pyhalbe.HICANN.shared_parameter.V_reset)
 
 
