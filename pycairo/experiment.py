@@ -14,6 +14,7 @@ from pycairo.helpers.calibtic import create_pycalibtic_polynomial
 from pycairo.helpers.redman import init_backend as init_redman
 from pycairo.helpers.calibtic import init_backend as init_calibtic
 from pycairo.helpers.sthal import StHALContainer
+import pickle
 
 class Unit(object):
     """Base class for Current, Voltage and DAC parameter values."""
@@ -598,7 +599,7 @@ class Calibrate_V_reset(BaseCalibration):
         # TODO detect and store broken neurons
 
         # TODO Implement database system for saving results. For now: just use a file
-        if save_results: pickle.dump(self.all_results, open('results.p', 'wb'))
+        if self.save_results: pickle.dump(self.all_results, open('results.p', 'wb'))
         super(Calibrate_V_reset, self).store_calibration_results(pyhalbe.HICANN.shared_parameter.V_reset)
 
 
