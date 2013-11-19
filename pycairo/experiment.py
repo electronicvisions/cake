@@ -556,8 +556,8 @@ class Calibrate_V_reset(BaseCalibration):
         for neuron_id in self.get_neurons():
             parameters[neuron_id].update({
                 pyhalbe.HICANN.neuron_parameter.E_l: Voltage(1100),  # TODO apply calibration?
-                pyhalbe.HICANN.neuron_parameter.I_gl: Current(1000)
-                pyhalbe.HICANN.neuron_parameter.V_t: Current(800)
+                pyhalbe.HICANN.neuron_parameter.I_gl: Current(1000),
+                pyhalbe.HICANN.neuron_parameter.V_t: Current(800),
                 pyhalbe.HICANN.neuron_parameter.I_pl: DAC(5)
             })
         # TODO apply V_t calibration?
@@ -579,7 +579,7 @@ class Calibrate_V_reset(BaseCalibration):
     def measure(self, neuron_ids, step_id):
         results = {}
         for neuron_id in neuron_ids:
-            logger.INFO("measuring neuron {}".format(neuron_id))
+            self.logger.INFO("measuring neuron {}".format(neuron_id))
             self.sthal.switch_analog_output(neuron_id)
             self.sthal.adc.record()
             v = self.sthal.adc.trace()
@@ -671,6 +671,3 @@ class Calibrate_tau_w(BaseCalibration):
 class Calibrate_dT(BaseCalibration):
     pass
 
-
-class Calibrate_V_th(BaseCalibration):
-    pass
