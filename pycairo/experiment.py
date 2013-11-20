@@ -585,7 +585,9 @@ class Calibrate_V_reset(BaseCalibration):
             self.sthal.switch_analog_output(neuron_id)
             self.sthal.adc.record()
             v = self.sthal.adc.trace()
-            V_reset_pos = spikes.detect_min_pos(range(len(v)), v)  # multiply by 1000 for mV
+#            pickle.dump(v, open("v_reset_voltage_trace","w"))
+            V_reset_pos = spikes.detect_min_pos(range(len(v)), v)  
+#            pickle.dump(V_reset_pos, open("V_reset_pos_trace","w"))
 
             V_resets = v[V_reset_pos]
             results[neuron_id] = np.mean(V_resets)
