@@ -12,10 +12,8 @@ import pycalibtic
 import pyredman as redman
 import logic.spikes as spikes
 from pycairo.helpers.calibtic import create_pycalibtic_polynomial
-from pycairo.helpers.redman import init_backend as init_redman
-from pycairo.helpers.calibtic import init_backend as init_calibtic
-from pycairo.helpers.sthal import StHALContainer
 import pickle
+
 
 class Unit(object):
     """Base class for Current, Voltage and DAC parameter values."""
@@ -307,8 +305,6 @@ class BaseExperiment(object):
         # single step using default parameters
         return [defaultdict(lambda: {}) for neuron_id in self.get_neurons()]
 
-
-
     def get_neurons(self):
         """Which neurons should this experiment run on?
 
@@ -461,10 +457,15 @@ class BaseCalibration(BaseExperiment):
                 # TODO reset/delete calibtic function for this neuron
             else:  # store in calibtic
                 if not nc.exists(neuron_id):
-                    logger.INFO("no existing calibration data for neuron {} found, creating default dataset")
+                    logger.INFO("no existing calibration data for neuron {} found, creating default dataset".format(neuron_id))
                     ncal = pycalibtic.NeuronCalibration()
                     nc.insert(neuron_id, ncal)
-                nc.at(neuron_id).reset(parameter, results[neuron_id])
+                if type(parameter) is pyhalbe.HICANN.neuron_parameter:
+                    nc.at(neuron_id).reset(parameter, results[neuron_id])
+                elif type(parameter) is pyhalbe.HICANN.shared_parameter and False:
+                    pass  # not implemented
+                else:
+                    raise NotImplementedError("parameters of this type are not supported")
 
         self.store_calibration(md)
 
@@ -482,6 +483,8 @@ class Calibrate_E_l(BaseCalibration):
         parameters = super(Calibrate_E_l, self).get_parameters()
         for neuron_id in self.get_neurons():
             parameters[neuron_id].update({
+                pyhalbe.HICANN.neuron_parameter.I_convx: Current(0),
+                pyhalbe.HICANN.neuron_parameter.I_convi: Current(0),
                 pyhalbe.HICANN.neuron_parameter.I_gl: Current(1000),
                 pyhalbe.HICANN.neuron_parameter.V_t: Voltage(1700)
             })
@@ -585,12 +588,15 @@ class Calibrate_V_reset(BaseCalibration):
             self.sthal.switch_analog_output(neuron_id)
             self.sthal.adc.record()
             v = self.sthal.adc.trace()
-#            pickle.dump(v, open("v_reset_voltage_trace","w"))
-            V_reset_pos = spikes.detect_min_pos(range(len(v)), v)  
-#            pickle.dump(V_reset_pos, open("V_reset_pos_trace","w"))
 
-            V_resets = v[V_reset_pos]
-            results[neuron_id] = np.mean(V_resets)
+            # TODO Implement database system for saving traces. For now: just use a lot of files
+            # TODO Store repetitions separately. Right now, each repetition overwrites the last one
+            if self.save_trace:
+                pickle.dump(v, open('traces/step_{}_neuron_{}.p'.format(step_id, neuron_id), 'wb'))
+            # TODO Use better classification than min()
+            V_reset = np.min(v)*1000  # multiply by 1000 for mV
+            results[neuron_id] = V_reset
+
         self.all_results.append(results)
 
     def process_results(self, neuron_ids):
@@ -600,8 +606,11 @@ class Calibrate_V_reset(BaseCalibration):
         # TODO detect and store broken neurons
 
         # TODO Implement database system for saving results. For now: just use a file
-        if self.save_results: pickle.dump(self.all_results, open('results.p', 'wb'))
+        if self.save_results:
+            pickle.dump(self.all_results, open('results.p', 'wb'))
         super(Calibrate_V_reset, self).store_calibration_results(pyhalbe.HICANN.shared_parameter.V_reset)
+        pickle.dump(self.traces, open("traces.p", "wb"))
+        pickle.dump(self.all_results, open("allres.p", "wb"))
 
 
 class Calibrate_g_L(BaseCalibration):
@@ -733,3 +742,4 @@ class Calibrate_V_th(BaseCalibration):
 
     def measure(self, neuron_ids):
         pass # TODO
+
