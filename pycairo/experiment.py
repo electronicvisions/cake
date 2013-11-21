@@ -548,8 +548,6 @@ class Calibrate_E_l(BaseCalibration):
 
     def store_results(self):
         super(Calibrate_E_l, self).store_calibration_results(pyhalbe.HICANN.neuron_parameter.E_l)
-        if self.save_results: pickle.dump(self.all_results, open('results_{}{}_{}{}.p'.format(time.localtime().tm_mon,time.localtime().tm_mday,time.localtime().tm_hour,time.localtime().tm_min),'wb')) 
-        #if self.save_results: pickle.dump(self.all_results, open('results_uncalib_foff.p','wb')) 
 
 
 class Calibrate_V_t(BaseCalibration):
