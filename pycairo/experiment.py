@@ -125,7 +125,7 @@ class BaseExperiment(object):
         """Hook for child classes. Executed by run_experiment()."""
         self.save_results = True
         self.description = "Basic experiment." # Change this for all child classes
-        self.folder = "exp{}{}{}{}".format(time.localtime().tm_mon,time.localtime().tm_mday,time.localtime().tm_hour,time.localtime().tm_min)
+        self.folder = "exp{}{}_{}{}".format(time.localtime().tm_mon,time.localtime().tm_mday,time.localtime().tm_hour,time.localtime().tm_min)
         pass
 
     def init_redman(self, backend):
@@ -330,6 +330,7 @@ class BaseExperiment(object):
 
         self.all_results = []
         steps = self.get_steps()
+        num_steps = len(steps[neuron_ids[0]])
 
         ####### Save default and step parameters and description to files
         if self.save_results:        
@@ -337,12 +338,12 @@ class BaseExperiment(object):
                 os.mkdir(self.folder)
             paramdump = {nid:{parameters[nid].keys()[pid].name: parameters[nid].values()[pid] for pid in parameters[0].keys()} for nid in self.get_neurons()}
             pickle.dump(paramdump[0], open("{}/parameters.p".format(self.folder),"wb"))
-            stepdump = [{steps[0][sid].keys()[pid].name: steps[0][sid].values()[pid] for pid in steps[0][sid].keys()} for sid in range(len(steps[0]))] 
+            #stepdump = [{steps[0][sid].keys()[pid].name: steps[0][sid].values()[pid] for pid in steps[0][sid].keys()} for sid in range(num_steps)] 
+            stepdump = [{pid.name: steps[0][sid][pid] for pid in steps[0][sid].keys()} for sid in range(num_steps)] 
             pickle.dump(stepdump, open("{}/steps.p".format(self.folder),"wb"))
             open('{}/description.txt'.format(self.folder),'w').write(self.description)
         #####
 
-        num_steps = len(steps[neuron_ids[0]])
         for step_id in range(num_steps):
             step_parameters = self.prepare_parameters(step_id)
             for r in range(self.repetitions):
@@ -523,7 +524,7 @@ class Calibrate_E_l(BaseCalibration):
         self.repetitions = 3
         self.save_results = True
         self.folder = "exp{}{}{}{}".format(time.localtime().tm_mon,time.localtime().tm_mday,time.localtime().tm_hour,time.localtime().tm_min)
-        self.description = "Basic pycairo.experiment.Calibrate_E_l with Iconv on and dynamic Esyn."
+        self.description = "Basic pycairo.experiment.Calibrate_E_l with Iconv on and symmetric Esyn."
 
     def measure(self, neuron_ids, step_id, rep_id):
         results = {}
