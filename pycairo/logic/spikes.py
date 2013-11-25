@@ -1,6 +1,8 @@
 """Spike related functions."""
 
 import numpy as np
+from functools import partial
+import pickle
 
 
 def detect_spikes(time, voltage):
@@ -33,3 +35,32 @@ def spikes_to_freqency(spikes):
         return 0
     else:
         return 1./np.mean(isi)
+
+
+def partition_by_2(seq):
+    result = []
+    for i in range(0,len(seq)-1):
+        result.append([seq[i],seq[i+1]])
+    return result
+
+
+def min_in_part(v,p):
+    start = p[0]
+    end = p[1]
+    return start + np.argmin(v[start:end])
+
+def detect_min_pos(time,voltage):
+    t = np.array(time)
+    v = np.array(voltage)
+
+    spikes = detect_spikes(time,voltage)
+#    pickle.dump(spikes, open("spikes","w"))
+    partitions = partition_by_2(spikes)
+    # minimums in each partition between spikes
+#    pickle.dump(spikes, open("partitions","w"))
+    mins = map(partial(min_in_part, v), partitions)
+#    pickle.dump(mins, open("mins","w"))
+
+    return mins
+
+

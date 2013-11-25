@@ -10,6 +10,7 @@ from collections import defaultdict
 import pyhalbe
 import pycalibtic
 import pyredman as redman
+import logic.spikes as spikes
 from pycairo.helpers.calibtic import create_pycalibtic_polynomial
 import pickle
 
@@ -285,20 +286,20 @@ class BaseExperiment(object):
         Returns:
             list of neuron dicts of parameter dicts for each step
 
-            Example: [
-                        { # first step
+            Example: {
+                        0: { # first step
                             # neuron 0
                             0: {pyhalbe.HICANN.neuron_parameter.E_l: Voltage(400)},
                             1: {pyhalbe.HICANN.neuron_parameter.E_l: Voltage(400)},
-                        },
-                        { # second step
+                           },
+                        1: { # second step
                             0: pyhalbe.HICANN.neuron_parameter.E_l: Voltage(600)},
                             1: pyhalbe.HICANN.neuron_parameter.E_l: Voltage(650)},
                         },
                             0: {pyhalbe.HICANN.neuron_parameter.E_l: Voltage(800)}
                             1: {pyhalbe.HICANN.neuron_parameter.E_l: Voltage(800)}
                         }
-                    ]
+                    }
         """
 
         # single step using default parameters
@@ -361,8 +362,8 @@ class BaseCalibration(BaseExperiment):
                       pyhalbe.HICANN.neuron_parameter.E_syni: Voltage(900),
                       pyhalbe.HICANN.neuron_parameter.E_synx: Voltage(1100),
                       pyhalbe.HICANN.neuron_parameter.I_bexp: Current(0),
-                      pyhalbe.HICANN.neuron_parameter.I_convi: Current(1000),
-                      pyhalbe.HICANN.neuron_parameter.I_convx: Current(1000),
+                      pyhalbe.HICANN.neuron_parameter.I_convi: Current(1000), # set 0
+                      pyhalbe.HICANN.neuron_parameter.I_convx: Current(1000), # set 0
                       pyhalbe.HICANN.neuron_parameter.I_fire: Current(0),
                       pyhalbe.HICANN.neuron_parameter.I_gl: Current(400),
                       pyhalbe.HICANN.neuron_parameter.I_gladapt: Current(0),
@@ -587,6 +588,7 @@ class Calibrate_V_reset(BaseCalibration):
             self.sthal.switch_analog_output(neuron_id)
             self.sthal.adc.record()
             v = self.sthal.adc.trace()
+
             # TODO Implement database system for saving traces. For now: just use a lot of files
             # TODO Store repetitions separately. Right now, each repetition overwrites the last one
             if self.save_trace:
@@ -594,6 +596,7 @@ class Calibrate_V_reset(BaseCalibration):
             # TODO Use better classification than min()
             V_reset = np.min(v)*1000  # multiply by 1000 for mV
             results[neuron_id] = V_reset
+
         self.all_results.append(results)
 
     def process_results(self, neuron_ids):
@@ -621,6 +624,19 @@ class Calibrate_g_L(BaseCalibration):
             })
         return parameters
 
+    def measure(self, neuron_ids):
+        results = {}
+        for neuron_id in neuron_ids:
+            self.sthal.switch_analog_output(neuron_id)
+            self.sthal.adc.record()
+            ts = np.array( self.sthal.adc.getTimestamps() )
+            v = np.array( self.sthal.adc.trace() )
+            sps = spikes.detect_spikes(ts,v)
+            # TODO get bigcap from sthal
+            results[neuron_id] = spikes_to_frequency(sps)
+
+        self.all_results.append(results)
+
 
 class Calibrate_tau_ref(BaseCalibration):
     def get_parameters(self):
@@ -631,8 +647,31 @@ class Calibrate_tau_ref(BaseCalibration):
                 pyhalbe.HICANN.neuron_parameter.V_t: Voltage(700),
                 pyhalbe.HICANN.shared_parameter.V_reset: Voltage(500),
                 pyhalbe.HICANN.neuron_parameter.I_gl: Current(1000),
+                pyhalbe.HICANN.neuron_parameter.V_syntcx: Voltage(10)
             })
         return parameters
+
+    def measure(self, neuron_ids):
+        params = self.get_parameters()
+        results = {}
+        base_freq = pycairo.simulator.Simulator().compute_freq(30e-6, 0, parameters)
+
+        for neuron_id in neuron_ids:
+            self.sthal.switch_analog_output(neuron_id)
+            self.sthal.adc.record()
+            ts = np.array( self.sthal.adc.getTimestamps() )
+            v = np.array( self.sthal.adc.trace() )
+
+            calc_freq = lambda x: (1.0 / x - 1.0 / base_freq) * 1e6 # millions?
+
+# TODO
+#            m = sorted_array_mean[sorted_array_mean != 0.0]
+#            e = sorted_array_err[sorted_array_err != 0.0]
+#            return calc_freq(m), calc_freq(e)
+
+            results[neuron_id] = calc_freq(v)
+
+        self.all_results.append(results)
 
 
 class Calibrate_tau_synx(BaseCalibration):
@@ -649,9 +688,15 @@ class Calibrate_tau_synx(BaseCalibration):
             })
         return parameters
 
+    def measure(self, neuron_ids):
+        pass # TODO
+
 
 class Calibrate_tau_syni(BaseCalibration):
     pass
+
+    def measure(self, neuron_ids):
+        pass # TODO
 
 
 class Calibrate_a(BaseCalibration):
@@ -667,18 +712,34 @@ class Calibrate_a(BaseCalibration):
             })
         return parameters
 
+    def measure(self, neuron_ids):
+        pass # TODO
+
 
 class Calibrate_b(BaseCalibration):
     pass
+
+    def measure(self, neuron_ids):
+        pass # TODO
 
 
 class Calibrate_tau_w(BaseCalibration):
     pass
 
+    def measure(self, neuron_ids):
+        pass # TODO
+
 
 class Calibrate_dT(BaseCalibration):
     pass
 
+    def measure(self, neuron_ids):
+        pass # TODO
+
 
 class Calibrate_V_th(BaseCalibration):
     pass
+
+    def measure(self, neuron_ids):
+        pass # TODO
+
