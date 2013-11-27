@@ -343,8 +343,14 @@ class BaseExperiment(object):
             self.sthal.switch_analog_output(neuron_id)
             self.sthal.adc.record()
             v = self.sthal.adc.trace()
-            results[neuron_id] = v
-        self.all_results.append[results]
+            t = self.sthal.adc.getTimestamps()
+            result = self.process_trace(t,v)
+            results[neuron_id] = result
+        self.all_results.append(results)
+
+    def process_trace(self, t, v):
+        """Hook class for processing measured traces. Should return one value."""
+        return 0
 
     def process_results(self, neuron_ids):
         """Process measured data."""
@@ -479,12 +485,22 @@ class BaseCalibration(BaseExperiment):
 
 class Calibrate_E_l(BaseCalibration):
     """E_l calibration."""
+    def init_experiment(self):
+        if self._calib_backend is None:
+            raise TypeError("can not store results without Calibtic backend")
+        if self._red_nrns is None:
+            raise TypeError("can not store defects without Redman backend")
+        self.repetitions = 1
+        self.save_results = True
+        self.save_traces = False
+
+
     def get_parameters(self):
         parameters = super(Calibrate_E_l, self).get_parameters()
         for neuron_id in self.get_neurons():
             parameters[neuron_id].update({
-                pyhalbe.HICANN.neuron_parameter.I_convx: Current(0),
-                pyhalbe.HICANN.neuron_parameter.I_convi: Current(0),
+                pyhalbe.HICANN.neuron_parameter.I_convx: Current(1023),
+                pyhalbe.HICANN.neuron_parameter.I_convi: Current(1023),
                 pyhalbe.HICANN.neuron_parameter.I_gl: Current(1000),
                 pyhalbe.HICANN.neuron_parameter.V_t: Voltage(1700)
             })
@@ -493,19 +509,15 @@ class Calibrate_E_l(BaseCalibration):
     def get_steps(self):
         steps = []
         for voltage in range(300, 900, 100):
-            steps.append({pyhalbe.HICANN.neuron_parameter.E_l: Voltage(voltage)})
+            steps.append({pyhalbe.HICANN.neuron_parameter.E_l: Voltage(voltage),
+                pyhalbe.HICANN.neuron_parameter.E_syni: Voltage(voltage - 100),
+                pyhalbe.HICANN.neuron_parameter.E_synx: Voltage(voltage + 100),
+                })
         return defaultdict(lambda: steps)
 
-    def measure(self, neuron_ids, step_id):
-        results = {}
-        for neuron_id in neuron_ids:
-            self.sthal.switch_analog_output(neuron_id)
-            self.sthal.adc.record()
-            v = self.sthal.adc.trace()
-            E_l = np.mean(v)*1000  # multiply by 1000 for mV
-            results[neuron_id] = E_l
-        self.all_results.append(results)
-
+    def process_trace(self, t, v):
+        return np.mean(v)*1000 # Get the mean value * 1000 for mV
+    
     def process_results(self, neuron_ids):
         super(Calibrate_E_l, self).process_calibration_results(neuron_ids, pyhalbe.HICANN.neuron_parameter.E_l, linear_fit=True)
 
@@ -534,17 +546,9 @@ class Calibrate_V_t(BaseCalibration):
         super(Calibrate_V_t, self).init_experiment()
         self.repetitions = 2
 
-    def measure(self, neuron_ids, step_id):
-        logger = self.logger
-        results = {}
-        for neuron_id in neuron_ids:
-            logger.INFO("measuring neuron {}".format(neuron_id))
-            self.sthal.switch_analog_output(neuron_id)
-            self.sthal.adc.record()
-            v = self.sthal.adc.trace()
-            V_t = np.max(v)*1000  # multiply by 1000 for mV
-            results[neuron_id] = V_t
-        self.all_results.append(results)
+
+    def process_trace(self, t, v):
+        return np.max(v)*1000 # Get the mean value * 1000 for mV
 
     def process_results(self, neuron_ids):
         super(Calibrate_V_t, self).process_calibration_results(neuron_ids, pyhalbe.HICANN.neuron_parameter.V_t)
@@ -581,36 +585,14 @@ class Calibrate_V_reset(BaseCalibration):
         self.save_results = True
         self.save_trace = False
 
-    def measure(self, neuron_ids, step_id):
-        results = {}
-        for neuron_id in neuron_ids:
-            self.logger.INFO("measuring neuron {}".format(neuron_id))
-            self.sthal.switch_analog_output(neuron_id)
-            self.sthal.adc.record()
-            v = self.sthal.adc.trace()
-
-            # TODO Implement database system for saving traces. For now: just use a lot of files
-            # TODO Store repetitions separately. Right now, each repetition overwrites the last one
-            if self.save_trace:
-                pickle.dump(v, open('traces/step_{}_neuron_{}.p'.format(step_id, neuron_id), 'wb'))
-            # TODO Use better classification than min()
-            V_reset = np.min(v)*1000  # multiply by 1000 for mV
-            results[neuron_id] = V_reset
-
-        self.all_results.append(results)
+    def process_trace(self, t, v):
+        return np.min(v)*1000 # Get the mean value * 1000 for mV
 
     def process_results(self, neuron_ids):
         super(Calibrate_V_reset, self).process_calibration_results(neuron_ids, pyhalbe.HICANN.shared_parameter.V_reset)
 
     def store_results(self):
-        # TODO detect and store broken neurons
-
-        # TODO Implement database system for saving results. For now: just use a file
-        if self.save_results:
-            pickle.dump(self.all_results, open('results.p', 'wb'))
         super(Calibrate_V_reset, self).store_calibration_results(pyhalbe.HICANN.shared_parameter.V_reset)
-        pickle.dump(self.traces, open("traces.p", "wb"))
-        pickle.dump(self.all_results, open("allres.p", "wb"))
 
 
 class Calibrate_g_L(BaseCalibration):
