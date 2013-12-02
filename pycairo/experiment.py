@@ -14,9 +14,13 @@ from pycairo.helpers.calibtic import create_pycalibtic_polynomial
 from pycairo.helpers.redman import init_backend as init_redman
 from pycairo.helpers.calibtic import init_backend as init_calibtic
 from pycairo.helpers.sthal import StHALContainer
+
+# Import everything needed for saving:
 import pickle
 import time
 import os
+import tarfile
+import sys
 
 class Unit(object):
     """Base class for Current, Voltage and DAC parameter values."""
@@ -334,9 +338,11 @@ class BaseExperiment(object):
         num_steps = len(steps[neuron_ids[0]])
 
         ####### Save default and step parameters and description to files
-        if self.save_results:        
+        # Also save sthal container for every other parameter:
+        if self.save_results:
             if not os.path.isdir(self.folder):
                 os.mkdir(self.folder)
+            pickle.dump(self.sthal.hicann, open('{}/sthalcontainer.p'.format(self.folder),"wb"))
             paramdump = {nid:{parameters[nid].keys()[pid].name: parameters[nid].values()[pid] for pid in parameters[0].keys()} for nid in self.get_neurons()}
             pickle.dump(paramdump[0], open("{}/parameters.p".format(self.folder),"wb"))
             #stepdump = [{steps[0][sid].keys()[pid].name: steps[0][sid].values()[pid] for pid in steps[0][sid].keys()} for sid in range(num_steps)] 
@@ -355,6 +361,16 @@ class BaseExperiment(object):
         logger.INFO("processing results")
         self.process_results(neuron_ids)
         self.store_results()
+
+        # compress everything in a tar file
+        if len(sys.argv)>1:
+            tar_f = tarfile.open(sys.argv[1], 'w:gz')
+        else:
+            tar_f = tarfile.open("exp{0:02d}{1:02d}_{2:02d}{3:02d}.tar".format(time.localtime().tm_mon,time.localtime().tm_mday,time.localtime().tm_hour,time.localtime().tm_min), 'w:gz')
+        # Save whole folder:
+        tar_f.add(self.folder, '/')
+        tar_f.close()
+
 
     def measure(self, neuron_ids, step_id, rep_id):
         """Perform measurements for a single step on one or multiple neurons."""
@@ -523,7 +539,7 @@ class Calibrate_E_l(BaseCalibration):
 
     def get_steps(self):
         steps = []
-        for voltage in range(300, 900, 100):
+        for voltage in range(500, 900, 100):
             steps.append({pyhalbe.HICANN.neuron_parameter.E_l: Voltage(voltage),
                 pyhalbe.HICANN.neuron_parameter.E_syni: Voltage(voltage-100),
                 pyhalbe.HICANN.neuron_parameter.E_synx: Voltage(voltage+100)
@@ -532,7 +548,7 @@ class Calibrate_E_l(BaseCalibration):
 
     def init_experiment(self):
         super(Calibrate_E_l, self).init_experiment()
-        self.repetitions = 3
+        self.repetitions = 1
         self.save_results = True
         self.save_traces = False
         self.folder = "exp{0:02d}{1:02d}_{2:02d}{3:02d}".format(time.localtime().tm_mon,time.localtime().tm_mday,time.localtime().tm_hour,time.localtime().tm_min)
