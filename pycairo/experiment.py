@@ -14,7 +14,7 @@ import pyredman as redman
 from pycairo.helpers.calibtic import create_pycalibtic_polynomial
 from pycairo.helpers.redman import init_backend as init_redman
 from pycairo.helpers.calibtic import init_backend as init_calibtic
-from pycairo.helpers.sthal import StHALContainer
+from pycairo.helpers.sthal import StHALContainer, UpdateAnalogOutputConfigurator
 import pickle
 import time
 import os
@@ -643,7 +643,7 @@ class Calibrate_V_reset(BaseCalibration):
             parameters[neuron_id].update({
                 pyhalbe.HICANN.neuron_parameter.E_l: Voltage(1200),  # TODO apply calibration?
                 pyhalbe.HICANN.neuron_parameter.I_gl: Current(1000),
-                pyhalbe.HICANN.neuron_parameter.V_t: Current(800),
+                pyhalbe.HICANN.neuron_parameter.V_t: Voltage(800),
         #        pyhalbe.HICANN.neuron_parameter.I_pl: DAC(5),    # Long refractory period
                 pyhalbe.HICANN.neuron_parameter.I_convi: DAC(0),
                 pyhalbe.HICANN.neuron_parameter.I_convx: DAC(0),
@@ -681,6 +681,7 @@ class Calibrate_V_reset(BaseCalibration):
                 if not os.path.isdir("{}/traces/step{}rep{}/".format(self.folder,step_id,rep_id)):
                     os.mkdir("{}/traces/step{}rep{}/".format(self.folder,step_id,rep_id))
                 pickle.dump([t,v], open("{}/traces/step{}rep{}/neuron_{}.p".format(self.folder,step_id,rep_id,neuron_id), 'wb'))
+
             # TODO Use better classification than min()
             V_reset = np.min(v)*1000  # multiply by 1000 for mV
             results[neuron_id] = V_reset
@@ -732,18 +733,27 @@ class Calibrate_g_L(BaseCalibration):
         Coordinate = pyhalbe.Coordinate
         hicann = self.sthal.hicann
 
-        runner = pysthal.ExperimentRunner (60.0e-6)
-        self.sthal.wafer.start(runner)
-
         for neuron_id in neuron_ids:
             self.logger.INFO("measuring neuron {}".format(neuron_id))
 
             # Record spike output via DNC
-            gbitlink = Coordinate.GbitLinkOnHICANN(0) # TODO, generlize 0
+            gbitlink = Coordinate.GbitLinkOnHICANN(1) # TODO, generlize 0
             hicann.layer1[gbitlink] = pyhalbe.HICANN.GbitLink.Direction.TO_DNC
 
             # analog
-            self.sthal.switch_analog_output(neuron_id, 1)
+            l1address = 1
+            analog = 0
+            coord_neuron = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(neuron_id))
+            self.sthal.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(l1address))
+            self.sthal.hicann.enable_aout(coord_neuron, pyhalbe.Coordinate.AnalogOnHICANN(analog))
+            self.sthal.wafer.configure(UpdateAnalogOutputConfigurator())
+            l1address = 0
+            self.sthal.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(l1address))
+
+            runner = pysthal.ExperimentRunner (60.0e-6)
+            self.sthal.wafer.start(runner)
+
+#            self.sthal.switch_analog_output(neuron_id, 1)
             self.sthal.adc.record()
             v = self.sthal.adc.trace()
 
@@ -754,10 +764,7 @@ class Calibrate_g_L(BaseCalibration):
             spikes = [(a.time,a.addr.value()) for a in hicann.receivedSpikes(gbitlink)]
 
             pickle.dump(spikes, open('traces/step_{}_neuron_{}_digi.p'.format(step_id,neuron_id), 'wb'))
-            # TODO Use better classification than min()
-            I_gl = np.min(v)*1000  # multiply by 1000 for mV
-            results[neuron_id] = I_gl
-        self.all_results.append(results)
+            self.sthal.wafer.clearSpikes()
 
     def process_results(self, neuron_ids):
         super(Calibrate_g_L, self).process_calibration_results(neuron_ids, pyhalbe.HICANN.neuron_parameter.I_gl)
