@@ -31,35 +31,54 @@ class StHALContainer(object):
                  coord_hicann=pyhalbe.Coordinate.HICANNOnWafer(pyhalbe.geometry.Enum(280)),
                  coord_analog=pyhalbe.Coordinate.AnalogOnHICANN(0),
                  recording_time=1.e-4):
-        """Initialize StHAL, connect to hardware. kwargs default to vertical setup configuration."""
+        """Initialize StHAL. kwargs default to vertical setup configuration."""
 
         wafer = pysthal.Wafer(coord_wafer)  # Stateful HICANN Container
         hicann = wafer[coord_hicann]
 
-        wafer.connect(pysthal.MagicHardwareDatabase())
-
-        # analogRecorder() MUST be called after wafer.connect()
-        adc = hicann.analogRecorder(coord_analog)
-        adc.setRecordingTime(recording_time)
-
         self.wafer = wafer
         self.hicann = hicann
-        self.adc = adc
+        self.adc = None
+        self.recording_time = recording_time
+        self.coord_analog = coord_analog
+        self._connected = False
         self._cfg = WriteFGTwiceConfigurator()
         self._cfg_analog = UpdateAnalogOutputConfigurator()
+
+    def connect(self):
+        """Connect to the hardware."""
+        self.wafer.connect(pysthal.MagicHardwareDatabase())
+
+        # analogRecorder() MUST be called after wafer.connect()
+        adc = self.hicann.analogRecorder(self.coord_analog)
+        adc.setRecordingTime(self.recording_time)
+        self.adc = adc
+        self._connected = True
 
     def disconnect(self):
         """Free handles."""
         self.wafer.disconnect()
         self.adc.freeHandle()
+        self.adc = None
+        self._connected = False
 
     def write_config(self):
         """Write full configuration."""
+        if not self._connected:
+            self.connect()
         self.wafer.configure(self._cfg)
 
     def switch_analog_output(self, neuron_id, l1address=0, analog=0):
         """Write analog output configuration (only)."""
+        if not self._connected:
+            self.connect()
         coord_neuron = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(neuron_id))
         self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(l1address))
         self.hicann.enable_aout(coord_neuron, pyhalbe.Coordinate.AnalogOnHICANN(analog))
         self.wafer.configure(self._cfg_analog)
+
+    def read_adc(self):
+        if not self._connected:
+            self.connect()
+        self.adc.record()
+        return self.adc.trace()
