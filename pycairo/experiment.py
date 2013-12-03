@@ -243,10 +243,12 @@ class BaseExperiment(object):
         for neuron_id in neuron_parameters:
             coord = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.geometry.Enum(neuron_id))
             neuron = self.sthal.hicann.neurons[coord]
-            # use fastest membrane possible
-            neuron.bigcap = True
-            neuron.fast_I_gl = True
-            neuron.slow_I_gl = False
+
+        # use fastest membrane possible
+        self.sthal.hicann.neuron.config.bigcap[pyhalbe.geometry.top] = True
+        self.sthal.hicann.neuron.config.bigcap[pyhalbe.geometry.bottom] = True
+        #    neuron.fast_I_gl = True
+        #    neuron.slow_I_gl = False
 
         fgc = pyhalbe.HICANN.FGControl()
         V_reset = None
@@ -517,7 +519,7 @@ class Calibrate_E_l(BaseCalibration):
 
     def process_trace(self, t, v):
         return np.mean(v)*1000 # Get the mean value * 1000 for mV
-    
+
     def process_results(self, neuron_ids):
         super(Calibrate_E_l, self).process_calibration_results(neuron_ids, pyhalbe.HICANN.neuron_parameter.E_l, linear_fit=True)
 
