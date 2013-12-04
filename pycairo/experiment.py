@@ -21,7 +21,6 @@ from pycairo.helpers.sthal import StHALContainer, UpdateAnalogOutputConfigurator
 import pickle
 import time
 import os
-import tarfile
 import sys
 
 
@@ -363,15 +362,6 @@ class BaseExperiment(object):
         self.process_results(neuron_ids)
         self.store_results()
 
-        # compress everything in a tar file
-        if len(sys.argv)>1:
-            tar_f = tarfile.open(sys.argv[1], 'w:gz')
-        else:
-            tar_f = tarfile.open("exp{0:02d}{1:02d}_{2:02d}{3:02d}.tar".format(time.localtime().tm_mon,time.localtime().tm_mday,time.localtime().tm_hour,time.localtime().tm_min), 'w:gz')
-        # Save whole folder:
-        tar_f.add(self.folder, '/')
-        tar_f.close()
-
 
     def measure(self, neuron_ids, step_id, rep_id):
         """Perform measurements for a single step on one or multiple neurons."""
@@ -549,7 +539,7 @@ class Calibrate_E_l(BaseCalibration):
 
     def get_steps(self):
         steps = []
-        for voltage in (500,600,700): #range(500, 1000, 100):
+        for voltage in range(600, 1100, 100):
             steps.append({pyhalbe.HICANN.neuron_parameter.E_l: Voltage(voltage),
                 pyhalbe.HICANN.neuron_parameter.E_syni: Voltage(voltage-100),
                 pyhalbe.HICANN.neuron_parameter.E_synx: Voltage(voltage+100)
@@ -558,11 +548,11 @@ class Calibrate_E_l(BaseCalibration):
 
     def init_experiment(self):
         super(Calibrate_E_l, self).init_experiment()
-        self.repetitions = 1
+        self.repetitions = 3
         self.save_results = True
         self.save_traces = False
         self.folder = "exp{0:02d}{1:02d}_{2:02d}{3:02d}".format(time.localtime().tm_mon,time.localtime().tm_mday,time.localtime().tm_hour,time.localtime().tm_min)
-        self.description = "Basic Calibrate_E_l with Iconv OFF and symmetric Esyn (Esynx,Esyni)=(+100,-100)."
+        self.description = "Basic Calibrate_E_l with Iconv ON and symmetric Esyn (Esynx,Esyni)=(+100,-100)."
 
     def process_trace(self, t, v):
         return np.mean(v)*1000 # Get the mean value * 1000 for mV
@@ -581,7 +571,7 @@ class Calibrate_V_t(BaseCalibration):
         for neuron_id in self.get_neurons():
             parameters[neuron_id].update({
                 pyhalbe.HICANN.neuron_parameter.E_l: Voltage(1200, apply_calibration = True),  # TODO apply calibration?
-                pyhalbe.HICANN.neuron_parameter.V_reset: Voltage(400),
+                pyhalbe.HICANN.shared_parameter.V_reset: Voltage(400),
                 pyhalbe.HICANN.neuron_parameter.I_gl: Current(1000),
                 pyhalbe.HICANN.neuron_parameter.I_convi: DAC(1023),
                 pyhalbe.HICANN.neuron_parameter.I_convx: DAC(1023),
@@ -590,7 +580,7 @@ class Calibrate_V_t(BaseCalibration):
 
     def get_steps(self):
         steps = []
-        for voltage in (700, 800, 900, 1000):
+        for voltage in (800, 900, 1000, 1100):
             steps.append({pyhalbe.HICANN.neuron_parameter.V_t: Voltage(voltage)})
         return defaultdict(lambda: steps)
 
@@ -600,7 +590,7 @@ class Calibrate_V_t(BaseCalibration):
         self.save_results = True
         self.save_traces = True
         self.folder = "exp{0:02d}{1:02d}_{2:02d}{3:02d}".format(time.localtime().tm_mon,time.localtime().tm_mday,time.localtime().tm_hour,time.localtime().tm_min)
-        self.description = "Basic Calibrate_V_t with Iconv ON and 1000 I_pl. Calibrated E_l. Traces + Timestamps saved."
+        self.description = "Basic Calibrate_V_t with Iconv ON and 1000 I_pl. Calibrated E_l."
 
     def process_trace(self, t, v):
         return np.max(v)*1000 # Get the mean value * 1000 for mV
@@ -619,21 +609,20 @@ class Calibrate_V_reset(BaseCalibration):
         parameters = super(Calibrate_V_reset, self).get_parameters()
         for neuron_id in self.get_neurons():
             parameters[neuron_id].update({
-                pyhalbe.HICANN.neuron_parameter.E_l: Voltage(1200),  # TODO apply calibration?
+                pyhalbe.HICANN.neuron_parameter.E_l: Voltage(1100, apply_calibration = True),  # TODO apply calibration?
                 pyhalbe.HICANN.neuron_parameter.I_gl: Current(1000),
                 pyhalbe.HICANN.neuron_parameter.V_t: Voltage(800),
+                pyhalbe.HICANN.neuron_parameter.V_t: Voltage(900, apply_calibration = True),
         #        pyhalbe.HICANN.neuron_parameter.I_pl: DAC(5),    # Long refractory period
-
                 pyhalbe.HICANN.neuron_parameter.I_convi: DAC(1023),
                 pyhalbe.HICANN.neuron_parameter.I_convx: DAC(1023),
-            
             })
         # TODO apply V_t calibration?
         return parameters
 
     def get_steps(self):
         steps = []
-        for voltage in (400, 500, 600):
+        for voltage in (500, 600, 700, 800):
             steps.append({pyhalbe.HICANN.shared_parameter.V_reset: Voltage(voltage)})
         return defaultdict(lambda: steps)
 
@@ -641,8 +630,9 @@ class Calibrate_V_reset(BaseCalibration):
         super(Calibrate_V_reset, self).init_experiment()
         self.repetitions = 3
         self.save_results = True
+        self.save_traces = True
         self.folder = "exp{0:02d}{1:02d}_{2:02d}{3:02d}".format(time.localtime().tm_mon,time.localtime().tm_mday,time.localtime().tm_hour,time.localtime().tm_min)
-        self.description = "Basic pycairo.experiment.Calibrate_V_reset with Iconv OFF, I_pl HIGH."
+        self.description = "Basic pycairo.experiment.Calibrate_V_reset, I_pl HIGH. E_l and V_t calibrated."
 
     def process_trace(self, t, v):
         return np.min(v)*1000 # Get the mean value * 1000 for mV

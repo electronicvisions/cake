@@ -118,9 +118,11 @@ class Cairo_experiment(object):
         """ 
             Returns: 
                 data that is averaged over all repetitions:
-                mean_over_reps[step][neuron]
+                [mean[step][neuron],std[step][neuron]]
         """
-        return [np.mean(self.results[step], axis = 0) for step in range(len(self.steps))]
+        return [[np.mean(self.results[step], axis = 0) for step in range(len(self.steps))],
+                [np.std(self.results[step], axis = 0) for step in range(len(self.steps))]]
+
     
     def calculate_errors(self,details = False):
         """ Print errors of measurement.
@@ -129,26 +131,37 @@ class Cairo_experiment(object):
                 details = (True|False) give detailed list?
 
             Returns:
-                nothing
+                numpy arrays: [neuron_to_neuron,trial_to_trial]
+                with array[steps][0] for mean, array[steps][1] for std
+                
         """
         string = ""
         string = string + "Step\t Neuron-to-Neuron\t    Trial-to-Trial\n"
         
         data = self.results
 
-        for stepid in range(len(data[1])):
-            mean_nton = np.mean(self.mean_over_reps()[stepid])
-            std_nton = np.std(self.mean_over_reps()[stepid])
-            mean_ttot = np.mean(np.std(data[2][stepid], axis=0))
-            std_ttot = np.std(np.std(data[2][stepid], axis=0))
+        neuron_to_neuron = []
+        trial_to_trial = []
+
+        for stepid in range(len(data)):
+            # neuron to neuron:
+            mean_nton = np.mean(self.mean_over_reps()[0][stepid])
+            std_nton = np.std(self.mean_over_reps()[0][stepid])
+            # trial to trial:
+            mean_ttot = np.mean(np.std(data[stepid], axis=0))
+            std_ttot = np.std(np.std(data[stepid], axis=0))
             
+            neuron_to_neuron.append([mean_nton,std_nton])
+            trial_to_trial.append([mean_ttot,std_ttot])
+
             string = string + "  {0:0}\t({1:6.2f} +- {2:6.2f}) \t ({3:6.2f} +- {4:6.2f})\n".format(stepid, mean_nton, std_nton, mean_ttot, std_ttot)
             if details:
-                string = string + "Worst N-to-N neurons: {} with {} mV and {} with {} mV\n".format(np.argmin(self.mean_over_reps()[stepid]-mean_nton),np.min(self.mean_over_reps()[stepid]-mean_nton),
-                                                                                     np.argmax(self.mean_over_reps()[stepid]-mean_nton),np.max(self.mean_over_reps()[stepid]-mean_nton))
+                string = string + "Worst N-to-N neurons: {} with {} mV and {} with {} mV\n".format(np.argmin(self.mean_over_reps()[0][stepid]-mean_nton),np.min(self.mean_over_reps()[0][stepid]-mean_nton),
+                                                                                     np.argmax(self.mean_over_reps()[0][stepid]-mean_nton),np.max(self.mean_over_reps()[0][stepid]-mean_nton))
                 string = string + "Worst T-to-T neuron: {} with std of {}\n".format(np.argmax(np.std(data[2][stepid], axis=0)), np.max(np.std(data[2][stepid], axis=0)))
         string = string + '\n'
         print string
+        return [neuron_to_neuron,trial_to_trial]
     
    
     def fit_data(self, param, linear_fit = False):
@@ -170,5 +183,44 @@ class Cairo_experiment(object):
         fit_results = [np.polyfit(mean_data_sorted[nid], xs, 2) for nid in range(len(self.results[0][0]))]
         return fit_results
 
+    def get_sthaldefaults_neuron_parameter(self, neuron_id):
+        """ Gives sthal default neuron parameters for specific neuron as DAC values.
 
+            Args: 
+                neuron_id = int (0..511)
+
+            Returns:
+                dictionary:
+                    {pyhalbe.HICANN.neuron_parameter.E_l: 300, ...}
+        """
+        neuron_params = {}
+        
+        neuron_coord = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(neuron_id))
+        for param in pyhalbe.HICANN.neuron_parameter.names.values():
+            if param is not pyhalbe.HICANN.neuron_parameter.__last_neuron:
+                neuron_params[param] = self.sthalcontainer.floating_gates.getNeuron(neuron_coord, i)
+
+        return neuron_params
+
+
+    def get_sthaldefaults_shared_parameter(self, block_id):
+        """ Gives sthal default shared parameters for specific block as DAC values.
+
+            Args: 
+                block_id = int (0..3)
+
+            Returns:
+                dictionary:
+                    {pyhalbe.HICANN.shared_parameter.V_reset: 300, ...}
+        """
+        block_coord = pyhalbe._Coordinate.FGBlockOnHICANN(pyhalbe._Coordinate.Enum(block_id))
+        shared_params = {}
+        for param in pyhalbe._HICANN.shared_parameter.names.values():
+            if (i is not pyhalbe._HICANN.shared_parameter.__last_shared) and param is not (pyhalbe._HICANN.shared_parameter.int_op_bias):
+                if ((param is pyhalbe._HICANN.shared_parameter.V_clrc) or (param is pyhalbe._HICANN.shared_parameter.V_bexp)) and ((block_id is 0) or (block_id is 2)):
+                    continue
+                elif ((param is pyhalbe._HICANN.shared_parameter.V_clra) or (param is pyhalbe._HICANN.shared_parameter.V_bout)) and ((block_id is 1) or (block_id is 3)):
+                    continue
+                else:
+                    shared_params[param] = self.sthalcontainer.floating_gates.getShared(block_coord, param) 
 
