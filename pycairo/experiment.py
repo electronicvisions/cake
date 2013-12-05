@@ -574,14 +574,14 @@ class Calibrate_E_l(BaseCalibration):
 
     def get_steps(self):
         steps = []
-        for voltage in range(600, 1000, 50):
+        for voltage in range(600, 1100, 25):
             steps.append({pyhalbe.HICANN.neuron_parameter.E_l: Voltage(voltage),
                 })
         return defaultdict(lambda: steps)
 
     def init_experiment(self):
         super(Calibrate_E_l, self).init_experiment()
-        self.repetitions = 2
+        self.repetitions = 3
         self.save_results = True
         self.save_traces = False
         self.E_syni_dist = -100
