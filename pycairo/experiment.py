@@ -129,7 +129,9 @@ class BaseExperiment(object):
         self.logger = pylogging.get("pycairo.experiment")
 
     def init_experiment(self):
-        """Hook for child classes. Executed by run_experiment()."""
+        """Hook for child classes. Executed by run_experiment(). These are standard parameters."""
+        self.E_syni_dist = None 
+        self.E_synx_dist = None
         self.save_results = True
         self.save_traces = False
         self.description = "Basic experiment." # Change this for all child classes
@@ -262,7 +264,14 @@ class BaseExperiment(object):
                 value = step_cvalue.toDAC().value
                 step_parameters[neuron_id][param] = value
 
-                # TODO set E_syni and E_synx AFTER calibration
+            # Set E_syni and E_synx AFTER calibration
+            if self.E_syni_dist and self.E_synx_dist:
+                print "*********************"
+                E_l = step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_l]
+                i_dist = int(round(self.E_syni_dist * 1023./1800.)) # Convert mV to DAC
+                x_dist = int(round(self.E_synx_dist * 1023./1800.)) # Convert mV to DAC
+                step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_syni] = type(step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_syni])(E_l + i_dist)
+                step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_synx] = type(step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_synx])(E_l + x_dist)
 
         return step_parameters
 
@@ -542,6 +551,7 @@ class BaseCalibration(BaseExperiment):
 
 
     def init_experiment(self):
+        super(BaseCalibration, self).init_experiment()
         if self._calib_backend is None:
             raise TypeError("can not store results without Calibtic backend")
         if self._red_nrns is None:
@@ -564,20 +574,20 @@ class Calibrate_E_l(BaseCalibration):
 
     def get_steps(self):
         steps = []
-        for voltage in range(600, 1100, 25):
+        for voltage in range(600, 1000, 50):
             steps.append({pyhalbe.HICANN.neuron_parameter.E_l: Voltage(voltage),
-                pyhalbe.HICANN.neuron_parameter.E_syni: Voltage(voltage-100),
-                pyhalbe.HICANN.neuron_parameter.E_synx: Voltage(voltage+100)
                 })
         return defaultdict(lambda: steps)
 
     def init_experiment(self):
         super(Calibrate_E_l, self).init_experiment()
-        self.repetitions = 4
+        self.repetitions = 2
         self.save_results = True
         self.save_traces = False
+        self.E_syni_dist = -100
+        self.E_synx_dist = +100
         self.folder = "exp{0:02d}{1:02d}_{2:02d}{3:02d}".format(time.localtime().tm_mon,time.localtime().tm_mday,time.localtime().tm_hour,time.localtime().tm_min)
-        self.description = "Basic Calibrate_E_l with Iconv ON and symmetric Esyn (Esynx,Esyni)=(+100,-100)."
+        self.description = "Calibrate_E_l with Esyn set AFTER calibration."
 
     def process_trace(self, t, v):
         return np.mean(v)*1000 # Get the mean value * 1000 for mV
