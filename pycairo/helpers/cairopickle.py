@@ -97,9 +97,21 @@ class Cairo_experiment(object):
             self.steps = pickle.load(open('{}/steps.p'.format(self.workdir)))
             results_unsorted = [pickle.load(open('{}/results/{}'.format(self.workdir,fname))) for fname in os.listdir('{}/results/'.format(self.workdir))]
             self.reps = pickle.load(open("{}/repetitions.p".format(self.workdir)))
-            self.results = [[results_unsorted[i + stp*self.reps].values() for i in range(self.reps)] for stp in range(len(self.steps))]
+            self.results=[]
+            for step in range(len(self.steps)):
+                self.results.append([])
+                for rep in range(self.reps):
+                    try:
+                        self.results[step].append(results_unsorted[rep + step*self.reps].values())
+                    except IndexError:
+                        print "Step {} Rep {} not found.".format(step,rep)
+            try:
+                self.floating_gates = [[pickle.load(open('{}/floating_gates/step{}rep{}.p'.format(self.workdir,step_id,rep_id))) for rep_id in range(self.reps)] for step_id in range(len(self.steps))] # <>
+            except:
+                print "No fg values from {}".format(folder)
             if os.path.isfile("{}/sthalcontainer.p".format(self.workdir)):
                 self.sthalcontainer = pickle.load(open("{}/sthalcontainer.p".format(self.workdir)))
+            self.stepnum = len(self.results)
     
     def get_traces(self, step_id = 0, rep_id = 0):
             """ Get the traces of all neurons from a specific measurement
@@ -111,7 +123,11 @@ class Cairo_experiment(object):
                 Returns:
                     Numpy array of pickled traces
             """
-            traces = np.array([pickle.load(open('{}/traces/step{}rep{}/neuron_{}.p'.format(self.workdir,step_id,rep_id,nid))) for nid in range(512)])
+            try:
+                traces = np.array([pickle.load(open('{}/traces/step{}rep{}/neuron_{}.p'.format(self.workdir,step_id,rep_id,nid))) for nid in range(512)])
+            except IOError:
+                print 'No traces saved'
+                pass
             return traces
            
     def mean_over_reps(self):
@@ -120,8 +136,8 @@ class Cairo_experiment(object):
                 data that is averaged over all repetitions:
                 [mean[step][neuron],std[step][neuron]]
         """
-        return [[np.mean(self.results[step], axis = 0) for step in range(len(self.steps))],
-                [np.std(self.results[step], axis = 0) for step in range(len(self.steps))]]
+        return [[np.mean(self.results[step], axis = 0) for step in range(self.stepnum)],
+                [np.std(self.results[step], axis = 0) for step in range(self.stepnum)]]
 
     
     def calculate_errors(self,details = False):
@@ -175,8 +191,8 @@ class Cairo_experiment(object):
                 polynomial fit values
         """
         
-        mean_data = self.mean_over_reps()
-        mean_data_sorted = [[mean_data[sid][nid] for sid in range(len(self.steps))]for nid in range(len(self.results[0][0]))]
+        mean_data = self.mean_over_reps()[0]
+        mean_data_sorted = [[mean_data[sid][nid] for sid in range(self.stepnum)]for nid in range(len(self.results[0][0]))]
         if param: xs = [step[param].value for step in self.steps]
         else: xs = [step.values()[0].value for step in self.steps]
         
@@ -224,3 +240,25 @@ class Cairo_experiment(object):
                 else:
                     shared_params[param] = self.sthalcontainer.floating_gates.getShared(block_coord, param) 
 
+    def get_neuron_results(self, neuron_id, mean = True):
+        """ Get the results sorted for one neuron.
+
+            Args:
+                neuron_id = (0..511)
+                mean = (True|False) mean over all repetitions?
+
+            Returns:
+                If mean = True:
+                    numpy array with mean results for each neuron in first entry and (trial-to-trial) stds in second entry.
+                    Like this: get_neuron_results()[mean/std][step]
+
+                If mean = False:
+                    List of arrays with each entry representing one repetition.
+                    Like this: get_neuron_results()[rep][step]
+        """
+        if mean:
+            mean_data = self.mean_over_reps()
+            mean_data_sorted = [[mean_data[0][sid][neuron_id] for sid in range(self.stepnum)],[mean_data[1][sid][neuron_id] for sid in range(self.stepnum)]]
+            return mean_data_sorted
+        else:
+            return [[self.results[sid][rep][neuron_id] for sid in range(self.stepnum)] for rep in range(self.reps)]
