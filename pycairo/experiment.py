@@ -16,7 +16,7 @@ from pycairo.helpers.calibtic import create_pycalibtic_polynomial
 from pycairo.helpers.redman import init_backend as init_redman
 from pycairo.helpers.calibtic import init_backend as init_calibtic
 from pycairo.helpers.sthal import StHALContainer, UpdateAnalogOutputConfigurator
-from pycairo.logic import spikes 
+from pycairo.logic import spikes
 
 # Import everything needed for saving:
 import pickle
@@ -130,7 +130,7 @@ class BaseExperiment(object):
 
     def init_experiment(self):
         """Hook for child classes. Executed by run_experiment(). These are standard parameters."""
-        self.E_syni_dist = None 
+        self.E_syni_dist = None
         self.E_synx_dist = None
         self.save_results = True
         self.save_traces = False
@@ -228,15 +228,15 @@ class BaseExperiment(object):
         neuron_ids = self.get_neurons()
 
         step_parameters = self.get_parameters()
-        
-        
+
+
         # Give info about nonexisting calibrations:
         for param in step_parameters[0]:
             try:
                 ncal = self._calib_nc.at(0).at(param)
             except (RuntimeError, IndexError):
                 self.logger.WARN("No calibration found for {}. Using uncalibrated values.".format(param))
-            
+
 
 
         # FIXME properly handle broken neurons here?
@@ -281,7 +281,7 @@ class BaseExperiment(object):
         """
 
         for neuron_id in neuron_parameters:
-            coord = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.geometry.Enum(neuron_id))
+            coord = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(neuron_id))
             neuron = self.sthal.hicann.neurons[coord]
             # use fastest membrane possible
             neuron.bigcap = True
@@ -291,7 +291,7 @@ class BaseExperiment(object):
         fgc = pyhalbe.HICANN.FGControl()
         V_reset = None
         for neuron_id in neuron_parameters:
-            coord = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.geometry.Enum(neuron_id))
+            coord = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(neuron_id))
             for parameter in neuron_parameters[neuron_id]:
                 if parameter is pyhalbe.HICANN.shared_parameter.V_reset:
                     V_reset = neuron_parameters[neuron_id][parameter]
@@ -307,7 +307,7 @@ class BaseExperiment(object):
                 fgc.setShared(coord, pyhalbe.HICANN.shared_parameter.V_reset, V_reset)
 
         self.sthal.hicann.floating_gates = fgc
-        
+
         if self.save_results:
             if not os.path.isdir(os.path.join(self.folder,"floating_gates")):
                 os.mkdir(os.path.join(self.folder,"floating_gates"))
@@ -373,14 +373,14 @@ class BaseExperiment(object):
 
         # Save default and step parameters and description to files
         # Also save sthal container to extract standard sthal parameters later:
-        
+
         if self.save_results:
             if not os.path.isdir(self.folder):
                 os.mkdir(self.folder)
             pickle.dump(self.sthal.hicann, open('{}/sthalcontainer.p'.format(self.folder),"wb"))
             paramdump = {nid:{parameters[nid].keys()[pid].name: parameters[nid].values()[pid] for pid in parameters[0].keys()} for nid in self.get_neurons()}
             pickle.dump(paramdump[0], open("{}/parameters.p".format(self.folder),"wb"))
-            stepdump = [{pid.name: steps[0][sid][pid] for pid in steps[0][sid].keys()} for sid in range(num_steps)] 
+            stepdump = [{pid.name: steps[0][sid][pid] for pid in steps[0][sid].keys()} for sid in range(num_steps)]
             pickle.dump(stepdump, open("{}/steps.p".format(self.folder),"wb"))
             pickle.dump(self.repetitions, open("{}/repetitions.p".format(self.folder), 'wb'))
             open('{}/description.txt'.format(self.folder),'w').write(self.description)
@@ -591,7 +591,7 @@ class Calibrate_E_l(BaseCalibration):
 
     def process_trace(self, t, v):
         return np.mean(v)*1000 # Get the mean value * 1000 for mV
-    
+
     def process_results(self, neuron_ids):
         super(Calibrate_E_l, self).process_calibration_results(neuron_ids, pyhalbe.HICANN.neuron_parameter.E_l, linear_fit=True)
 
@@ -615,7 +615,7 @@ class Calibrate_V_t(BaseCalibration):
 
     def get_steps(self):
         steps = []
-        for voltage in range(700,1200,25): 
+        for voltage in range(700,1200,25):
             steps.append({pyhalbe.HICANN.neuron_parameter.V_t: Voltage(voltage)})
         return defaultdict(lambda: steps)
 
@@ -623,7 +623,7 @@ class Calibrate_V_t(BaseCalibration):
         super(Calibrate_V_t, self).init_experiment()
         self.repetitions = 4
         self.save_results = True
-        self.save_traces = False 
+        self.save_traces = False
         self.folder = "exp{0:02d}{1:02d}_{2:02d}{3:02d}".format(time.localtime().tm_mon,time.localtime().tm_mday,time.localtime().tm_hour,time.localtime().tm_min)
         self.description = "Basic Calibrate_V_t with Iconv ON and 1000 I_pl. Calibrated E_l."
 

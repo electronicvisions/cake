@@ -28,7 +28,7 @@ class WriteFGTwiceConfigurator(pysthal.HICANNConfigurator):
 class StHALContainer(object):
     """Contains StHAL objects for hardware access. Multiple experiments can share one container."""
     def __init__(self, coord_wafer=pyhalbe.Coordinate.Wafer(),
-                 coord_hicann=pyhalbe.Coordinate.HICANNOnWafer(pyhalbe.geometry.Enum(280)),
+                 coord_hicann=pyhalbe.Coordinate.HICANNOnWafer(pyhalbe.Coordinate.Enum(280)),
                  coord_analog=pyhalbe.Coordinate.AnalogOnHICANN(0),
                  recording_time=1.e-4):
         """Initialize StHAL. kwargs default to vertical setup configuration."""
