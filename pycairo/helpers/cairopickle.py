@@ -5,6 +5,7 @@ import pyhalbe
 from sthal import StHALContainer
 import os
 import shutil
+import matplotlib.pyplot as plt
 
 class Cairo_Experimentreader(object):
     """ Class to open experiments in a specific workfolder.
@@ -85,7 +86,36 @@ class Cairo_Experimentreader(object):
         else:
             f = open('{}/{}/description.txt'.format(self.workdir,expname), 'w')
         f.write(description)
-        
+
+    def compare_experiments(self, parameter, exp1, exp2, step, repetition = None):
+        """ Plots histograms that compare two experiments.
+            
+            Args:
+                exp1: needs to be a Cairo_experiment object
+                exp2: see exp1
+                step: int, which step do you want to compare?
+                repetition: int, which repetition do you want to compare?
+
+            Returns:
+                matplotlib.pyplot.figure object with the histogram
+        """
+        if repetition is None:
+            data1 = exp1.mean_over_reps()[0][step]
+            data2 = exp2.mean_over_reps()[0][step]
+        else:
+            data1 = exp1.results[step][repetition]
+            data2 = exp2.results[step][repetition]
+        minval = int(round(exp1.steps[0][0][parameter].value * 0.9))
+        maxval = int(round(exp1.steps[0][-1][parameter].value * 1.1))
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.hist(data1, range(minval,maxval,10))
+        ax.hist(data2, range(minval,maxval,10))
+        ax.set_title("Comparison of {} values.".format(parameter.name))
+        ax.set_xlabel(parameter.name)
+        ax.set_ylabel("Occurences")
+        return fig
+         
 
 
 class Cairo_experiment(object):
@@ -95,16 +125,25 @@ class Cairo_experiment(object):
             self.workdir = folder
             self.params = pickle.load(open('{}/parameters.p'.format(self.workdir)))
             self.steps = pickle.load(open('{}/steps.p'.format(self.workdir)))
-            results_unsorted = [pickle.load(open('{}/results/{}'.format(self.workdir,fname))) for fname in os.listdir('{}/results/'.format(self.workdir))]
+            try:
+                self.shared_params = pickle.load(open('{}/shared_parameters.p'.format(self.workdir)))
+                self.shared_steps = pickle.load(open('{}/shared_steps.p'.format(self.workdir)))
+            except IOError:
+                print "No shared parameters/steps found"
+                self.shared_steps = {}
+                self.shared_params = {}
+            self.results_unsorted = [pickle.load(open('{}/results/{}'.format(self.workdir,fname))) for fname in os.listdir('{}/results/'.format(self.workdir))]
             self.reps = pickle.load(open("{}/repetitions.p".format(self.workdir)))
             self.results=[]
-            for step in range(len(self.steps)):
+            self.num_steps = max(len(self.steps),len(self.shared_steps))
+            for step in range(self.num_steps):
                 self.results.append([])
                 for rep in range(self.reps):
                     try:
-                        self.results[step].append(results_unsorted[rep + step*self.reps].values())
+                        self.results[step].append(self.results_unsorted[rep + step*self.reps].values())
                     except IndexError:
                         print "Step {} Rep {} not found.".format(step,rep)
+            self.results = np.array(self.results)
             try:
                 self.floating_gates = [[pickle.load(open('{}/floating_gates/step{}rep{}.p'.format(self.workdir,step_id,rep_id))) for rep_id in range(self.reps)] for step_id in range(len(self.steps))] # <>
             except:
@@ -262,3 +301,4 @@ class Cairo_experiment(object):
             return mean_data_sorted
         else:
             return [[self.results[sid][rep][neuron_id] for sid in range(self.stepnum)] for rep in range(self.reps)]
+
