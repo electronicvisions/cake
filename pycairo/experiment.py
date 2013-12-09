@@ -125,7 +125,7 @@ class BaseExperiment(object):
         fgc = pyhalbe.HICANN.FGControl()
 
         result = {}
-        for name, param in pyhalbe.HICANN.neuron_parameter.names:
+        for name, param in neuron_parameter.names:
             if name[0] in ("E", "V"):
                 result[param] = Voltage(fgc.getNeuron(coord_neuron, param))
             elif name[0] == "I":
@@ -134,7 +134,7 @@ class BaseExperiment(object):
                 pass
 
         # add V_reset
-        param = pyhalbe.HICANN.shared_parameter.V_reset
+        param = shared_parameter.V_reset
         result[param] = fgc.getShared(coord_block, param)
 
         return defaultdict(lambda: result)
@@ -157,8 +157,8 @@ class BaseExperiment(object):
         Returns:
             dict of neuron ids -> dict of neuron parameters -> DAC values (int)
 
-            Example: {0: {pyhalbe.HICANN.neuron_parameter.E_l: 400, ...},
-                      1: {pyhalbe.HICANN.neuron_parameter.E_l: 450, ...}}
+            Example: {0: {neuron_parameter.E_l: 400, ...},
+                      1: {neuron_parameter.E_l: 450, ...}}
         """
 
         steps = self.get_steps()
@@ -201,11 +201,11 @@ class BaseExperiment(object):
             # Set E_syni and E_synx AFTER calibration
             if self.E_syni_dist and self.E_synx_dist:
                 print "*********************"
-                E_l = step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_l]
+                E_l = step_parameters[neuron_id][neuron_parameter.E_l]
                 i_dist = int(round(self.E_syni_dist * 1023./1800.))  # Convert mV to DAC
                 x_dist = int(round(self.E_synx_dist * 1023./1800.))  # Convert mV to DAC
-                step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_syni] = type(step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_syni])(E_l + i_dist)
-                step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_synx] = type(step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_synx])(E_l + x_dist)
+                step_parameters[neuron_id][neuron_parameter.E_syni] = type(step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_syni])(E_l + i_dist)
+                step_parameters[neuron_id][neuron_parameter.E_synx] = type(step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_synx])(E_l + x_dist)
 
         return step_parameters
 
@@ -227,7 +227,7 @@ class BaseExperiment(object):
         for neuron_id in neuron_parameters:
             coord = Coordinate.NeuronOnHICANN(Enum(neuron_id))
             for parameter in neuron_parameters[neuron_id]:
-                if parameter is pyhalbe.HICANN.shared_parameter.V_reset:
+                if parameter is shared_parameter.V_reset:
                     V_reset = neuron_parameters[neuron_id][parameter]
                     # maybe make sure that all neurons have the same value for
                     # V_reset here?
@@ -238,7 +238,7 @@ class BaseExperiment(object):
         if V_reset:
             for block in range(4):
                 coord = Coordinate.FGBlockOnHICANN(Enum(block))
-                fgc.setShared(coord, pyhalbe.HICANN.shared_parameter.V_reset, V_reset)
+                fgc.setShared(coord, shared_parameter.V_reset, V_reset)
 
         self.sthal.hicann.floating_gates = fgc
 
@@ -268,15 +268,15 @@ class BaseExperiment(object):
             Example: {
                         0: { # first step
                             # neuron 0
-                            0: {pyhalbe.HICANN.neuron_parameter.E_l: Voltage(400)},
-                            1: {pyhalbe.HICANN.neuron_parameter.E_l: Voltage(400)},
+                            0: {neuron_parameter.E_l: Voltage(400)},
+                            1: {neuron_parameter.E_l: Voltage(400)},
                            },
                         1: { # second step
-                            0: pyhalbe.HICANN.neuron_parameter.E_l: Voltage(600)},
-                            1: pyhalbe.HICANN.neuron_parameter.E_l: Voltage(650)},
+                            0: neuron_parameter.E_l: Voltage(600)},
+                            1: neuron_parameter.E_l: Voltage(650)},
                         },
-                            0: {pyhalbe.HICANN.neuron_parameter.E_l: Voltage(800)}
-                            1: {pyhalbe.HICANN.neuron_parameter.E_l: Voltage(800)}
+                            0: {neuron_parameter.E_l: Voltage(800)}
+                            1: {neuron_parameter.E_l: Voltage(800)}
                         }
                     }
         """
@@ -370,28 +370,28 @@ class BaseExperiment(object):
 class BaseCalibration(BaseExperiment):
     """Base class for calibration experiments."""
     def get_parameters(self):
-        parameters = {pyhalbe.HICANN.neuron_parameter.E_l: Voltage(1000),
-                      pyhalbe.HICANN.neuron_parameter.E_syni: Voltage(900),
-                      pyhalbe.HICANN.neuron_parameter.E_synx: Voltage(1100),
-                      pyhalbe.HICANN.neuron_parameter.I_bexp: Current(0),
-                      pyhalbe.HICANN.neuron_parameter.I_convi: Current(1000),  # set 0
-                      pyhalbe.HICANN.neuron_parameter.I_convx: Current(1000),  # set 0
-                      pyhalbe.HICANN.neuron_parameter.I_fire: Current(0),
-                      pyhalbe.HICANN.neuron_parameter.I_gl: Current(400),
-                      pyhalbe.HICANN.neuron_parameter.I_gladapt: Current(0),
-                      pyhalbe.HICANN.neuron_parameter.I_intbbi: Current(2000),
-                      pyhalbe.HICANN.neuron_parameter.I_intbbx: Current(2000),
-                      pyhalbe.HICANN.neuron_parameter.I_pl: Current(2000),
-                      pyhalbe.HICANN.neuron_parameter.I_radapt: Current(2000),
-                      pyhalbe.HICANN.neuron_parameter.I_rexp: Current(750),
-                      pyhalbe.HICANN.neuron_parameter.I_spikeamp: Current(2000),
-                      pyhalbe.HICANN.neuron_parameter.V_exp: Voltage(536),
-                      pyhalbe.HICANN.neuron_parameter.V_syni: Voltage(1000),
-                      pyhalbe.HICANN.neuron_parameter.V_syntci: Voltage(900),
-                      pyhalbe.HICANN.neuron_parameter.V_syntcx: Voltage(900),
-                      pyhalbe.HICANN.neuron_parameter.V_synx: Voltage(1000),
-                      pyhalbe.HICANN.neuron_parameter.V_t: Voltage(1000),  # recommended threshold, maximum is 1100
-                      pyhalbe.HICANN.shared_parameter.V_reset: Voltage(500)
+        parameters = {neuron_parameter.E_l: Voltage(1000),
+                      neuron_parameter.E_syni: Voltage(900),
+                      neuron_parameter.E_synx: Voltage(1100),
+                      neuron_parameter.I_bexp: Current(0),
+                      neuron_parameter.I_convi: Current(1000),  # set 0
+                      neuron_parameter.I_convx: Current(1000),  # set 0
+                      neuron_parameter.I_fire: Current(0),
+                      neuron_parameter.I_gl: Current(400),
+                      neuron_parameter.I_gladapt: Current(0),
+                      neuron_parameter.I_intbbi: Current(2000),
+                      neuron_parameter.I_intbbx: Current(2000),
+                      neuron_parameter.I_pl: Current(2000),
+                      neuron_parameter.I_radapt: Current(2000),
+                      neuron_parameter.I_rexp: Current(750),
+                      neuron_parameter.I_spikeamp: Current(2000),
+                      neuron_parameter.V_exp: Voltage(536),
+                      neuron_parameter.V_syni: Voltage(1000),
+                      neuron_parameter.V_syntci: Voltage(900),
+                      neuron_parameter.V_syntcx: Voltage(900),
+                      neuron_parameter.V_synx: Voltage(1000),
+                      neuron_parameter.V_t: Voltage(1000),  # recommended threshold, maximum is 1100
+                      shared_parameter.V_reset: Voltage(500)
                       }
         return defaultdict(lambda: dict(parameters))
 
@@ -429,7 +429,7 @@ class BaseCalibration(BaseExperiment):
                 # linear fit
                 m, b = np.linalg.lstsq(zip(results_mean[neuron_id], [1]*len(results_mean[neuron_id])), steps)[0]
                 coeffs = [b, m]
-                if parameter is pyhalbe.HICANN.neuron_parameter.E_l:
+                if parameter is neuron_parameter.E_l:
                     if not (m > 1.0 and m < 1.5 and b < 0 and b > -500):
                         # this neuron is broken
                         results_broken.append(neuron_id)
@@ -474,9 +474,9 @@ class BaseCalibration(BaseExperiment):
                     nc.insert(neuron_id, ncal)
                 nc.at(neuron_id).reset(parameter, results[neuron_id])
 
-                if type(parameter) is pyhalbe.HICANN.neuron_parameter:
+                if type(parameter) is neuron_parameter:
                     nc.at(neuron_id).reset(parameter, results[neuron_id])
-                elif type(parameter) is pyhalbe.HICANN.shared_parameter and False:
+                elif type(parameter) is shared_parameter and False:
                     pass  # not implemented
                 else:
                     raise NotImplementedError("parameters of this type are not supported")
@@ -497,17 +497,17 @@ class Calibrate_E_l(BaseCalibration):
         parameters = super(Calibrate_E_l, self).get_parameters()
         for neuron_id in self.get_neurons():
             parameters[neuron_id].update({
-                pyhalbe.HICANN.neuron_parameter.I_gl: Current(1000),
-                pyhalbe.HICANN.neuron_parameter.V_t: Voltage(1700),
-                pyhalbe.HICANN.neuron_parameter.I_convi: DAC(1023),
-                pyhalbe.HICANN.neuron_parameter.I_convx: DAC(1023),
+                neuron_parameter.I_gl: Current(1000),
+                neuron_parameter.V_t: Voltage(1700),
+                neuron_parameter.I_convi: DAC(1023),
+                neuron_parameter.I_convx: DAC(1023),
             })
         return parameters
 
     def get_steps(self):
         steps = []
         for voltage in range(600, 1000, 50):
-            steps.append({pyhalbe.HICANN.neuron_parameter.E_l: Voltage(voltage)})
+            steps.append({neuron_parameter.E_l: Voltage(voltage)})
         return defaultdict(lambda: steps)
 
     def init_experiment(self):
@@ -525,10 +525,10 @@ class Calibrate_E_l(BaseCalibration):
         return np.mean(v)*1000  # Get the mean value * 1000 for mV
 
     def process_results(self, neuron_ids):
-        super(Calibrate_E_l, self).process_calibration_results(neuron_ids, pyhalbe.HICANN.neuron_parameter.E_l, linear_fit=True)
+        super(Calibrate_E_l, self).process_calibration_results(neuron_ids, neuron_parameter.E_l, linear_fit=True)
 
     def store_results(self):
-        super(Calibrate_E_l, self).store_calibration_results(pyhalbe.HICANN.neuron_parameter.E_l)
+        super(Calibrate_E_l, self).store_calibration_results(neuron_parameter.E_l)
 
 
 class Calibrate_V_t(BaseCalibration):
@@ -537,18 +537,18 @@ class Calibrate_V_t(BaseCalibration):
         parameters = super(Calibrate_V_t, self).get_parameters()
         for neuron_id in self.get_neurons():
             parameters[neuron_id].update({
-                pyhalbe.HICANN.neuron_parameter.E_l: Voltage(1200, apply_calibration=True),
-                pyhalbe.HICANN.shared_parameter.V_reset: Voltage(400),
-                pyhalbe.HICANN.neuron_parameter.I_gl: Current(1000),
-                pyhalbe.HICANN.neuron_parameter.I_convi: DAC(1023),
-                pyhalbe.HICANN.neuron_parameter.I_convx: DAC(1023),
+                neuron_parameter.E_l: Voltage(1200, apply_calibration=True),
+                shared_parameter.V_reset: Voltage(400),
+                neuron_parameter.I_gl: Current(1000),
+                neuron_parameter.I_convi: DAC(1023),
+                neuron_parameter.I_convx: DAC(1023),
             })
         return parameters
 
     def get_steps(self):
         steps = []
         for voltage in range(700, 1200, 25):
-            steps.append({pyhalbe.HICANN.neuron_parameter.V_t: Voltage(voltage)})
+            steps.append({neuron_parameter.V_t: Voltage(voltage)})
         return defaultdict(lambda: steps)
 
     def init_experiment(self):
@@ -564,10 +564,10 @@ class Calibrate_V_t(BaseCalibration):
         return np.max(v)*1000  # Get the mean value * 1000 for mV
 
     def process_results(self, neuron_ids):
-        super(Calibrate_V_t, self).process_calibration_results(neuron_ids, pyhalbe.HICANN.neuron_parameter.V_t)
+        super(Calibrate_V_t, self).process_calibration_results(neuron_ids, neuron_parameter.V_t)
 
     def store_results(self):
-        super(Calibrate_V_t, self).store_calibration_results(pyhalbe.HICANN.neuron_parameter.V_t)
+        super(Calibrate_V_t, self).store_calibration_results(neuron_parameter.V_t)
 
 
 class Calibrate_V_reset(BaseCalibration):
@@ -576,12 +576,12 @@ class Calibrate_V_reset(BaseCalibration):
         parameters = super(Calibrate_V_reset, self).get_parameters()
         for neuron_id in self.get_neurons():
             parameters[neuron_id].update({
-                pyhalbe.HICANN.neuron_parameter.E_l: Voltage(1100, apply_calibration=True),
-                pyhalbe.HICANN.neuron_parameter.I_gl: Current(1000),
-                pyhalbe.HICANN.neuron_parameter.V_t: Voltage(900, apply_calibration=True),
-                #pyhalbe.HICANN.neuron_parameter.I_pl: DAC(5),  # Long refractory period
-                pyhalbe.HICANN.neuron_parameter.I_convi: DAC(1023),
-                pyhalbe.HICANN.neuron_parameter.I_convx: DAC(1023),
+                neuron_parameter.E_l: Voltage(1100, apply_calibration=True),
+                neuron_parameter.I_gl: Current(1000),
+                neuron_parameter.V_t: Voltage(900, apply_calibration=True),
+                #neuron_parameter.I_pl: DAC(5),  # Long refractory period
+                neuron_parameter.I_convi: DAC(1023),
+                neuron_parameter.I_convx: DAC(1023),
             })
         # TODO apply V_t calibration?
         return parameters
@@ -589,7 +589,7 @@ class Calibrate_V_reset(BaseCalibration):
     def get_steps(self):
         steps = []
         for voltage in range(500, 850, 25):
-            steps.append({pyhalbe.HICANN.shared_parameter.V_reset: Voltage(voltage)})
+            steps.append({shared_parameter.V_reset: Voltage(voltage)})
         return defaultdict(lambda: steps)
 
     def init_experiment(self):
@@ -605,11 +605,11 @@ class Calibrate_V_reset(BaseCalibration):
         return np.min(v)*1000  # Get the mean value * 1000 for mV
 
     def process_results(self, neuron_ids):
-        super(Calibrate_V_reset, self).process_calibration_results(neuron_ids, pyhalbe.HICANN.shared_parameter.V_reset)
+        super(Calibrate_V_reset, self).process_calibration_results(neuron_ids, shared_parameter.V_reset)
 
     def store_results(self):
         # TODO detect and store broken neurons
-        super(Calibrate_V_reset, self).store_calibration_results(pyhalbe.HICANN.shared_parameter.V_reset)
+        super(Calibrate_V_reset, self).store_calibration_results(shared_parameter.V_reset)
 
 
 # TODO, playground for digital spike measures atm.
@@ -618,18 +618,18 @@ class Calibrate_g_L(BaseCalibration):
         parameters = super(Calibrate_g_L, self).get_parameters()
         for neuron_id in self.get_neurons():
             parameters[neuron_id].update({
-                pyhalbe.HICANN.neuron_parameter.E_l: Voltage(1100, apply_calibration=True),
-                pyhalbe.HICANN.neuron_parameter.V_t: Voltage(700, apply_calibration=True),
-                pyhalbe.HICANN.shared_parameter.V_reset: Voltage(500, apply_calibration=True),
-                pyhalbe.HICANN.neuron_parameter.I_convx: DAC(1023),
-                pyhalbe.HICANN.neuron_parameter.I_convi: DAC(1023),
+                neuron_parameter.E_l: Voltage(1100, apply_calibration=True),
+                neuron_parameter.V_t: Voltage(700, apply_calibration=True),
+                shared_parameter.V_reset: Voltage(500, apply_calibration=True),
+                neuron_parameter.I_convx: DAC(1023),
+                neuron_parameter.I_convi: DAC(1023),
             })
         return parameters
 
     def get_steps(self):
         steps = []
         for current in (700, 800, 900, 1000, 1100):
-            steps.append({pyhalbe.HICANN.neuron_parameter.I_gl: Current(current)})
+            steps.append({neuron_parameter.I_gl: Current(current)})
         return defaultdict(lambda: steps)
 
     def init_experiment(self):
@@ -647,11 +647,11 @@ class Calibrate_g_L(BaseCalibration):
         return freq
 
     def process_results(self, neuron_ids):
-        super(Calibrate_g_L, self).process_calibration_results(neuron_ids, pyhalbe.HICANN.neuron_parameter.I_gl)
+        super(Calibrate_g_L, self).process_calibration_results(neuron_ids, neuron_parameter.I_gl)
 
     def store_results(self):
         # TODO detect and store broken neurons
-        super(Calibrate_g_L, self).store_calibration_results(pyhalbe.HICANN.neuron_parameter.I_gl)
+        super(Calibrate_g_L, self).store_calibration_results(neuron_parameter.I_gl)
 
 
 class Calibrate_tau_ref(BaseCalibration):
@@ -659,11 +659,11 @@ class Calibrate_tau_ref(BaseCalibration):
         parameters = super(Calibrate_tau_ref, self).get_parameters()
         for neuron_id in self.get_neurons():
             parameters[neuron_id].update({
-                pyhalbe.HICANN.neuron_parameter.E_l: Voltage(800),
-                pyhalbe.HICANN.neuron_parameter.V_t: Voltage(700),
-                pyhalbe.HICANN.shared_parameter.V_reset: Voltage(500),
-                pyhalbe.HICANN.neuron_parameter.I_gl: Current(1000),
-                pyhalbe.HICANN.neuron_parameter.V_syntcx: Voltage(10)
+                neuron_parameter.E_l: Voltage(800),
+                neuron_parameter.V_t: Voltage(700),
+                shared_parameter.V_reset: Voltage(500),
+                neuron_parameter.I_gl: Current(1000),
+                neuron_parameter.V_syntcx: Voltage(10)
             })
         return parameters
 
@@ -697,12 +697,12 @@ class Calibrate_tau_synx(BaseCalibration):
         parameters = super(Calibrate_tau_synx, self).get_parameters()
         for neuron_id in self.get_neurons():
             parameters[neuron_id].update({
-                pyhalbe.HICANN.neuron_parameter.E_l: Voltage(600),
-                pyhalbe.HICANN.neuron_parameter.E_synx: Voltage(1300),
-                pyhalbe.HICANN.neuron_parameter.E_syni: Voltage(200),
-                pyhalbe.HICANN.neuron_parameter.V_t: Voltage(1700),
-                pyhalbe.HICANN.shared_parameter.V_reset: Voltage(500),
-                pyhalbe.HICANN.neuron_parameter.I_gl: Current(1000),
+                neuron_parameter.E_l: Voltage(600),
+                neuron_parameter.E_synx: Voltage(1300),
+                neuron_parameter.E_syni: Voltage(200),
+                neuron_parameter.V_t: Voltage(1700),
+                shared_parameter.V_reset: Voltage(500),
+                neuron_parameter.I_gl: Current(1000),
             })
         return parameters
 
@@ -720,11 +720,11 @@ class Calibrate_a(BaseCalibration):
         parameters = super(Calibrate_a, self).get_parameters()
         for neuron_id in self.get_neurons():
             parameters[neuron_id].update({
-                pyhalbe.HICANN.neuron_parameter.E_l: Voltage(800),
-                pyhalbe.HICANN.neuron_parameter.I_gl: Current(1000),
-                pyhalbe.HICANN.neuron_parameter.V_t: Voltage(700),
-                pyhalbe.HICANN.neuron_parameter.I_radapt: Current(1000),
-                pyhalbe.HICANN.shared_parameter.V_reset: Voltage(500),
+                neuron_parameter.E_l: Voltage(800),
+                neuron_parameter.I_gl: Current(1000),
+                neuron_parameter.V_t: Voltage(700),
+                neuron_parameter.I_radapt: Current(1000),
+                shared_parameter.V_reset: Voltage(500),
             })
         return parameters
 
