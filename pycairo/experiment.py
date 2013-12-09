@@ -20,6 +20,13 @@ import time
 import os
 
 
+# shorter names
+Coordinate = pyhalbe.Coordinate
+Enum = Coordinate.Enum
+neuron_parameter = pyhalbe.HICANN.neuron_parameter
+shared_parameter = pyhalbe.HICANN.shared_parameter
+
+
 class BaseExperiment(object):
     """Base class for running experiments on individual neurons.
 
@@ -64,8 +71,9 @@ class BaseExperiment(object):
     def init_redman(self, backend):
         """Initialize defect management for given backend."""
         # FIXME default coordinates
-        coord_wafer = pyhalbe.Coordinate.Wafer(0)
-        coord_hicann = pyhalbe.Coordinate.HICANNOnWafer(pyhalbe.Coordinate.Enum(0))
+        coord_hglobal = self.sthal.index()  # grab HICANNGlobal from StHAL
+        coord_wafer = coord_hglobal.wafer()
+        coord_hicann = coord_hglobal.on_wafer()
         wafer = redman.Wafer(backend, coord_wafer)
         if not wafer.hicanns().has(coord_hicann):
             raise ValueError("HICANN {} is marked as defect.".format(int(coord_hicann.id())))
@@ -79,8 +87,14 @@ class BaseExperiment(object):
 
         nc = pycalibtic.NeuronCollection()
         md = pycalibtic.MetaData()
-        try:  # TODO replace by 'if backend.exists("cairo")' in the future, when this function is written
-            self._calib_backend.load("cairo", md, nc)
+
+        # grab Coordinate.HICANNGlobal from StHAL
+        c_hg = self.sthal.index()
+
+        # collection should be named "w<wafer-id>-h<hicann-id>"
+        name = "w{}-h{}".format(int(c_hg.wafer().id()), int(c_hg.on_wafer().id()))
+        try:  # TODO replace by 'if backend.exists()' in the future, when this function is written
+            self._calib_backend.load(name, md, nc)
         except RuntimeError, e:
             if e.message != "data set not found":
                 raise RuntimeError(e)
@@ -106,8 +120,8 @@ class BaseExperiment(object):
         """
 
         # use halbe default parameters
-        coord_neuron = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(0))
-        coord_block = pyhalbe.Coordinate.FGBlockOnHICANN(pyhalbe.Coordinate.Enum(0))
+        coord_neuron = Coordinate.NeuronOnHICANN(Enum(0))
+        coord_block = Coordinate.FGBlockOnHICANN(Enum(0))
         fgc = pyhalbe.HICANN.FGControl()
 
         result = {}
@@ -162,7 +176,7 @@ class BaseExperiment(object):
         # FIXME properly handle broken neurons here?
         for neuron_id in neuron_ids:
             step_parameters[neuron_id].update(steps[neuron_id][step_id])
-            coord_neuron = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(neuron_id))
+            coord_neuron = Coordinate.NeuronOnHICANN(Enum(neuron_id))
             broken = not self._red_nrns.has(coord_neuron)
             for param in step_parameters[neuron_id]:
                 step_cvalue = step_parameters[neuron_id][param]
@@ -201,7 +215,7 @@ class BaseExperiment(object):
         """
 
         for neuron_id in neuron_parameters:
-            coord = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(neuron_id))
+            coord = Coordinate.NeuronOnHICANN(Enum(neuron_id))
             neuron = self.sthal.hicann.neurons[coord]
             # use fastest membrane possible
             neuron.bigcap = True
@@ -211,7 +225,7 @@ class BaseExperiment(object):
         fgc = pyhalbe.HICANN.FGControl()
         V_reset = None
         for neuron_id in neuron_parameters:
-            coord = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(neuron_id))
+            coord = Coordinate.NeuronOnHICANN(Enum(neuron_id))
             for parameter in neuron_parameters[neuron_id]:
                 if parameter is pyhalbe.HICANN.shared_parameter.V_reset:
                     V_reset = neuron_parameters[neuron_id][parameter]
@@ -223,7 +237,7 @@ class BaseExperiment(object):
 
         if V_reset:
             for block in range(4):
-                coord = pyhalbe.Coordinate.FGBlockOnHICANN(pyhalbe.Coordinate.Enum(block))
+                coord = Coordinate.FGBlockOnHICANN(Enum(block))
                 fgc.setShared(coord, pyhalbe.HICANN.shared_parameter.V_reset, V_reset)
 
         self.sthal.hicann.floating_gates = fgc
@@ -447,7 +461,7 @@ class BaseCalibration(BaseExperiment):
         nc = self._calib_nc
         nrns = self._red_nrns
         for neuron_id in results:
-            coord_neuron = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(neuron_id))
+            coord_neuron = Coordinate.NeuronOnHICANN(Enum(neuron_id))
             broken = neuron_id in self.results_broken
             if broken:
                 if nrns.has(coord_neuron):  # not disabled
