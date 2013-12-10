@@ -26,7 +26,7 @@ import sys
 
 class Unit(object):
     """Base class for Current, Voltage and DAC parameter values."""
-    def __init__(self, value, apply_calibration=False):
+    def __init__(self, value, apply_calibration=True):
         """Args:
             value: parameter value in units of child class
             apply_calibration: apply correction to this value before writing it to the hardware?
@@ -46,7 +46,7 @@ class Unit(object):
 
 class Current(Unit):
     """Current in nA for hardware parameters."""
-    def __init__(self, value, apply_calibration=False):
+    def __init__(self, value, apply_calibration=True):
         super(Current, self).__init__(float(value), apply_calibration)
 
     @classmethod
@@ -63,7 +63,7 @@ class Current(Unit):
 
 class Voltage(Unit):
     """Voltage in mV for hardware parameters."""
-    def __init__(self, value, apply_calibration=False):
+    def __init__(self, value, apply_calibration=True):
         super(Voltage, self).__init__(float(value), apply_calibration)
 
     @classmethod
@@ -111,8 +111,9 @@ class BaseExperiment(object):
         self._repetitions = 1
 
         self._calib_backend = calibtic_backend
+        self._calib_hc = None
         self._calib_nc = None
-        #<>self._calib_bc = None
+        self._calib_bc = None
 
         if redman_backend:
             self.init_redman(redman_backend)
@@ -156,30 +157,41 @@ class BaseExperiment(object):
     def init_calibration(self):
         """Initialize Calibtic backend, load existing calibration data."""
 
-        nc = pycalibtic.NeuronCollection()
-        #<>bc = pycalibtic.BlockCollection()
+        hc = pycalibtic.HICANNCollection()
+        nc = hc.atNeuronCollection()
+        bc = hc.atBlockCollection()
         md = pycalibtic.MetaData()
+
+        # Delete all standard entries. TODO: fix calibtic to use proper standard entries
+        for nid in range(512):
+            nc.erase(nid)
+        for bid in range(4):
+            bc.erase(bid)
+
         try:  # TODO replace by 'if backend.exists("cairo")' in the future, when this function is written
-            self._calib_backend.load("cairo", md, nc)
-            #<>self._calib_backend.load("cairo", md, bc)
+            self._calib_backend.load("cairo", md, hc)
+            # load existing calibration:
+            nc = hc.atNeuronCollection()
+            bc = hc.atBlockCollection()
         except RuntimeError, e:
             if e.message != "data set not found":
                 raise RuntimeError(e)
             else:
                 # backend does not exist
                 pass
+
+        self._calib_hc = hc
         self._calib_nc = nc
-        #<>self._calib_bc = bc
+        self._calib_bc = bc
         self._calib_md = md
 
     def store_calibration(self, metadata=None):
         """Write calibration data to backend"""
         self._red_hicann.commit()
-
         if not metadata:
             metadata = self._calib_md
-        self._calib_backend.store("cairo", metadata, self._calib_nc)
-        #<>self._calib_backend.store("cairo", metadata, self._calib_bc)
+        self.logger.INFO("Storing calibration into backend")
+        self._calib_backend.store("cairo", metadata, self._calib_hc)
 
     def get_parameters(self):
         """Return neuron parameters for this experiment. Values can be of type Current, Voltage or DAC.
@@ -264,19 +276,6 @@ class BaseExperiment(object):
        
 
         
-        # Give info about nonexisting calibrations:
-        for param in step_parameters[0]:
-            try:
-                if type(param) is pyhalbe.HICANN.neuron_parameter:
-                    ncal = self._calib_nc.at(0).at(param)
-            except (RuntimeError, IndexError):
-                self.logger.WARN("No calibration found for {}. Using uncalibrated values.".format(param))
-        for param in step_shared_parameters[0]:
-            try:
-                if type(param) is pyhalbe.HICANN.shared_parameter:
-                    bcal = self._calib_bc.at(0).at(param)
-            except (RuntimeError, IndexError, AttributeError):
-                self.logger.WARN("No calibration found for {}. Using uncalibrated values.".format(param))
 
         # FIXME properly handle broken neurons here?
         # First prepare neuron parameters
@@ -466,6 +465,19 @@ class BaseExperiment(object):
         num_steps = len(steps[neuron_ids[0]])
         num_shared_steps = len(shared_steps[0])
 
+        # Give info about nonexisting calibrations:
+        for param in steps[0]:
+            try:
+                if type(param) is pyhalbe.HICANN.neuron_parameter:
+                    ncal = self._calib_nc.at(0).at(param)
+            except (RuntimeError, IndexError, AttributeError):
+                self.logger.WARN("No calibration found for {}. Using uncalibrated values.".format(param))
+        for param in steps[0]:
+            try:
+                if type(param) is pyhalbe.HICANN.shared_parameter:
+                    bcal = self._calib_bc.at(0).at(param)
+            except (RuntimeError, IndexError, AttributeError):
+                self.logger.WARN("No calibration found for {}. Using uncalibrated values.".format(param))
 
         # Save default and step parameters and description to files
         # Also save sthal container to extract standard sthal parameters later:
@@ -483,42 +495,35 @@ class BaseExperiment(object):
             paramdump = {nid: parameters[nid] for nid in self.get_neurons()}
             pickle.dump(paramdump, open("{}/parameters.p".format(self.folder),"wb"))
             #stepdump = [{pid.name: steps[0][sid][pid] for pid in steps[0][sid].keys()} for sid in range(num_steps)] 
-            stepdump = {sid: steps[sid] for sid in range(num_steps)}
+            stepdump = {sid: steps[0][sid] for sid in range(num_steps)}
             pickle.dump(stepdump, open("{}/steps.p".format(self.folder),"wb"))
 
             # dump shared parameters and steps:
             sharedparamdump = {bid: shared_parameters[bid] for bid in range(4)}
             pickle.dump(sharedparamdump, open("{}/shared_parameters.p".format(self.folder),"wb"))
-            sharedstepdump = {sid: shared_steps[sid] for sid in range(num_shared_steps)}
+            sharedstepdump = {sid: shared_steps[0][sid] for sid in range(num_shared_steps)}
             pickle.dump(sharedstepdump, open("{}/shared_steps.p".format(self.folder),"wb"))
-
-        if num_steps > 0 and num_shared_steps is 0:
-            for step_id in range(num_steps):
+        
+        logger.INFO("Experiment: {}".format(self.description))
+        logger.INFO("Finished initializing pickle folders. Starting with measurements.")
+        # First check if step numbers match if both shared and neuron parameters are swept!
+        if (num_steps > 0 and num_shared_steps is 0) or (num_shared_steps > 0 and num_steps is 0) or (num_steps == num_shared_steps):
+            for step_id in range(max(num_steps, num_shared_steps)):
                 step_parameters = self.prepare_parameters(step_id)
                 for r in range(self.repetitions):
                     pylogging.set_loglevel(self.logger, pylogging.LogLevel.INFO)
-                    logger.INFO("step {} repetition {}".format(step_id,r))
+                    logger.INFO("Step {} repetition {}.".format(step_id, r))
+                    logger.INFO("Preparing measurement --> setting floating gates")
+                    pylogging.set_loglevel(self.logger, pylogging.LogLevel.ERROR) # Disable FGBlock messages
                     self.prepare_measurement(step_parameters, step_id, r)
-                    self.measure(neuron_ids, step_id, r)
-        elif num_shared_steps > 0 and num_steps is 0:
-            for step_id in range(num_shared_steps):
-                step_parameters = self.prepare_parameters(step_id)
-                for r in range(self.repetitions):
                     pylogging.set_loglevel(self.logger, pylogging.LogLevel.INFO)
-                    logger.INFO("step {} repetition {}".format(step_id,r))
-                    self.prepare_measurement(step_parameters, step_id, r)
-                    self.measure(neuron_ids, step_id, r)
-        elif num_steps == num_shared_steps:
-            for step_id in range(num_shared_steps):
-                step_parameters = self.prepare_parameters(step_id)
-                for r in range(self.repetitions):
-                    pylogging.set_loglevel(self.logger, pylogging.LogLevel.INFO)
-                    logger.INFO("step {} repetition {}".format(step_id,r))
-                    self.prepare_measurement(step_parameters, step_id, r)
+                    logger.INFO("Measuring.")
+                    pylogging.set_loglevel(self.logger, pylogging.LogLevel.ERROR) # Disable FGBlock messages
                     self.measure(neuron_ids, step_id, r)
         else:
             logger.WARN("When sweeping shared AND neuron parameters, both need to have same no. of steps.")
-        logger.INFO("processing results")
+
+        logger.INFO("Processing results")
         self.process_results(neuron_ids)
         self.store_results()
 
@@ -563,27 +568,27 @@ class BaseExperiment(object):
 class BaseCalibration(BaseExperiment):
     """Base class for calibration experiments."""
     def get_parameters(self):
-        parameters = {pyhalbe.HICANN.neuron_parameter.E_l: Voltage(1000),
-                      pyhalbe.HICANN.neuron_parameter.E_syni: Voltage(900),
-                      pyhalbe.HICANN.neuron_parameter.E_synx: Voltage(1100),
-                      pyhalbe.HICANN.neuron_parameter.I_bexp: Current(0),
-                      pyhalbe.HICANN.neuron_parameter.I_convi: Current(1000), # set 0
-                      pyhalbe.HICANN.neuron_parameter.I_convx: Current(1000), # set 0
-                      pyhalbe.HICANN.neuron_parameter.I_fire: Current(0),
-                      pyhalbe.HICANN.neuron_parameter.I_gl: Current(1000),
-                      pyhalbe.HICANN.neuron_parameter.I_gladapt: Current(0),
-                      pyhalbe.HICANN.neuron_parameter.I_intbbi: Current(2000),
-                      pyhalbe.HICANN.neuron_parameter.I_intbbx: Current(2000),
-                      pyhalbe.HICANN.neuron_parameter.I_pl: Current(2000),
-                      pyhalbe.HICANN.neuron_parameter.I_radapt: Current(2000),
-                      pyhalbe.HICANN.neuron_parameter.I_rexp: Current(750),
-                      pyhalbe.HICANN.neuron_parameter.I_spikeamp: Current(2000),
-                      pyhalbe.HICANN.neuron_parameter.V_exp: Voltage(536),
-                      pyhalbe.HICANN.neuron_parameter.V_syni: Voltage(1000),
-                      pyhalbe.HICANN.neuron_parameter.V_syntci: Voltage(900),
-                      pyhalbe.HICANN.neuron_parameter.V_syntcx: Voltage(900),
-                      pyhalbe.HICANN.neuron_parameter.V_synx: Voltage(1000),
-                      pyhalbe.HICANN.neuron_parameter.V_t: Voltage(1000),  # recommended threshold, maximum is 1100
+        parameters = {pyhalbe.HICANN.neuron_parameter.E_l: Voltage(900),
+                      pyhalbe.HICANN.neuron_parameter.E_syni: Voltage(800),     # synapse
+                      pyhalbe.HICANN.neuron_parameter.E_synx: Voltage(1000),    # synapse
+                      pyhalbe.HICANN.neuron_parameter.I_bexp: Current(0),       # exponential term set to 0
+                      pyhalbe.HICANN.neuron_parameter.I_convi: Current(2500),   # bias current for synaptic input
+                      pyhalbe.HICANN.neuron_parameter.I_convx: Current(2500),   # bias current for synaptic input 
+                      pyhalbe.HICANN.neuron_parameter.I_fire: Current(0),       # adaptation term b
+                      pyhalbe.HICANN.neuron_parameter.I_gladapt: Current(0),    # adaptation term
+                      pyhalbe.HICANN.neuron_parameter.I_gl: Current(1000),      # leakage conductance
+                      pyhalbe.HICANN.neuron_parameter.I_intbbi: Current(2000),  # integrator bias in synapse
+                      pyhalbe.HICANN.neuron_parameter.I_intbbx: Current(2000),  # integrator bias in synapse
+                      pyhalbe.HICANN.neuron_parameter.I_pl: Current(2000),      # tau_refrac
+                      pyhalbe.HICANN.neuron_parameter.I_radapt: Current(2000),  # 
+                      pyhalbe.HICANN.neuron_parameter.I_rexp: Current(750),     # something about the strength of exp term
+                      pyhalbe.HICANN.neuron_parameter.I_spikeamp: Current(2000),#
+                      pyhalbe.HICANN.neuron_parameter.V_exp: Voltage(536),      # exponential term
+                      pyhalbe.HICANN.neuron_parameter.V_syni: Voltage(1000),    # inhibitory synaptic reversal potential
+                      pyhalbe.HICANN.neuron_parameter.V_syntci: Voltage(900),   # inhibitory synapse time constant
+                      pyhalbe.HICANN.neuron_parameter.V_syntcx: Voltage(900),   # excitatory synapse time constant
+                      pyhalbe.HICANN.neuron_parameter.V_synx: Voltage(1000),    # excitatory synaptic reversal potential 
+                      pyhalbe.HICANN.neuron_parameter.V_t: Voltage(1000),       # recommended threshold, maximum is 1100
                       }
         return defaultdict(lambda: dict(parameters))
 
@@ -670,11 +675,13 @@ class BaseCalibration(BaseExperiment):
                 else:
                     # fit polynomial to results
                     weight = 1./(results_std[neuron_id] + 1e-8)  # add a tiny value because std may be zero
+
                     # note that np.polynomial.polynomial.polyfit coefficients have
                     # reverse order compared to np.polyfit
                     # to reverse coefficients: rcoeffs = coeffs[::-1]
                     coeffs = np.polynomial.polynomial.polyfit(results_mean[neuron_id], steps, 2, w=weight)
                     # TODO check coefficients for broken behavior
+                self.logger.INFO("Neuron {} calibrated successfully with coefficients {}".format(neuron_id, coeffs))
                 results_polynomial[neuron_id] = create_pycalibtic_polynomial(coeffs)
             self.results_mean = results_mean
             self.results_std = results_std
@@ -699,11 +706,8 @@ class BaseCalibration(BaseExperiment):
 
         if isneuron: 
             collection = self._calib_nc 
-            #<>self._calib_backend.load("cairo", md, collection)
         else: 
-            pass
-            #<>collection = self._calib_bc
-            #<>self._calib_backend.load("cairo", md, collection)
+            collection = self._calib_bc
 
         nrns = self._red_nrns
         for index in results:
@@ -718,7 +722,7 @@ class BaseCalibration(BaseExperiment):
                 # TODO reset/delete calibtic function for this neuron
             else:  # store in calibtic
                 if not collection.exists(index):
-                    logger.INFO("no existing calibration data for neuron {} found, creating default dataset".format(index))
+                    logger.INFO("No existing calibration data for neuron {} found, creating default dataset".format(index))
                     if isneuron:
                         cal = pycalibtic.NeuronCalibration()
                     else:
@@ -726,6 +730,7 @@ class BaseCalibration(BaseExperiment):
                     collection.insert(index, cal)
                 collection.at(index).reset(parameter, results[index])
 
+        self.logger.INFO("Storing calibration results")
         self.store_calibration(md)
 
 
@@ -751,6 +756,12 @@ class Calibrate_E_l(BaseCalibration):
             })
         return parameters
 
+    def get_shared_parameters(self):
+        parameters = super(Calibrate_E_l, self).get_shared_parameters()
+        for block_id in range(4):
+            parameters[block_id][pyhalbe.HICANN.shared_parameter.V_reset] = Voltage(500)
+        return parameters
+
     def get_steps(self):
         steps = []
         #for voltage in range(600, 1100, 25):
@@ -769,6 +780,9 @@ class Calibrate_E_l(BaseCalibration):
         self.description = "Calibrate_E_l with Esyn set AFTER calibration."
 
     def process_trace(self, t, v):
+        if np.std(v)>50:
+            pickle.dump([t,v], open(os.path.join(self.workdir,"bad_trace.p"), 'wb'))
+            raise ValueError
         return np.mean(v)*1000 # Get the mean value * 1000 for mV
 
     def process_results(self, neuron_ids):
@@ -874,7 +888,7 @@ class Calibrate_g_L(BaseCalibration):
         for neuron_id in self.get_neurons():
             parameters[neuron_id].update({
                 pyhalbe.HICANN.neuron_parameter.E_l: Voltage(1100, apply_calibration = True),
-                pyhalbe.HICANN.neuron_parameter.V_t: Voltage(700, apply_calibration = True),
+                pyhalbe.HICANN.neuron_parameter.V_t: Voltage(1000, apply_calibration = True),
                 pyhalbe.HICANN.neuron_parameter.I_convx: DAC(1023),
                 pyhalbe.HICANN.neuron_parameter.I_convi: DAC(1023),
             })
@@ -883,7 +897,7 @@ class Calibrate_g_L(BaseCalibration):
     def get_shared_parameters(self):
         parameters = super(Calibrate_g_L, self).get_shared_parameters()
         for block_id in range(4):
-            parameters[block_id][pyhalbe.HICANN.shared_parameter.V_reset] = Voltage(500, apply_calibration = True)
+            parameters[block_id][pyhalbe.HICANN.shared_parameter.V_reset] = Voltage(800, apply_calibration = True)
         return parameters
 
     def get_steps(self):
@@ -904,12 +918,12 @@ class Calibrate_g_L(BaseCalibration):
 
     def process_trace(self, t, v):
         spk = pycairo.logic.spikes.detect_spikes(t,v)
-        f = pycairo.logicspikes.spikes_to_freqency(spk) * 1E-3
-        E_l = 1100
+        f = pycairo.logic.spikes.spikes_to_freqency(spk) 
+        E_l = 1100.
         C = 2.16456E-12
         V_t = max(v)*1000.
         V_r = min(v)*1000.
-        g_l = f * C * np.log((V_r-E_l)/(V_t-E_l)) * 1E12
+        g_l = f * C * np.log((V_r-E_l)/(V_t-E_l)) * 1E9
         return g_l
 
     def process_calibration_results(self, neuron_ids, parameter, linear_fit=False):
@@ -975,6 +989,100 @@ class Calibrate_g_L(BaseCalibration):
     def store_results(self):
         # TODO detect and store broken neurons
         super(Calibrate_g_L, self).store_calibration_results(pyhalbe.HICANN.neuron_parameter.I_gl)
+
+
+
+# TODO, playground for digital spike measures atm.
+class Calibrate_g_L_stepcurrent(BaseCalibration):
+    def get_parameters(self):
+        parameters = super(Calibrate_g_L_stepcurrent, self).get_parameters()
+        for neuron_id in self.get_neurons():
+            parameters[neuron_id].update({
+                pyhalbe.HICANN.neuron_parameter.E_l: Voltage(900, apply_calibration = True),
+                pyhalbe.HICANN.neuron_parameter.V_t: Voltage(1300, apply_calibration = True),
+                pyhalbe.HICANN.neuron_parameter.I_convx: DAC(1023),
+                pyhalbe.HICANN.neuron_parameter.I_convi: DAC(1023),
+            })
+        return parameters
+
+    def get_shared_parameters(self):
+        parameters = super(Calibrate_g_L_stepcurrent, self).get_shared_parameters()
+        for block_id in range(4):
+            parameters[block_id][pyhalbe.HICANN.shared_parameter.V_reset] = Voltage(700, apply_calibration = True)
+        return parameters
+
+    def get_steps(self):
+        steps = []
+        #for current in range(700, 1050, 50):
+        for current in range(700, 1000, 100):
+            steps.append({pyhalbe.HICANN.neuron_parameter.I_gl: Current(current)})
+        return defaultdict(lambda: steps)
+
+    def init_experiment(self):
+        super(Calibrate_g_L_stepcurrent, self).init_experiment()
+        self.description = "Capacitance g_L experiment. Membrane is fitted after step current" # Change this for all child classes
+        self.repetitions = 1
+        self.E_syni_dist = -100
+        self.E_synx_dist = +100
+        self.save_results = True
+        self.save_traces = False
+
+    def prepare_measurement(self, step_parameters, step_id, rep_id):
+        """Prepare measurement.
+        Perform reset, write general hardware settings.
+        """
+        neuron_parameters = step_parameters[0]
+        shared_parameters = step_parameters[1]
+
+        fgc = pyhalbe.HICANN.FGControl()
+        # Set neuron parameters for each neuron
+        for neuron_id in neuron_parameters:
+            coord = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(neuron_id))
+            for parameter in neuron_parameters[neuron_id]:
+                value = neuron_parameters[neuron_id][parameter]
+                fgc.setNeuron(coord, parameter, value)
+            fgstim = pyhalbe.HICANN.FGStimulus(10,10,False)
+            self.sthal.hicann.setCurrentStimulus(coord, fgstim)
+
+        # Set block parameters for each block
+        for block_id in shared_parameters:
+            coord = pyhalbe.Coordinate.FGBlockOnHICANN(pyhalbe.Coordinate.Enum(block_id))
+            for parameter in shared_parameters[block_id]:
+                value = shared_parameters[block_id][parameter]
+                fgc.setShared(coord, parameter, value)
+
+        self.sthal.hicann.floating_gates = fgc
+
+        if self.bigcap is True:
+            # TODO add bigcap functionality
+            pass
+        
+        if self.save_results:
+            if not os.path.isdir(os.path.join(self.folder,"floating_gates")):
+                os.mkdir(os.path.join(self.folder,"floating_gates"))
+            pickle.dump(fgc, open("{}/floating_gates/step{}rep{}.p".format(self.folder,step_id,rep_id), 'wb'))
+
+        self.sthal.write_config()
+
+    def process_trace(self, t, v):
+        spk = pycairo.logic.spikes.detect_spikes(t,v)
+        f = pycairo.logic.spikes.spikes_to_freqency(spk) 
+        E_l = 1100.
+        C = 2.16456E-12
+        V_t = max(v)*1000.
+        V_r = min(v)*1000.
+        g_l = f * C * np.log((V_r-E_l)/(V_t-E_l)) * 1E9
+        return g_l
+
+    def process_results(self, neuron_ids):
+        pass
+
+    def store_results(self):
+        pass
+
+
+
+
 
 
 class Calibrate_tau_ref(BaseCalibration):

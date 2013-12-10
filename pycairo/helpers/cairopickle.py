@@ -87,40 +87,86 @@ class Cairo_Experimentreader(object):
             f = open('{}/{}/description.txt'.format(self.workdir,expname), 'w')
         f.write(description)
 
-    def compare_experiments(self, parameter, exp1, exp2, step, repetition = None):
-        """ Plots histograms that compare two experiments.
+    def compare_experiments(self, parameter, experiment1, experiment2, step, repetition = None):
+        """ Plot histograms that compare two experiments.
             
             Args:
-                exp1: needs to be a Cairo_experiment object
-                exp2: see exp1
+                experiment1: needs to be a Cairo_experiment object
+                experiment2: see experiment1
                 step: int, which step do you want to compare?
                 repetition: int, which repetition do you want to compare?
+                            if nothing given, mean over repetitions is compared
 
             Returns:
                 matplotlib.pyplot.figure object with the histogram
         """
+        if type(experiment1) is int:
+                experiment1 = self.list_experiments(prnt = False)[0][experiment1]
+        if type(experiment2) is int:
+                experiment2 = self.list_experiments(prnt = False)[0][experiment2]
+        exp1 = self.load_experiment(experiment1)
+        exp2 = self.load_experiment(experiment2)
+
+        if type(parameter) is pyhalbe.HICANN.neuron_parameter:
+            steps1 = exp1.steps
+            steps2 = exp1.steps
+        else:
+            steps1 = exp1.shared_steps
+            steps2 = exp1.shared_steps
+
         if repetition is None:
             data1 = exp1.mean_over_reps()[0][step]
             data2 = exp2.mean_over_reps()[0][step]
         else:
             data1 = exp1.results[step][repetition]
             data2 = exp2.results[step][repetition]
-        minval = int(round(exp1.steps[0][0][parameter].value * 0.9))
-        maxval = int(round(exp1.steps[0][-1][parameter].value * 1.1))
+
+        minval = int(round(steps1[0][parameter].value * 0.9))
+        maxval = int(round(steps1[-1][parameter].value * 1.1))
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        ax.hist(data1, range(minval,maxval,10))
-        ax.hist(data2, range(minval,maxval,10))
+        ax.hist(data1, range(minval,maxval,int((maxval-minval)/70)))
+        ax.hist(data2, range(minval,maxval,int((maxval-minval)/70)))
         ax.set_title("Comparison of {} values.".format(parameter.name))
         ax.set_xlabel(parameter.name)
         ax.set_ylabel("Occurences")
         return fig
-         
+
+    def print_errors(self, experiments):
+        """ Prints errors of some experiments.
+
+            Args:
+                experiments: list of experiment names or ids
+
+            Returns:
+                None
+        """
+        for ex_id in experiments:
+            print "Errors of experiment {}:".format(ex_id)
+            if type(ex_id) is int:
+                ex_id = self.list_experiments(prnt = False)[0][ex_id]
+            exp = self.load_experiment(ex_id)
+            exp.calculate_errors()
+
+    def get_broken(self):
+        """ Gives names of experiments without a results folder.
+
+            Returns:
+                List of names of broken experiments.
+        """
+        broken = []
+        dirs = np.sort([name for name in os.listdir(self.workdir) if os.path.isdir(os.path.join(self.workdir, name))])
+        for d in dirs:
+            if not os.path.isdir(os.path.join(self.workdir, d, "results")):
+                print "{} broken: no results folder".format(d)
+                broken.append(d)
+        return broken
+
 
 
 class Cairo_experiment(object):
     def __init__(self, folder):
-            """ Class that contains most data of one experiment. Traces will be loaded separately. 
+            """ Class that contains most data of one experiment. Traces will be loaded separately.
             """
             self.workdir = folder
             self.params = pickle.load(open('{}/parameters.p'.format(self.workdir)))
@@ -132,7 +178,7 @@ class Cairo_experiment(object):
                 print "No shared parameters/steps found"
                 self.shared_steps = {}
                 self.shared_params = {}
-            self.results_unsorted = [pickle.load(open('{}/results/{}'.format(self.workdir,fname))) for fname in os.listdir('{}/results/'.format(self.workdir))]
+            self.results_unsorted = [pickle.load(open('{}/results/{}'.format(self.workdir,fname))) for fname in np.sort(os.listdir('{}/results/'.format(self.workdir)))]
             self.reps = pickle.load(open("{}/repetitions.p".format(self.workdir)))
             self.results=[]
             self.num_steps = max(len(self.steps),len(self.shared_steps))
@@ -152,8 +198,8 @@ class Cairo_experiment(object):
                 self.sthalcontainer = pickle.load(open("{}/sthalcontainer.p".format(self.workdir)))
             self.stepnum = len(self.results)
     
-    def get_traces(self, step_id = 0, rep_id = 0):
-            """ Get the traces of all neurons from a specific measurement
+    def get_trace(self, neuron_id, step_id = 0, rep_id = 0):
+            """ Get the traces of one neurons from a specific measurement
             
                 Args:
                     step_id = int
@@ -163,35 +209,32 @@ class Cairo_experiment(object):
                     Numpy array of pickled traces
             """
             try:
-                traces = np.array([pickle.load(open('{}/traces/step{}rep{}/neuron_{}.p'.format(self.workdir,step_id,rep_id,nid))) for nid in range(512)])
+                trace = np.array(pickle.load(open('{}/traces/step{}rep{}/neuron_{}.p'.format(self.workdir,step_id,rep_id,neuron_id))))
             except IOError:
                 print 'No traces saved'
                 pass
-            return traces
+            return trace
            
     def mean_over_reps(self):
         """ 
             Returns: 
-                data that is averaged over all repetitions:
+                mean and std (trial-to-trial variation) over all repetitions:
                 [mean[step][neuron],std[step][neuron]]
         """
         return [[np.mean(self.results[step], axis = 0) for step in range(self.stepnum)],
                 [np.std(self.results[step], axis = 0) for step in range(self.stepnum)]]
 
     
-    def calculate_errors(self,details = False):
+    def calculate_errors(self):
         """ Print errors of measurement.
             
-            Args:
-                details = (True|False) give detailed list?
-
             Returns:
                 numpy arrays: [neuron_to_neuron,trial_to_trial]
                 with array[steps][0] for mean, array[steps][1] for std
                 
         """
         string = ""
-        string = string + "Step\t Neuron-to-Neuron\t    Trial-to-Trial\n"
+        string = string + "Step\t Target \t Neuron-to-Neuron\t    Trial-to-Trial\n"
         
         data = self.results
 
@@ -205,15 +248,17 @@ class Cairo_experiment(object):
             # trial to trial:
             mean_ttot = np.mean(np.std(data[stepid], axis=0))
             std_ttot = np.std(np.std(data[stepid], axis=0))
+
+            # target:
+            if len(self.steps)>0:
+                target = self.steps[stepid].values()[0].value
+            else:
+                target = self.shared_steps[stepid].values()[0].value
             
             neuron_to_neuron.append([mean_nton,std_nton])
             trial_to_trial.append([mean_ttot,std_ttot])
 
-            string = string + "  {0:0}\t({1:6.2f} +- {2:6.2f}) \t ({3:6.2f} +- {4:6.2f})\n".format(stepid, mean_nton, std_nton, mean_ttot, std_ttot)
-            if details:
-                string = string + "Worst N-to-N neurons: {} with {} mV and {} with {} mV\n".format(np.argmin(self.mean_over_reps()[0][stepid]-mean_nton),np.min(self.mean_over_reps()[0][stepid]-mean_nton),
-                                                                                     np.argmax(self.mean_over_reps()[0][stepid]-mean_nton),np.max(self.mean_over_reps()[0][stepid]-mean_nton))
-                string = string + "Worst T-to-T neuron: {} with std of {}\n".format(np.argmax(np.std(data[2][stepid], axis=0)), np.max(np.std(data[2][stepid], axis=0)))
+            string = string + "  {0:0}\t {5:6.2f} \t ({1:6.2f} +- {2:6.2f}) \t ({3:6.2f} +- {4:6.2f})\n".format(stepid, mean_nton, std_nton, mean_ttot, std_ttot, target)
         string = string + '\n'
         print string
         return [neuron_to_neuron,trial_to_trial]
@@ -232,8 +277,7 @@ class Cairo_experiment(object):
         
         mean_data = self.mean_over_reps()[0]
         mean_data_sorted = [[mean_data[sid][nid] for sid in range(self.stepnum)]for nid in range(len(self.results[0][0]))]
-        if param: xs = [step[param].value for step in self.steps]
-        else: xs = [step.values()[0].value for step in self.steps]
+        xs = [step[param].value for step in self.steps]
         
         fit_results = [np.polyfit(mean_data_sorted[nid], xs, 2) for nid in range(len(self.results[0][0]))]
         return fit_results
@@ -280,7 +324,7 @@ class Cairo_experiment(object):
                     shared_params[param] = self.sthalcontainer.floating_gates.getShared(block_coord, param) 
 
     def get_neuron_results(self, neuron_id, mean = True):
-        """ Get the results sorted for one neuron.
+        """ Get the results sorted per neuron, not per step.
 
             Args:
                 neuron_id = (0..511)
