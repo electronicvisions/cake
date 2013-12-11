@@ -8,93 +8,23 @@ import numpy as np
 import pylogging
 from collections import defaultdict
 import pyhalbe
-import pysthal
 import pycalibtic
 import pyredman as redman
 import pycairo.logic.spikes
 from pycairo.helpers.calibtic import create_pycalibtic_polynomial
-from pycairo.helpers.redman import init_backend as init_redman
-from pycairo.helpers.calibtic import init_backend as init_calibtic
 from pycairo.helpers.sthal import StHALContainer, UpdateAnalogOutputConfigurator
+from pycairo.helpers.units import Current, Voltage, DAC
 
 # Import everything needed for saving:
 import pickle
 import time
 import os
-import sys
 
-
-class Unit(object):
-    """Base class for Current, Voltage and DAC parameter values."""
-    def __init__(self, value, apply_calibration=True):
-        """Args:
-            value: parameter value in units of child class
-            apply_calibration: apply correction to this value before writing it to the hardware?
-        """
-        self.value = value
-        self.apply_calibration = apply_calibration
-
-    @property
-    def value(self):
-        return self._value
-
-    @value.setter
-    def value(self, value):
-        self._check(value)
-        self._value = value
-
-
-class Current(Unit):
-    """Current in nA for hardware parameters."""
-    def __init__(self, value, apply_calibration=True):
-        super(Current, self).__init__(float(value), apply_calibration)
-
-    @classmethod
-    def _check(self, value):
-        if value < 0. or value > 2500.:
-            raise ValueError("Current value {} nA out of range".format(value))
-
-    def toDAC(self):
-        return DAC(self.value/2500.*1023., self.apply_calibration)
-
-    def __repr__(self):
-        return "{} nA".format(self.value)
-
-
-class Voltage(Unit):
-    """Voltage in mV for hardware parameters."""
-    def __init__(self, value, apply_calibration=True):
-        super(Voltage, self).__init__(float(value), apply_calibration)
-
-    @classmethod
-    def _check(self, value):
-        if value < 0. or value > 1800.:
-            raise ValueError("Voltage value {} mV out of range".format(value))
-
-    def toDAC(self):
-        return DAC(self.value/1800.*1023., self.apply_calibration)
-
-    def __repr__(self):
-        return "{} mV".format(self.value)
-
-
-class DAC(Unit):
-    def __init__(self, value, apply_calibration=False):
-        super(DAC, self).__init__(int(round(value)), apply_calibration)
-
-    @classmethod
-    def _check(self, value):
-        if not isinstance(value, int):
-            raise TypeError("DAC value is no integer")
-        if value < 0 or value > 1023:
-            raise ValueError("DAC value {} out of range".format(value))
-
-    def toDAC(self):
-        return self
-
-    def __repr__(self):
-        return "{} (DAC)".format(self.value)
-
+# shorter names
+Coordinate = pyhalbe.Coordinate
+Enum = Coordinate.Enum
+neuron_parameter = pyhalbe.HICANN.neuron_parameter
+shared_parameter = pyhalbe.HICANN.shared_parameter
 
 class BaseExperiment(object):
     """Base class for running experiments on individual neurons.
@@ -137,15 +67,16 @@ class BaseExperiment(object):
         self.save_traces = False
         self.repetitions = 1
         self.bigcap = True
-        self.description = "Basic experiment." # Change this for all child classes
-        self.folder = "exp{0:02d}{1:02d}_{2:02d}{3:02d}".format(time.localtime().tm_mon,time.localtime().tm_mday,time.localtime().tm_hour,time.localtime().tm_min)
-        pass
+        self.description = "Basic experiment."  # Change this for all child classes
+        localtime = time.localtime()
+        self.folder = "exp{0:02d}{1:02d}_{2:02d}{3:02d}".format(localtime.tm_mon, localtime.tm_mday, localtime.tm_hour, localtime.tm_min)
 
     def init_redman(self, backend):
         """Initialize defect management for given backend."""
         # FIXME default coordinates
-        coord_wafer = pyhalbe.Coordinate.Wafer(0)
-        coord_hicann = pyhalbe.Coordinate.HICANNOnWafer(pyhalbe.Coordinate.Enum(0))
+        coord_hglobal = self.sthal.hicann.index()  # grab HICANNGlobal from StHAL
+        coord_wafer = coord_hglobal.wafer()
+        coord_hicann = coord_hglobal.on_wafer()
         wafer = redman.Wafer(backend, coord_wafer)
         if not wafer.hicanns().has(coord_hicann):
             raise ValueError("HICANN {} is marked as defect.".format(int(coord_hicann.id())))
@@ -168,8 +99,15 @@ class BaseExperiment(object):
         for bid in range(4):
             bc.erase(bid)
 
+        # grab Coordinate.HICANNGlobal from StHAL
+        c_hg = self.sthal.hicann.index()
+
+        # collection should be named "w<wafer-id>-h<hicann-id>"
+        #name = "w{}-h{}".format(int(c_hg.wafer().id()), int(c_hg.on_wafer().id()))
+        name = 'cairo'
+
         try:  # TODO replace by 'if backend.exists("cairo")' in the future, when this function is written
-            self._calib_backend.load("cairo", md, hc)
+            self._calib_backend.load(name, md, hc)
             # load existing calibration:
             nc = hc.atNeuronCollection()
             bc = hc.atBlockCollection()
@@ -201,11 +139,12 @@ class BaseExperiment(object):
         """
 
         # use halbe default parameters
-        coord_neuron = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(0))
+        coord_neuron = Coordinate.NeuronOnHICANN(Enum(0))
+        coord_block = Coordinate.FGBlockOnHICANN(Enum(0))
         fgc = pyhalbe.HICANN.FGControl()
 
         result = {}
-        for name, param in pyhalbe.HICANN.neuron_parameter.names:
+        for name, param in neuron_parameter.names:
             if name[0] in ("E", "V"):
                 result[param] = Voltage(fgc.getNeuron(coord_neuron, param))
             elif name[0] == "I":
@@ -214,7 +153,7 @@ class BaseExperiment(object):
                 pass
 
         return defaultdict(lambda: result)
-    
+
     def get_shared_parameters(self):
         """Return shared parameters for this experiment. Values can be of type Current, Voltage or DAC.
 
@@ -262,8 +201,8 @@ class BaseExperiment(object):
         Returns:
             dict of neuron ids -> dict of neuron parameters -> DAC values (int)
 
-            Example: {0: {pyhalbe.HICANN.neuron_parameter.E_l: 400, ...},
-                      1: {pyhalbe.HICANN.neuron_parameter.E_l: 450, ...}}
+            Example: {0: {neuron_parameter.E_l: 400, ...},
+                      1: {neuron_parameter.E_l: 450, ...}}
         """
 
         steps = self.get_steps()
@@ -273,15 +212,13 @@ class BaseExperiment(object):
 
         step_parameters = self.get_parameters()
         step_shared_parameters = self.get_shared_parameters()
-       
 
-        
 
         # FIXME properly handle broken neurons here?
         # First prepare neuron parameters
         for neuron_id in neuron_ids:
             step_parameters[neuron_id].update(steps[neuron_id][step_id])
-            coord_neuron = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(neuron_id))
+            coord_neuron = Coordinate.NeuronOnHICANN(Enum(neuron_id))
             broken = not self._red_nrns.has(coord_neuron)
             for param in step_parameters[neuron_id]:
                 # Handle only neuron parameters in this step. Shared parameters applied afterwards
@@ -351,7 +288,7 @@ class BaseExperiment(object):
         fgc = pyhalbe.HICANN.FGControl()
         # Set neuron parameters for each neuron
         for neuron_id in neuron_parameters:
-            coord = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(neuron_id))
+            coord = Coordinate.NeuronOnHICANN(Enum(neuron_id))
             for parameter in neuron_parameters[neuron_id]:
                 value = neuron_parameters[neuron_id][parameter]
                 fgc.setNeuron(coord, parameter, value)
@@ -372,8 +309,7 @@ class BaseExperiment(object):
         if self.save_results:
             if not os.path.isdir(os.path.join(self.folder,"floating_gates")):
                 os.mkdir(os.path.join(self.folder,"floating_gates"))
-            pickle.dump(fgc, open("{}/floating_gates/step{}rep{}.p".format(self.folder,step_id,rep_id), 'wb'))
-
+            pickle.dump(fgc, open(os.path.join(self.folder,"/floating_gates/step{}rep{}.p".format(step_id,rep_id)), 'wb'))
         self.sthal.write_config()
 
     @property
@@ -396,15 +332,15 @@ class BaseExperiment(object):
             Example: {
                         0: { # first step
                             # neuron 0
-                            0: {pyhalbe.HICANN.neuron_parameter.E_l: Voltage(400)},
-                            1: {pyhalbe.HICANN.neuron_parameter.E_l: Voltage(400)},
+                            0: {neuron_parameter.E_l: Voltage(400)},
+                            1: {neuron_parameter.E_l: Voltage(400)},
                            },
                         1: { # second step
-                            0: pyhalbe.HICANN.neuron_parameter.E_l: Voltage(600)},
-                            1: pyhalbe.HICANN.neuron_parameter.E_l: Voltage(650)},
+                            0: neuron_parameter.E_l: Voltage(600)},
+                            1: neuron_parameter.E_l: Voltage(650)},
                         },
-                            0: {pyhalbe.HICANN.neuron_parameter.E_l: Voltage(800)}
-                            1: {pyhalbe.HICANN.neuron_parameter.E_l: Voltage(800)}
+                            0: {neuron_parameter.E_l: Voltage(800)}
+                            1: {neuron_parameter.E_l: Voltage(800)}
                         }
                     }
         """
@@ -485,24 +421,24 @@ class BaseExperiment(object):
         if self.save_results:
             if not os.path.isdir(self.folder):
                 os.mkdir(self.folder)
-
-            pickle.dump(self.sthal.hicann, open('{}/sthalcontainer.p'.format(self.folder),"wb"))
-            pickle.dump(self.repetitions, open("{}/repetitions.p".format(self.folder), 'wb'))
-            open('{}/description.txt'.format(self.folder),'w').write(self.description)
+            pickle.dump(self.sthal.hicann, open(os.path.join(self.folder,'sthalcontainer.p'),"wb"))
+            pickle.dump(self.sthal.status(), open(os.path.join(self.folder,'wafer_status.p'),'wb'))
+            pickle.dump(self.repetitions, open(os.path.join(self.folder,"repetitions.p"), 'wb'))
+            open(os.path.join(self.folder,'description.txt'), 'w').write(self.description)
 
             # dump neuron parameters and steps:
             #paramdump = {nid:{parameters[nid].keys()[pid].name: parameters[nid].values()[pid] for pid in parameters[0].keys()} for nid in self.get_neurons()}
             paramdump = {nid: parameters[nid] for nid in self.get_neurons()}
-            pickle.dump(paramdump, open("{}/parameters.p".format(self.folder),"wb"))
+            pickle.dump(paramdump, open(os.path.join(self.folder,"parameters.p"),"wb"))
             #stepdump = [{pid.name: steps[0][sid][pid] for pid in steps[0][sid].keys()} for sid in range(num_steps)] 
             stepdump = {sid: steps[0][sid] for sid in range(num_steps)}
-            pickle.dump(stepdump, open("{}/steps.p".format(self.folder),"wb"))
+            pickle.dump(stepdump, open(os.path.join(self.folder,"steps.p"),"wb"))
 
             # dump shared parameters and steps:
             sharedparamdump = {bid: shared_parameters[bid] for bid in range(4)}
-            pickle.dump(sharedparamdump, open("{}/shared_parameters.p".format(self.folder),"wb"))
+            pickle.dump(sharedparamdump, open(os.path.join(self.folder,"shared_parameters.p"),"wb"))
             sharedstepdump = {sid: shared_steps[0][sid] for sid in range(num_shared_steps)}
-            pickle.dump(sharedstepdump, open("{}/shared_steps.p".format(self.folder),"wb"))
+            pickle.dump(sharedstepdump, open(os.path.join(self.folder,"shared_steps.p"),"wb"))
         
         logger.INFO("Experiment: {}".format(self.description))
         logger.INFO("Finished initializing pickle folders. Starting with measurements.")
@@ -527,7 +463,6 @@ class BaseExperiment(object):
         self.process_results(neuron_ids)
         self.store_results()
 
-
     def measure(self, neuron_ids, step_id, rep_id):
         """Perform measurements for a single step on one or multiple neurons."""
         results = {}
@@ -538,18 +473,18 @@ class BaseExperiment(object):
             t = self.sthal.adc.getTimestamps()
             # Save traces in files:
             if self.save_traces:
-                if not os.path.isdir("{}/traces/".format(self.folder)):
-                    os.mkdir("{}/traces/".format(self.folder))
-                if not os.path.isdir("{}/traces/step{}rep{}/".format(self.folder,step_id,rep_id)):
-                    os.mkdir("{}/traces/step{}rep{}/".format(self.folder,step_id,rep_id))
-                pickle.dump([t,v], open("{}/traces/step{}rep{}/neuron_{}.p".format(self.folder,step_id,rep_id,neuron_id), 'wb'))
+                if not os.path.isdir(os.path.join(self.folder,"traces/")):
+                    os.mkdir(os.path.join(self.folder,"traces/"))
+                if not os.path.isdir(os.path.join(self.folder,"/traces/step{}rep{}/".format(step_id, rep_id))):
+                    os.mkdir(os.path.join(self.folder,"/traces/step{}rep{}/".format(step_id, rep_id)))
+                pickle.dump([t, v], open(os.path.join(self.folder,"/traces/step{}rep{}/neuron_{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
 
-            results[neuron_id] = self.process_trace(t,v)
+            results[neuron_id] = self.process_trace(t, v)
         # Now store measurements in a file:
         if self.save_results:
-            if not os.path.isdir("{}/results/".format(self.folder)):
-                os.mkdir("{}/results/".format(self.folder))
-            pickle.dump(results, open("{}/results/step{}_rep{}.p".format(self.folder,step_id,rep_id),'wb'))
+            if not os.path.isdir(os.path.join(self.folder,"results/")):
+                os.mkdir(os.path.join(self.folder,"results/"))
+            pickle.dump(results, open(os.path.join(self.folder,"/results/step{}_rep{}.p".format(step_id, rep_id)), 'wb'))
         self.all_results.append(results)
 
     def process_trace(self, t, v):
@@ -627,7 +562,6 @@ class BaseCalibration(BaseExperiment):
                 repetition = 1
                 step_results = defaultdict(list)
 
-        
         # For shared parameters: mean over one block
         if type(parameter) is pyhalbe.HICANN.shared_parameter:
             results_mean_shared = defaultdict(list)
@@ -710,16 +644,18 @@ class BaseCalibration(BaseExperiment):
             collection = self._calib_bc
 
         nrns = self._red_nrns
+
         for index in results:
             if isneuron:
                 coord = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(index))
             else:
                 coord = pyhalbe.Coordinate.FGBlockOnHICANN(pyhalbe.Coordinate.Enum(index))
+
             broken = index in self.results_broken
             if broken:
                 if nrns.has(coord):  # not disabled
                     nrns.disable(coord)
-                # TODO reset/delete calibtic function for this neuron
+                    # TODO reset/delete calibtic function for this neuron
             else:  # store in calibtic
                 if not collection.exists(index):
                     logger.INFO("No existing calibration data for neuron {} found, creating default dataset".format(index))
@@ -732,7 +668,6 @@ class BaseCalibration(BaseExperiment):
 
         self.logger.INFO("Storing calibration results")
         self.store_calibration(md)
-
 
     def init_experiment(self):
         super(BaseCalibration, self).init_experiment()
@@ -749,10 +684,10 @@ class Calibrate_E_l(BaseCalibration):
         parameters = super(Calibrate_E_l, self).get_parameters()
         for neuron_id in self.get_neurons():
             parameters[neuron_id].update({
-                pyhalbe.HICANN.neuron_parameter.I_gl: Current(1000),
-                pyhalbe.HICANN.neuron_parameter.V_t: Voltage(1700),
-                pyhalbe.HICANN.neuron_parameter.I_convi: DAC(1023),
-                pyhalbe.HICANN.neuron_parameter.I_convx: DAC(1023),
+                neuron_parameter.I_gl: Current(1000),
+                neuron_parameter.V_t: Voltage(1700),
+                neuron_parameter.I_convi: DAC(1023),
+                neuron_parameter.I_convx: DAC(1023),
             })
         return parameters
 
@@ -764,15 +699,14 @@ class Calibrate_E_l(BaseCalibration):
 
     def get_steps(self):
         steps = []
-        #for voltage in range(600, 1100, 25):
-        for voltage in range(700, 1100, 100):
+        for voltage in range(600, 1100, 25):
             steps.append({pyhalbe.HICANN.neuron_parameter.E_l: Voltage(voltage),
                 })
         return defaultdict(lambda: steps)
 
     def init_experiment(self):
         super(Calibrate_E_l, self).init_experiment()
-        self.repetitions = 1
+        self.repetitions = 5
         self.save_results = True
         self.save_traces = False
         self.E_syni_dist = -100
@@ -786,10 +720,10 @@ class Calibrate_E_l(BaseCalibration):
         return np.mean(v)*1000 # Get the mean value * 1000 for mV
 
     def process_results(self, neuron_ids):
-        super(Calibrate_E_l, self).process_calibration_results(neuron_ids, pyhalbe.HICANN.neuron_parameter.E_l, linear_fit=True)
+        super(Calibrate_E_l, self).process_calibration_results(neuron_ids, neuron_parameter.E_l, linear_fit=True)
 
     def store_results(self):
-        super(Calibrate_E_l, self).store_calibration_results(pyhalbe.HICANN.neuron_parameter.E_l)
+        super(Calibrate_E_l, self).store_calibration_results(neuron_parameter.E_l)
 
 
 class Calibrate_V_t(BaseCalibration):
@@ -813,29 +747,27 @@ class Calibrate_V_t(BaseCalibration):
 
     def get_steps(self):
         steps = []
-        #for voltage in range(700,1175,25): 
-        for voltage in range(900,1200,100): 
+        for voltage in range(700,1175,25): 
             steps.append({pyhalbe.HICANN.neuron_parameter.V_t: Voltage(voltage)})
         return defaultdict(lambda: steps)
 
     def init_experiment(self):
         super(Calibrate_V_t, self).init_experiment()
-        self.repetitions = 1
+        self.repetitions = 5
         self.save_results = True
         self.save_traces = False 
         self.E_syni_dist = -100
         self.E_synx_dist = +100
-        self.description = "Calibrate_V_t with Iconv ON and 1000 I_pl. Calibrated E_l."
+        self.description = "Basic Calibrate_V_t with Iconv ON and 1000 I_pl. Calibrated E_l."
 
     def process_trace(self, t, v):
-        return np.max(v)*1000 # Get the mean value * 1000 for mV
+        return np.max(v)*1000  # Get the mean value * 1000 for mV
 
     def process_results(self, neuron_ids):
-        super(Calibrate_V_t, self).process_calibration_results(neuron_ids, pyhalbe.HICANN.neuron_parameter.V_t)
+        super(Calibrate_V_t, self).process_calibration_results(neuron_ids, neuron_parameter.V_t)
 
     def store_results(self):
-        # TODO detect and store broken neurons
-        super(Calibrate_V_t, self).store_calibration_results(pyhalbe.HICANN.neuron_parameter.V_t)
+        super(Calibrate_V_t, self).store_calibration_results(neuron_parameter.V_t)
 
 
 class Calibrate_V_reset(BaseCalibration):
@@ -844,12 +776,12 @@ class Calibrate_V_reset(BaseCalibration):
         parameters = super(Calibrate_V_reset, self).get_parameters()
         for neuron_id in self.get_neurons():
             parameters[neuron_id].update({
-                pyhalbe.HICANN.neuron_parameter.E_l: Voltage(1100, apply_calibration = True),  # TODO apply calibration?
-                pyhalbe.HICANN.neuron_parameter.I_gl: Current(1000),
-                pyhalbe.HICANN.neuron_parameter.V_t: Voltage(900, apply_calibration = True),
-        #        pyhalbe.HICANN.neuron_parameter.I_pl: DAC(5),    # Long refractory period
-                pyhalbe.HICANN.neuron_parameter.I_convi: DAC(1023),
-                pyhalbe.HICANN.neuron_parameter.I_convx: DAC(1023),
+                neuron_parameter.E_l: Voltage(1100, apply_calibration=True),
+                neuron_parameter.I_gl: Current(1000),
+                neuron_parameter.V_t: Voltage(900, apply_calibration=True),
+                #neuron_parameter.I_pl: DAC(5),  # Long refractory period
+                neuron_parameter.I_convi: DAC(1023),
+                neuron_parameter.I_convx: DAC(1023),
             })
         # TODO apply V_t calibration?
         return parameters
@@ -863,7 +795,7 @@ class Calibrate_V_reset(BaseCalibration):
 
     def init_experiment(self):
         super(Calibrate_V_reset, self).init_experiment()
-        self.repetitions = 1
+        self.repetitions = 5
         self.save_results = True
         self.save_traces = False
         self.E_syni_dist = -100
@@ -871,14 +803,14 @@ class Calibrate_V_reset(BaseCalibration):
         self.description = "Calibrate_V_reset, I_pl HIGH. E_l and V_t calibrated."
 
     def process_trace(self, t, v):
-        return np.min(v)*1000 # Get the mean value * 1000 for mV
+        return np.min(v)*1000  # Get the mean value * 1000 for mV
 
     def process_results(self, neuron_ids):
-        super(Calibrate_V_reset, self).process_calibration_results(neuron_ids, pyhalbe.HICANN.shared_parameter.V_reset)
+        super(Calibrate_V_reset, self).process_calibration_results(neuron_ids, shared_parameter.V_reset)
 
     def store_results(self):
         # TODO detect and store broken neurons
-        super(Calibrate_V_reset, self).store_calibration_results(pyhalbe.HICANN.shared_parameter.V_reset)
+        super(Calibrate_V_reset, self).store_calibration_results(shared_parameter.V_reset)
 
 
 # TODO, playground for digital spike measures atm.
@@ -988,7 +920,7 @@ class Calibrate_g_L(BaseCalibration):
 
     def store_results(self):
         # TODO detect and store broken neurons
-        super(Calibrate_g_L, self).store_calibration_results(pyhalbe.HICANN.neuron_parameter.I_gl)
+        super(Calibrate_g_L, self).store_calibration_results(neuron_parameter.I_gl)
 
 
 
@@ -1060,7 +992,7 @@ class Calibrate_g_L_stepcurrent(BaseCalibration):
         if self.save_results:
             if not os.path.isdir(os.path.join(self.folder,"floating_gates")):
                 os.mkdir(os.path.join(self.folder,"floating_gates"))
-            pickle.dump(fgc, open("{}/floating_gates/step{}rep{}.p".format(self.folder,step_id,rep_id), 'wb'))
+            pickle.dump(fgc, open(os.path.join("floating_gates/step{}rep{}.p".format(step_id,rep_id)), 'wb'))
 
         self.sthal.write_config()
 
@@ -1090,26 +1022,27 @@ class Calibrate_tau_ref(BaseCalibration):
         parameters = super(Calibrate_tau_ref, self).get_parameters()
         for neuron_id in self.get_neurons():
             parameters[neuron_id].update({
-                pyhalbe.HICANN.neuron_parameter.E_l: Voltage(800),
-                pyhalbe.HICANN.neuron_parameter.V_t: Voltage(700),
-                pyhalbe.HICANN.shared_parameter.V_reset: Voltage(500),
-                pyhalbe.HICANN.neuron_parameter.I_gl: Current(1000),
-                pyhalbe.HICANN.neuron_parameter.V_syntcx: Voltage(10)
+                neuron_parameter.E_l: Voltage(800),
+                neuron_parameter.V_t: Voltage(700),
+                shared_parameter.V_reset: Voltage(500),
+                neuron_parameter.I_gl: Current(1000),
+                neuron_parameter.V_syntcx: Voltage(10)
             })
         return parameters
 
     def measure(self, neuron_ids):
+        import pycairo.simulator
         params = self.get_parameters()
         results = {}
-        base_freq = pycairo.simulator.Simulator().compute_freq(30e-6, 0, parameters)
+        base_freq = pycairo.simulator.Simulator().compute_freq(30e-6, 0, params)
 
         for neuron_id in neuron_ids:
             self.sthal.switch_analog_output(neuron_id)
             self.sthal.adc.record()
-            ts = np.array( self.sthal.adc.getTimestamps() )
-            v = np.array( self.sthal.adc.trace() )
+            ts = np.array(self.sthal.adc.getTimestamps())
+            v = np.array(self.sthal.adc.trace())
 
-            calc_freq = lambda x: (1.0 / x - 1.0 / base_freq) * 1e6 # millions?
+            calc_freq = lambda x: (1.0 / x - 1.0 / base_freq) * 1e6  # millions?
 
 # TODO
 #            m = sorted_array_mean[sorted_array_mean != 0.0]
@@ -1117,6 +1050,7 @@ class Calibrate_tau_ref(BaseCalibration):
 #            return calc_freq(m), calc_freq(e)
 
             results[neuron_id] = calc_freq(v)
+            del ts
 
         self.all_results.append(results)
 
@@ -1126,24 +1060,22 @@ class Calibrate_tau_synx(BaseCalibration):
         parameters = super(Calibrate_tau_synx, self).get_parameters()
         for neuron_id in self.get_neurons():
             parameters[neuron_id].update({
-                pyhalbe.HICANN.neuron_parameter.E_l: Voltage(600),
-                pyhalbe.HICANN.neuron_parameter.E_synx: Voltage(1300),
-                pyhalbe.HICANN.neuron_parameter.E_syni: Voltage(200),
-                pyhalbe.HICANN.neuron_parameter.V_t: Voltage(1700),
-                pyhalbe.HICANN.shared_parameter.V_reset: Voltage(500),
-                pyhalbe.HICANN.neuron_parameter.I_gl: Current(1000),
+                neuron_parameter.E_l: Voltage(600),
+                neuron_parameter.E_synx: Voltage(1300),
+                neuron_parameter.E_syni: Voltage(200),
+                neuron_parameter.V_t: Voltage(1700),
+                shared_parameter.V_reset: Voltage(500),
+                neuron_parameter.I_gl: Current(1000),
             })
         return parameters
 
     def measure(self, neuron_ids):
-        pass # TODO
+        pass  # TODO
 
 
 class Calibrate_tau_syni(BaseCalibration):
-    pass
-
     def measure(self, neuron_ids):
-        pass # TODO
+        pass  # TODO
 
 
 class Calibrate_a(BaseCalibration):
@@ -1151,42 +1083,41 @@ class Calibrate_a(BaseCalibration):
         parameters = super(Calibrate_a, self).get_parameters()
         for neuron_id in self.get_neurons():
             parameters[neuron_id].update({
-                pyhalbe.HICANN.neuron_parameter.E_l: Voltage(800),
-                pyhalbe.HICANN.neuron_parameter.I_gl: Current(1000),
-                pyhalbe.HICANN.neuron_parameter.V_t: Voltage(700),
-                pyhalbe.HICANN.neuron_parameter.I_radapt: Current(1000),
-                pyhalbe.HICANN.shared_parameter.V_reset: Voltage(500),
+                neuron_parameter.E_l: Voltage(800),
+                neuron_parameter.I_gl: Current(1000),
+                neuron_parameter.V_t: Voltage(700),
+                neuron_parameter.I_radapt: Current(1000),
+                shared_parameter.V_reset: Voltage(500),
             })
         return parameters
 
     def measure(self, neuron_ids):
-        pass # TODO
+        pass  # TODO
 
 
 class Calibrate_b(BaseCalibration):
     pass
 
     def measure(self, neuron_ids):
-        pass # TODO
+        pass  # TODO
 
 
 class Calibrate_tau_w(BaseCalibration):
     pass
 
     def measure(self, neuron_ids):
-        pass # TODO
+        pass  # TODO
 
 
 class Calibrate_dT(BaseCalibration):
     pass
 
     def measure(self, neuron_ids):
-        pass # TODO
+        pass  # TODO
 
 
 class Calibrate_V_th(BaseCalibration):
     pass
 
     def measure(self, neuron_ids):
-        pass # TODO
-
+        pass  # TODO

@@ -82,3 +82,8 @@ class StHALContainer(object):
             self.connect()
         self.adc.record()
         return self.adc.trace()
+
+    def status(self):
+        if not self._connected:
+            self.connect()
+        return self.wafer.status()
