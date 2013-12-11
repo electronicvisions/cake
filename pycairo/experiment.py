@@ -222,25 +222,24 @@ class BaseExperiment(object):
             broken = not self._red_nrns.has(coord_neuron)
             for param in step_parameters[neuron_id]:
                 # Handle only neuron parameters in this step. Shared parameters applied afterwards
-                if type(param) is pyhalbe.HICANN.neuron_parameter:
-                    step_cvalue = step_parameters[neuron_id][param]
-                    apply_calibration = step_cvalue.apply_calibration
-                    if broken:
-                        self.logger.WARN("Neuron {} not working. Skipping calibration.".format(neuron_id))
-                    if apply_calibration and not broken:
-                        if not type(step_cvalue) in (Voltage, Current):
-                            raise NotImplementedError("can not apply calibration on DAC value")
-                        # apply calibration
-                        try:
-                            ncal = self._calib_nc.at(neuron_id)
-                            calibration = ncal.at(param)
-                            calibrated_value = calibration.apply(step_cvalue.value)
-                            step_cvalue = type(step_cvalue)(calibrated_value)
-                        except (RuntimeError, IndexError):
-                            pass
-                    # convert to DAC
-                    value = step_cvalue.toDAC().value
-                    step_parameters[neuron_id][param] = value
+                step_cvalue = step_parameters[neuron_id][param]
+                apply_calibration = step_cvalue.apply_calibration
+                if broken:
+                    self.logger.WARN("Neuron {} not working. Skipping calibration.".format(neuron_id))
+                if apply_calibration and not broken:
+                    if not type(step_cvalue) in (Voltage, Current):
+                        raise NotImplementedError("can not apply calibration on DAC value")
+                    # apply calibration
+                    try:
+                        ncal = self._calib_nc.at(neuron_id)
+                        calibration = ncal.at(param)
+                        calibrated_value = calibration.apply(step_cvalue.value)
+                        step_cvalue = type(step_cvalue)(calibrated_value)
+                    except (RuntimeError, IndexError):
+                        pass
+                # convert to DAC
+                value = step_cvalue.toDAC().value
+                step_parameters[neuron_id][param] = value
 
             # Set E_syni and E_synx AFTER calibration if set this way
             if self.E_syni_dist and self.E_synx_dist:
@@ -256,25 +255,24 @@ class BaseExperiment(object):
             coord_block = pyhalbe.Coordinate.FGBlockOnHICANN(pyhalbe.Coordinate.Enum(block_id))
             for param in step_shared_parameters[block_id]:
                 broken = False
-                if type(param) is pyhalbe.HICANN.shared_parameter:
-                    step_cvalue = step_shared_parameters[block_id][param]
-                    apply_calibration = step_cvalue.apply_calibration
-                    if broken:
-                        self.logger.WARN("Neuron {} not working. Skipping calibration.".format(neuron_id))
-                    if apply_calibration and not broken:
-                        if not type(step_cvalue) in (Voltage, Current):
-                            raise NotImplementedError("can not apply calibration on DAC value")
-                        # apply calibration
-                        try:
-                            bcal = self._calib_bc.at(block_id)
-                            calibration = bcal.at(param)
-                            calibrated_value = calibration.apply(step_cvalue.value)
-                            step_cvalue = type(step_cvalue)(calibrated_value)
-                        except (AttributeError, RuntimeError, IndexError):
-                            pass
-                    # convert to DAC
-                    value = step_cvalue.toDAC().value
-                    step_shared_parameters[block_id][param] = value
+                step_cvalue = step_shared_parameters[block_id][param]
+                apply_calibration = step_cvalue.apply_calibration
+                if broken:
+                    self.logger.WARN("Neuron {} not working. Skipping calibration.".format(neuron_id))
+                if apply_calibration and not broken:
+                    if not type(step_cvalue) in (Voltage, Current):
+                        raise NotImplementedError("can not apply calibration on DAC value")
+                    # apply calibration
+                    try:
+                        bcal = self._calib_bc.at(block_id)
+                        calibration = bcal.at(param)
+                        calibrated_value = calibration.apply(step_cvalue.value)
+                        step_cvalue = type(step_cvalue)(calibrated_value)
+                    except (AttributeError, RuntimeError, IndexError):
+                        pass
+                # convert to DAC
+                value = step_cvalue.toDAC().value
+                step_shared_parameters[block_id][param] = value
 
         return [step_parameters, step_shared_parameters]
 
@@ -307,9 +305,9 @@ class BaseExperiment(object):
             pass
         
         if self.save_results:
-            if not os.path.isdir(os.path.join(self.folder,"floating_gates")):
-                os.mkdir(os.path.join(self.folder,"floating_gates"))
-            pickle.dump(fgc, open(os.path.join(self.folder,"/floating_gates/step{}rep{}.p".format(step_id,rep_id)), 'wb'))
+            if not os.path.isdir(os.path.join(self.folder,"floating_gates/")):
+                os.mkdir(os.path.join(self.folder,"floating_gates/"))
+            pickle.dump(fgc, open(os.path.join(self.folder,"floating_gates/","step{}rep{}.p".format(step_id,rep_id)), 'wb'))
         self.sthal.write_config()
 
     @property
@@ -475,16 +473,16 @@ class BaseExperiment(object):
             if self.save_traces:
                 if not os.path.isdir(os.path.join(self.folder,"traces/")):
                     os.mkdir(os.path.join(self.folder,"traces/"))
-                if not os.path.isdir(os.path.join(self.folder,"/traces/step{}rep{}/".format(step_id, rep_id))):
-                    os.mkdir(os.path.join(self.folder,"/traces/step{}rep{}/".format(step_id, rep_id)))
-                pickle.dump([t, v], open(os.path.join(self.folder,"/traces/step{}rep{}/neuron_{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
+                if not os.path.isdir(os.path.join(self.folder,"traces/","step{}rep{}/".format(step_id, rep_id))):
+                    os.mkdir(os.path.join(self.folder,"traces/","step{}rep{}/".format(step_id, rep_id)))
+                pickle.dump([t, v], open(os.path.join(self.folder,"traces/","step{}rep{}/".format(step_id, rep_id),"neuron_{}.p".format(neuron_id)), 'wb'))
 
             results[neuron_id] = self.process_trace(t, v)
         # Now store measurements in a file:
         if self.save_results:
             if not os.path.isdir(os.path.join(self.folder,"results/")):
                 os.mkdir(os.path.join(self.folder,"results/"))
-            pickle.dump(results, open(os.path.join(self.folder,"/results/step{}_rep{}.p".format(step_id, rep_id)), 'wb'))
+            pickle.dump(results, open(os.path.join(self.folder,"results/","step{}_rep{}.p".format(step_id, rep_id)), 'wb'))
         self.all_results.append(results)
 
     def process_trace(self, t, v):
@@ -685,7 +683,7 @@ class Calibrate_E_l(BaseCalibration):
         for neuron_id in self.get_neurons():
             parameters[neuron_id].update({
                 neuron_parameter.I_gl: Current(1000),
-                neuron_parameter.V_t: Voltage(1700),
+                neuron_parameter.V_t: Voltage(1200),
                 neuron_parameter.I_convi: DAC(1023),
                 neuron_parameter.I_convx: DAC(1023),
             })
@@ -714,8 +712,8 @@ class Calibrate_E_l(BaseCalibration):
         self.description = "Calibrate_E_l with Esyn set AFTER calibration."
 
     def process_trace(self, t, v):
-        if np.std(v)>50:
-            pickle.dump([t,v], open(os.path.join(self.workdir,"bad_trace.p"), 'wb'))
+        if np.std(v)*1000>50:
+            pickle.dump([t,v], open(os.path.join(self.folder,"bad_trace.p"), 'wb'))
             raise ValueError
         return np.mean(v)*1000 # Get the mean value * 1000 for mV
 
@@ -990,9 +988,9 @@ class Calibrate_g_L_stepcurrent(BaseCalibration):
             pass
         
         if self.save_results:
-            if not os.path.isdir(os.path.join(self.folder,"floating_gates")):
-                os.mkdir(os.path.join(self.folder,"floating_gates"))
-            pickle.dump(fgc, open(os.path.join("floating_gates/step{}rep{}.p".format(step_id,rep_id)), 'wb'))
+            if not os.path.isdir(os.path.join(self.folder,"floating_gates/")):
+                os.mkdir(os.path.join(self.folder,"floating_gates/"))
+            pickle.dump(fgc, open(os.path.join("floating_gates/","step{}rep{}.p".format(step_id,rep_id)), 'wb'))
 
         self.sthal.write_config()
 

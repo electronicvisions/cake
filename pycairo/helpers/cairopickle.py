@@ -6,6 +6,53 @@ from sthal import StHALContainer
 import os
 import shutil
 import matplotlib.pyplot as plt
+import re
+
+valid_params = [pyhalbe.HICANN.neuron_parameter.E_synx,
+                pyhalbe.HICANN.neuron_parameter.I_spikeamp,
+                pyhalbe.HICANN.neuron_parameter.V_synx,
+                pyhalbe.HICANN.neuron_parameter.E_syni,
+                pyhalbe.HICANN.neuron_parameter.V_syni,
+                pyhalbe.HICANN.neuron_parameter.E_l,
+                pyhalbe.HICANN.neuron_parameter.V_t,
+                pyhalbe.HICANN.neuron_parameter.I_radapt,
+                pyhalbe.HICANN.neuron_parameter.I_convi,
+                pyhalbe.HICANN.neuron_parameter.I_gl,
+                pyhalbe.HICANN.neuron_parameter.I_convx,
+                pyhalbe.HICANN.neuron_parameter.I_gladapt,
+                pyhalbe.HICANN.neuron_parameter.V_exp,
+                pyhalbe.HICANN.neuron_parameter.V_syntci,
+                pyhalbe.HICANN.neuron_parameter.I_intbbi,
+                pyhalbe.HICANN.neuron_parameter.I_fire,
+                pyhalbe.HICANN.neuron_parameter.V_syntcx,
+                pyhalbe.HICANN.neuron_parameter.I_intbbx,
+                pyhalbe.HICANN.neuron_parameter.I_rexp,
+                pyhalbe.HICANN.neuron_parameter.I_pl,
+                pyhalbe.HICANN.neuron_parameter.I_bexp]
+
+valid_shared_params = [pyhalbe.HICANN.shared_parameter.V_clra,
+                       pyhalbe.HICANN.shared_parameter.V_clrc,
+                       pyhalbe.HICANN.shared_parameter.V_reset,
+                       pyhalbe.HICANN.shared_parameter.V_dllres,
+                       pyhalbe.HICANN.shared_parameter.V_bout,
+                       pyhalbe.HICANN.shared_parameter.V_dtc,
+                       pyhalbe.HICANN.shared_parameter.V_thigh,
+                       pyhalbe.HICANN.shared_parameter.V_br,
+                       pyhalbe.HICANN.shared_parameter.I_breset,
+                       pyhalbe.HICANN.shared_parameter.V_m,
+                       pyhalbe.HICANN.shared_parameter.V_dep,
+                       pyhalbe.HICANN.shared_parameter.V_tlow,
+                       pyhalbe.HICANN.shared_parameter.V_gmax1,
+                       pyhalbe.HICANN.shared_parameter.V_gmax0,
+                       pyhalbe.HICANN.shared_parameter.V_gmax3,
+                       pyhalbe.HICANN.shared_parameter.V_gmax2,
+                       pyhalbe.HICANN.shared_parameter.V_ccas,
+                       pyhalbe.HICANN.shared_parameter.V_stdf,
+                       pyhalbe.HICANN.shared_parameter.V_fac,
+                       pyhalbe.HICANN.shared_parameter.V_bexp,
+                       pyhalbe.HICANN.shared_parameter.I_bstim,
+                       pyhalbe.HICANN.shared_parameter.V_bstdf]
+
 
 class Cairo_Experimentreader(object):
     """ Class to open experiments in a specific workfolder.
@@ -125,7 +172,7 @@ class Cairo_Experimentreader(object):
             data2 = exp2.results[step][repetition]
 
         minval = int(round(steps1[0][parameter].value * 0.9))
-        maxval = int(round(steps1[-1][parameter].value * 1.1))
+        maxval = int(round(steps1[len(steps1)-1][parameter].value * 1.1))
         fig = plt.figure()
         ax = fig.add_subplot(111)
         ax.hist(data1, range(minval,maxval,int((maxval-minval)/70)))
@@ -155,7 +202,8 @@ class Cairo_Experimentreader(object):
         """ Gives names of experiments without a results folder.
 
             Returns:
-                List of names of broken experiments.
+                List of names of folders which are not valid experiments.
+                CAUTION: Does not only give experiment folders!
         """
         broken = []
         dirs = np.sort([name for name in os.listdir(self.workdir) if os.path.isdir(os.path.join(self.workdir, name))])
@@ -181,7 +229,7 @@ class Cairo_experiment(object):
                 print "No shared parameters/steps found"
                 self.shared_steps = {}
                 self.shared_params = {}
-            self.results_unsorted = [pickle.load(open('{}/results/{}'.format(self.workdir,fname))) for fname in np.sort(os.listdir('{}/results/'.format(self.workdir)))]
+            self.results_unsorted = [pickle.load(open('{}/results/{}'.format(self.workdir,fname))) for fname in sorted(os.listdir('{}/results/'.format(self.workdir)), key=lambda x: int(re.findall("[0-9]+", x)[0]))]
             self.reps = pickle.load(open("{}/repetitions.p".format(self.workdir)))
             self.results=[]
             self.num_steps = max(len(self.steps),len(self.shared_steps))
@@ -215,9 +263,30 @@ class Cairo_experiment(object):
                 trace = np.array(pickle.load(open('{}/traces/step{}rep{}/neuron_{}.p'.format(self.workdir,step_id,rep_id,neuron_id))))
             except IOError:
                 print 'No traces saved'
-                pass
+                return
             return trace
-           
+    
+    def plot_trace(self, neuron_id, step_id = 0, rep_id = 0):
+            """ Plot the trace of one neuron from a specific measurement
+            
+                Args:
+                    neuron_id = int
+                    step_id = int
+                    rep_id = int repetition
+                
+                Returns:
+                    pyplot figure
+            """
+            try:
+                trace = np.array(pickle.load(open('{}/traces/step{}rep{}/neuron_{}.p'.format(self.workdir,step_id,rep_id,neuron_id))))
+            except IOError:
+                print 'No traces saved'
+                return
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            ax.plot(trace[0],trace[1])
+            return fig
+
     def mean_over_reps(self):
         """ 
             Returns: 
@@ -280,7 +349,7 @@ class Cairo_experiment(object):
         
         mean_data = self.mean_over_reps()[0]
         mean_data_sorted = [[mean_data[sid][nid] for sid in range(self.stepnum)]for nid in range(len(self.results[0][0]))]
-        xs = [step[param].value for step in self.steps]
+        xs = [step[param].value for step in self.steps.values()]
         
         fit_results = [np.polyfit(mean_data_sorted[nid], xs, 2) for nid in range(len(self.results[0][0]))]
         return fit_results
@@ -299,8 +368,8 @@ class Cairo_experiment(object):
         
         neuron_coord = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(neuron_id))
         for param in pyhalbe.HICANN.neuron_parameter.names.values():
-            if param is not pyhalbe.HICANN.neuron_parameter.__last_neuron:
-                neuron_params[param] = self.sthalcontainer.floating_gates.getNeuron(neuron_coord, i)
+            if param in valid_params:
+                neuron_params[param] = self.sthalcontainer.floating_gates.getNeuron(neuron_coord, param)
 
         return neuron_params
 
@@ -315,16 +384,18 @@ class Cairo_experiment(object):
                 dictionary:
                     {pyhalbe.HICANN.shared_parameter.V_reset: 300, ...}
         """
-        block_coord = pyhalbe._Coordinate.FGBlockOnHICANN(pyhalbe._Coordinate.Enum(block_id))
+        block_coord = pyhalbe.Coordinate.FGBlockOnHICANN(pyhalbe.Coordinate.Enum(block_id))
         shared_params = {}
-        for param in pyhalbe._HICANN.shared_parameter.names.values():
-            if (i is not pyhalbe._HICANN.shared_parameter.__last_shared) and param is not (pyhalbe._HICANN.shared_parameter.int_op_bias):
-                if ((param is pyhalbe._HICANN.shared_parameter.V_clrc) or (param is pyhalbe._HICANN.shared_parameter.V_bexp)) and ((block_id is 0) or (block_id is 2)):
+        for param in pyhalbe.HICANN.shared_parameter.names.values():
+            if param in valid_shared_params:
+                if ((param is pyhalbe.HICANN.shared_parameter.V_clrc) or (param is pyhalbe.HICANN.shared_parameter.V_bexp)) and ((block_id is 0) or (block_id is 2)):
                     continue
-                elif ((param is pyhalbe._HICANN.shared_parameter.V_clra) or (param is pyhalbe._HICANN.shared_parameter.V_bout)) and ((block_id is 1) or (block_id is 3)):
+                elif ((param is pyhalbe.HICANN.shared_parameter.V_clra) or (param is pyhalbe.HICANN.shared_parameter.V_bout)) and ((block_id is 1) or (block_id is 3)):
                     continue
                 else:
                     shared_params[param] = self.sthalcontainer.floating_gates.getShared(block_coord, param) 
+
+        return shared_params
 
     def get_neuron_results(self, neuron_id, mean = True):
         """ Get the results sorted per neuron, not per step.
