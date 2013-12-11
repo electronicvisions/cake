@@ -30,13 +30,16 @@ class Cairo_Experimentreader(object):
                 if prnt = False: List of experiment names and descriptions
         """
         dirs = np.sort([name for name in os.listdir(self.workdir) if os.path.isdir(os.path.join(self.workdir, name))])
-        if prnt:
-            i=0
-            for dr in dirs:
-                print "{0:02d}  {1}: ".format(i,dr), open('{}/{}/description.txt'.format(self.workdir,dr)).readline()
-                i=i+1
-        if not prnt:
-            return [dirs,[open('{}/{}/description.txt'.format(self.workdir,d)).readline() for d in dirs]]
+        i=0
+        expdirs = []
+        for dr in dirs:
+            if os.path.isfile(os.path.join(self.workdir,dr,"description.txt")):
+                expdirs.append(dr)
+                if prnt:
+                    print "{0:02d}  {1}: ".format(i,dr), open('{}/{}/description.txt'.format(self.workdir,dr)).readline()
+                    i = i+1
+        return expdirs
+        #return [dirs,[open('{}/{}/description.txt'.format(self.workdir,d)).readline() for d in dirs]]
         #return {d: open('{}/{}/description.txt'.format(self.workdir,d)).read() for d in dirs}
     
     
@@ -44,7 +47,7 @@ class Cairo_Experimentreader(object):
             """ 
             """
             if type(expname) is int:
-                expname = self.list_experiments(prnt = False)[0][expname]
+                expname = self.list_experiments(prnt = False)[expname]
             return Cairo_experiment(os.path.join(self.workdir,expname)) 
     
     
@@ -57,7 +60,7 @@ class Cairo_Experimentreader(object):
                 
         """
         if type(expname) is int:
-                expname = self.list_experiments(prnt = False)[0][expname]
+                expname = self.list_experiments(prnt = False)[expname]
         shutil.rmtree(os.path.join(self.workdir,expname))
     
     def get_description(self,expname):
@@ -67,7 +70,7 @@ class Cairo_Experimentreader(object):
                 expname = name or number of experiment
         """
         if type(expname) is int:
-            expname = self.list_experiments(prnt = False)[0][expname]
+            expname = self.list_experiments(prnt = False)[expname]
         print open('{}/{}/description.txt'.format(self.workdir,expname)).read() 
 
     def change_description(self, expname, description, append = False):
@@ -80,7 +83,7 @@ class Cairo_Experimentreader(object):
                 append = (True|False) append to existing description. If False, description is overwritten.
         """
         if type(expname) is int:
-                expname = self.list_experiments(prnt = False)[0][expname]
+                expname = self.list_experiments(prnt = False)[expname]
         if append:
             f = open('{}/{}/description.txt'.format(self.workdir,expname), 'a')
         else:
@@ -101,9 +104,9 @@ class Cairo_Experimentreader(object):
                 matplotlib.pyplot.figure object with the histogram
         """
         if type(experiment1) is int:
-                experiment1 = self.list_experiments(prnt = False)[0][experiment1]
+                experiment1 = self.list_experiments(prnt = False)[experiment1]
         if type(experiment2) is int:
-                experiment2 = self.list_experiments(prnt = False)[0][experiment2]
+                experiment2 = self.list_experiments(prnt = False)[experiment2]
         exp1 = self.load_experiment(experiment1)
         exp2 = self.load_experiment(experiment2)
 
@@ -144,7 +147,7 @@ class Cairo_Experimentreader(object):
         for ex_id in experiments:
             print "Errors of experiment {}:".format(ex_id)
             if type(ex_id) is int:
-                ex_id = self.list_experiments(prnt = False)[0][ex_id]
+                ex_id = self.list_experiments(prnt = False)[ex_id]
             exp = self.load_experiment(ex_id)
             exp.calculate_errors()
 

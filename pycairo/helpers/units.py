@@ -1,0 +1,73 @@
+"""Conversion of Voltage/Current to DAC"""
+
+
+class Unit(object):
+    """Base class for Current, Voltage and DAC parameter values."""
+    def __init__(self, value, apply_calibration=False):
+        """Args:
+            value: parameter value in units of child class
+            apply_calibration: apply correction to this value before writing it to the hardware?
+        """
+        self.value = value
+        self.apply_calibration = apply_calibration
+
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, value):
+        self._check(value)
+        self._value = value
+
+
+class Current(Unit):
+    """Current in nA for hardware parameters."""
+    def __init__(self, value, apply_calibration=False):
+        super(Current, self).__init__(float(value), apply_calibration)
+
+    @classmethod
+    def _check(self, value):
+        if value < 0. or value > 2500.:
+            raise ValueError("Current value {} nA out of range".format(value))
+
+    def toDAC(self):
+        return DAC(self.value/2500.*1023., self.apply_calibration)
+
+    def __repr__(self):
+        return "{} nA".format(self.value)
+
+
+class Voltage(Unit):
+    """Voltage in mV for hardware parameters."""
+    def __init__(self, value, apply_calibration=False):
+        super(Voltage, self).__init__(float(value), apply_calibration)
+
+    @classmethod
+    def _check(self, value):
+        if value < 0. or value > 1800.:
+            raise ValueError("Voltage value {} mV out of range".format(value))
+
+    def toDAC(self):
+        return DAC(self.value/1800.*1023., self.apply_calibration)
+
+    def __repr__(self):
+        return "{} mV".format(self.value)
+
+
+class DAC(Unit):
+    def __init__(self, value, apply_calibration=False):
+        super(DAC, self).__init__(int(round(value)), apply_calibration)
+
+    @classmethod
+    def _check(self, value):
+        if not isinstance(value, int):
+            raise TypeError("DAC value is no integer")
+        if value < 0 or value > 1023:
+            raise ValueError("DAC value {} out of range".format(value))
+
+    def toDAC(self):
+        return self
+
+    def __repr__(self):
+        return "{} (DAC)".format(self.value)
