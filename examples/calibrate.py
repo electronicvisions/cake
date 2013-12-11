@@ -18,13 +18,13 @@ import pyoneer  # needs to be imported for get_pyoneer()
 
 import pickle
 
-# disable Scheriff because there are currently
-# many false positive messages
-pneer = pyhalbe.Handle.get_pyoneer()
-pneer.useScheriff = False
+import pylogging
+
+# Disable most log messages
+pylogging.default_config(pylogging.LogLevel.ERROR)
 
 # config
-neurons = [3] # range(512)
+neurons = range(512)
 
 # Calibtic and Redman backends
 backend = init_calibtic(path='/afsuser/weilbach/calibtic_config/')
@@ -101,7 +101,12 @@ class Calibrate_E_l_zero_current(pycairo.experiment.Calibrate_E_l):
 #np.savez_compressed("calib_V_t.npz", **save_data)
 
 ## V_reset calibration
-e = pycairo.experiment.Calibrate_V_reset(neurons, sthal_container=sthal, calibtic_backend=backend, redman_backend=backend_r)
+e = pycairo.experiment.Calibrate_V_reset(
+        neurons,
+        sthal_container=sthal,
+        calibtic_backend=backend,
+        redman_backend=backend_r,
+        loglevel=pylogging.LogLevel.INFO)
 e.run_experiment()
 
 ## plot and save

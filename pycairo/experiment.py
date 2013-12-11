@@ -35,7 +35,7 @@ class BaseExperiment(object):
 
     Provides a function to run and process an experiment.
     """
-    def __init__(self, neuron_ids, sthal_container, calibtic_backend=None, redman_backend=None, loglevel=pylogging.LogLevel.INFO):
+    def __init__(self, neuron_ids, sthal_container, calibtic_backend=None, redman_backend=None, loglevel=None):
         self.sthal = sthal_container
 
         self.neuron_ids = neuron_ids
@@ -56,9 +56,9 @@ class BaseExperiment(object):
         if calibtic_backend:
             self.init_calibration()
 
-        pylogging.reset()
-        pylogging.log_to_cout(loglevel)
         self.logger = pylogging.get("pycairo.experiment")
+        if not loglevel is None:
+            pylogging.set_loglevel(self.logger, pylogging.LogLevel.INFO)
 
     def init_experiment(self):
         """Hook for child classes. Executed by run_experiment(). These are standard parameters."""
@@ -448,16 +448,11 @@ class BaseExperiment(object):
             for step_id in range(max(num_steps, num_shared_steps)):
                 step_parameters = self.prepare_parameters(step_id)
                 for r in range(self.repetitions):
-                    pylogging.set_loglevel(self.logger, pylogging.LogLevel.INFO)
                     logger.INFO("Step {} repetition {}.".format(step_id, r))
                     logger.INFO("Preparing measurement --> setting floating gates")
-                    pylogging.set_loglevel(self.logger, pylogging.LogLevel.ERROR) # Disable FGBlock messages
                     self.prepare_measurement(step_parameters, step_id, r)
-                    pylogging.set_loglevel(self.logger, pylogging.LogLevel.INFO)
                     logger.INFO("Measuring.")
                     self.measure(neuron_ids, step_id)
-                    pylogging.set_loglevel(self.logger, pylogging.LogLevel.ERROR) # Disable FGBlock messages
-                    self.measure(neuron_ids, step_id, r)
         else:
             logger.WARN("When sweeping shared AND neuron parameters, both need to have same no. of steps.")
 
