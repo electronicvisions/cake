@@ -12,7 +12,6 @@ import pycalibtic
 import pyredman as redman
 import pycairo.logic.spikes
 from pycairo.helpers.calibtic import create_pycalibtic_polynomial
-from pycairo.helpers.calibtic import init_backend as init_calibtic
 from pycairo.helpers.sthal import StHALContainer, UpdateAnalogOutputConfigurator
 from pycairo.helpers.units import Current, Voltage, DAC
 
@@ -314,7 +313,7 @@ class BaseExperiment(object):
         if self.save_results:
             if not os.path.isdir(os.path.join(self.folder,"floating_gates")):
                 os.mkdir(os.path.join(self.folder,"floating_gates"))
-            pickle.dump(fgc, open(os.path.join(self.folder,"/floating_gates/step{}rep{}.p".format(step_id,rep_id), 'wb')))
+            pickle.dump(fgc, open(os.path.join(self.folder,"/floating_gates/step{}rep{}.p".format(step_id,rep_id)), 'wb'))
         self.sthal.write_config()
 
     @property
@@ -482,14 +481,14 @@ class BaseExperiment(object):
                     os.mkdir(os.path.join(self.folder,"traces/"))
                 if not os.path.isdir(os.path.join(self.folder,"/traces/step{}rep{}/".format(step_id, rep_id))):
                     os.mkdir(os.path.join(self.folder,"/traces/step{}rep{}/".format(step_id, rep_id)))
-                pickle.dump([t, v], open(os.path.join(self.folder,"/traces/step{}rep{}/neuron_{}.p".format(step_id, rep_id, neuron_id), 'wb')))
+                pickle.dump([t, v], open(os.path.join(self.folder,"/traces/step{}rep{}/neuron_{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
 
             results[neuron_id] = self.process_trace(t, v)
         # Now store measurements in a file:
         if self.save_results:
             if not os.path.isdir(os.path.join(self.folder,"results/")):
                 os.mkdir(os.path.join(self.folder,"results/"))
-            pickle.dump(results, open(os.path.join(self.folder,"/results/step{}_rep{}.p".format(step_id, rep_id), 'wb')))
+            pickle.dump(results, open(os.path.join(self.folder,"/results/step{}_rep{}.p".format(step_id, rep_id)), 'wb'))
         self.all_results.append(results)
 
     def process_trace(self, t, v):
@@ -997,7 +996,7 @@ class Calibrate_g_L_stepcurrent(BaseCalibration):
         if self.save_results:
             if not os.path.isdir(os.path.join(self.folder,"floating_gates")):
                 os.mkdir(os.path.join(self.folder,"floating_gates"))
-            pickle.dump(fgc, open(os.path.join("floating_gates/step{}rep{}.p".format(step_id,rep_id), 'wb')))
+            pickle.dump(fgc, open(os.path.join("floating_gates/step{}rep{}.p".format(step_id,rep_id)), 'wb'))
 
         self.sthal.write_config()
 
