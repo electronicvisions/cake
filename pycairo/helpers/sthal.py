@@ -48,12 +48,18 @@ class StHALContainer(object):
     def connect(self):
         """Connect to the hardware."""
         self.wafer.connect(pysthal.MagicHardwareDatabase())
+        self.connect_adc()
+        self._connected = True
 
-        # analogRecorder() MUST be called after wafer.connect()
+    def connect_adc(self):
+        """Gets ADC handle"""
+        # analogRecoorder() MUST be called after wafer.connect()
+        if self.adc:
+            self.adc.freeHandle()
+            self.adc = None
         adc = self.hicann.analogRecorder(self.coord_analog)
         adc.setRecordingTime(self.recording_time)
         self.adc = adc
-        self._connected = True
 
     def disconnect(self):
         """Free handles."""
@@ -80,8 +86,17 @@ class StHALContainer(object):
     def read_adc(self):
         if not self._connected:
             self.connect()
-        self.adc.record()
-        return self.adc.trace()
+        max_tries = 10
+        while ii in range(max_tries):
+            try:
+                self.adc.record()
+                return self.adc.getTimestamps(), self.adc.trace()
+            except RuntimeError as e:
+                print e
+                print retry
+                self.connect_adc()
+        else:
+            raise RuntimeError("Aborting ADC readout, maximum number of retries exceded")
 
     def status(self):
         if not self._connected:

@@ -310,7 +310,7 @@ class BaseExperiment(object):
         if self.save_results:
             if not os.path.isdir(os.path.join(self.folder,"floating_gates")):
                 os.mkdir(os.path.join(self.folder,"floating_gates"))
-            pickle.dump(fgc, open(os.path.join(self.folder,"/floating_gates/step{}rep{}.p".format(step_id,rep_id), 'wb')))
+            pickle.dump(fgc, open(os.path.join(self.folder,"floating_gates", "step{}rep{}.p".format(step_id,rep_id)), 'wb'))
         self.sthal.write_config()
 
     @property
@@ -455,6 +455,7 @@ class BaseExperiment(object):
                     self.prepare_measurement(step_parameters, step_id, r)
                     pylogging.set_loglevel(self.logger, pylogging.LogLevel.INFO)
                     logger.INFO("Measuring.")
+                    self.measure(neuron_ids, step_id)
                     pylogging.set_loglevel(self.logger, pylogging.LogLevel.ERROR) # Disable FGBlock messages
                     self.measure(neuron_ids, step_id, r)
         else:
@@ -469,16 +470,15 @@ class BaseExperiment(object):
         results = {}
         for neuron_id in neuron_ids:
             self.sthal.switch_analog_output(neuron_id)
-            self.sthal.adc.record()
-            v = self.sthal.adc.trace()
-            t = self.sthal.adc.getTimestamps()
+            t, v = self.sthal.read_adc()
             # Save traces in files:
             if self.save_traces:
-                if not os.path.isdir(os.path.join(self.folder,"traces/")):
-                    os.mkdir(os.path.join(self.folder,"traces/"))
-                if not os.path.isdir(os.path.join(self.folder,"/traces/step{}rep{}/".format(step_id, rep_id))):
-                    os.mkdir(os.path.join(self.folder,"/traces/step{}rep{}/".format(step_id, rep_id)))
-                pickle.dump([t, v], open(os.path.join(self.folder,"/traces/step{}rep{}/neuron_{}.p".format(step_id, rep_id, neuron_id), 'wb')))
+                folder = os.path.join(self.folder,"traces")
+                if not os.path.isdir(os.path.join(self.folder,"traces")):
+                    os.mkdir(os.path.join(self.folder,"traces"))
+                if not os.path.isdir(os.path.join(self.folder,"traces", "step{}rep{}".format(step_id, rep_id))):
+                    os.mkdir(os.path.join(self.folder, "traces", "step{}rep{}".format(step_id, rep_id)))
+                pickle.dump([t, v], open(os.path.join(self.folder,"traces", "step{}rep{}", "neuron_{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
 
             results[neuron_id] = self.process_trace(t, v)
         # Now store measurements in a file:
