@@ -90,7 +90,7 @@ class BaseExperiment(object):
         c_hg = self.sthal.hicann.index()
 
         # collection should be named "w<wafer-id>-h<hicann-id>"
-        name = "w{}-h{}".format(int(c_hg.wafer().id()), int(c_hg.on_wafer().id()))
+        name = "w{}-h{}".format(int(c_hg.wafer()), int(c_hg.on_wafer().id()))
         return name
 
     def init_calibration(self):
