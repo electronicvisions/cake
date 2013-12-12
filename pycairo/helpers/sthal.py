@@ -87,13 +87,13 @@ class StHALContainer(object):
         if not self._connected:
             self.connect()
         max_tries = 10
-        while ii in range(max_tries):
+        for ii in range(max_tries):
             try:
                 self.adc.record()
                 return self.adc.getTimestamps(), self.adc.trace()
             except RuntimeError as e:
                 print e
-                print retry
+                print "retry"
                 self.connect_adc()
         else:
             raise RuntimeError("Aborting ADC readout, maximum number of retries exceded")
