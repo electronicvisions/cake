@@ -115,10 +115,13 @@ class Cairo_Experimentreader(object):
             
             Args:
                 expname = name or number of experiment
+
+            Returns:
+                string with description of experiment
         """
         if type(expname) is int:
             expname = self.list_experiments(prnt = False)[expname]
-        print open('{}/{}/description.txt'.format(self.workdir,expname)).read() 
+        return open('{}/{}/description.txt'.format(self.workdir,expname)).read() 
 
     def change_description(self, expname, description, append = False):
         """ Change the description of experiment with name or number to string description.
@@ -192,7 +195,7 @@ class Cairo_Experimentreader(object):
                 None
         """
         for ex_id in experiments:
-            print "Errors of experiment {}:".format(ex_id)
+            print "Errors of experiment {} \n{}".format(ex_id, self.get_description(ex_id))
             if type(ex_id) is int:
                 ex_id = self.list_experiments(prnt = False)[ex_id]
             exp = self.load_experiment(ex_id)
@@ -420,3 +423,44 @@ class Cairo_experiment(object):
         else:
             return [[self.results[sid][rep][neuron_id] for sid in range(self.stepnum)] for rep in range(self.reps)]
 
+    def plot_trace(self, neuron_id, step, repetition):
+        """ Plot the trace of a neuron.
+
+            Args:
+                neuron_id
+                step
+                repetition
+
+            Returns:
+                matplotlib.pyplot.figure object
+        """
+        
+        trace = self.get_trace(neuron_id, step, repetition)
+        if trace:
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            ax.plot(trace[0], trace[1])
+            return fig
+        else:
+            print "No traces saved."
+            return
+
+    def plot_neuron_results(self, neuron_id, step, parameter):
+        """ Plot all measurement results for one neuron.
+
+            Args:
+                neuron_id, step = int
+                parameter = pyhalbe.HICANN.neuron_parameter.E_l etc.
+
+            Returns:
+                matplotlib.pyplot.figure object
+        """
+        xs = [step[parameter].value for step in self.steps.values()]
+        ys = self.get_neuron_results(neuron_id)[0]
+        y_errs = self.get_neuron_results(neuron_id)[1]
+
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.errorbar(xs,ys,y_errs)
+        ax.plot(xs,xs, linestyle = "dashed", color="k", alpha = 0.8)
+        return fig
