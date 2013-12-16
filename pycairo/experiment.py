@@ -10,10 +10,8 @@ from collections import defaultdict
 import pyhalbe
 import pycalibtic
 import pyredman as redman
-import pycairo.logic.spikes
-from pycairo.helpers.calibtic import create_pycalibtic_polynomial
-from pycairo.helpers.sthal import StHALContainer, UpdateAnalogOutputConfigurator
 from pycairo.helpers.units import Current, Voltage, DAC
+from pycairo.helpers.trafos import HWtoDAC, DACtoHW, HCtoDAC, DACtoHC, HWtoHC, HCtoHW
 
 # Import everything needed for saving:
 import pickle
@@ -227,30 +225,35 @@ class BaseExperiment(object):
             for param in step_parameters[neuron_id]:
                 # Handle only neuron parameters in this step. Shared parameters applied afterwards
                 step_cvalue = step_parameters[neuron_id][param]
+                calibrated_value = HCtoDAC(step_cvalue.value, param)
+                uncalibrated_value = calibrated_value
                 apply_calibration = step_cvalue.apply_calibration
                 if broken:
                     self.logger.WARN("Neuron {} not working. Skipping calibration.".format(neuron_id))
                 if apply_calibration and not broken:
-                    if not type(step_cvalue) in (Voltage, Current):
-                        raise NotImplementedError("can not apply calibration on DAC value")
                     # apply calibration
                     try:
                         ncal = self._calib_nc.at(neuron_id)
                         calibration = ncal.at(param)
-                        calibrated_value = calibration.apply(step_cvalue.value)
-                        step_cvalue = type(step_cvalue)(calibrated_value)
-                    except (RuntimeError, IndexError):
+                        calibrated_value = int(round(calibration.apply(HCtoDAC(step_cvalue.value, param)))) # Convert to DAC and apply calibration to DAC value
+                    except (RuntimeError, IndexError),e:
                         pass
-                # convert to DAC
-                value = step_cvalue.toDAC().value
-                step_parameters[neuron_id][param] = value
+                    except Exception,e:
+                        raise e
+                if calibrated_value < 0:
+                    self.logger.WARN("Calibrated {} for neuron {} too low. Setting to original value".format(param.name, neuron_id))
+                    calibrated_value = uncalibrated_value
+                if calibrated_value > 1023:
+                    self.logger.WARN("Calibrated {} for neuron {} too high. Setting to original value.".format(param.name, neuron_id))
+                    calibrated_value = uncalibrated_value
+                step_parameters[neuron_id][param] = calibrated_value
 
             # Set E_syni and E_synx AFTER calibration if set this way
             if self.E_syni_dist and self.E_synx_dist:
                 E_l = step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_l]
-                i_dist = int(round(self.E_syni_dist * 1023./1800.)) # Convert mV to DAC
-                x_dist = int(round(self.E_synx_dist * 1023./1800.)) # Convert mV to DAC
-                step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_syni] = type(step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_syni])(E_l + i_dist)
+                i_dist = HCtoDAC(-self.E_syni_dist, neuron_parameter.E_syni) # Convert mV to DAC
+                x_dist = HCtoDAC(self.E_synx_dist, neuron_parameter.E_synx) # Convert mV to DAC
+                step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_syni] = type(step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_syni])(E_l - i_dist)
                 step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_synx] = type(step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_synx])(E_l + x_dist)
 
         # Now prepare shared parameters
@@ -260,23 +263,22 @@ class BaseExperiment(object):
             for param in step_shared_parameters[block_id]:
                 broken = False
                 step_cvalue = step_shared_parameters[block_id][param]
+                calibrated_value = HCtoDAC(step_cvalue.value, param)
                 apply_calibration = step_cvalue.apply_calibration
                 if broken:
                     self.logger.WARN("Neuron {} not working. Skipping calibration.".format(neuron_id))
                 if apply_calibration and not broken:
-                    if not type(step_cvalue) in (Voltage, Current):
-                        raise NotImplementedError("can not apply calibration on DAC value")
                     # apply calibration
                     try:
                         bcal = self._calib_bc.at(block_id)
                         calibration = bcal.at(param)
-                        calibrated_value = calibration.apply(step_cvalue.value)
-                        step_cvalue = type(step_cvalue)(calibrated_value)
-                    except (AttributeError, RuntimeError, IndexError):
+                        calibrated_value = int(round(calibration.apply(HCtoDAC(step_cvalue.value, param))))
+                    except (AttributeError, RuntimeError, IndexError),e:
                         pass
+                    except Exception,e:
+                        raise e
                 # convert to DAC
-                value = step_cvalue.toDAC().value
-                step_shared_parameters[block_id][param] = value
+                step_shared_parameters[block_id][param] = calibrated_value
 
         return [step_parameters, step_shared_parameters]
 
@@ -406,13 +408,13 @@ class BaseExperiment(object):
         # Give info about nonexisting calibrations:
         for param in steps[0]:
             try:
-                if type(param) is pyhalbe.HICANN.neuron_parameter:
+                if isinstance(param, pyhalbe.HICANN.neuron_parameter):
                     ncal = self._calib_nc.at(0).at(param)
             except (RuntimeError, IndexError, AttributeError):
                 self.logger.WARN("No calibration found for {}. Using uncalibrated values.".format(param))
         for param in steps[0]:
             try:
-                if type(param) is pyhalbe.HICANN.shared_parameter:
+                if isinstance(param, pyhalbe.HICANN.shared_parameter):
                     bcal = self._calib_bc.at(0).at(param)
             except (RuntimeError, IndexError, AttributeError):
                 self.logger.WARN("No calibration found for {}. Using uncalibrated values.".format(param))
@@ -442,8 +444,9 @@ class BaseExperiment(object):
             sharedstepdump = {sid: shared_steps[0][sid] for sid in range(num_shared_steps)}
             pickle.dump(sharedstepdump, open(os.path.join(self.folder,"shared_steps.p"),"wb"))
 
-        logger.INFO("Experiment: {}".format(self.description))
-        logger.INFO("Finished initializing pickle folders. Starting with measurements.")
+        logger.INFO("Experiment {}".format(self.description))
+        logger.INFO("Created folders in {}".format(self.folder))
+
         # First check if step numbers match if both shared and neuron parameters are swept!
         if (num_steps > 0 and num_shared_steps is 0) or (num_shared_steps > 0 and num_steps is 0) or (num_steps == num_shared_steps):
             for step_id in range(max(num_steps, num_shared_steps)):

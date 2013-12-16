@@ -12,6 +12,7 @@ import pyredman as redman
 from pycairo.helpers.calibtic import create_pycalibtic_polynomial
 from pycairo.helpers.units import Current, Voltage, DAC
 from pycairo.experiment import BaseExperiment
+from pycairo.helpers.trafos import HWtoDAC, DACtoHW, HCtoDAC, DACtoHC, HWtoHC, HCtoHW
 
 # Import everything needed for saving:
 import pickle
@@ -82,8 +83,8 @@ class BaseCalibration(BaseExperiment):
             if repetition > self.repetitions:
                 # step is done; average, store and reset
                 for neuron_id in neuron_ids:
-                    results_mean[neuron_id].append(np.mean(step_results[neuron_id]))
-                    results_std[neuron_id].append(np.std(step_results[neuron_id]))
+                    results_mean[neuron_id].append(HWtoDAC(np.mean(step_results[neuron_id]), parameter))
+                    results_std[neuron_id].append(HWtoDAC(np.std(step_results[neuron_id]), parameter))
                 repetition = 1
                 step_results = defaultdict(list)
 
@@ -95,12 +96,14 @@ class BaseCalibration(BaseExperiment):
                 results_mean_shared[block_id] = np.mean([results_mean[n_id] for n_id in range(block_id,block_id+128)], axis = 0)
                 results_std_shared[block_id] = np.mean([results_std[n_id] for n_id in range(block_id,block_id+128)], axis = 0)
 
+
+
         if type(parameter) is shared_parameter:
             all_steps = self.get_shared_steps()
             for block_id in range(4):
                 results_mean_shared[block_id] = np.array(results_mean_shared[block_id])
                 results_std_shared[block_id] = np.array(results_std_shared[block_id])
-                steps = [step[parameter].value for step in all_steps[block_id]]
+                steps = [HCtoDAC(step[parameter].value, parameter, rounded = False) for step in all_steps[block_id]]
                 if linear_fit:
                     # linear fit
                     m, b = np.linalg.lstsq(zip(results_mean_shared[block_id], [1]*len(results_mean_shared[block_id])), steps)[0]
@@ -116,12 +119,13 @@ class BaseCalibration(BaseExperiment):
                 results_polynomial[block_id] = create_pycalibtic_polynomial(coeffs)
             self.results_mean_shared = results_mean_shared
             self.results_std_shared = results_std_shared
+
         else: #if neuron_parameter:
             all_steps = self.get_steps()
             for neuron_id in neuron_ids:
                 results_mean[neuron_id] = np.array(results_mean[neuron_id])
                 results_std[neuron_id] = np.array(results_std[neuron_id])
-                steps = [step[parameter].value for step in all_steps[neuron_id]]
+                steps = [HCtoDAC(step[parameter].value, parameter) for step in all_steps[neuron_id]]
                 if linear_fit:
                     # linear fit
                     m, b = np.linalg.lstsq(zip(results_mean[neuron_id], [1]*len(results_mean[neuron_id])), steps)[0]

@@ -1,6 +1,5 @@
 """Conversion of Voltage/Current to DAC"""
 
-
 class Unit(object):
     """Base class for Current, Voltage and DAC parameter values."""
     def __init__(self, value, apply_calibration=False):
