@@ -14,9 +14,6 @@ def depends(ctx):
     ctx('redman', 'pyredman')
     ctx('redman', 'backends')
 
-    if ctx.options.disable_bindings:
-        ctx.fatal('Calibration depends on Python bindings.')
-
 
 def options(opt):
     opt.load('post_task')
@@ -24,6 +21,9 @@ def options(opt):
 
 def configure(cfg):
     cfg.load('post_task')
+
+    if ctx.options.disable_bindings:
+        ctx.fatal('Calibration depends on Python bindings.')
 
 
 def build(bld):
