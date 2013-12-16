@@ -22,8 +22,8 @@ def options(opt):
 def configure(cfg):
     cfg.load('post_task')
 
-    if ctx.options.disable_bindings:
-        ctx.fatal('Calibration depends on Python bindings.')
+    if cfg.options.disable_bindings:
+        cfg.fatal('Calibration depends on Python bindings.')
 
 
 def build(bld):
