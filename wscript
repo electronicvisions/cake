@@ -22,7 +22,12 @@ def options(opt):
 def configure(cfg):
     cfg.load('post_task')
 
-    if cfg.options.disable_bindings:
+    try:
+        disable_bindings = cfg.options.disable_bindings
+    except AttributeError:
+        disable_bindings = not cfg.options.bindings
+        
+    if disable_bindings:
         cfg.fatal('Calibration depends on Python bindings.')
 
 
