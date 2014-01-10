@@ -30,7 +30,7 @@ pylogging.set_loglevel(default_logger, pylogging.LogLevel.ERROR)
 
 
 if parameters["calibrate"]:
-    if parameters["test_E_l"]:
+    if parameters["run_E_l"]:
         calib_E_l = experiments.Calibrate_E_l(neurons, sthal, backend_c, backend_r)
         pylogging.set_loglevel(calib_E_l.logger, pylogging.LogLevel.INFO)
         try:
@@ -42,7 +42,7 @@ if parameters["calibrate"]:
                 shutil.rmtree(calib_E_l.folder)
             raise e
     
-    if parameters["test_V_t"]:
+    if parameters["run_V_t"]:
         calib_V_t = experiments.Calibrate_V_t(neurons, sthal, backend_c, backend_r)
         pylogging.set_loglevel(calib_V_t.logger, pylogging.LogLevel.INFO)
         try:
@@ -54,7 +54,7 @@ if parameters["calibrate"]:
                 shutil.rmtree(calib_V_t.folder)
             raise e
     
-    if parameters["test_V_reset"]:
+    if parameters["run_V_reset"]:
         calib_V_reset = experiments.Calibrate_V_reset(neurons, sthal, backend_c, backend_r)
         pylogging.set_loglevel(calib_V_reset.logger, pylogging.LogLevel.INFO)
         try:
@@ -66,7 +66,7 @@ if parameters["calibrate"]:
                 shutil.rmtree(calib_V_reset.folder)
             raise e
     
-    if parameters["test_I_gl"]:
+    if parameters["run_I_gl"]:
         calib_I_gl = experiments.Calibrate_g_L(neurons, sthal, backend_c, backend_r)
         pylogging.set_loglevel(calib_I_gl.logger, pylogging.LogLevel.INFO)
         #try:
@@ -78,9 +78,32 @@ if parameters["calibrate"]:
         #        shutil.rmtree(calib_I_gl.folder)
         #    raise e
 
+    if parameters["run_E_synx"]:
+        calib_E_synx = experiments.Calibrate_E_synx(neurons, sthal, backend_c, backend_r)
+        pylogging.set_loglevel(calib_E_synx.logger, pylogging.LogLevel.INFO)
+        try:
+            calib_E_synx.run_experiment()
+        except Exception,e:
+            print "ERROR: ", e
+            delete = raw_input("Delete folder? (yes/no): ")
+            if delete in ("yes","Yes","y","Y"):
+                shutil.rmtree(calib_E_synx.folder)
+            raise e
+
+    if parameters["run_E_syni"]:
+        calib_E_syni = experiments.Calibrate_E_syni(neurons, sthal, backend_c, backend_r)
+        pylogging.set_loglevel(calib_E_syni.logger, pylogging.LogLevel.INFO)
+        try:
+            calib_E_syni.run_experiment()
+        except Exception,e:
+            print "ERROR: ", e
+            delete = raw_input("Delete folder? (yes/no): ")
+            if delete in ("yes","Yes","y","Y"):
+                shutil.rmtree(calib_E_syni.folder)
+            raise e
 
 if parameters["measure"]:
-    if parameters["test_E_l"]:
+    if parameters["run_E_l"]:
         test_E_l = experiments.Test_E_l(neurons, sthal, backend_c, backend_r)
         pylogging.set_loglevel(test_E_l.logger, pylogging.LogLevel.INFO)
         try:
@@ -92,7 +115,7 @@ if parameters["measure"]:
                 shutil.rmtree(test_E_l.folder)
             raise e
     
-    if parameters["test_V_t"]:
+    if parameters["run_V_t"]:
         test_V_t = experiments.Test_V_t(neurons, sthal, backend_c, backend_r)
         pylogging.set_loglevel(test_V_t.logger, pylogging.LogLevel.INFO)
         try:
@@ -104,7 +127,7 @@ if parameters["measure"]:
                 shutil.rmtree(test_V_t.folder)
             raise e
     
-    if parameters["test_V_reset"]:
+    if parameters["run_V_reset"]:
         test_V_reset = experiments.Test_V_reset(neurons, sthal, backend_c, backend_r)
         pylogging.set_loglevel(test_V_reset.logger, pylogging.LogLevel.INFO)
         try:
@@ -117,7 +140,7 @@ if parameters["measure"]:
             raise e
     
     
-    if parameters["test_I_gl"]:
+    if parameters["run_I_gl"]:
         test_I_gl = experiments.Test_g_L(neurons, sthal, backend_c, backend_r)
         pylogging.set_loglevel(test_I_gl.logger, pylogging.LogLevel.INFO)
         #try:
@@ -128,6 +151,31 @@ if parameters["measure"]:
         #    if delete in ("yes","Yes","y","Y"):
         #        shutil.rmtree(test_I_gl.folder)
         #    raise e
+
+    if parameters["run_E_synx"]:
+        test_E_synx = experiments.Test_E_synx(neurons, sthal, backend_c, backend_r)
+        pylogging.set_loglevel(calib_E_synx.logger, pylogging.LogLevel.INFO)
+        try:
+            test_E_synx.run_experiment()
+        except Exception,e:
+            print "ERROR: ", e
+            delete = raw_input("Delete folder? (yes/no): ")
+            if delete in ("yes","Yes","y","Y"):
+                shutil.rmtree(test_E_synx.folder)
+            raise e
+
+    if parameters["run_E_syni"]:
+        test_E_syni = experiments.Test_E_syni(neurons, sthal, backend_c, backend_r)
+        pylogging.set_loglevel(test_E_syni.logger, pylogging.LogLevel.INFO)
+        try:
+            test_E_syni.run_experiment()
+        except Exception,e:
+            print "ERROR: ", e
+            delete = raw_input("Delete folder? (yes/no): ")
+            if delete in ("yes","Yes","y","Y"):
+                shutil.rmtree(test_E_syni.folder)
+            raise e
+
 
 
 quit()

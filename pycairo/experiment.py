@@ -264,6 +264,7 @@ class BaseExperiment(object):
                 broken = False
                 step_cvalue = step_shared_parameters[block_id][param]
                 calibrated_value = HCtoDAC(step_cvalue.value, param)
+                uncalibrated_value = calibrated_value
                 apply_calibration = step_cvalue.apply_calibration
                 if broken:
                     self.logger.WARN("Neuron {} not working. Skipping calibration.".format(neuron_id))
@@ -278,6 +279,12 @@ class BaseExperiment(object):
                     except Exception,e:
                         raise e
                 # convert to DAC
+                if calibrated_value < 0:
+                    self.logger.WARN("Calibrated {} for block {} too low. Setting to original value".format(param.name, block_id))
+                    calibrated_value = uncalibrated_value
+                if calibrated_value > 1023:
+                    self.logger.WARN("Calibrated {} for block {} too high. Setting to original value.".format(param.name, block_id))
+                    calibrated_value = uncalibrated_value
                 step_shared_parameters[block_id][param] = calibrated_value
 
         return [step_parameters, step_shared_parameters]
@@ -431,10 +438,8 @@ class BaseExperiment(object):
             open(os.path.join(self.folder,'description.txt'), 'w').write(self.description)
 
             # dump neuron parameters and steps:
-            #paramdump = {nid:{parameters[nid].keys()[pid].name: parameters[nid].values()[pid] for pid in parameters[0].keys()} for nid in self.get_neurons()}
             paramdump = {nid: parameters[nid] for nid in self.get_neurons()}
             pickle.dump(paramdump, open(os.path.join(self.folder,"parameters.p"),"wb"))
-            #stepdump = [{pid.name: steps[0][sid][pid] for pid in steps[0][sid].keys()} for sid in range(num_steps)]
             stepdump = {sid: steps[0][sid] for sid in range(num_steps)}
             pickle.dump(stepdump, open(os.path.join(self.folder,"steps.p"),"wb"))
 
@@ -478,7 +483,7 @@ class BaseExperiment(object):
                 if not os.path.isdir(os.path.join(self.folder,"traces", "step{}rep{}".format(step_id, rep_id))):
                     os.mkdir(os.path.join(self.folder, "traces", "step{}rep{}".format(step_id, rep_id)))
                 pickle.dump([t, v], open(os.path.join(self.folder,"traces", "step{}rep{}".format(step_id, rep_id), "neuron_{}.p".format(neuron_id)), 'wb'))
-            results[neuron_id] = self.process_trace(t, v)
+            results[neuron_id] = self.process_trace(t, v, neuron_id, step_id, rep_id)
         # Now store measurements in a file:
         if self.save_results:
             if not os.path.isdir(os.path.join(self.folder,"results/")):
@@ -486,7 +491,7 @@ class BaseExperiment(object):
             pickle.dump(results, open(os.path.join(self.folder,"results/","step{}_rep{}.p".format(step_id, rep_id)), 'wb'))
         self.all_results.append(results)
 
-    def process_trace(self, t, v):
+    def process_trace(self, t, v, neuron_id, step_id, rep_id):
         """Hook class for processing measured traces. Should return one value."""
         return 0
 

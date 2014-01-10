@@ -46,8 +46,8 @@ class BaseCalibration(BaseExperiment):
                       neuron_parameter.I_spikeamp: Current(2000),#
                       neuron_parameter.V_exp: Voltage(536),      # exponential term
                       neuron_parameter.V_syni: Voltage(1000),    # inhibitory synaptic reversal potential
-                      neuron_parameter.V_syntci: Voltage(900),   # inhibitory synapse time constant
-                      neuron_parameter.V_syntcx: Voltage(900),   # excitatory synapse time constant
+                      neuron_parameter.V_syntci: Voltage(1375),   # inhibitory synapse time constant
+                      neuron_parameter.V_syntcx: Voltage(1375),   # excitatory synapse time constant
                       neuron_parameter.V_synx: Voltage(1000),    # excitatory synaptic reversal potential
                       neuron_parameter.V_t: Voltage(1000),       # recommended threshold, maximum is 1100
                       }

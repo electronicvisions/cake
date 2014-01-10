@@ -66,8 +66,8 @@ HWtoHC_polys = {
         neuron_parameter.E_l:       [        1.,  0.],
         neuron_parameter.V_t:       [        1.,  0.],
         shared_parameter.V_reset:   [        1.,  0.],
-        #neuron_parameter.I_gl:      [5.52E-10, 0.24, 0.89],
-        neuron_parameter.I_gl:      [1.6823e-03, -1.4684e+00, 6.5780e+02],
+        #neuron_parameter.I_gl:     [5.52E-10, 0.24, 0.89],
+        neuron_parameter.I_gl:      [4.32743990e-03, -3.08259218e+00, 9.79811614e+02],
         }
 
 def HWtoDAC(value, parameter, rounded = True):
@@ -102,7 +102,7 @@ def HCtoHW(value, parameter):
             DAC value
     """
     if parameter in HWtoHC_polys.keys():
-        if len(HtoHC_polys[paramter]) is 2:
+        if len(HWtoHC_polys[parameter]) is 2:
             a = HWtoHC_polys[parameter][0] 
             b = HWtoHC_polys[parameter][1] 
             return (value - b)/a

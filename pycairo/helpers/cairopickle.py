@@ -202,11 +202,11 @@ class Cairo_Experimentreader(object):
             exp.calculate_errors()
 
     def get_broken(self):
-        """ Gives names of experiments without a results folder.
+        """ Gives names of folders that don't have a results folder.
 
             Returns:
                 List of names of folders which are not valid experiments.
-                CAUTION: Does not only give experiment folders!
+                CAUTION: Does not only give experiment folders, so don't just delete all broken experiments!
         """
         broken = []
         dirs = np.sort([name for name in os.listdir(self.workdir) if os.path.isdir(os.path.join(self.workdir, name))])

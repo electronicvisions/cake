@@ -61,10 +61,12 @@ class Calibrate_E_l(BaseCalibration):
         self.E_synx_dist = +100
         self.description = "Calibrate_E_l with Esyn set AFTER calibration."
 
-    def process_trace(self, t, v):
+    def process_trace(self, t, v, neuron_id, step_id, rep_id):
         if np.std(v)*1000>50:
-            pickle.dump([t,v], open(os.path.join(self.folder,"bad_trace.p"), 'wb'))
-            raise ValueError
+            if not os.path.isdir(os.path.join(self.folder, "bad_traces")):
+                os.mkdir(os.path.join(self.folder, "bad_traces"))
+            pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
+            self.logger.WARN("Trace for neuron {} bad. Is neuron spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
         return np.mean(v)*1000 # Get the mean value * 1000 for mV
 
     def process_results(self, neuron_ids):
@@ -106,7 +108,12 @@ class Calibrate_V_t(BaseCalibration):
         self.E_synx_dist = +100
         self.description = "Calibrate_V_t with 1000 I_pl. Calibrated E_l."
 
-    def process_trace(self, t, v):
+    def process_trace(self, t, v, neuron_id, step_id, rep_id):
+        if np.std(v)*1000<5:
+            if not os.path.isdir(os.path.join(self.folder, "bad_traces")):
+                os.mkdir(os.path.join(self.folder, "bad_traces"))
+            pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
+            self.logger.WARN("Trace for neuron {} bad. Neuron not spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
         return np.max(v)*1000  # Get the mean value * 1000 for mV
 
     def process_results(self, neuron_ids):
@@ -146,7 +153,12 @@ class Calibrate_V_reset(BaseCalibration):
         self.E_synx_dist = +100
         self.description = "Calibrate_V_reset, I_pl HIGH. E_l and V_t calibrated."
 
-    def process_trace(self, t, v):
+    def process_trace(self, t, v, neuron_id, step_id, rep_id):
+        if np.std(v)*1000<5:
+            if not os.path.isdir(os.path.join(self.folder, "bad_traces")):
+                os.mkdir(os.path.join(self.folder, "bad_traces"))
+            pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
+            self.logger.WARN("Trace for neuron {} bad. Neuron not spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
         return np.min(v)*1000  # Get the mean value * 1000 for mV
 
     def process_results(self, neuron_ids):
@@ -165,8 +177,6 @@ class Calibrate_g_L(BaseCalibration):
             parameters[neuron_id].update({
                 neuron_parameter.E_l: Voltage(1100, apply_calibration = True),
                 neuron_parameter.V_t: Voltage(1000, apply_calibration = True),
-                neuron_parameter.I_convx: DAC(1023),
-                neuron_parameter.I_convi: DAC(1023),
             })
         return parameters
 
@@ -185,14 +195,19 @@ class Calibrate_g_L(BaseCalibration):
 
     def init_experiment(self):
         super(Calibrate_g_L, self).init_experiment()
-        self.description = "Capacitance g_L experiment." # Change this for all child classes
+        self.description = "Calibrate_g_L experiment." # Change this for all child classes
         self.repetitions = 1
         self.E_syni_dist = -100
         self.E_synx_dist = +100
         self.save_results = True
         self.save_traces = False
 
-    def process_trace(self, t, v):
+    def process_trace(self, t, v, neuron_id, step_id, rep_id):
+        if np.std(v)*1000<5:
+            if not os.path.isdir(os.path.join(self.folder, "bad_traces")):
+                os.mkdir(os.path.join(self.folder, "bad_traces"))
+            pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
+            self.logger.WARN("Trace for neuron {} bad. Neuron not spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
         spk = pycairo.logic.spikes.detect_spikes(t,v)
         f = pycairo.logic.spikes.spikes_to_freqency(spk)
         E_l = 1100.
@@ -201,63 +216,6 @@ class Calibrate_g_L(BaseCalibration):
         V_r = min(v)*1000.
         g_l = f * C * np.log((V_r-E_l)/(V_t-E_l)) * 1E9
         return g_l
-
-    def process_calibration_results(self, neuron_ids, parameter, linear_fit=False):
-        """This base class function can be used by child classes as process_results."""
-        # containers for final results
-        results_mean = defaultdict(list)
-        results_std = defaultdict(list)
-        results_polynomial = {}
-        results_broken = []  # will contain neuron_ids which are broken
-
-        # self.all_results contains all measurements, need to untangle
-        # repetitions and steps
-        # This is done for shared and neuron parameters
-        repetition = 1
-        step_results = defaultdict(list)
-        for result in self.all_results:
-            # still in the same step, collect repetitions for averaging
-            for neuron_id in neuron_ids:
-                step_results[neuron_id].append(result[neuron_id])
-            repetition += 1
-            if repetition > self.repetitions:
-                # step is done; average, store and reset
-                for neuron_id in neuron_ids:
-                    results_mean[neuron_id].append(np.mean(step_results[neuron_id]))
-                    results_std[neuron_id].append(np.std(step_results[neuron_id]))
-                repetition = 1
-                step_results = defaultdict(list)
-
-
-        all_steps = self.get_steps()
-        for neuron_id in neuron_ids:
-            results_mean[neuron_id] = np.array(results_mean[neuron_id])
-            results_std[neuron_id] = np.array(results_std[neuron_id])
-            steps = [step[parameter].value for step in all_steps[neuron_id]]
-            if linear_fit:
-                # linear fit
-                m, b = np.linalg.lstsq(zip(results_mean[neuron_id], [1]*len(results_mean[neuron_id])), steps)[0]
-                coeffs = [b, m]
-                if parameter is neuron_parameter.E_l:
-                    if not (m > 1.0 and m < 1.5 and b < 0 and b > -500):
-                        # this neuron is broken
-                        results_broken.append(neuron_id)
-            else:
-                # fit polynomial to results
-                weight = 1./(results_std[neuron_id] + 1e-8)  # add a tiny value because std may be zero
-                # note that np.polynomial.polynomial.polyfit coefficients have
-                # reverse order compared to np.polyfit
-                # to reverse coefficients: rcoeffs = coeffs[::-1]
-                coeffs = np.polynomial.polynomial.polyfit(results_mean[neuron_id], steps, 2, w=weight)
-                # TODO check coefficients for broken behavior
-            results_polynomial[neuron_id] = create_pycalibtic_polynomial(coeffs)
-
-        self.results_mean = results_mean
-        self.results_std = results_std
-
-        # make final results available
-        self.results_polynomial = results_polynomial
-        self.results_broken = results_broken
 
     def process_results(self, neuron_ids):
         self.process_calibration_results(neuron_ids, neuron_parameter.I_gl)
@@ -333,10 +291,8 @@ class Calibrate_g_L_stepcurrent(BaseCalibration):
         parameters = super(Calibrate_g_L_stepcurrent, self).get_parameters()
         for neuron_id in self.get_neurons():
             parameters[neuron_id].update({
-                pyhalbe.HICANN.neuron_parameter.E_l: Voltage(900, apply_calibration = True),
+                pyhalbe.HICANN.neuron_parameter.E_l: Voltage(600, apply_calibration = True),
                 pyhalbe.HICANN.neuron_parameter.V_t: Voltage(1300, apply_calibration = True),
-                pyhalbe.HICANN.neuron_parameter.I_convx: DAC(1023),
-                pyhalbe.HICANN.neuron_parameter.I_convi: DAC(1023),
             })
         return parameters
 
@@ -349,13 +305,13 @@ class Calibrate_g_L_stepcurrent(BaseCalibration):
     def get_steps(self):
         steps = []
         #for current in range(700, 1050, 50):
-        for current in range(700, 1000, 100):
+        for current in range(700, 1300, 100):
             steps.append({pyhalbe.HICANN.neuron_parameter.I_gl: Current(current)})
         return defaultdict(lambda: steps)
 
     def init_experiment(self):
         super(Calibrate_g_L_stepcurrent, self).init_experiment()
-        self.description = "Capacitance g_L experiment. Membrane is fitted after step current" # Change this for all child classes
+        self.description = "Capacitance g_L experiment. Membrane is fitted after step current." # Change this for all child classes
         self.repetitions = 1
         self.E_syni_dist = -100
         self.E_synx_dist = +100
@@ -399,15 +355,8 @@ class Calibrate_g_L_stepcurrent(BaseCalibration):
 
         self.sthal.write_config()
 
-    def process_trace(self, t, v):
-        spk = pycairo.logic.spikes.detect_spikes(t,v)
-        f = pycairo.logic.spikes.spikes_to_freqency(spk)
-        E_l = 1100.
-        C = 2.16456E-12
-        V_t = max(v)*1000.
-        V_r = min(v)*1000.
-        g_l = f * C * np.log((V_r-E_l)/(V_t-E_l)) * 1E9
-        return g_l
+    def process_trace(self, t, v, neuron_id, step_id, rep_id):
+        return 0
 
     def process_results(self, neuron_ids):
         pass
