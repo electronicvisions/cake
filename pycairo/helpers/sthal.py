@@ -51,13 +51,20 @@ class StHALContainer(object):
         self.connect_adc()
         self._connected = True
 
-    def connect_adc(self):
-        """Gets ADC handle"""
+    def connect_adc(self, coord_analog=None):
+        """Gets ADC handle.
+
+        Args:
+            coord_analog: Coordinate.AnalogOnHICANN to override default behavior
+        """
         # analogRecoorder() MUST be called after wafer.connect()
         if self.adc:
             self.adc.freeHandle()
             self.adc = None
-        adc = self.hicann.analogRecorder(self.coord_analog)
+
+        if coord_analog is None:
+            coord_analog = self.coord_analog
+        adc = self.hicann.analogRecorder(coord_analog)
         adc.setRecordingTime(self.recording_time)
         self.adc = adc
 
