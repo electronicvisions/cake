@@ -222,14 +222,14 @@ class BaseExperiment(object):
             step_parameters[neuron_id].update(steps[neuron_id][step_id])
             coord_neuron = Coordinate.NeuronOnHICANN(Enum(neuron_id))
             broken = not self._red_nrns.has(coord_neuron)
+            if broken: 
+                self.logger.WARN("Neuron {} not working. Skipping calibration.".format(neuron_id))
             for param in step_parameters[neuron_id]:
                 # Handle only neuron parameters in this step. Shared parameters applied afterwards
                 step_cvalue = step_parameters[neuron_id][param]
                 calibrated_value = HCtoDAC(step_cvalue.value, param)
                 uncalibrated_value = calibrated_value
                 apply_calibration = step_cvalue.apply_calibration
-                if broken:
-                    self.logger.WARN("Neuron {} not working. Skipping calibration.".format(neuron_id))
                 if apply_calibration and not broken:
                     # apply calibration
                     try:
@@ -253,8 +253,25 @@ class BaseExperiment(object):
                 E_l = step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_l]
                 i_dist = HCtoDAC(-self.E_syni_dist, neuron_parameter.E_syni) # Convert mV to DAC
                 x_dist = HCtoDAC(self.E_synx_dist, neuron_parameter.E_synx) # Convert mV to DAC
-                step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_syni] = type(step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_syni])(E_l - i_dist)
-                step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_synx] = type(step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_synx])(E_l + x_dist)
+                E_syni = E_l - i_dist
+                E_synx = E_l + x_dist
+                if not broken: # Try to calibrate if neuron is not labeled as broken
+                    try:
+                        ncal = self._calib_nc.at(neuron_id)
+                        calib_i = ncal.at(neuron_parameter.E_syni)
+                        calib_x = ncal.at(neuron_parameter.E_synx)
+
+                        E_syni_new = int(round(calib_i.apply(E_syni)))
+                        E_synx_new = int(round(calib_i.apply(E_synx)))
+                        if (E_syni_new in range(1024)) and E_synx_new in range(1024):
+                            E_syni = E_syni_new
+                            E_synx = E_synx_new
+                    except (RuntimeError, IndexError),e:
+                        print "E_syn not calibrated: ", e
+                    except OverflowError, e:
+                        print "E_syn calibration invalid. Using original value."
+                step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_syni] = type(step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_syni])(E_syni)
+                step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_synx] = type(step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_synx])(E_synx)
 
         # Now prepare shared parameters
         for block_id in block_ids:

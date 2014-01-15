@@ -68,6 +68,8 @@ HWtoHC_polys = {
         shared_parameter.V_reset:   [        1.,  0.],
         #neuron_parameter.I_gl:     [5.52E-10, 0.24, 0.89],
         neuron_parameter.I_gl:      [4.32743990e-03, -3.08259218e+00, 9.79811614e+02],
+        neuron_parameter.E_syni:    [        1.,  0.],
+        neuron_parameter.E_synx:    [        1.,  0.],
         }
 
 def HWtoDAC(value, parameter, rounded = True):
@@ -159,7 +161,11 @@ def DACtoHC(value, parameter):
         return value * 2500./1023.
 
 def BiotoHW(value, parameter):
-    pass
+    if parameter in voltage_params:
+        if value < 200 and value > -215:
+            return 100/20.*value + 900 # dV = 20 mV -> dV = 100 mV. V = -60 mV -> V = 600 mV
 
 def HWtoBio(value, parameter):
-    pass
+    if parameter in voltage_params:
+        if value < 1800 and value > 0:
+            return 20/100.*value - 180 # dV = 20 mV -> dV = 100 mV. V = -60 mV -> V = 600 mV

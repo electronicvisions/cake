@@ -50,7 +50,7 @@ V_t_params = {"E_l":        1000,
               "I_gl":       1000,
              }
 
-V_reset_params = {"E_l":    1000,
+V_reset_params = {"E_l":    1100,
                   "V_t":    900,
                   "I_gl":   1000,
                  }
@@ -288,7 +288,7 @@ class Test_V_t(pycairo.calibration.lif.Calibrate_V_t):
         parameters = super(Test_V_t, self).get_parameters()
         for neuron_id in self.get_neurons():
             parameters[neuron_id].update({
-                neuron_parameter.E_l: Voltage(V_t_params[""], apply_calibration = True),  # TODO apply calibration?
+                neuron_parameter.E_l: Voltage(V_t_params["E_l"], apply_calibration = True),  # TODO apply calibration?
                 neuron_parameter.I_gl: Current(V_t_params["I_gl"]),
             })
         return parameters

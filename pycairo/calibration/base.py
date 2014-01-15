@@ -131,6 +131,9 @@ class BaseCalibration(BaseExperiment):
                     m, b = np.linalg.lstsq(zip(results_mean[neuron_id], [1]*len(results_mean[neuron_id])), steps)[0]
                     coeffs = [b, m]
                     # TODO find criteria for broken neurons. Until now, no broken neurons exist
+                    if self.isbroken(coeffs):
+                        results_broken.append(neuron_id)
+                        self.logger.INFO("Neuron {0} marked as broken with coefficients of {1:.2f} and {2:.2f}".format(neuron_id, m, b))
                     #if parameter is neuron_parameter.E_l:
                     #    if not (m > 1.0 and m < 1.5 and b < 0 and b > -500):
                     #        # this neuron is broken
@@ -206,4 +209,10 @@ class BaseCalibration(BaseExperiment):
             raise TypeError("can not store defects without Redman backend")
         self.repetitions = 1
 
+    def isbroken(self, coefficients):
+        """ Specify the function that that tells us if a neuron is broken based on the fit coefficients.
+
+            Should return True or False
+        """
+        return False
 

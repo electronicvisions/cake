@@ -84,6 +84,12 @@ class Calibrate_E_synx(BaseCalibration):
         #pass
         super(Calibrate_E_synx, self).store_calibration_results(neuron_parameter.E_synx)
 
+    def isbroken(self, coeffs):
+        if abs(coeffs[1] - 1) > 0.4:     # Broken if slope of the fit is too high or too small
+            return True
+        else:
+            return False
+
 class Calibrate_E_syni(BaseCalibration):
     def get_parameters(self):
         parameters = super(Calibrate_E_syni, self).get_parameters()
@@ -132,3 +138,8 @@ class Calibrate_E_syni(BaseCalibration):
     def store_results(self):
         super(Calibrate_E_syni, self).store_calibration_results(neuron_parameter.E_syni)
 
+    def isbroken(self, coeffs):
+        if abs(coeffs[1] - 1) > 0.4:     # Broken if slope of the fit is too high or too small
+            return True
+        else:
+            return False
