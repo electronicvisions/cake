@@ -25,8 +25,11 @@ def configure(cfg):
     try:
         disable_bindings = cfg.options.disable_bindings
     except AttributeError:
-        disable_bindings = not cfg.options.bindings
-        
+        try:
+            disable_bindings = not cfg.options.bindings
+        except AttributeError:
+            disable_bindings = not cfg.env.build_python_bindings
+
     if disable_bindings:
         cfg.fatal('Calibration depends on Python bindings.')
 
