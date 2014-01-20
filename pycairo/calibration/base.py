@@ -29,9 +29,9 @@ shared_parameter = pyhalbe.HICANN.shared_parameter
 class BaseCalibration(BaseExperiment):
     """Base class for calibration experiments."""
     def get_parameters(self):
-        parameters = {neuron_parameter.E_l: Voltage(900),
-                      neuron_parameter.E_syni: Voltage(800),     # synapse
-                      neuron_parameter.E_synx: Voltage(1000),    # synapse
+        parameters = {neuron_parameter.E_l: Voltage(600),
+                      neuron_parameter.E_syni: Voltage(500),     # synapse
+                      neuron_parameter.E_synx: Voltage(700),    # synapse
                       neuron_parameter.I_bexp: Current(0),       # exponential term set to 0
                       neuron_parameter.I_convi: Current(2500),   # bias current for synaptic input
                       neuron_parameter.I_convx: Current(2500),   # bias current for synaptic input

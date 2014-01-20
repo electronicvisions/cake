@@ -174,15 +174,19 @@ class Cairo_Experimentreader(object):
             data1 = exp1.results[step][repetition]
             data2 = exp2.results[step][repetition]
 
+        target = steps1[step][parameter].value
         minval = int(round(steps1[0][parameter].value * 0.9))
         maxval = int(round(steps1[len(steps1)-1][parameter].value * 1.1))
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        ax.hist(data1, range(minval,maxval,int((maxval-minval)/70)))
-        ax.hist(data2, range(minval,maxval,int((maxval-minval)/70)))
+        h1 = ax.hist(data1, range(minval,maxval,int((maxval-minval)/70)), label = 'uncalibrated')
+        h2 = ax.hist(data2, range(minval,maxval,int((maxval-minval)/70)), label = 'calibrated')
+        max_y = max(max(h1[0]),max(h2[0]))
+        ax.vlines(target, 0, max_y, linestyle = 'dashed', color = 'k', label = 'target')
         ax.set_title("Comparison of {} values.".format(parameter.name))
         ax.set_xlabel(parameter.name)
         ax.set_ylabel("Occurences")
+        ax.legend(loc = 0)
         return fig
 
     def print_errors(self, experiments):

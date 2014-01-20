@@ -114,10 +114,11 @@ class Calibrate_V_t(BaseCalibration):
                 os.mkdir(os.path.join(self.folder, "bad_traces"))
             pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
             self.logger.WARN("Trace for neuron {} bad. Neuron not spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
-        return np.max(v)*1000  # Get the mean value * 1000 for mV
+        # Return max value. This should be more accurate than a mean value of all maxima because the ADC does not always hit the real maximum value, underestimating V_t.
+        return np.max(v)*1000
 
     def process_results(self, neuron_ids):
-        super(Calibrate_V_t, self).process_calibration_results(neuron_ids, neuron_parameter.V_t)
+        super(Calibrate_V_t, self).process_calibration_results(neuron_ids, neuron_parameter.V_t, linear_fit = True)
 
     def store_results(self):
         super(Calibrate_V_t, self).store_calibration_results(neuron_parameter.V_t)
@@ -159,10 +160,11 @@ class Calibrate_V_reset(BaseCalibration):
                 os.mkdir(os.path.join(self.folder, "bad_traces"))
             pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
             self.logger.WARN("Trace for neuron {} bad. Neuron not spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
+        # Return min value. This should be more accurate than a mean value of all minima because the ADC does not always hit the real minimum value, overestimating V_reset.
         return np.min(v)*1000  # Get the mean value * 1000 for mV
 
     def process_results(self, neuron_ids):
-        super(Calibrate_V_reset, self).process_calibration_results(neuron_ids, shared_parameter.V_reset)
+        super(Calibrate_V_reset, self).process_calibration_results(neuron_ids, shared_parameter.V_reset, linear_fit = True)
 
     def store_results(self):
         # TODO detect and store broken neurons

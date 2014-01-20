@@ -222,7 +222,7 @@ class BaseExperiment(object):
             step_parameters[neuron_id].update(steps[neuron_id][step_id])
             coord_neuron = Coordinate.NeuronOnHICANN(Enum(neuron_id))
             broken = not self._red_nrns.has(coord_neuron)
-            if broken: 
+            if broken and step_id == 0: # Only give this info in the first step. 
                 self.logger.WARN("Neuron {} not working. Skipping calibration.".format(neuron_id))
             for param in step_parameters[neuron_id]:
                 # Handle only neuron parameters in this step. Shared parameters applied afterwards
@@ -267,9 +267,9 @@ class BaseExperiment(object):
                             E_syni = E_syni_new
                             E_synx = E_synx_new
                     except (RuntimeError, IndexError),e:
-                        print "E_syn not calibrated: ", e
+                        self.logger.WARN("E_syn for neuron {} not calibrated! Using uncalibrated value.".format(neuron_id))
                     except OverflowError, e:
-                        print "E_syn calibration invalid. Using original value."
+                        self.logger.WARN("E_syn calibration for neuron {} invalid. Using original value.".format(neuron_id))
                 step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_syni] = type(step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_syni])(E_syni)
                 step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_synx] = type(step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_synx])(E_synx)
 

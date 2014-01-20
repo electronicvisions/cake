@@ -40,7 +40,7 @@ class Calibrate_E_synx(BaseCalibration):
         for neuron_id in self.get_neurons():
             parameters[neuron_id].update({
                 neuron_parameter.I_gl: Current(0),
-                neuron_parameter.V_t: Voltage(1700, apply_calibration = True),
+                neuron_parameter.V_t: Voltage(1400, apply_calibration = True),
                 neuron_parameter.I_convi: Current(0),
                 neuron_parameter.I_convx: Current(2500),
                 neuron_parameter.V_syntcx: Voltage(1800),
@@ -50,7 +50,7 @@ class Calibrate_E_synx(BaseCalibration):
     def get_shared_parameters(self):
         parameters = super(Calibrate_E_synx, self).get_shared_parameters()
         for block_id in range(4):
-            parameters[block_id][shared_parameter.V_reset] = Voltage(200, apply_calibration = True)
+            parameters[block_id][shared_parameter.V_reset] = Voltage(400, apply_calibration = True)
         return parameters
 
     
@@ -96,7 +96,7 @@ class Calibrate_E_syni(BaseCalibration):
         for neuron_id in self.get_neurons():
             parameters[neuron_id].update({
                 neuron_parameter.I_gl: Current(0),
-                neuron_parameter.V_t: Voltage(1700, apply_calibration = True),
+                neuron_parameter.V_t: Voltage(1400, apply_calibration = True),
                 neuron_parameter.I_convi: Current(2500),
                 neuron_parameter.I_convx: Current(0),
                 neuron_parameter.V_syntci: Voltage(1800),
@@ -106,7 +106,7 @@ class Calibrate_E_syni(BaseCalibration):
     def get_shared_parameters(self):
         parameters = super(Calibrate_E_syni, self).get_shared_parameters()
         for block_id in range(4):
-            parameters[block_id][shared_parameter.V_reset] = Voltage(200, apply_calibration = True)
+            parameters[block_id][shared_parameter.V_reset] = Voltage(400, apply_calibration = True)
         return parameters
 
     
