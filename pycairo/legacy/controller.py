@@ -1,22 +1,22 @@
 """Controller for the calibration of the BrainScaleS hardware.
 
 CalibrationController is outdated, current way of doing it is
-using pycairo.experiment.*
+using pycake.experiment.*
 """
 
 import time
 import numpy as np
 
-import pycairo.simulator
+import pycake.simulator
 
-import pycairo.interfaces.database  # will be replaced by pycalibtic
-import pycairo.translations.scaledhw  # will be replaced by pycalibtic
+import pycake.interfaces.database  # will be replaced by pycalibtic
+import pycake.translations.scaledhw  # will be replaced by pycalibtic
 #import pycalibtic
 
-import pycairo.interfaces.halbe
+import pycake.interfaces.halbe
 
-from pycairo.config.coordinates import get_fpga_ip
-import pycairo.config.controller as config
+from pycake.config.coordinates import get_fpga_ip
+import pycake.config.controller as config
 
 
 class CalibrationController(object):
@@ -36,7 +36,7 @@ class CalibrationController(object):
         self.neurons_range = neurons_range
         self.fpga_id = fpga_id
 
-        self.dbi = pycairo.interfaces.database.DatabaseInterface()
+        self.dbi = pycake.interfaces.database.DatabaseInterface()
         if self.dbi.is_empty():
             # create DB if not already existing
             self.dbi.create_db(hardware, fpga_id)
@@ -45,12 +45,12 @@ class CalibrationController(object):
             self.dbi.activate_hicann(0, 0, fpga_id)
 
         # hardware interface for single HICANN
-        self.hwi = pycairo.interfaces.halbe.HalbeInterface(0, get_fpga_ip(fpga_id))
+        self.hwi = pycake.interfaces.halbe.HalbeInterface(0, get_fpga_ip(fpga_id))
 
         # Scaled to hardware module
-        self.scali = pycairo.translations.scaledhw.scaledHW()
+        self.scali = pycake.translations.scaledhw.scaledHW()
 
-        self.simi = pycairo.simulator.Simulator()
+        self.simi = pycake.simulator.Simulator()
 
     def calibrate(self, model='LIF'):
         """Main calibration function

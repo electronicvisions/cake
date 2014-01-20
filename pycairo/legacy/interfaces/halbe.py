@@ -5,9 +5,9 @@ from pyhalbe.geometry import Enum
 
 import numpy as np
 
-import pycairo.interfaces.adc
-import pycairo.logic.helpers
-import pycairo.config.hardware as config
+import pycake.interfaces.adc
+import pycake.logic.helpers
+import pycake.config.hardware as config
 
 
 class HWNeurons(object):
@@ -45,8 +45,8 @@ class HalbeInterface:
             setup_port (int): port
         """
 
-        self.helpers = pycairo.logic.helpers.Helpers()
-        self.adc = pycairo.interfaces.adc.ADCInterface()  # TODO WSS case?
+        self.helpers = pycake.logic.helpers.Helpers()
+        self.adc = pycake.interfaces.adc.ADCInterface()  # TODO WSS case?
 
         if type(setup_ip) is tuple:  # old format, tuple of IP and port
             self.ip = pyhalbe.Coordinate.IPv4.from_string(setup_ip[0])

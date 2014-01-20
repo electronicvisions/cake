@@ -1,8 +1,8 @@
 """Runs E_l calibration, plots and saves data"""
 
 import pyhalbe
-import pycairo.experiment
-from pycairo.experiment import Voltage, Current
+import pycake.experiment
+from pycake.experiment import Voltage, Current
 from collections import defaultdict
 
 import numpy as np
@@ -10,9 +10,9 @@ import matplotlib
 matplotlib.use('Agg')  # execute before using pyplot without X
 import matplotlib.pyplot as plt
 
-from pycairo.helpers.calibtic import init_backend as init_calibtic
-from pycairo.helpers.redman import init_backend as init_redman
-from pycairo.helpers.sthal import StHALContainer
+from pycake.helpers.calibtic import init_backend as init_calibtic
+from pycake.helpers.redman import init_backend as init_redman
+from pycake.helpers.sthal import StHALContainer
 
 import pyoneer  # needs to be imported for get_pyoneer()
 
@@ -34,7 +34,7 @@ backend_r = init_redman(path='/afsuser/weilbach/redman_config/')
 sthal = StHALContainer()
 
 # E_l calibration
-class Calibrate_E_l_zero_current(pycairo.experiment.Calibrate_E_l):
+class Calibrate_E_l_zero_current(pycake.experiment.Calibrate_E_l):
     """E_l calibration with zero currents."""
     def get_parameters(self):
         parameters = super(Calibrate_E_l_zero_current, self).get_parameters()
@@ -80,7 +80,7 @@ class Calibrate_E_l_zero_current(pycairo.experiment.Calibrate_E_l):
 #np.savez_compressed("calib_E_l_zero_current.npz", **save_data)
 
 ## V_t calibration
-#e = pycairo.experiment.Calibrate_V_t(neurons, sthal_container=sthal, calibtic_backend=backend)
+#e = pycake.experiment.Calibrate_V_t(neurons, sthal_container=sthal, calibtic_backend=backend)
 #e.run_experiment()
 #
 ## plot and save
@@ -101,7 +101,7 @@ class Calibrate_E_l_zero_current(pycairo.experiment.Calibrate_E_l):
 #np.savez_compressed("calib_V_t.npz", **save_data)
 
 ## V_reset calibration
-e = pycairo.experiment.Calibrate_V_reset(
+e = pycake.experiment.Calibrate_V_reset(
         neurons,
         sthal_container=sthal,
         calibtic_backend=backend,

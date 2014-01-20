@@ -1,5 +1,5 @@
 import pyhalbe
-from pycairo.experiment import Voltage, Current
+from pycake.experiment import Voltage, Current
 import copy
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter

@@ -4,4 +4,4 @@
 """Calibration of exponential term parameters."""
 
 
-from pycairo.calibration.base import BaseCalibration
+from pycake.calibration.base import BaseCalibration

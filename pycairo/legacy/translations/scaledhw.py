@@ -1,9 +1,9 @@
 '''Translation from scaled AdEx parameters to hardware parameters'''
 
 from numpy import polyval, sqrt
-from pycairo.interfaces import database as DB
-from pycairo.config import hardware as dflt
-from pycairo.config import idealtrafo as ideal
+from pycake.interfaces import database as DB
+from pycake.config import hardware as dflt
+from pycake.config import idealtrafo as ideal
 
 
 class scaledHW(object):

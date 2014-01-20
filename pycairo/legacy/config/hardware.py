@@ -13,7 +13,7 @@ FPGA_PORT = 1701
 
 current_default = 600  # Default current, DAC value
 
-# sample times, maybe move into pycairo.config.adc?
+# sample times, maybe move into pycake.config.adc?
 sample_time_tw = 400
 sample_time_dT = 400
 

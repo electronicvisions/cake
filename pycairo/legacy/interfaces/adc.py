@@ -1,7 +1,7 @@
 import numpy as np
 
 import pyhalbe
-import pycairo.config.adc
+import pycake.config.adc
 
 
 class ADCTrace(object):
@@ -30,12 +30,12 @@ class ADCInterface():
     """This class encapsulates the methods to readout from the ADC, as well as higher level methods to read the spiking frequency of signal."""
 
     def __init__(self):
-        self.sampletime = pycairo.config.adc.SampleTime()  # default sample times (constant values)
+        self.sampletime = pycake.config.adc.SampleTime()  # default sample times (constant values)
 
         # initialize ADC calibration backend
-        self.adc_calib = pycairo.config.adc.init_adc_calibration_backend()
+        self.adc_calib = pycake.config.adc.init_adc_calibration_backend()
 
-    def read_adc(self, sample_time, input_channel=pycairo.config.adc.INPUT_CHANNEL):
+    def read_adc(self, sample_time, input_channel=pycake.config.adc.INPUT_CHANNEL):
         """Start the acquisition from the ADC and return times and voltages.
 
         Args:

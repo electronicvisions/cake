@@ -1,10 +1,10 @@
 """Runs E_l calibration, plots and saves data"""
 
-from pycairo.helpers.calibtic import init_backend as init_calibtic
-from pycairo.helpers.redman import init_backend as init_redman
-from pycairo.helpers.sthal import StHALContainer
+from pycake.helpers.calibtic import init_backend as init_calibtic
+from pycake.helpers.redman import init_backend as init_redman
+from pycake.helpers.sthal import StHALContainer
 
-import cairotest_experiments as experiments
+import caketest_experiments as experiments
 from parameters import parameters
 import shutil
 

@@ -9,10 +9,10 @@ from collections import defaultdict
 import pyhalbe
 import pycalibtic
 import pyredman as redman
-from pycairo.helpers.calibtic import create_pycalibtic_polynomial
-from pycairo.helpers.units import Current, Voltage, DAC
-from pycairo.experiment import BaseExperiment
-from pycairo.helpers.trafos import HWtoDAC, DACtoHW, HCtoDAC, DACtoHC, HWtoHC, HCtoHW
+from pycake.helpers.calibtic import create_pycalibtic_polynomial
+from pycake.helpers.units import Current, Voltage, DAC
+from pycake.experiment import BaseExperiment
+from pycake.helpers.trafos import HWtoDAC, DACtoHW, HCtoDAC, DACtoHC, HWtoHC, HCtoHW
 
 # Import everything needed for saving:
 import pickle
@@ -160,7 +160,7 @@ class BaseCalibration(BaseExperiment):
         """This base class function can be used by child classes as store_results."""
         results = self.results_polynomial
         md = pycalibtic.MetaData()
-        md.setAuthor("pycairo")
+        md.setAuthor("pycake")
         md.setComment("calibration")
 
         logger = self.logger

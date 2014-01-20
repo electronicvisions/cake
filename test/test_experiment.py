@@ -4,7 +4,7 @@
 import unittest
 import numpy as np
 import pycalibtic as cal
-import pycairo.experiment as exp
+import pycake.experiment as exp
 import random
 
 

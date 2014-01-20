@@ -1,7 +1,7 @@
 """Units for variables, using unum.
 
 Example:
-    import pycairo.units as units
+    import pycake.units as units
 
     i = 5*units.uA
     print i.asUnit(units.nA)

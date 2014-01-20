@@ -10,8 +10,8 @@ from collections import defaultdict
 import pyhalbe
 import pycalibtic
 import pyredman as redman
-from pycairo.helpers.units import Current, Voltage, DAC
-from pycairo.helpers.trafos import HWtoDAC, DACtoHW, HCtoDAC, DACtoHC, HWtoHC, HCtoHW
+from pycake.helpers.units import Current, Voltage, DAC
+from pycake.helpers.trafos import HWtoDAC, DACtoHW, HCtoDAC, DACtoHC, HWtoHC, HCtoHW
 
 # Import everything needed for saving:
 import pickle
@@ -53,7 +53,7 @@ class BaseExperiment(object):
         if calibtic_backend:
             self.init_calibration()
 
-        self.logger = pylogging.get("pycairo.experiment")
+        self.logger = pylogging.get("pycake.experiment")
         if not loglevel is None:
             pylogging.set_loglevel(self.logger, pylogging.LogLevel.INFO)
 

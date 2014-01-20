@@ -11,10 +11,10 @@ from collections import defaultdict
 import pyhalbe
 import pycalibtic
 import pyredman as redman
-import pycairo.logic.spikes
-from pycairo.helpers.calibtic import create_pycalibtic_polynomial
-from pycairo.helpers.sthal import StHALContainer, UpdateAnalogOutputConfigurator
-from pycairo.helpers.units import Current, Voltage, DAC
+import pycake.logic.spikes
+from pycake.helpers.calibtic import create_pycalibtic_polynomial
+from pycake.helpers.sthal import StHALContainer, UpdateAnalogOutputConfigurator
+from pycake.helpers.units import Current, Voltage, DAC
 
 import pysthal
 
@@ -30,7 +30,7 @@ neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
 
 
-from pycairo.calibration.base import BaseCalibration
+from pycake.calibration.base import BaseCalibration
 
 import scipy.stats as stats
 

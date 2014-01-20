@@ -1,14 +1,14 @@
 import pickle
-from pycairo.calibration.base import BaseCalibration
-from pycairo.helpers.units import Voltage, Current, DAC
-import pycairo.logic.spikes
+from pycake.calibration.base import BaseCalibration
+from pycake.helpers.units import Voltage, Current, DAC
+import pycake.logic.spikes
 import pyhalbe
 from collections import defaultdict
 import numpy as np
 import os
 import time
-import pycairo.calibration.lif
-import pycairo.calibration.synapse
+import pycake.calibration.lif
+import pycake.calibration.synapse
 
 from parameters import parameters
 
@@ -55,7 +55,7 @@ V_t_test_params, V_t_test_shared = test_parameters["V_t_params"], test_parameter
 V_reset_test_params, V_reset_test_shared = test_parameters["V_reset_params"], test_parameters["V_reset_shared"]
 g_l_test_params, g_l_test_shared = test_parameters["g_l_params"], test_parameters["g_l_shared"]
 
-class Calibrate_E_l(pycairo.calibration.lif.Calibrate_E_l):
+class Calibrate_E_l(pycake.calibration.lif.Calibrate_E_l):
     """E_l calibration."""
     def get_parameters(self):
         parameters = super(Calibrate_E_l, self).get_parameters()
@@ -88,7 +88,7 @@ class Calibrate_E_l(pycairo.calibration.lif.Calibrate_E_l):
         self.description = "Calibrate E_l: {}".format(E_l_description)
 
 
-class Calibrate_V_t(pycairo.calibration.lif.Calibrate_V_t):
+class Calibrate_V_t(pycake.calibration.lif.Calibrate_V_t):
     """V_t calibration."""
     def get_parameters(self):
         parameters = super(Calibrate_V_t, self).get_parameters()
@@ -120,7 +120,7 @@ class Calibrate_V_t(pycairo.calibration.lif.Calibrate_V_t):
         self.description = "Calibrate_V_t: ".format(V_t_description)
 
 
-class Calibrate_V_reset(pycairo.calibration.lif.Calibrate_V_reset):
+class Calibrate_V_reset(pycake.calibration.lif.Calibrate_V_reset):
     """V_reset calibration."""
     def get_parameters(self):
         parameters = super(Calibrate_V_reset, self).get_parameters()
@@ -151,7 +151,7 @@ class Calibrate_V_reset(pycairo.calibration.lif.Calibrate_V_reset):
         self.E_synx_dist = E_synx_dist
         self.description = "Calibrate_V_reset: {}".format(V_reset_description)
 
-class Calibrate_E_synx(pycairo.calibration.synapse.Calibrate_E_synx):
+class Calibrate_E_synx(pycake.calibration.synapse.Calibrate_E_synx):
     def get_parameters(self):
         parameters = super(Calibrate_E_synx, self).get_parameters()
         for neuron_id in self.get_neurons():
@@ -180,7 +180,7 @@ class Calibrate_E_synx(pycairo.calibration.synapse.Calibrate_E_synx):
         self.save_traces = save_traces
         self.description = "Calibrate_E_synx: {}".format(E_synx_description)
 
-class Calibrate_E_syni(pycairo.calibration.synapse.Calibrate_E_syni):
+class Calibrate_E_syni(pycake.calibration.synapse.Calibrate_E_syni):
     def get_parameters(self):
         parameters = super(Calibrate_E_syni, self).get_parameters()
         for neuron_id in self.get_neurons():
@@ -211,7 +211,7 @@ class Calibrate_E_syni(pycairo.calibration.synapse.Calibrate_E_syni):
     
 
 # TODO, playground for digital spike measures atm.
-class Calibrate_g_L(pycairo.calibration.lif.Calibrate_g_L):
+class Calibrate_g_L(pycake.calibration.lif.Calibrate_g_L):
     def get_parameters(self):
         parameters = super(Calibrate_g_L, self).get_parameters()
         for neuron_id in self.get_neurons():
@@ -249,7 +249,7 @@ class Calibrate_g_L(pycairo.calibration.lif.Calibrate_g_L):
         super(Calibrate_g_L, self).store_calibration_results(neuron_parameter.I_gl)
 
 
-class Test_E_l(pycairo.calibration.lif.Calibrate_E_l):
+class Test_E_l(pycake.calibration.lif.Calibrate_E_l):
     """E_l calibration."""
     def get_parameters(self):
         parameters = super(Test_E_l, self).get_parameters()
@@ -288,7 +288,7 @@ class Test_E_l(pycairo.calibration.lif.Calibrate_E_l):
         pass
 
 
-class Test_V_t(pycairo.calibration.lif.Calibrate_V_t):
+class Test_V_t(pycake.calibration.lif.Calibrate_V_t):
     """V_t calibration."""
     def get_parameters(self):
         parameters = super(Test_V_t, self).get_parameters()
@@ -326,7 +326,7 @@ class Test_V_t(pycairo.calibration.lif.Calibrate_V_t):
         pass
 
 
-class Test_V_reset(pycairo.calibration.lif.Calibrate_V_reset):
+class Test_V_reset(pycake.calibration.lif.Calibrate_V_reset):
     """V_reset calibration."""
     def get_parameters(self):
         parameters = super(Test_V_reset, self).get_parameters()
@@ -364,7 +364,7 @@ class Test_V_reset(pycairo.calibration.lif.Calibrate_V_reset):
         pass
 
 # TODO, playground for digital spike measures atm.
-class Test_g_L(pycairo.calibration.lif.Calibrate_g_L):
+class Test_g_L(pycake.calibration.lif.Calibrate_g_L):
     def get_parameters(self):
         parameters = super(Test_g_L, self).get_parameters()
         for neuron_id in self.get_neurons():
@@ -400,7 +400,7 @@ class Test_g_L(pycairo.calibration.lif.Calibrate_g_L):
     def store_results(self):
         pass
 
-class Test_E_synx(pycairo.calibration.synapse.Calibrate_E_synx):
+class Test_E_synx(pycake.calibration.synapse.Calibrate_E_synx):
     def get_parameters(self):
         parameters = super(Calibrate_E_synx, self).get_parameters()
         for neuron_id in self.get_neurons():
@@ -435,7 +435,7 @@ class Test_E_synx(pycairo.calibration.synapse.Calibrate_E_synx):
     def store_results(self):
         pass
 
-class Test_E_syni(pycairo.calibration.synapse.Calibrate_E_syni):
+class Test_E_syni(pycake.calibration.synapse.Calibrate_E_syni):
     def get_parameters(self):
         parameters = super(Calibrate_E_syni, self).get_parameters()
         for neuron_id in self.get_neurons():

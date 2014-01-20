@@ -2,7 +2,7 @@
 
 import numpy
 import matplotlib.pyplot as plt
-import pycairo.interfaces.database
+import pycake.interfaces.database
 
 
 def plot_parameter_multi(hicann_id, neuron_ids, param, error=True, save=False, filename='default'):
@@ -16,7 +16,7 @@ def plot_parameter_multi(hicann_id, neuron_ids, param, error=True, save=False, f
         save: Save in file?
         filename: Which name for the file?
     '''
-    dbi = pycairo.interfaces.database.DatabaseInterface()
+    dbi = pycake.interfaces.database.DatabaseInterface()
     neurons = dbi.get_neurons(hicann_id)
 
     if isinstance(neuron_ids, int):
@@ -83,7 +83,7 @@ def plot_parameter_all(hicann_id, start, stop, param, plot_type='plot'):
         param: The parameter to be plotted
         plot_type: Choose between 'plot' and 'hist'
     '''
-    dbi = pycairo.interfaces.database.DatabaseInterface()
+    dbi = pycake.interfaces.database.DatabaseInterface()
     neurons = dbi.get_neurons(hicann_id)
 
     # Find len of measurement array

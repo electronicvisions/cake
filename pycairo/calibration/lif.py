@@ -9,10 +9,10 @@ from collections import defaultdict
 import pyhalbe
 import pycalibtic
 import pyredman as redman
-import pycairo.logic.spikes
-from pycairo.helpers.calibtic import create_pycalibtic_polynomial
-from pycairo.helpers.sthal import StHALContainer, UpdateAnalogOutputConfigurator
-from pycairo.helpers.units import Current, Voltage, DAC
+import pycake.logic.spikes
+from pycake.helpers.calibtic import create_pycalibtic_polynomial
+from pycake.helpers.sthal import StHALContainer, UpdateAnalogOutputConfigurator
+from pycake.helpers.units import Current, Voltage, DAC
 
 # Import everything needed for saving:
 import pickle
@@ -26,7 +26,7 @@ neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
 
 
-from pycairo.calibration.base import BaseCalibration
+from pycake.calibration.base import BaseCalibration
 
 class Calibrate_E_l(BaseCalibration):
     """E_l calibration."""
@@ -210,8 +210,8 @@ class Calibrate_g_L(BaseCalibration):
                 os.mkdir(os.path.join(self.folder, "bad_traces"))
             pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
             self.logger.WARN("Trace for neuron {} bad. Neuron not spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
-        spk = pycairo.logic.spikes.detect_spikes(t,v)
-        f = pycairo.logic.spikes.spikes_to_freqency(spk)
+        spk = pycake.logic.spikes.detect_spikes(t,v)
+        f = pycake.logic.spikes.spikes_to_freqency(spk)
         E_l = 1100.
         C = 2.16456E-12
         V_t = max(v)*1000.
@@ -242,10 +242,10 @@ class Calibrate_tau_ref(BaseCalibration):
         return parameters
 
     def measure(self, neuron_ids):
-        import pycairo.simulator
+        import pycake.simulator
         params = self.get_parameters()
         results = {}
-        base_freq = pycairo.simulator.Simulator().compute_freq(30e-6, 0, params)
+        base_freq = pycake.simulator.Simulator().compute_freq(30e-6, 0, params)
 
         for neuron_id in neuron_ids:
             self.sthal.switch_analog_output(neuron_id)

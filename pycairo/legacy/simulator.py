@@ -6,7 +6,7 @@ over a given timestep."""
 import math
 import numpy as np
 
-import pycairo.config.simulator as config
+import pycake.config.simulator as config
 
 
 class Neuron(object):
@@ -155,7 +155,7 @@ class Simulator(object):
     def compute_freq(self, time, stim, params):
         """Run a simulation and return the spiking frequency.
 
-        Deprecated, but still used in pycairo.Controller
+        Deprecated, but still used in pycake.Controller
         """
 
         t, v, spikes = self.run_simulation(time, stim, params)

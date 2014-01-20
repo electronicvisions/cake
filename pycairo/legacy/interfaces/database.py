@@ -8,7 +8,7 @@ import datetime
 
 import json
 
-from pycairo.config import coordinates
+from pycake.config import coordinates
 
 class DatabaseInterface:
     '''Python interface to the calibration database'''
