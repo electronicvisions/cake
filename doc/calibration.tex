@@ -1,0 +1,103 @@
+\documentclass[12pt,a4paper,bibliography=totocnumbered,listof=totocnumbered]{scrartcl}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage{tabularx}
+\usepackage{geometry}
+\usepackage{setspace}
+
+\usepackage{listings}
+\author{Dominik Schmidt}
+\title{Calibration documentation}
+
+\lstset{basicstyle=\footnotesize, captionpos=b, breaklines=true, showstringspaces=false, tabsize=2, frame=lines, numbers=left, numberstyle=\tiny, xleftmargin=2em, framexleftmargin=2em}
+\makeatletter
+\def\l@lstlisting#1#2{\@dottedtocline{1}{0em}{1em}{\hspace{1,5em} Lst. #1}{#2}}
+\makeatother
+
+\geometry{a4paper, top=27mm, left=30mm, right=20mm, bottom=35mm, headsep=10mm, footskip=12mm}
+
+
+\begin{document}
+\maketitle
+\section{Introduction}
+The aim of this document is to describe each step of the calibration that is done in the cake module. Please note that this document is unfinished may change at any time. Also note that some of the features described here might not be implemented yet. ALSO note that until now, only LIF parameters are supported.
+
+\section{Parameter types}
+Since the hardware has different types of parameters, we need to define different parameter spaces and transformations. The aim of a calibration is to accurately determine these transformations.
+
+We concluded that we should define four different parameter spaces (note that the two examples given for each parameter space are corresponding):
+\begin{itemize}
+\item Biological parameters (Bio)
+\subitem $\rightarrow$ pyNN parameters, for example $v_rest$ or $tau_m$
+\item Hardware parameters (HW)
+\subitem $\rightarrow$ Parameters that are measured on the hardware, for example $E_l$ or $g_l$
+\item Hardware control parameters (HC)
+\subitem $\rightarrow$ Parameters that control the hardware, for example E\_l or I\_gl
+\subitem $\rightarrow$ Found in pyhalbe.HICANN.neuron\_parameters and .. .shared\_parameters
+\item Floating gate values (DAC)
+\subitem $\rightarrow$ Discreet floating gate values between 0 and 1023.
+\subitem $\rightarrow$ Voltages are calculated by $DAC * \frac{1800 mV}{1023}$
+\subitem $\rightarrow$ Currents are calculated by $DAC * \frac{2500 nA}{1023}$
+\end{itemize}
+ 
+Calibration should be applied as the \textbf{last} step (to DAC values) in order to make it independend on the type of user input. Until now, calibtic only supports this last step and it does not properly support transformations between each of these parameter spaces. This missing feature will be implented in calibtic soon.
+
+\section{Calibration}
+Calibration steps are listed in the order in which they should be run. For each parameter, you will find a description of what it does, how it is measured, what the calibration does to it and everything else that is worth noting.
+
+The run\_calibration tool in the pycake/bin/ folder will calibrate all working parameters. To configure the calibration, you have to edit parameters.py to match whatever you want to calibrate or measure. There you can edit the calibrated ranges, step length and number of repetitions (which will increase accuracy but also linearly increase experiment time). After calibration of a parameter, you should keep that variable within the range in which you calibrated - outside of the range, the accuracy can decrease.
+
+\subsection{E\_syni and E\_synx}
+E\_syni and E\_synx are the synaptic reversal potentials. These voltages are applied at the $OTA_0$ in the synaptic input circuit (see figure \ref{figure:synapse}). Their pyNN-counterparts are e\_rev\_I and e\_rev\_I.
+
+\begin{figure}[h]
+\begin{center}
+\includegraphics[width=0.5\textwidth]{images/synapse.png}
+\caption{Synapse circuit. $E_{syn}$ is applied to OTA1}
+\label{figure:synapse}
+\end{center}
+\end{figure}
+
+\subsubsection*{Measurement}
+The synaptic reversal potentials are measured using leakage currents of the synaptic input circuit. Since inhibitory and excitatory input circuits are identical, I will only describe the measurement once.
+
+Ideally, when no spike input is present, there should be no leakage current through $OTA_0$. However, due to imperfections in the manufacturing process, these leakages cannot avoided. Here, we make use of them by turning off all other conductances in the neuron circuit. With the synaptic input being the only remaining conductance, the membrane potential will approach the synaptic reversal potential. This can easily be measured with the ADC, thus giving an approximation of the reversal potential.
+
+\subsection{E\_l}
+E\_l is the membrane leakage potential that determines where the membrane potential should stay when no input is given at all. It is applied at the leakage OTA (see figure \ref{figure:leakage}). The corresponding pyNN parameter is the resting potential V\_rest.
+
+\begin{figure}[h]
+\begin{center}
+\includegraphics[width=0.3\textwidth]{images/leakage.png}
+\caption{Synapse circuit. $E_{syn}$ is applied to OTA1}
+\label{figure:leakage}
+\end{center}
+\end{figure}
+
+While calibrating, the synaptic reversal potentials are set symmetrically around E\_l. In all following calibrations, the synaptic reversal potentials are also set symmetrically around the calibrated E\_l.
+
+\subsubsection*{Measurement}
+E\_l is measured by turning on all conductances that will later be turned on while experiments are run. That way, it is ensured that we calibrate an effective resting potential that balances the unwanted leakage currents. Then, without any input, the membrane potential approaches a value which will be considered as E\_l.
+
+\subsection{V\_t}
+V\_t is the voltage at which a spike is initiated. This voltage corresponts to the pyNN parameter V\_thresh in a LIF model.
+
+\subsubsection*{Measurement}
+To measure V\_t, the resting potential E\_l is set above the threshold so that the neuron is spiking all the time. Then, the maximum of the trace is measured and considered to be V\_t. There was a discussion whether it would be more exact to take the mean value of all the local maxima instead of one maximum for the whole curve. This idea was rejected mainly because this would underestimate V\_t as the ADC does not always hit the exact maximum of the voltage trace, but measures mostly a little too early or a little too late.
+
+\subsection{V\_reset}
+After a spike, the membrane potential is set to V\_reset. This parameter corresponds to the pyNN parameter v\_reset.
+
+Since this parameter is a shared parameter, it can not be set for each neuron individually but only for blocks of 128 neurons. Thus, the calibration can not eliminate neuron-to-neuron variation but only shift the whole block in order to reach the correct mean V\_reset.
+
+To compensate for the deviation $\Delta V_{reset}$ of a neuron's individual V\_reset from the desired V\_reset of the whole block, all other voltages (E\_l, E\_syni, E\_synx, V\_t) of a neuron need to be shifted by $\Delta V_{reset}$. Unfortunately, this $\Delta V_{reset}$ also depends (linearly) on the desired V\_reset. The calibration first runs the calibration of the whole block as one experiment. After that, another experiment is run which determines the first order polynomials $\Delta V_{reset}(V\_reset)$ for each neuron. These polynomials are also saved in calibtic as the 21st parameter, although they are not a neuron parameter as defined by pyhalbe.HICANN.neuron\_parameter module.
+
+\subsubsection*{Measurement}
+V\_reset is measured in the same way as V\_t, except that the minimum of the trace is taken, not the maximum.
+
+
+\end{document}
