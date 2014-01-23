@@ -110,7 +110,7 @@ if parameters["calibrate"]:
                 delete = raw_input("Delete folder {}? (yes / no)".format(calib_E_synx.folder))
                 if delete in ("yes","Yes","y","Y"):
                     shutil.rmtree(calib_E_synx.folder)
-                raise e
+                raise
         else:
             print "E_synx already calibrated. Calibration skipped."
 
