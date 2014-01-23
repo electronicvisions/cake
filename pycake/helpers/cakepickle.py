@@ -7,6 +7,9 @@ import os
 import shutil
 import matplotlib.pyplot as plt
 import re
+import sys
+import pycake
+sys.modules['pycairo'] = pycake 
 
 valid_params = [pyhalbe.HICANN.neuron_parameter.E_synx,
                 pyhalbe.HICANN.neuron_parameter.I_spikeamp,
@@ -54,7 +57,7 @@ valid_shared_params = [pyhalbe.HICANN.shared_parameter.V_clra,
                        pyhalbe.HICANN.shared_parameter.V_bstdf]
 
 
-class Cairo_Experimentreader(object):
+class Experimentreader(object):
     """ Class to open experiments in a specific workfolder.
         
         Args:
@@ -95,7 +98,7 @@ class Cairo_Experimentreader(object):
             """
             if type(expname) is int:
                 expname = self.list_experiments(prnt = False)[expname]
-            return Cairo_experiment(os.path.join(self.workdir,expname)) 
+            return Experiment(os.path.join(self.workdir,expname)) 
     
     
     def delete_experiment(self, expname):
@@ -144,7 +147,7 @@ class Cairo_Experimentreader(object):
         """ Plot histograms that compare two experiments.
             
             Args:
-                experiment1: needs to be a Cairo_experiment object
+                experiment1: needs to be a cakepickle.experiment object
                 experiment2: see experiment1
                 step: int, which step do you want to compare?
                 repetition: int, which repetition do you want to compare?
@@ -222,7 +225,7 @@ class Cairo_Experimentreader(object):
 
 
 
-class Cairo_experiment(object):
+class Experiment(object):
     def __init__(self, folder):
             """ Class that contains most data of one experiment. Traces will be loaded separately.
             """
