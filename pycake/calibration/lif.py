@@ -13,6 +13,7 @@ import pycake.logic.spikes
 from pycake.helpers.calibtic import create_pycalibtic_polynomial
 from pycake.helpers.sthal import StHALContainer, UpdateAnalogOutputConfigurator
 from pycake.helpers.units import Current, Voltage, DAC
+from pycake.helpers.trafos import HWtoDAC, HCtoDAC, DACtoHC, DACtoHW
 
 # Import everything needed for saving:
 import pickle
@@ -161,14 +162,70 @@ class Calibrate_V_reset(BaseCalibration):
             pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
             self.logger.WARN("Trace for neuron {} bad. Neuron not spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
         # Return min value. This should be more accurate than a mean value of all minima because the ADC does not always hit the real minimum value, overestimating V_reset.
-        return np.min(v)*1000  # Get the mean value * 1000 for mV
+        return np.min(v)*1000  
 
     def process_results(self, neuron_ids):
-        super(Calibrate_V_reset, self).process_calibration_results(neuron_ids, shared_parameter.V_reset, linear_fit = True)
+        self.process_calibration_results(neuron_ids, shared_parameter.V_reset)
 
     def store_results(self):
         # TODO detect and store broken neurons
         super(Calibrate_V_reset, self).store_calibration_results(shared_parameter.V_reset)
+
+
+class Calibrate_tau_m(BaseCalibration):
+    def get_parameters(self):
+        parameters = super(Calibrate_g_L, self).get_parameters()
+        for neuron_id in self.get_neurons():
+            parameters[neuron_id].update({
+                neuron_parameter.E_l: Voltage(300, apply_calibration = True),
+                neuron_parameter.V_t: Voltage(1000, apply_calibration = True),
+            })
+        return parameters
+
+    def get_shared_parameters(self):
+        parameters = super(Calibrate_g_L, self).get_shared_parameters()
+        for block_id in range(4):
+            parameters[block_id][shared_parameter.V_reset] = Voltage(800, apply_calibration = True)
+        return parameters
+
+    def get_steps(self):
+        steps = []
+        for current in [200, 400, 600]:
+        #for current in range(200, 1000, 100):
+            steps.append({neuron_parameter.I_gl: Current(current)})
+        return defaultdict(lambda: steps)
+
+    def init_experiment(self):
+        super(Calibrate_g_L, self).init_experiment()
+        self.description = "Calibrate_g_L experiment." # Change this for all child classes
+        self.repetitions = 1
+        self.E_syni_dist = -100
+        self.E_synx_dist = +100
+        self.save_results = True
+        self.save_traces = False
+
+    def process_trace(self, t, v, neuron_id, step_id, rep_id):
+        if np.std(v)*1000<5:
+            if not os.path.isdir(os.path.join(self.folder, "bad_traces")):
+                os.mkdir(os.path.join(self.folder, "bad_traces"))
+            pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
+            self.logger.WARN("Trace for neuron {} bad. Neuron not spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
+        spk = pycake.logic.spikes.detect_spikes(t,v)
+        f = pycake.logic.spikes.spikes_to_freqency(spk)
+        E_l = 1100.
+        C = 2.16456E-12
+        V_t = max(v)*1000.
+        V_r = min(v)*1000.
+        g_l = f * C * np.log((V_r-E_l)/(V_t-E_l)) * 1E9
+        return g_l
+
+    def process_results(self, neuron_ids):
+        self.process_calibration_results(neuron_ids, neuron_parameter.I_gl)
+
+    def store_results(self):
+        # TODO detect and store broken neurons
+        super(Calibrate_g_L, self).store_calibration_results(neuron_parameter.I_gl)
+
 
 
 # TODO, playground for digital spike measures atm.
@@ -365,5 +422,97 @@ class Calibrate_g_L_stepcurrent(BaseCalibration):
 
     def store_results(self):
         pass
+
+
+class Calibrate_V_reset_shift(Calibrate_V_reset):
+    """V_reset_shift calibration."""
+    def init_experiment(self):
+        super(Calibrate_V_reset, self).init_experiment()
+        self.repetitions = 5
+        self.save_results = True
+        self.save_traces = False
+        self.E_syni_dist = -100
+        self.E_synx_dist = +100
+        self.description = "Calibrate_V_reset_shift."
+
+    def process_results(self, neuron_ids):
+        """This base class function can be used by child classes as process_results."""
+        # containers for final results
+        results_mean = defaultdict(list)
+        results_std = defaultdict(list)
+        results_polynomial = {}
+        results_broken = []  # will contain neuron_ids which are broken
+
+        # self.all_results contains all measurements, need to untangle
+        # repetitions and steps
+        # This is done for shared and neuron parameters
+        repetition = 1
+        step_results = defaultdict(list)
+        for result in self.all_results:
+            # still in the same step, collect repetitions for averaging
+            for neuron_id in neuron_ids:
+                step_results[neuron_id].append(result[neuron_id])
+            repetition += 1
+            if repetition > self.repetitions:
+                # step is done; average, store and reset
+                for neuron_id in neuron_ids:
+                    results_mean[neuron_id].append(HWtoDAC(np.mean(step_results[neuron_id]), shared_parameter.V_reset))
+                    results_std[neuron_id].append(HWtoDAC(np.std(step_results[neuron_id]), shared_parameter.V_reset))
+                repetition = 1
+                step_results = defaultdict(list)
+        
+        # Find the shift of each neuron compared to applied V_reset:
+        all_steps = self.get_shared_steps()
+        for neuron_id in neuron_ids:
+            results_mean[neuron_id] = np.array(results_mean[neuron_id])
+            results_std[neuron_id] = np.array(results_std[neuron_id])
+            steps = [HCtoDAC(step[shared_parameter.V_reset].value, shared_parameter.V_reset) for step in all_steps[neuron_id]]
+            # linear fit
+            m,b = np.polyfit(steps, results_mean[neuron_id], 1)
+            coeffs = [b, m-1]
+            # TODO find criteria for broken neurons. Until now, no broken neurons exist
+            if self.isbroken(coeffs):
+                results_broken.append(neuron_id)
+                self.logger.INFO("Neuron {0} marked as broken with coefficients of {1:.2f} and {2:.2f}".format(neuron_id, m, b))
+            self.logger.INFO("Neuron {} calibrated successfully with coefficients {}".format(neuron_id, coeffs))
+            results_polynomial[neuron_id] = create_pycalibtic_polynomial(coeffs)
+
+        self.results_mean = results_mean
+        self.results_std = results_std
+
+        # make final results available
+        self.results_polynomial = results_polynomial
+        self.results_broken = results_broken
+
+    def store_results(self):
+        """This base class function can be used by child classes as store_results."""
+        results = self.results_polynomial
+        md = pycalibtic.MetaData()
+        md.setAuthor("pycake")
+        md.setComment("calibration")
+
+        logger = self.logger
+
+        collection = self._calib_nc
+
+        nrns = self._red_nrns
+
+        for index in results:
+            coord = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(index))
+            broken = index in self.results_broken
+            if broken:
+                if nrns.has(coord):  # not disabled
+                    nrns.disable(coord)
+                    # TODO reset/delete calibtic function for this neuron
+            else:  # store in calibtic
+                if not collection.exists(index):
+                    logger.INFO("No existing calibration data for neuron {} found, creating default dataset".format(index))
+                    cal = pycalibtic.NeuronCalibration()
+                    collection.insert(index, cal)
+                collection.at(index).reset(21, results[index])
+
+
+        self.logger.INFO("Storing calibration results")
+        self.store_calibration(md)
 
 
