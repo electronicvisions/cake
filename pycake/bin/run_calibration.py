@@ -110,7 +110,7 @@ if parameters["calibrate"]:
                 delete = raw_input("Delete folder {}? (yes / no)".format(calib_E_synx.folder))
                 if delete in ("yes","Yes","y","Y"):
                     shutil.rmtree(calib_E_synx.folder)
-                raise e
+                raise
         else:
             print "E_synx already calibrated. Calibration skipped."
 
@@ -169,6 +169,7 @@ if parameters["calibrate"]:
         if parameters['overwrite'] or (not check_for_existing_calbration(shared_parameter.V_reset)):
             if parameters['overwrite'] and check_for_existing_calbration(shared_parameter.V_reset):
                 print 'Overwriting calibration for V_reset'
+            # Calibrate V_reset
             calib_V_reset = experiments.Calibrate_V_reset(neurons, sthal, backend_c, backend_r)
             pylogging.set_loglevel(calib_V_reset.logger, pylogging.LogLevel.INFO)
             try:
@@ -178,6 +179,18 @@ if parameters["calibrate"]:
                 delete = raw_input("Delete folder {}? (yes / no)".format(calib_V_reset.folder))
                 if delete in ("yes","Yes","y","Y"):
                     shutil.rmtree(calib_V_reset.folder)
+                    shutil.rmtree(calib_V_reset_shift.folder)
+                raise e
+            # Calibrate V_reset_shift
+            calib_V_reset_shift = experiments.Calibrate_V_reset_shift(neurons, sthal, backend_c, backend_r)
+            pylogging.set_loglevel(calib_V_reset_shift.logger, pylogging.LogLevel.INFO)
+            try:
+                calib_V_reset_shift.run_experiment()
+            except Exception,e:
+                print "ERROR: ", e
+                delete = raw_input("Delete folder {}? (yes / no)".format(calib_V_reset.folder))
+                if delete in ("yes","Yes","y","Y"):
+                    shutil.rmtree(calib_V_reset_shift.folder)
                 raise e
         else:
             print "V_reset already calibrated. Calibration skipped."

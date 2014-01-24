@@ -26,21 +26,21 @@ parameters = {
         
         # Set which calibrations you want to run
         "run_E_synx":  True,
-        "run_E_syni":  True,
-        "run_E_l":     True,
-        "run_V_t":     True,
-        "run_V_reset": True,
+        "run_E_syni":  False,
+        "run_E_l":     False,
+        "run_V_t":     False,
+        "run_V_reset": False,
         "run_I_gl":    False, # TODO g_l calibration is not yet implemented!
 
         # Measurement runs twice by default: first to generate calibration data, and a second time to measure the success of calibration
         # Here you can turn either of these runs on or off
         "calibrate":    True,
-        "measure":      False,
+        "measure":      True,
 
-        # Overwrite old calibration data?
+        # Overwrite old calibration data? This will not reset defect neurons!
         # Or even clear ALL calibration data before starting?
         "overwrite":    True,
-        "clear":        False,
+        "clear":        True,
 
         # save_results will save all the measurements in a folder specified below.
         # This has nothing to do with the calibration data which is stored anyway!
@@ -58,9 +58,9 @@ parameters = {
 
         # Where do you want to save the measurements (folder) and calibration data (backend_c for calibtic, backend_r for redman)?
         # Folders will be created if they do not exist already
-        "folder":       "/home/np001/temp/overwrite/",
-        "backend_c":    "/home/np001/temp/overwrite/backends/",
-        "backend_r":    "/home/np001/temp/overwrite/backends/",
+        "folder":       "/home/np001/temp/I_gl_100/",
+        "backend_c":    "/home/np001/temp/I_gl_100/backends/",
+        "backend_r":    "/home/np001/temp/I_gl_100/backends/",
         
         # Wafer and HICANN coordinates
         "coord_wafer":  pyhalbe.Coordinate.Wafer(),
@@ -70,27 +70,39 @@ parameters = {
         # ADVANCED STUFF:
         # Set the fix parameters you wish to have while calibrating
         "calibration_params": {        
+            # Global parameters are set for ALL calibrations.
+            "global_params":    {   neuron_parameter.I_gl: Current(1000),
+                                },
+
+            "global_shared":    {   shared_parameter.V_reset: Voltage(500),
+                                },
+            
+            # Set other values for different experiments. These values overwrite global values.
             "E_syn_params":     {   neuron_parameter.V_t:    Voltage(1200),
-                                    neuron_parameter.I_gl:   Current(1000),
+                                    neuron_parameter.I_gl:   Current(0),
                                 },
             "E_syn_shared":     {   shared_parameter.V_reset:  Voltage(1200),
                                 },
+
             "E_l_params":       {   neuron_parameter.V_t:        Voltage(1200),
                                     neuron_parameter.I_gl:       Current(1000),
                                 },  
             "E_l_shared":       {   shared_parameter.V_reset:      Voltage(300),
                                 },
+
             "V_t_params":       {   neuron_parameter.E_l:        Voltage(1000),
                                     neuron_parameter.I_gl:       Current(1000),
                                 },
             "V_t_shared":       {   shared_parameter.V_reset:    Voltage(400),
                                 },
+
             "V_reset_params":   {   neuron_parameter.E_l:    Voltage(1100),
                                     neuron_parameter.V_t:    Voltage(800),
                                     neuron_parameter.I_gl:   Current(1000),
                                 },
             "V_reset_shared":   {
                                 },
+
             "g_l_params":       {   neuron_parameter.E_l:        Voltage(700),
                                     neuron_parameter.V_t:        Voltage(600),
                                 },
@@ -113,7 +125,7 @@ if coarse:
            "E_l_range":    range(500,800,100),    # 3 steps
            "V_t_range":    range(550,750,50),     # 3 steps
            "V_reset_range":range(300,600,100),    # 3 steps
-           "I_gl_range":   range(600,1400,100),
+           "I_gl_range":   range(100,200,100),
            "E_synx_description":   parameters["E_synx_description"] + " Coarse.",
            "E_syni_description":   parameters["E_syni_description"] + " Coarse.",
            "E_l_description":      parameters["E_l_description"] + " Coarse.",

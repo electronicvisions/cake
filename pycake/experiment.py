@@ -474,10 +474,10 @@ class BaseExperiment(object):
             for step_id in range(max(num_steps, num_shared_steps)):
                 step_parameters = self.prepare_parameters(step_id)
                 for r in range(self.repetitions):
-                    logger.INFO("Step {}/{} repetition {}/{}.".format(step_id+1, max(num_steps, num_shared_steps), r+1, self.repetitions))
-                    logger.INFO("Preparing measurement --> setting floating gates")
+                    logger.INFO("{} - Step {}/{} repetition {}/{}.".format(time.asctime(),step_id+1, max(num_steps, num_shared_steps), r+1, self.repetitions))
+                    logger.INFO("{} - Preparing measurement --> setting floating gates".format(time.asctime()))
                     self.prepare_measurement(step_parameters, step_id, r)
-                    logger.INFO("Measuring.")
+                    logger.INFO("{} - Measuring.".format(time.asctime()))
                     self.measure(neuron_ids, step_id, r)
         else:
             logger.WARN("When sweeping shared AND neuron parameters, both need to have same no. of steps.")

@@ -8,6 +8,8 @@ import shutil
 import matplotlib.pyplot as plt
 import re
 import sys
+
+# hack to enable pickling of old experiments from back in the days when cake was the capitol of Egypt
 import pycake
 sys.modules['pycairo'] = pycake 
 
