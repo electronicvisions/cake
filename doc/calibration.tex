@@ -52,7 +52,7 @@ Calibration steps are listed in the order in which they should be run. For each 
 The run\_calibration tool in the pycake/bin/ folder will calibrate all working parameters. To configure the calibration, you have to edit parameters.py to match whatever you want to calibrate or measure. There you can edit the calibrated ranges, step length and number of repetitions (which will increase accuracy but also linearly increase experiment time). After calibration of a parameter, you should keep that variable within the range in which you calibrated - outside of the range, the accuracy can decrease.
 
 \subsection{E\_syni and E\_synx}
-E\_syni and E\_synx are the synaptic reversal potentials. These voltages are applied at the $OTA_0$ in the synaptic input circuit (see figure \ref{figure:synapse}). Their pyNN-counterparts are e\_rev\_I and e\_rev\_I.
+E\_syni and E\_synx are the synaptic reversal potentials. These voltages are applied at the $OTA_0$ in the synaptic input circuit (see figure \ref{figure:synapse}). Their pyNN-counterparts are e\_rev\_I and e\_rev\_E.
 
 \begin{figure}[h]
 \begin{center}
