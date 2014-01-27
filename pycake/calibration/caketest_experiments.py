@@ -49,7 +49,6 @@ E_syn_params, E_syn_shared = calibration_parameters["E_syn_params"], calibration
 V_t_params, V_t_shared = calibration_parameters["V_t_params"], calibration_parameters["V_t_shared"]
 V_reset_params, V_reset_shared = calibration_parameters["V_reset_params"], calibration_parameters["V_reset_shared"]
 g_l_params, g_l_shared = calibration_parameters["g_l_params"], calibration_parameters["g_l_shared"]
-global_params, global_shared = calibration_parameters["global_params"], calibration_parameters["global_shared"]
 
 test_parameters = parameters["test_params"]
 E_l_test_params, E_l_test_shared = test_parameters["E_l_params"], test_parameters["E_l_shared"]
@@ -57,14 +56,12 @@ E_syn_test_params, E_syn_test_shared = test_parameters["E_syn_params"], test_par
 V_t_test_params, V_t_test_shared = test_parameters["V_t_params"], test_parameters["V_t_shared"]
 V_reset_test_params, V_reset_test_shared = test_parameters["V_reset_params"], test_parameters["V_reset_shared"]
 g_l_test_params, g_l_test_shared = test_parameters["g_l_params"], test_parameters["g_l_shared"]
-global_test_params, global_test_shared = test_parameters["global_params"], test_parameters["global_shared"]
 
 class Calibrate_E_l(pycake.calibration.lif.Calibrate_E_l):
     """E_l calibration."""
     def get_parameters(self):
         parameters = super(Calibrate_E_l, self).get_parameters()
         for neuron_id in self.get_neurons():
-            parameters[neuron_id].update(global_params)
             parameters[neuron_id].update(E_l_params)
         return parameters
 

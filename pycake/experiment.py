@@ -18,6 +18,8 @@ import pickle
 import time
 import os
 
+import copy
+
 # shorter names
 Coordinate = pyhalbe.Coordinate
 Enum = Coordinate.Enum
@@ -142,11 +144,10 @@ class BaseExperiment(object):
 
         # use halbe default parameters
         coord_neuron = Coordinate.NeuronOnHICANN(Enum(0))
-        coord_block = Coordinate.FGBlockOnHICANN(Enum(0))
         fgc = pyhalbe.HICANN.FGControl()
 
         result = {}
-        for name, param in neuron_parameter.names:
+        for name, param in neuron_parameter.names.iteritems():
             if name[0] in ("E", "V"):
                 result[param] = Voltage(fgc.getNeuron(coord_neuron, param))
             elif name[0] == "I":
@@ -212,9 +213,8 @@ class BaseExperiment(object):
         neuron_ids = self.get_neurons()
         block_ids = range(4)
 
-        step_parameters = self.get_parameters()
+        step_parameters = [self.get_parameters()[neuron_id] for neuron_id in self.get_neurons()]
         step_shared_parameters = self.get_shared_parameters()
-
 
         # FIXME properly handle broken neurons here?
         # First prepare neuron parameters
@@ -224,13 +224,11 @@ class BaseExperiment(object):
             broken = not self._red_nrns.has(coord_neuron)
             if broken and step_id == 0: # Only give this info in the first step. 
                 self.logger.WARN("Neuron {} not working. Skipping calibration.".format(neuron_id))
-            for param in step_parameters[neuron_id]:
+            for param, step_cvalue in step_parameters[neuron_id].iteritems():
                 # Handle only neuron parameters in this step. Shared parameters applied afterwards
-                step_cvalue = step_parameters[neuron_id][param]
                 calibrated_value = HCtoDAC(step_cvalue.value, param)
                 uncalibrated_value = calibrated_value
-                apply_calibration = step_cvalue.apply_calibration
-                if apply_calibration and not broken:
+                if step_cvalue.apply_calibration and not broken:
                     # apply calibration
                     try:
                         ncal = self._calib_nc.at(neuron_id)
@@ -315,14 +313,14 @@ class BaseExperiment(object):
 
         fgc = pyhalbe.HICANN.FGControl()
         # Set neuron parameters for each neuron
-        for neuron_id in neuron_parameters:
+        for neuron_id in self.get_neurons():
             coord = Coordinate.NeuronOnHICANN(Enum(neuron_id))
             for parameter in neuron_parameters[neuron_id]:
                 value = neuron_parameters[neuron_id][parameter]
                 fgc.setNeuron(coord, parameter, value)
 
         # Set block parameters for each block
-        for block_id in shared_parameters:
+        for block_id in range(4):
             coord = pyhalbe.Coordinate.FGBlockOnHICANN(pyhalbe.Coordinate.Enum(block_id))
             for parameter in shared_parameters[block_id]:
                 value = shared_parameters[block_id][parameter]
@@ -430,13 +428,13 @@ class BaseExperiment(object):
         num_shared_steps = len(shared_steps[0])
 
         # Give info about nonexisting calibrations:
-        for param in steps[0]:
+        for param in parameters[0]:
             try:
                 if isinstance(param, pyhalbe.HICANN.neuron_parameter):
                     ncal = self._calib_nc.at(0).at(param)
             except (RuntimeError, IndexError, AttributeError):
                 self.logger.WARN("No calibration found for {}. Using uncalibrated values.".format(param))
-        for param in steps[0]:
+        for param in shared_parameters[0]:
             try:
                 if isinstance(param, pyhalbe.HICANN.shared_parameter):
                     bcal = self._calib_bc.at(0).at(param)

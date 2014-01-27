@@ -4,9 +4,10 @@ from pycake.helpers.calibtic import init_backend as init_calibtic
 from pycake.helpers.redman import init_backend as init_redman
 from pycake.helpers.sthal import StHALContainer
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
+from pycake.calibration import base, lif, synapse
 
-import caketest_experiments as experiments
 from parameters import parameters
+
 import shutil
 import os
 
@@ -20,6 +21,24 @@ neurons = range(512)
 
 default_logger = pylogging.get("Default")
 pylogging.set_loglevel(default_logger, pylogging.LogLevel.INFO)
+
+if sys.argv[1] is "fast":
+    parameters.update({
+           "E_synx_range": range(650,1050,100),    # 4 steps
+           "E_syni_range": range(350,750,100),     # 4 steps
+           "E_l_range":    range(500,800,100),    # 3 steps
+           "V_t_range":    range(550,750,50),     # 3 steps
+           "V_reset_range":range(300,600,100),    # 3 steps
+           "I_gl_range":   range(100,200,100),
+           "E_synx_description":   parameters["E_synx_description"] + " fast.",
+           "E_syni_description":   parameters["E_syni_description"] + " fast.",
+           "E_l_description":      parameters["E_l_description"] + " fast.",
+           "V_t_description":      parameters["V_t_description"] + " fast.",
+           "V_reset_description":  parameters["V_reset_description"] + " fast.",
+           "I_gl_description":     parameters["I_gl_description"] + " fast.",
+           "repetitions":     1,
+           })
+
 
 # Create necessary folders if the do not exist already
 if parameters['save_results']:
@@ -101,7 +120,7 @@ if parameters["calibrate"]:
         if parameters['overwrite'] or (not check_for_existing_calbration(neuron_parameter.E_synx)):
             if parameters['overwrite'] and check_for_existing_calbration(neuron_parameter.E_synx):
                 print 'Overwriting calibration for E_synx'
-            calib_E_synx = experiments.Calibrate_E_synx(neurons, sthal, backend_c, backend_r)
+            calib_E_synx = synapse.Calibrate_E_synx(neurons, sthal, backend_c, backend_r)
             pylogging.set_loglevel(calib_E_synx.logger, pylogging.LogLevel.INFO)
             try:
                 calib_E_synx.run_experiment()
@@ -118,7 +137,7 @@ if parameters["calibrate"]:
         if parameters['overwrite'] or (not check_for_existing_calbration(neuron_parameter.E_syni)):
             if parameters['overwrite'] and check_for_existing_calbration(neuron_parameter.E_syni):
                 print 'Overwriting calibration for E_syni'
-            calib_E_syni = experiments.Calibrate_E_syni(neurons, sthal, backend_c, backend_r)
+            calib_E_syni = synapse.Calibrate_E_syni(neurons, sthal, backend_c, backend_r)
             pylogging.set_loglevel(calib_E_syni.logger, pylogging.LogLevel.INFO)
             try:
                 calib_E_syni.run_experiment()
@@ -135,7 +154,7 @@ if parameters["calibrate"]:
         if parameters['overwrite'] or (not check_for_existing_calbration(neuron_parameter.E_l)):
             if parameters['overwrite'] and check_for_existing_calbration(neuron_parameter.E_l):
                 print 'Overwriting calibration for E_l'
-            calib_E_l = experiments.Calibrate_E_l(neurons, sthal, backend_c, backend_r)
+            calib_E_l = lif.Calibrate_E_l(neurons, sthal, backend_c, backend_r)
             pylogging.set_loglevel(calib_E_l.logger, pylogging.LogLevel.INFO)
             try:
                 calib_E_l.run_experiment()
@@ -152,7 +171,7 @@ if parameters["calibrate"]:
         if parameters['overwrite'] or (not check_for_existing_calbration(neuron_parameter.V_t)):
             if parameters['overwrite'] and check_for_existing_calbration(neuron_parameter.V_t):
                 print 'Overwriting calibration for V_t'
-            calib_V_t = experiments.Calibrate_V_t(neurons, sthal, backend_c, backend_r)
+            calib_V_t = lif.Calibrate_V_t(neurons, sthal, backend_c, backend_r)
             pylogging.set_loglevel(calib_V_t.logger, pylogging.LogLevel.INFO)
             try:
                 calib_V_t.run_experiment()
@@ -170,7 +189,7 @@ if parameters["calibrate"]:
             if parameters['overwrite'] and check_for_existing_calbration(shared_parameter.V_reset):
                 print 'Overwriting calibration for V_reset'
             # Calibrate V_reset
-            calib_V_reset = experiments.Calibrate_V_reset(neurons, sthal, backend_c, backend_r)
+            calib_V_reset = lif.Calibrate_V_reset(neurons, sthal, backend_c, backend_r)
             pylogging.set_loglevel(calib_V_reset.logger, pylogging.LogLevel.INFO)
             try:
                 calib_V_reset.run_experiment()
@@ -182,7 +201,7 @@ if parameters["calibrate"]:
                     shutil.rmtree(calib_V_reset_shift.folder)
                 raise e
             # Calibrate V_reset_shift
-            calib_V_reset_shift = experiments.Calibrate_V_reset_shift(neurons, sthal, backend_c, backend_r)
+            calib_V_reset_shift = lif.Calibrate_V_reset_shift(neurons, sthal, backend_c, backend_r)
             pylogging.set_loglevel(calib_V_reset_shift.logger, pylogging.LogLevel.INFO)
             try:
                 calib_V_reset_shift.run_experiment()
@@ -196,7 +215,7 @@ if parameters["calibrate"]:
             print "V_reset already calibrated. Calibration skipped."
     
     if parameters["run_I_gl"]:
-        calib_I_gl = experiments.Calibrate_g_L(neurons, sthal, backend_c, backend_r)
+        calib_I_gl = lif.Calibrate_g_L(neurons, sthal, backend_c, backend_r)
         pylogging.set_loglevel(calib_I_gl.logger, pylogging.LogLevel.INFO)
         #try:
         calib_I_gl.run_experiment()
@@ -210,7 +229,7 @@ if parameters["calibrate"]:
 
 if parameters["measure"]:
     if parameters["run_E_synx"]:
-        test_E_synx = experiments.Test_E_synx(neurons, sthal, backend_c, backend_r)
+        test_E_synx = synapse.Test_E_synx(neurons, sthal, backend_c, backend_r)
         pylogging.set_loglevel(test_E_synx.logger, pylogging.LogLevel.INFO)
         try:
             test_E_synx.run_experiment()
@@ -222,7 +241,7 @@ if parameters["measure"]:
             raise e
 
     if parameters["run_E_syni"]:
-        test_E_syni = experiments.Test_E_syni(neurons, sthal, backend_c, backend_r)
+        test_E_syni = synapse.Test_E_syni(neurons, sthal, backend_c, backend_r)
         pylogging.set_loglevel(test_E_syni.logger, pylogging.LogLevel.INFO)
         try:
             test_E_syni.run_experiment()
@@ -234,7 +253,7 @@ if parameters["measure"]:
             raise e
 
     if parameters["run_E_l"]:
-        test_E_l = experiments.Test_E_l(neurons, sthal, backend_c, backend_r)
+        test_E_l = lif.Test_E_l(neurons, sthal, backend_c, backend_r)
         pylogging.set_loglevel(test_E_l.logger, pylogging.LogLevel.INFO)
         try:
             test_E_l.run_experiment()
@@ -246,7 +265,7 @@ if parameters["measure"]:
             raise e
     
     if parameters["run_V_t"]:
-        test_V_t = experiments.Test_V_t(neurons, sthal, backend_c, backend_r)
+        test_V_t = lif.Test_V_t(neurons, sthal, backend_c, backend_r)
         pylogging.set_loglevel(test_V_t.logger, pylogging.LogLevel.INFO)
         try:
             test_V_t.run_experiment()
@@ -258,7 +277,7 @@ if parameters["measure"]:
             raise e
     
     if parameters["run_V_reset"]:
-        test_V_reset = experiments.Test_V_reset(neurons, sthal, backend_c, backend_r)
+        test_V_reset = lif.Test_V_reset(neurons, sthal, backend_c, backend_r)
         pylogging.set_loglevel(test_V_reset.logger, pylogging.LogLevel.INFO)
         try:
             test_V_reset.run_experiment()
@@ -271,7 +290,7 @@ if parameters["measure"]:
     
     
     if parameters["run_I_gl"]:
-        test_I_gl = experiments.Test_g_L(neurons, sthal, backend_c, backend_r)
+        test_I_gl = lif.Test_g_L(neurons, sthal, backend_c, backend_r)
         pylogging.set_loglevel(test_I_gl.logger, pylogging.LogLevel.INFO)
         #try:
         test_I_gl.run_experiment()
