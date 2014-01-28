@@ -29,7 +29,6 @@ Enum = Coordinate.Enum
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
 
-E_syn_parameters = bin_parameters["E_syn_parameters"]
 E_l_parameters = bin_parameters["E_l_parameters"]
 V_t_parameters = bin_parameters["V_t_parameters"]
 V_reset_parameters = bin_parameters["V_reset_parameters"]
@@ -204,8 +203,39 @@ class Calibrate_V_reset(BaseCalibration):
 class Calibrate_V_reset_shift(Calibrate_V_reset):
     """V_reset_shift calibration."""
     def init_experiment(self):
-        super(Calibrate_V_reset, self).init_experiment()
+        super(Calibrate_V_reset_shift, self).init_experiment()
         self.description = self.description + "Calibrate_V_reset_shift."
+
+    def get_parameters(self):
+        parameters = super(Calibrate_V_reset_shift, self).get_parameters()
+
+        for neuron_id in self.get_neurons():
+            for param, value in V_reset_parameters.iteritems():
+                if isinstance(param, neuron_parameter):
+                    parameters[neuron_id][param] = value
+                    if param in [neuron_parameter.E_l, neuron_parameter.V_t]:
+                        parameters[neuron_id][param].apply_calibration = True
+                elif isinstance(param, shared_parameter):
+                    pass
+                else:
+                    raise TypeError('Only neuron_parameter or shared_parameter allowed') 
+
+        return parameters
+
+    def get_shared_parameters(self):
+        parameters = super(Calibrate_V_reset_shift, self).get_shared_parameters()
+
+        for block_id in range(4):
+            for param, value in V_reset_parameters.iteritems():
+                if isinstance(param, neuron_parameter):
+                    pass
+                elif isinstance(param, shared_parameter):
+                    parameters[block_id][param] = value
+                    parameters[block_id][param].apply_calibration = True
+                else:
+                    raise TypeError('Only neuron_parameter or shared_parameter allowed') 
+        return parameters
+
 
     def process_results(self, neuron_ids):
         """This base class function can be used by child classes as process_results."""
@@ -429,9 +459,9 @@ class Test_V_reset(BaseCalibration):
                     pass
                 elif isinstance(param, shared_parameter):
                     parameters[block_id][param] = value
+                    parameters[block_id][param].apply_calibration = True
                 else:
                     raise TypeError('Only neuron_parameter or shared_parameter allowed') 
-
         return parameters
 
     def get_shared_steps(self):

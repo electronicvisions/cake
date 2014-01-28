@@ -7,8 +7,8 @@ shared_parameter = pyhalbe.HICANN.shared_parameter
 
 parameters = {
         # Set the ranges within which you want to calibrate
-        "E_synx_range": range(600,900,100),    # 16 steps
-        "E_syni_range": range(400,700,100),    # 16 steps
+        "E_synx_range": range(650,1050,100),    # 16 steps
+        "E_syni_range": range(350,750,100),    # 16 steps
         "E_l_range":    range(500,800,100),      # 12 steps
         "V_t_range":    range(600,900,100),      # 12 steps
         "V_reset_range":range(400,700,100),      # 12 steps
@@ -30,7 +30,7 @@ parameters = {
         # Set which calibrations you want to run
         "run_E_synx":  False,
         "run_E_syni":  False,
-        "run_E_l":     True,
+        "run_E_l":     False,
         "run_V_t":     True,
         "run_V_reset": True,
         "run_I_gl":    False, # TODO g_l calibration is not yet implemented!
@@ -42,14 +42,14 @@ parameters = {
 
         # Overwrite old calibration data? This will not reset defect neurons!
         # Or even clear ALL calibration data before starting?
-        "overwrite":    True,
-        "clear":        True,
+        "overwrite":    False,
+        "clear":        False,
 
         # save_results will save all the measurements in a folder specified below.
         # This has nothing to do with the calibration data which is stored anyway!
         # You can also save all the traces for debugging purposes. Note that this takes a lot of space (100 MB per repetition)
         "save_results": True,
-        "save_traces":  True,
+        "save_traces":  False,
 
         # If you save al your measurements, each folder will have a description file. The following parameters let you specify additional info to be stored.
         "E_synx_description":   "E_synx calibration.",
@@ -70,7 +70,7 @@ parameters = {
         "coord_hicann": pyhalbe.Coordinate.HICANNOnWafer(pyhalbe.Coordinate.Enum(280)),
 
 
-        "base_parameters":   {neuron_parameter.E_l: Voltage(600),
+        "base_parameters":   {  neuron_parameter.E_l: Voltage(600),
                                 neuron_parameter.E_syni: Voltage(500),     # synapse
                                 neuron_parameter.E_synx: Voltage(700),    # synapse
                                 neuron_parameter.I_bexp: Current(0),       # exponential term set to 0
@@ -93,7 +93,17 @@ parameters = {
                                 neuron_parameter.V_t: Voltage(1000),       # recommended threshold, maximum is 1100
                                 },
 
-        "E_syn_parameters":     {   neuron_parameter.I_gl: Current(0),
+        "E_synx_parameters":     {  neuron_parameter.I_gl: Current(0),
+                                    neuron_parameter.I_convi: Current(0),
+                                    neuron_parameter.V_syntcx: Voltage(1800),
+                                    neuron_parameter.V_syntci: Voltage(1800),
+                                    shared_parameter.V_reset:  Voltage(200),
+                                },
+
+        "E_syni_parameters":     {  neuron_parameter.I_gl: Current(0),
+                                    neuron_parameter.I_convx: Current(0),
+                                    neuron_parameter.V_syntci: Voltage(1800),
+                                    neuron_parameter.V_syntcx: Voltage(1800),
                                     shared_parameter.V_reset:  Voltage(200),
                                 },
 

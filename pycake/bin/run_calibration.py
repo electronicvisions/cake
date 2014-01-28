@@ -22,22 +22,22 @@ neurons = range(512)
 default_logger = pylogging.get("Default")
 pylogging.set_loglevel(default_logger, pylogging.LogLevel.INFO)
 
-if sys.argv[1] is "fast":
-    parameters.update({
-           "E_synx_range": range(650,1050,100),    # 4 steps
-           "E_syni_range": range(350,750,100),     # 4 steps
-           "E_l_range":    range(500,800,100),    # 3 steps
-           "V_t_range":    range(550,750,50),     # 3 steps
-           "V_reset_range":range(300,600,100),    # 3 steps
-           "I_gl_range":   range(100,200,100),
-           "E_synx_description":   parameters["E_synx_description"] + " fast.",
-           "E_syni_description":   parameters["E_syni_description"] + " fast.",
-           "E_l_description":      parameters["E_l_description"] + " fast.",
-           "V_t_description":      parameters["V_t_description"] + " fast.",
-           "V_reset_description":  parameters["V_reset_description"] + " fast.",
-           "I_gl_description":     parameters["I_gl_description"] + " fast.",
-           "repetitions":     1,
-           })
+#if sys.argv[1] is "fast":
+#    parameters.update({
+#           "E_synx_range": range(650,1050,100),    # 4 steps
+#           "E_syni_range": range(350,750,100),     # 4 steps
+#           "E_l_range":    range(500,800,100),    # 3 steps
+#           "V_t_range":    range(550,750,50),     # 3 steps
+#           "V_reset_range":range(300,600,100),    # 3 steps
+#           "I_gl_range":   range(100,200,100),
+#           "E_synx_description":   parameters["E_synx_description"] + " fast.",
+#           "E_syni_description":   parameters["E_syni_description"] + " fast.",
+#           "E_l_description":      parameters["E_l_description"] + " fast.",
+#           "V_t_description":      parameters["V_t_description"] + " fast.",
+#           "V_reset_description":  parameters["V_reset_description"] + " fast.",
+#           "I_gl_description":     parameters["I_gl_description"] + " fast.",
+#           "repetitions":     1,
+#           })
 
 
 # Create necessary folders if the do not exist already

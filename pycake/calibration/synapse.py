@@ -33,13 +33,14 @@ Enum = Coordinate.Enum
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
 
-E_syn_parameters = bin_parameters["E_syn_parameters"]
+E_synx_parameters = bin_parameters["E_synx_parameters"]
+E_syni_parameters = bin_parameters["E_syni_parameters"]
 
 class Calibrate_E_synx(BaseCalibration):
     def get_parameters(self):
         parameters = super(Calibrate_E_synx, self).get_parameters()
         for neuron_id in self.get_neurons():
-            for param, value in E_syn_parameters.iteritems():
+            for param, value in E_synx_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     parameters[neuron_id][param] = value
                 elif isinstance(param, shared_parameter):
@@ -51,7 +52,7 @@ class Calibrate_E_synx(BaseCalibration):
     def get_shared_parameters(self):
         parameters = super(Calibrate_E_synx, self).get_shared_parameters()
         for block_id in range(4):
-            for param, value in E_syn_parameters.iteritems():
+            for param, value in E_synx_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     pass
                 elif isinstance(param, shared_parameter):
@@ -99,7 +100,7 @@ class Calibrate_E_syni(BaseCalibration):
     def get_parameters(self):
         parameters = super(Calibrate_E_syni, self).get_parameters()
         for neuron_id in self.get_neurons():
-            for param, value in E_syn_parameters.iteritems():
+            for param, value in E_syni_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     parameters[neuron_id][param] = value
                 elif isinstance(param, shared_parameter):
@@ -111,7 +112,7 @@ class Calibrate_E_syni(BaseCalibration):
     def get_shared_parameters(self):
         parameters = super(Calibrate_E_syni, self).get_shared_parameters()
         for block_id in range(4):
-            for param, value in E_syn_parameters.iteritems():
+            for param, value in E_syni_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     pass
                 elif isinstance(param, shared_parameter):
@@ -169,7 +170,7 @@ class Test_E_synx(BaseTest):
     def get_parameters(self):
         parameters = super(Test_E_synx, self).get_parameters()
         for neuron_id in self.get_neurons():
-            for param, value in E_syn_parameters.iteritems():
+            for param, value in E_synx_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     parameters[neuron_id][param] = value
                     parameters[neuron_id][param].apply_calibration = True
@@ -182,7 +183,7 @@ class Test_E_synx(BaseTest):
     def get_shared_parameters(self):
         parameters = super(Test_E_synx, self).get_shared_parameters()
         for block_id in range(4):
-            for param, value in E_syn_parameters.iteritems():
+            for param, value in E_synx_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     pass
                 elif isinstance(param, shared_parameter):
@@ -202,7 +203,7 @@ class Test_E_synx(BaseTest):
 
     def init_experiment(self):
         super(Test_E_synx, self).init_experiment()
-        self.description = bin_parameters["E_syn_parameters"]
+        self.description = "TEST OF " + bin_parameters["E_synx_description"]
         self.E_syni_dist = None
         self.E_synx_dist = None
 
@@ -214,23 +215,11 @@ class Test_E_synx(BaseTest):
             self.logger.WARN("Trace for neuron {} bad. Is neuron spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
         return np.mean(v) * 1000 
     
-    def process_results(self, neuron_ids):
-        pass
-
-    def store_results(self):
-        pass
-
-    def isbroken(self, coeffs):
-        if abs(coeffs[1] - 1) > 0.4:     # Broken if slope of the fit is too high or too small
-            return True
-        else:
-            return False
-
 class Test_E_syni(BaseTest):
     def get_parameters(self):
         parameters = super(Test_E_syni, self).get_parameters()
         for neuron_id in self.get_neurons():
-            for param, value in E_syn_parameters.iteritems():
+            for param, value in E_syni_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     parameters[neuron_id][param] = value
                     parameters[neuron_id][param].apply_calibration = True
@@ -243,7 +232,7 @@ class Test_E_syni(BaseTest):
     def get_shared_parameters(self):
         parameters = super(Test_E_syni, self).get_shared_parameters()
         for block_id in range(4):
-            for param, value in E_syn_parameters.iteritems():
+            for param, value in E_syni_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     pass
                 elif isinstance(param, shared_parameter):
@@ -273,17 +262,5 @@ class Test_E_syni(BaseTest):
             pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
             self.logger.WARN("Trace for neuron {} bad. Is neuron spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
         return np.mean(v) * 1000 
-    
-    def process_results(self, neuron_ids):
-        pass
-
-    def store_results(self):
-        pass
-
-    def isbroken(self, coeffs):
-        if abs(coeffs[1] - 1) > 0.4:     # Broken if slope of the fit is too high or too small
-            return True
-        else:
-            return False
 
 
