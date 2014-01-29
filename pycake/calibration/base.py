@@ -14,8 +14,6 @@ from pycake.helpers.units import Current, Voltage, DAC
 from pycake.experiment import BaseExperiment
 from pycake.helpers.trafos import HWtoDAC, DACtoHW, HCtoDAC, DACtoHC, HWtoHC, HCtoHW
 
-from pycake.bin.parameters import parameters as bin_parameters
-
 # Import everything needed for saving:
 import pickle
 import time
@@ -27,15 +25,22 @@ Enum = Coordinate.Enum
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
 
-base_parameters = bin_parameters["base_parameters"]
-
 
 class BaseCalibration(BaseExperiment):
     """Base class for calibration experiments."""
+    def init_experiment(self):
+        super(BaseCalibration, self).init_experiment()
+        if self._calib_backend is None:
+            raise TypeError("can not store results without Calibtic backend")
+        if self._red_nrns is None:
+            raise TypeError("can not store defects without Redman backend")
+        self.folder = os.path.join(self.experiment_parameters["folder"], self.folder)
+        self.base_parameters = self.experiment_parameters["base_parameters"]
+ 
     def get_parameters(self):
         parameters = super(BaseCalibration, self).get_parameters()
         for neuron_id in self.get_neurons():
-            for param, value in base_parameters.iteritems():
+            for param, value in self.base_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     parameters[neuron_id][param] = value
                 elif isinstance(param, shared_parameter):
@@ -47,7 +52,7 @@ class BaseCalibration(BaseExperiment):
     def get_shared_parameters(self):
         parameters = super(BaseCalibration, self).get_shared_parameters()
         for block_id in range(4):
-            for param, value in base_parameters.iteritems():
+            for param, value in self.base_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     pass
                 elif isinstance(param, shared_parameter):
@@ -196,19 +201,6 @@ class BaseCalibration(BaseExperiment):
         self.logger.INFO("Storing calibration results")
         self.store_calibration(md)
 
-    def init_experiment(self):
-        super(BaseCalibration, self).init_experiment()
-        if self._calib_backend is None:
-            raise TypeError("can not store results without Calibtic backend")
-        if self._red_nrns is None:
-            raise TypeError("can not store defects without Redman backend")
-        self.repetitions = bin_parameters["repetitions"]
-        self.save_results = bin_parameters["save_results"]
-        self.save_traces = bin_parameters["save_traces"]
-        self.E_syni_dist = bin_parameters["E_syni_dist"]
-        self.E_synx_dist = bin_parameters["E_synx_dist"]
-        self.folder = os.path.join(bin_parameters["folder"], self.folder)
-
     def isbroken(self, coefficients):
         """ Specify the function that that tells us if a neuron is broken based on the fit coefficients.
 
@@ -221,11 +213,20 @@ class BaseCalibration(BaseExperiment):
 
 
 class BaseTest(BaseExperiment):
-    """Base class for calibration experiments."""
+    """Base class for calibration test experiments."""
+    def init_experiment(self):
+        super(BaseTest, self).init_experiment()
+        if self._calib_backend is None:
+            raise TypeError("can not store results without Calibtic backend")
+        if self._red_nrns is None:
+            raise TypeError("can not store defects without Redman backend")
+        self.folder = os.path.join(self.experiment_parameters["folder"], self.folder)
+        self.base_parameters = self.experiment_parameters["base_parameters"]
+
     def get_parameters(self):
         parameters = super(BaseTest, self).get_parameters()
         for neuron_id in self.get_neurons():
-            for param, value in base_parameters.iteritems():
+            for param, value in self.base_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     parameters[neuron_id][param] = value
                     parameters[neuron_id][param].apply_calibration = True
@@ -238,7 +239,7 @@ class BaseTest(BaseExperiment):
     def get_shared_parameters(self):
         parameters = super(BaseTest, self).get_shared_parameters()
         for block_id in range(4):
-            for param, value in base_parameters.iteritems():
+            for param, value in self.base_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     pass
                 elif isinstance(param, shared_parameter):
@@ -260,18 +261,4 @@ class BaseTest(BaseExperiment):
 
     def store_calibration_results(self, parameter):
         pass
-
-    def init_experiment(self):
-        super(BaseTest, self).init_experiment()
-        if self._calib_backend is None:
-            raise TypeError("can not store results without Calibtic backend")
-        if self._red_nrns is None:
-            raise TypeError("can not store defects without Redman backend")
-        self.repetitions = bin_parameters["repetitions"]
-        self.save_results = bin_parameters["save_results"]
-        self.save_traces = bin_parameters["save_traces"]
-        self.E_syni_dist = bin_parameters["E_syni_dist"]
-        self.E_synx_dist = bin_parameters["E_synx_dist"]
-        self.folder = os.path.join(bin_parameters["folder"], self.folder)
-
 

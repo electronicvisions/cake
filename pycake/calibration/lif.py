@@ -16,8 +16,6 @@ from pycake.helpers.units import Current, Voltage, DAC
 from pycake.helpers.trafos import HWtoDAC, HCtoDAC, DACtoHC, DACtoHW
 from pycake.calibration.base import BaseCalibration, BaseTest
 
-from pycake.bin.parameters import parameters as bin_parameters
-
 # Import everything needed for saving:
 import pickle
 import time
@@ -29,17 +27,13 @@ Enum = Coordinate.Enum
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
 
-E_l_parameters = bin_parameters["E_l_parameters"]
-V_t_parameters = bin_parameters["V_t_parameters"]
-V_reset_parameters = bin_parameters["V_reset_parameters"]
-
 
 class Calibrate_E_l(BaseCalibration):
     """E_l calibration."""
     def get_parameters(self):
         parameters = super(Calibrate_E_l, self).get_parameters()
         for neuron_id in self.get_neurons():
-            for param, value in E_l_parameters.iteritems():
+            for param, value in self.E_l_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     parameters[neuron_id][param] = value
                 elif isinstance(param, shared_parameter):
@@ -51,7 +45,7 @@ class Calibrate_E_l(BaseCalibration):
     def get_shared_parameters(self):
         parameters = super(Calibrate_E_l, self).get_shared_parameters()
         for block_id in range(4):
-            for param, value in E_l_parameters.iteritems():
+            for param, value in self.E_l_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     pass
                 elif isinstance(param, shared_parameter):
@@ -62,14 +56,15 @@ class Calibrate_E_l(BaseCalibration):
 
     def get_steps(self):
         steps = []
-        for voltage in bin_parameters["E_l_range"]:  # 8 steps
+        for voltage in self.experiment_parameters["E_l_range"]:  # 8 steps
             steps.append({neuron_parameter.E_l: Voltage(voltage),
                 })
         return defaultdict(lambda: steps)
 
     def init_experiment(self):
         super(Calibrate_E_l, self).init_experiment()
-        self.description = bin_parameters["E_l_description"]
+        self.description = self.experiment_parameters["E_l_description"]
+        self.E_l_parameters = self.experiment_parameters["E_l_parameters"]
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         if np.std(v)*1000>50:
@@ -91,7 +86,7 @@ class Calibrate_V_t(BaseCalibration):
     def get_parameters(self):
         parameters = super(Calibrate_V_t, self).get_parameters()
         for neuron_id in self.get_neurons():
-            for param, value in V_t_parameters.iteritems():
+            for param, value in self.V_t_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     parameters[neuron_id][param] = value
                     if param is neuron_parameter.E_l:
@@ -104,27 +99,26 @@ class Calibrate_V_t(BaseCalibration):
 
     def get_shared_parameters(self):
         parameters = super(Calibrate_V_t, self).get_shared_parameters()
-
         for block_id in range(4):
-            for param, value in V_t_parameters.iteritems():
+            for param, value in self.V_t_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     pass
                 elif isinstance(param, shared_parameter):
                     parameters[block_id][param] = value
                 else:
                     raise TypeError('Only neuron_parameter or shared_parameter allowed') 
-
         return parameters
 
     def get_steps(self):
         steps = []
-        for voltage in bin_parameters["V_t_range"]:
+        for voltage in self.experiment_parameters["V_t_range"]:
             steps.append({neuron_parameter.V_t: Voltage(voltage)})
         return defaultdict(lambda: steps)
 
     def init_experiment(self):
         super(Calibrate_V_t, self).init_experiment()
         self.description = "Calibrate_V_t with 1000 I_pl. Calibrated E_l."
+        self.V_t_parameters = self.experiment_parameters["V_t_parameters"]
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         if np.std(v)*1000<5:
@@ -146,9 +140,8 @@ class Calibrate_V_reset(BaseCalibration):
     """V_reset calibration."""
     def get_parameters(self):
         parameters = super(Calibrate_V_reset, self).get_parameters()
-
         for neuron_id in self.get_neurons():
-            for param, value in V_reset_parameters.iteritems():
+            for param, value in self.V_reset_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     parameters[neuron_id][param] = value
                     if param in [neuron_parameter.E_l, neuron_parameter.V_t]:
@@ -157,14 +150,13 @@ class Calibrate_V_reset(BaseCalibration):
                     pass
                 else:
                     raise TypeError('Only neuron_parameter or shared_parameter allowed') 
-
         return parameters
 
     def get_shared_parameters(self):
         parameters = super(Calibrate_V_reset, self).get_shared_parameters()
 
         for block_id in range(4):
-            for param, value in V_reset_parameters.iteritems():
+            for param, value in self.V_reset_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     pass
                 elif isinstance(param, shared_parameter):
@@ -176,13 +168,14 @@ class Calibrate_V_reset(BaseCalibration):
 
     def get_shared_steps(self):
         steps = []
-        for voltage in bin_parameters["V_reset_range"]:
+        for voltage in self.experiment_parameters["V_reset_range"]:
             steps.append({shared_parameter.V_reset: Voltage(voltage)})
         return defaultdict(lambda: steps)
 
     def init_experiment(self):
         super(Calibrate_V_reset, self).init_experiment()
         self.description = "Calibrate_V_reset, I_pl HIGH. E_l and V_t calibrated."
+        self.V_reset_parameters = self.experiment_parameters['V_reset_parameters']
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         if np.std(v)*1000<5:
@@ -205,12 +198,12 @@ class Calibrate_V_reset_shift(Calibrate_V_reset):
     def init_experiment(self):
         super(Calibrate_V_reset_shift, self).init_experiment()
         self.description = self.description + "Calibrate_V_reset_shift."
+        self.V_reset_parameters = self.experiment_parameters["V_reset_parameters"]
 
     def get_parameters(self):
         parameters = super(Calibrate_V_reset_shift, self).get_parameters()
-
         for neuron_id in self.get_neurons():
-            for param, value in V_reset_parameters.iteritems():
+            for param, value in self.V_reset_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     parameters[neuron_id][param] = value
                     if param in [neuron_parameter.E_l, neuron_parameter.V_t]:
@@ -219,14 +212,13 @@ class Calibrate_V_reset_shift(Calibrate_V_reset):
                     pass
                 else:
                     raise TypeError('Only neuron_parameter or shared_parameter allowed') 
-
         return parameters
 
     def get_shared_parameters(self):
         parameters = super(Calibrate_V_reset_shift, self).get_shared_parameters()
 
         for block_id in range(4):
-            for param, value in V_reset_parameters.iteritems():
+            for param, value in self.V_reset_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     pass
                 elif isinstance(param, shared_parameter):
@@ -327,7 +319,7 @@ class Test_E_l(BaseTest):
     def get_parameters(self):
         parameters = super(Test_E_l, self).get_parameters()
         for neuron_id in self.get_neurons():
-            for param, value in E_l_parameters.iteritems():
+            for param, value in self.E_l_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     parameters[neuron_id][param] = value
                     parameters[neuron_id][param].apply_calibration = True
@@ -340,7 +332,7 @@ class Test_E_l(BaseTest):
     def get_shared_parameters(self):
         parameters = super(Test_E_l, self).get_shared_parameters()
         for block_id in range(4):
-            for param, value in E_l_parameters.iteritems():
+            for param, value in self.E_l_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     pass
                 elif isinstance(param, shared_parameter):
@@ -352,14 +344,15 @@ class Test_E_l(BaseTest):
 
     def get_steps(self):
         steps = []
-        for voltage in bin_parameters["E_l_range"]:  # 8 steps
+        for voltage in self.experiment_parameters["E_l_range"]:  # 8 steps
             steps.append({neuron_parameter.E_l: Voltage(voltage, apply_calibration = True),
                 })
         return defaultdict(lambda: steps)
 
     def init_experiment(self):
         super(Test_E_l, self).init_experiment()
-        self.description = "TEST OF " + bin_parameters["E_l_description"]
+        self.description = "TEST OF " + self.experiment_parameters["E_l_description"]
+        self.E_l_parameters = self.experiment_parameters["E_l_parameters"]
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         if np.std(v)*1000>50:
@@ -381,7 +374,7 @@ class Test_V_t(BaseTest):
     def get_parameters(self):
         parameters = super(Test_V_t, self).get_parameters()
         for neuron_id in self.get_neurons():
-            for param, value in V_t_parameters.iteritems():
+            for param, value in self.V_t_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     parameters[neuron_id][param] = value
                     parameters[neuron_id][param].apply_calibration = True
@@ -395,7 +388,7 @@ class Test_V_t(BaseTest):
         parameters = super(Test_V_t, self).get_shared_parameters()
 
         for block_id in range(4):
-            for param, value in V_t_parameters.iteritems():
+            for param, value in self.V_t_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     pass
                 elif isinstance(param, shared_parameter):
@@ -408,13 +401,14 @@ class Test_V_t(BaseTest):
 
     def get_steps(self):
         steps = []
-        for voltage in bin_parameters["V_t_range"]:
+        for voltage in self.experiment_parameters["V_t_range"]:
             steps.append({neuron_parameter.V_t: Voltage(voltage, apply_calibration = True)})
         return defaultdict(lambda: steps)
 
     def init_experiment(self):
         super(Test_V_t, self).init_experiment()
-        self.description = "TEST OF " + bin_parameters["V_t_description"]
+        self.description = "TEST OF " + self.experiment_parameters["V_t_description"]
+        self.V_t_parameters = self.experiment_parameters["V_t_parameters"]
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         if np.std(v)*1000<5:
@@ -436,9 +430,8 @@ class Test_V_reset(BaseCalibration):
     """V_reset calibration."""
     def get_parameters(self):
         parameters = super(Test_V_reset, self).get_parameters()
-
         for neuron_id in self.get_neurons():
-            for param, value in V_reset_parameters.iteritems():
+            for param, value in self.V_reset_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     parameters[neuron_id][param] = value
                     if param in [neuron_parameter.E_l, neuron_parameter.V_t]:
@@ -447,14 +440,13 @@ class Test_V_reset(BaseCalibration):
                     pass
                 else:
                     raise TypeError('Only neuron_parameter or shared_parameter allowed') 
-
         return parameters
 
     def get_shared_parameters(self):
         parameters = super(Test_V_reset, self).get_shared_parameters()
 
         for block_id in range(4):
-            for param, value in V_reset_parameters.iteritems():
+            for param, value in self.V_reset_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     pass
                 elif isinstance(param, shared_parameter):
@@ -466,13 +458,14 @@ class Test_V_reset(BaseCalibration):
 
     def get_shared_steps(self):
         steps = []
-        for voltage in bin_parameters["V_reset_range"]:
+        for voltage in self.experiment_parameters["V_reset_range"]:
             steps.append({shared_parameter.V_reset: Voltage(voltage, apply_calibration = True)})
         return defaultdict(lambda: steps)
 
     def init_experiment(self):
         super(Test_V_reset, self).init_experiment()
-        self.description = "TEST OF " + bin_parameters["V_reset_description"]
+        self.description = "TEST OF " + self.experiment_parameters["V_reset_description"]
+        self.V_reset_parameters = self.experiment_parameters["V_reset_parameters"]
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         if np.std(v)*1000<5:
@@ -502,7 +495,7 @@ class Calibrate_tau_m(BaseCalibration):
     def get_parameters(self):
         parameters = super(Calibrate_g_L, self).get_parameters()
         for neuron_id in self.get_neurons():
-            for param, value in V_reset_parameters.iteritems():
+            for param, value in g_L_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     parameters[neuron_id][param] = value
                 elif isinstance(param, shared_parameter):

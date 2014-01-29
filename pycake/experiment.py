@@ -9,6 +9,8 @@ import pylogging
 from collections import defaultdict
 import pyhalbe
 import pycalibtic
+from pycake.helpers.calibtic import init_backend as init_calibtic
+from pycake.helpers.redman import init_backend as init_redman
 import pyredman as redman
 from pycake.helpers.units import Current, Voltage, DAC
 from pycake.helpers.trafos import HWtoDAC, DACtoHW, HCtoDAC, DACtoHC, HWtoHC, HCtoHW
@@ -34,11 +36,15 @@ class BaseExperiment(object):
 
     Provides a function to run and process an experiment.
     """
-    def __init__(self, neuron_ids, sthal_container, calibtic_backend=None, redman_backend=None, loglevel=None):
+    def __init__(self, neuron_ids, sthal_container, parameters, loglevel=None):
+        self.experiment_parameters = parameters
         self.sthal = sthal_container
 
         self.neuron_ids = neuron_ids
         self._repetitions = 1
+
+        calibtic_backend = init_calibtic(path = parameters["backend_c"])
+        redman_backend = init_redman(path = parameters["backend_r"])
 
         self._calib_backend = calibtic_backend
         self._calib_hc = None
@@ -61,11 +67,11 @@ class BaseExperiment(object):
 
     def init_experiment(self):
         """Hook for child classes. Executed by run_experiment(). These are standard parameters."""
-        self.E_syni_dist = None
-        self.E_synx_dist = None
-        self.save_results = True
-        self.save_traces = False
-        self.repetitions = 1
+        self.E_syni_dist = self.experiment_parameters["E_syni_dist"]
+        self.E_synx_dist = self.experiment_parameters["E_synx_dist"]
+        self.save_results = self.experiment_parameters["save_results"]
+        self.save_traces = self.experiment_parameters["save_traces"]
+        self.repetitions = self.experiment_parameters["repetitions"]
         self.bigcap = True
         self.description = "Basic experiment."  # Change this for all child classes
         localtime = time.localtime()
@@ -443,10 +449,10 @@ class BaseExperiment(object):
 
         # Save default and step parameters and description to files
         # Also save sthal container to extract standard sthal parameters later:
-
         if self.save_results:
             if not os.path.isdir(self.folder):
                 os.mkdir(self.folder)
+            pickle.dump(self.experiment_parameters, open(os.path.join(self.folder,'parameterfile.p'), 'wb'))
             pickle.dump(self.sthal.hicann, open(os.path.join(self.folder,'sthalcontainer.p'),"wb"))
             pickle.dump(self.sthal.status(), open(os.path.join(self.folder,'wafer_status.p'),'wb'))
             pickle.dump(self.repetitions, open(os.path.join(self.folder,"repetitions.p"), 'wb'))

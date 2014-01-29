@@ -7,18 +7,18 @@ shared_parameter = pyhalbe.HICANN.shared_parameter
 
 parameters = {
         # Set the ranges within which you want to calibrate
-        "E_synx_range": range(650,1050,100),    # 16 steps
-        "E_syni_range": range(350,750,100),    # 16 steps
-        "E_l_range":    range(500,800,100),      # 12 steps
-        "V_t_range":    range(600,900,100),      # 12 steps
-        "V_reset_range":range(400,700,100),      # 12 steps
-        "I_gl_range":   range(50,2500,50),     # 50 steps
-        #"E_synx_range": range(650,1050,25),    # 16 steps
-        #"E_syni_range": range(350,750,25),    # 16 steps
-        #"E_l_range":    range(500,800,25),      # 12 steps
-        #"V_t_range":    range(600,900,25),      # 12 steps
-        #"V_reset_range":range(400,700,25),      # 12 steps
+        #"E_synx_range": range(650,1050,100),    # 16 steps
+        #"E_syni_range": range(350,750,100),    # 16 steps
+        #"E_l_range":    range(500,800,100),      # 12 steps
+        #"V_t_range":    range(600,900,100),      # 12 steps
+        #"V_reset_range":range(400,700,100),      # 12 steps
         #"I_gl_range":   range(50,2500,50),     # 50 steps
+        "E_synx_range": range(650,1050,25),    # 16 steps
+        "E_syni_range": range(350,750,25),    # 16 steps
+        "E_l_range":    range(500,800,25),      # 12 steps
+        "V_t_range":    range(600,900,25),      # 12 steps
+        "V_reset_range":range(400,700,25),      # 12 steps
+        "I_gl_range":   range(50,2500,50),     # 50 steps
 
         # How far should the E_syn values be set around E_l
         "E_syni_dist":  -100,
@@ -28,9 +28,9 @@ parameters = {
         "repetitions":  1,
         
         # Set which calibrations you want to run
-        "run_E_synx":  False,
-        "run_E_syni":  False,
-        "run_E_l":     False,
+        "run_E_synx":  True,
+        "run_E_syni":  True,
+        "run_E_l":     True,
         "run_V_t":     True,
         "run_V_reset": True,
         "run_I_gl":    False, # TODO g_l calibration is not yet implemented!
@@ -61,15 +61,17 @@ parameters = {
 
         # Where do you want to save the measurements (folder) and calibration data (backend_c for calibtic, backend_r for redman)?
         # Folders will be created if they do not exist already
-        "folder":       "/home/np001/temp/Test_cleanup/",
-        "backend_c":    "/home/np001/temp/Test_cleanup/backends/",
-        "backend_r":    "/home/np001/temp/Test_cleanup/backends/",
+        "folder":       "/home/np001/temp/feature_parameterfile/",
+        "backend_c":    "/home/np001/temp/feature_parameterfile/backends/",
+        "backend_r":    "/home/np001/temp/feature_parameterfile/backends/",
         
         # Wafer and HICANN coordinates
         "coord_wafer":  pyhalbe.Coordinate.Wafer(),
         "coord_hicann": pyhalbe.Coordinate.HICANNOnWafer(pyhalbe.Coordinate.Enum(280)),
 
 
+        # Here you can set the fixed parameters for each calibration.
+        # base_parameters are set for all calibrations 
         "base_parameters":   {  neuron_parameter.E_l: Voltage(600),
                                 neuron_parameter.E_syni: Voltage(500),     # synapse
                                 neuron_parameter.E_synx: Voltage(700),    # synapse

@@ -194,7 +194,7 @@ class Experimentreader(object):
         ax.legend(loc = 0)
         return fig
 
-    def print_errors(self, experiments):
+    def print_results(self, experiments):
         """ Prints errors of some experiments.
 
             Args:
@@ -208,7 +208,7 @@ class Experimentreader(object):
             if type(ex_id) is int:
                 ex_id = self.list_experiments(prnt = False)[ex_id]
             exp = self.load_experiment(ex_id)
-            exp.calculate_errors()
+            exp.calculate_results()
 
     def get_broken(self):
         """ Gives names of folders that don't have a results folder.
@@ -277,27 +277,6 @@ class Experiment(object):
                 print 'No traces saved'
                 return
             return trace
-    
-    def plot_trace(self, neuron_id, step_id = 0, rep_id = 0):
-            """ Plot the trace of one neuron from a specific measurement
-            
-                Args:
-                    neuron_id = int
-                    step_id = int
-                    rep_id = int repetition
-                
-                Returns:
-                    pyplot figure
-            """
-            try:
-                trace = np.array(pickle.load(open('{}/traces/step{}rep{}/neuron_{}.p'.format(self.workdir,step_id,rep_id,neuron_id))))
-            except IOError:
-                print 'No traces saved'
-                return
-            fig = plt.figure()
-            ax = fig.add_subplot(111)
-            ax.plot(trace[0],trace[1])
-            return fig
 
     def mean_over_reps(self):
         """ 
@@ -309,7 +288,7 @@ class Experiment(object):
                 [np.std(self.results[step], axis = 0) for step in range(self.stepnum)]]
 
     
-    def calculate_errors(self):
+    def calculate_results(self):
         """ Print errors of measurement.
             
             Returns:
@@ -473,3 +452,14 @@ class Experiment(object):
         ax.errorbar(xs,ys,y_errs)
         ax.plot(xs,xs, linestyle = "dashed", color="k", alpha = 0.8)
         return fig
+
+    def get_broken_neurons(self):
+        """ Get the indices of neurons marked as broken.
+
+            Args:
+                None
+
+            Returns:
+                List of indices, e.g. [0,1,2,3,4,5,6,7,...]
+        """
+        pass # TODO

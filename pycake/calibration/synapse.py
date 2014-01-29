@@ -18,8 +18,6 @@ from pycake.helpers.sthal import StHALContainer, UpdateAnalogOutputConfigurator
 from pycake.helpers.units import Current, Voltage, DAC
 from pycake.calibration.base import BaseCalibration, BaseTest
 
-from pycake.bin.parameters import parameters as bin_parameters
-
 import pysthal
 
 # Import everything needed for saving:
@@ -33,14 +31,11 @@ Enum = Coordinate.Enum
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
 
-E_synx_parameters = bin_parameters["E_synx_parameters"]
-E_syni_parameters = bin_parameters["E_syni_parameters"]
-
 class Calibrate_E_synx(BaseCalibration):
     def get_parameters(self):
         parameters = super(Calibrate_E_synx, self).get_parameters()
         for neuron_id in self.get_neurons():
-            for param, value in E_synx_parameters.iteritems():
+            for param, value in self.E_synx_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     parameters[neuron_id][param] = value
                 elif isinstance(param, shared_parameter):
@@ -52,7 +47,7 @@ class Calibrate_E_synx(BaseCalibration):
     def get_shared_parameters(self):
         parameters = super(Calibrate_E_synx, self).get_shared_parameters()
         for block_id in range(4):
-            for param, value in E_synx_parameters.iteritems():
+            for param, value in self.E_synx_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     pass
                 elif isinstance(param, shared_parameter):
@@ -64,7 +59,7 @@ class Calibrate_E_synx(BaseCalibration):
     
     def get_steps(self):
         steps = []
-        for E_syn_voltage in bin_parameters["E_synx_range"]: # 4 steps
+        for E_syn_voltage in self.experiment_parameters["E_synx_range"]: # 4 steps
             steps.append({neuron_parameter.E_synx: Voltage(E_syn_voltage),
                 })
         #return {neuron_id: steps for neuron_id in self.get_neurons()}
@@ -72,7 +67,8 @@ class Calibrate_E_synx(BaseCalibration):
 
     def init_experiment(self):
         super(Calibrate_E_synx, self).init_experiment()
-        self.description = bin_parameters["E_synx_description"]
+        self.description = self.experiment_parameters["E_synx_description"]
+        self.E_synx_parameters = self.experiment_parameters['E_synx_parameters']
         self.E_syni_dist = None
         self.E_synx_dist = None
 
@@ -100,7 +96,7 @@ class Calibrate_E_syni(BaseCalibration):
     def get_parameters(self):
         parameters = super(Calibrate_E_syni, self).get_parameters()
         for neuron_id in self.get_neurons():
-            for param, value in E_syni_parameters.iteritems():
+            for param, value in self.E_syni_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     parameters[neuron_id][param] = value
                 elif isinstance(param, shared_parameter):
@@ -112,7 +108,7 @@ class Calibrate_E_syni(BaseCalibration):
     def get_shared_parameters(self):
         parameters = super(Calibrate_E_syni, self).get_shared_parameters()
         for block_id in range(4):
-            for param, value in E_syni_parameters.iteritems():
+            for param, value in self.E_syni_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     pass
                 elif isinstance(param, shared_parameter):
@@ -123,14 +119,15 @@ class Calibrate_E_syni(BaseCalibration):
 
     def get_steps(self):
         steps = []
-        for E_syn_voltage in bin_parameters["E_syni_range"]: # 4 steps
+        for E_syn_voltage in self.experiment_parameters["E_syni_range"]: # 4 steps
             steps.append({neuron_parameter.E_syni: Voltage(E_syn_voltage),
                 })
         return defaultdict(lambda: steps)
 
     def init_experiment(self):
         super(Calibrate_E_syni, self).init_experiment()
-        self.description = bin_parameters['E_syni_description']
+        self.description = self.experiment_parameters['E_syni_description']
+        self.E_syni_parameters = self.experiment_parameters['E_syni_parameters']
         self.E_syni_dist = None
         self.E_synx_dist = None
 
@@ -170,7 +167,7 @@ class Test_E_synx(BaseTest):
     def get_parameters(self):
         parameters = super(Test_E_synx, self).get_parameters()
         for neuron_id in self.get_neurons():
-            for param, value in E_synx_parameters.iteritems():
+            for param, value in self.E_synx_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     parameters[neuron_id][param] = value
                     parameters[neuron_id][param].apply_calibration = True
@@ -183,7 +180,7 @@ class Test_E_synx(BaseTest):
     def get_shared_parameters(self):
         parameters = super(Test_E_synx, self).get_shared_parameters()
         for block_id in range(4):
-            for param, value in E_synx_parameters.iteritems():
+            for param, value in self.E_synx_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     pass
                 elif isinstance(param, shared_parameter):
@@ -196,14 +193,15 @@ class Test_E_synx(BaseTest):
     
     def get_steps(self):
         steps = []
-        for E_syn_voltage in bin_parameters["E_synx_range"]: 
+        for E_syn_voltage in self.experiment_parameters["E_synx_range"]: 
             steps.append({neuron_parameter.E_synx: Voltage(E_syn_voltage, apply_calibration = True),
                 })
         return defaultdict(lambda: steps)
 
     def init_experiment(self):
         super(Test_E_synx, self).init_experiment()
-        self.description = "TEST OF " + bin_parameters["E_synx_description"]
+        self.description = "TEST OF " + self.experiment_parameters["E_synx_description"]
+        self.E_synx_parameters = self.experiment_parameters['E_synx_parameters']
         self.E_syni_dist = None
         self.E_synx_dist = None
 
@@ -219,7 +217,7 @@ class Test_E_syni(BaseTest):
     def get_parameters(self):
         parameters = super(Test_E_syni, self).get_parameters()
         for neuron_id in self.get_neurons():
-            for param, value in E_syni_parameters.iteritems():
+            for param, value in self.E_syni_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     parameters[neuron_id][param] = value
                     parameters[neuron_id][param].apply_calibration = True
@@ -232,7 +230,7 @@ class Test_E_syni(BaseTest):
     def get_shared_parameters(self):
         parameters = super(Test_E_syni, self).get_shared_parameters()
         for block_id in range(4):
-            for param, value in E_syni_parameters.iteritems():
+            for param, value in self.E_syni_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     pass
                 elif isinstance(param, shared_parameter):
@@ -244,14 +242,15 @@ class Test_E_syni(BaseTest):
 
     def get_steps(self):
         steps = []
-        for E_syn_voltage in bin_parameters["E_syni_range"]: # 4 steps
+        for E_syn_voltage in self.experiment_parameters["E_syni_range"]: # 4 steps
             steps.append({neuron_parameter.E_syni: Voltage(E_syn_voltage, apply_calibration = True),
                 })
         return defaultdict(lambda: steps)
 
     def init_experiment(self):
         super(Test_E_syni, self).init_experiment()
-        self.description = "TEST OF " + bin_parameters['E_syni_description']
+        self.description = "TEST OF " + self.experiment_parameters['E_syni_description']
+        self.E_syni_parameters = self.experiment_parameters['E_syni_parameters']
         self.E_syni_dist = None
         self.E_synx_dist = None
 
