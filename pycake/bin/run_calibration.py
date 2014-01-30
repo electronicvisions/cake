@@ -133,7 +133,7 @@ if parameters["calibrate"]:
                 delete = raw_input("Delete folder {}? (yes / no)".format(calib_E_syni.folder))
                 if delete in ("yes","Yes","y","Y"):
                     shutil.rmtree(calib_E_syni.folder)
-                raise e
+                raise
         else:
             print "E_syni already calibrated. Calibration skipped."
 
@@ -150,7 +150,7 @@ if parameters["calibrate"]:
                 delete = raw_input("Delete folder {}? (yes / no)".format(calib_E_l.folder))
                 if delete in ("yes","Yes","y","Y"):
                     shutil.rmtree(calib_E_l.folder)
-                raise e
+                raise
         else:
             print "E_l already calibrated. Calibration skipped."
     
@@ -167,7 +167,7 @@ if parameters["calibrate"]:
                 delete = raw_input("Delete folder {}? (yes / no)".format(calib_V_t.folder))
                 if delete in ("yes","Yes","y","Y"):
                     shutil.rmtree(calib_V_t.folder)
-                raise e
+                raise
         else:
             print "V_t already calibrated. Calibration skipped."
     
@@ -186,7 +186,7 @@ if parameters["calibrate"]:
                 if delete in ("yes","Yes","y","Y"):
                     shutil.rmtree(calib_V_reset.folder)
                     shutil.rmtree(calib_V_reset_shift.folder)
-                raise e
+                raise
             # Calibrate V_reset_shift
             calib_V_reset_shift = lif.Calibrate_V_reset_shift(neurons, sthal, parameters)
             pylogging.set_loglevel(calib_V_reset_shift.logger, pylogging.LogLevel.INFO)
@@ -197,7 +197,7 @@ if parameters["calibrate"]:
                 delete = raw_input("Delete folder {}? (yes / no)".format(calib_V_reset.folder))
                 if delete in ("yes","Yes","y","Y"):
                     shutil.rmtree(calib_V_reset_shift.folder)
-                raise e
+                raise
         else:
             print "V_reset already calibrated. Calibration skipped."
     
@@ -211,7 +211,7 @@ if parameters["calibrate"]:
         #    delete = raw_input("Delete folder {}? (yes / no)".format(calib_I_gl.folder))
         #    if delete in ("yes","Yes","y","Y"):
         #        shutil.rmtree(calib_I_gl.folder)
-        #    raise e
+        #    raise
 
 
 if parameters["measure"]:
@@ -225,7 +225,7 @@ if parameters["measure"]:
             delete = raw_input("Delete folder {}? (yes / no)".format(test_E_synx.folder))
             if delete in ("yes","Yes","y","Y"):
                 shutil.rmtree(test_E_synx.folder)
-            raise e
+            raise
 
     if parameters["run_E_syni"]:
         test_E_syni = synapse.Test_E_syni(neurons, sthal, parameters)
@@ -237,7 +237,7 @@ if parameters["measure"]:
             delete = raw_input("Delete folder {}? (yes / no)".format(test_E_syni.folder))
             if delete in ("yes","Yes","y","Y"):
                 shutil.rmtree(test_E_syni.folder)
-            raise e
+            raise
 
     if parameters["run_E_l"]:
         test_E_l = lif.Test_E_l(neurons, sthal, parameters)
@@ -249,7 +249,7 @@ if parameters["measure"]:
             delete = raw_input("Delete folder {}? (yes / no)".format(test_E_l.folder))
             if delete in ("yes","Yes","y","Y"):
                 shutil.rmtree(test_E_l.folder)
-            raise e
+            raise
     
     if parameters["run_V_t"]:
         test_V_t = lif.Test_V_t(neurons, sthal, parameters)
@@ -261,7 +261,7 @@ if parameters["measure"]:
             delete = raw_input("Delete folder {}? (yes / no)".format(test_V_t.folder))
             if delete in ("yes","Yes","y","Y"):
                 shutil.rmtree(test_V_t.folder)
-            raise e
+            raise
     
     if parameters["run_V_reset"]:
         test_V_reset = lif.Test_V_reset(neurons, sthal, parameters)
@@ -273,7 +273,7 @@ if parameters["measure"]:
             delete = raw_input("Delete folder {}? (yes / no)".format(test_V_reset.folder))
             if delete in ("yes","Yes","y","Y"):
                 shutil.rmtree(test_V_reset.folder)
-            raise e
+            raise
     
     
     if parameters["run_I_gl"]:
@@ -286,7 +286,7 @@ if parameters["measure"]:
         #    delete = raw_input("Delete folder {}? (yes / no)".format(test_I_gl.folder))
         #    if delete in ("yes","Yes","y","Y"):
         #        shutil.rmtree(test_I_gl.folder)
-        #    raise e
+        #    raise
 
 
 
