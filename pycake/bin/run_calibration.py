@@ -16,9 +16,15 @@ import pycalibtic
 
 import imp
 
+
 # load specified file. if no file given, load standard file
 if len(sys.argv)>1 and os.path.isfile(sys.argv[1]):
-    parameters = imp.load_source('parameters', sys.argv[1]).parameters
+    try:
+        parameters = imp.load_source('parameters', sys.argv[1]).parameters
+    except:
+        print "Parameter file invalid."
+elif len(sys.argv)>1 and not os.path.isfile(sys.argv[1]):
+    print "Please specify a file containing the parameter dictionary."
 else:
     parameters = imp.load_source('parameters', 'parameters.py').parameters
 
@@ -185,7 +191,6 @@ if parameters["calibrate"]:
                 delete = raw_input("Delete folder {}? (yes / no)".format(calib_V_reset.folder))
                 if delete in ("yes","Yes","y","Y"):
                     shutil.rmtree(calib_V_reset.folder)
-                    shutil.rmtree(calib_V_reset_shift.folder)
                 raise e
             # Calibrate V_reset_shift
             calib_V_reset_shift = lif.Calibrate_V_reset_shift(neurons, sthal, parameters)
@@ -201,8 +206,8 @@ if parameters["calibrate"]:
         else:
             print "V_reset already calibrated. Calibration skipped."
     
-    if parameters["run_I_gl"]:
-        calib_I_gl = lif.Calibrate_g_L(neurons, sthal, parameters)
+    if parameters["run_g_l"]:
+        calib_I_gl = lif.Calibrate_g_l(neurons, sthal, parameters)
         pylogging.set_loglevel(calib_I_gl.logger, pylogging.LogLevel.INFO)
         #try:
         calib_I_gl.run_experiment()
@@ -276,7 +281,7 @@ if parameters["measure"]:
             raise e
     
     
-    if parameters["run_I_gl"]:
+    if parameters["run_g_l"]:
         test_I_gl = lif.Test_g_L(neurons, sthal, parameters)
         pylogging.set_loglevel(test_I_gl.logger, pylogging.LogLevel.INFO)
         #try:

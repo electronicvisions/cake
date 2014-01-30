@@ -271,9 +271,13 @@ class BaseExperiment(object):
                             E_syni = E_syni_new
                             E_synx = E_synx_new
                     except (RuntimeError, IndexError),e:
-                        self.logger.WARN("E_syn for neuron {} not calibrated! Using uncalibrated value.".format(neuron_id))
+                        pass
+                        #if step_id == 0: # Only in first step
+                        #    self.logger.WARN("E_syn for neuron {} not calibrated! Using uncalibrated value.".format(neuron_id))
                     except OverflowError, e:
-                        self.logger.WARN("E_syn calibration for neuron {} invalid. Using original value.".format(neuron_id))
+                        pass
+                        #if step_id == 0:
+                        #    self.logger.WARN("E_syn calibration for neuron {} invalid. Using original value.".format(neuron_id))
                 step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_syni] = type(step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_syni])(E_syni)
                 step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_synx] = type(step_parameters[neuron_id][pyhalbe.HICANN.neuron_parameter.E_synx])(E_synx)
 

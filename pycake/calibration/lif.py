@@ -228,6 +228,11 @@ class Calibrate_V_reset_shift(Calibrate_V_reset):
                     raise TypeError('Only neuron_parameter or shared_parameter allowed') 
         return parameters
 
+    def get_shared_steps(self):
+        steps = []
+        for voltage in self.experiment_parameters["V_reset_range"]:
+            steps.append({shared_parameter.V_reset: Voltage(voltage, apply_calibration = True)})
+        return defaultdict(lambda: steps)
 
     def process_results(self, neuron_ids):
         """This base class function can be used by child classes as process_results."""
@@ -488,14 +493,19 @@ class Test_V_reset(BaseCalibration):
 
 
 """
-        EVERYTHING AFTER THIS IS POINT STILL UNDER HEAVY CONSTRUCTION
+        EVERYTHING AFTER THIS IS POINT STILL UNDER CONSTRUCTION
 """
 
-class Calibrate_tau_m(BaseCalibration):
+class Calibrate_g_l(BaseCalibration):
+    def init_experiment(self):
+        super(Calibrate_g_l, self).init_experiment()
+        self.description = self.experiment_parameters['g_l_description'] # Change this for all child classes
+        self.g_l_parameters = self.experiment_parameters['g_l_parameters']
+
     def get_parameters(self):
-        parameters = super(Calibrate_g_L, self).get_parameters()
+        parameters = super(Calibrate_g_l, self).get_parameters()
         for neuron_id in self.get_neurons():
-            for param, value in g_L_parameters.iteritems():
+            for param, value in self.g_l_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     parameters[neuron_id][param] = value
                 elif isinstance(param, shared_parameter):
@@ -505,9 +515,9 @@ class Calibrate_tau_m(BaseCalibration):
         return parameters
 
     def get_shared_parameters(self):
-        parameters = super(Calibrate_g_L, self).get_shared_parameters()
+        parameters = super(Calibrate_g_l, self).get_shared_parameters()
         for block_id in range(4):
-            for param, value in V_reset_parameters.iteritems():
+            for param, value in self.g_l_parameters.iteritems():
                 if isinstance(param, neuron_parameter):
                     pass
                 elif isinstance(param, shared_parameter):
@@ -518,14 +528,40 @@ class Calibrate_tau_m(BaseCalibration):
 
     def get_steps(self):
         steps = []
-        for current in [200, 400, 600]:
-        #for current in range(200, 1000, 100):
+        for current in self.experiment_parameters['I_gl_range']:
             steps.append({neuron_parameter.I_gl: Current(current)})
         return defaultdict(lambda: steps)
 
-    def init_experiment(self):
-        super(Calibrate_g_L, self).init_experiment()
-        self.description = "Calibrate_g_L experiment." # Change this for all child classes
+    def measure(self, neuron_ids, step_id, rep_id):
+        """Perform measurements for a single step on one or multiple neurons."""
+        results = {}
+        stimulus = pyhalbe.HICANN.FGStimulus()
+        stimulus.setPulselength(15)
+        stimulus.setContinuous(True)
+
+        stimulus[:65] = [35] * 65
+        stimulus[65:] = [0] * (len(stimulus) - 65)
+
+        for neuron_id in neuron_ids:
+            self.sthal.set_current_stimulus(neuron_id, stimulus)
+            t, v = self.sthal.read_adc()
+            # Save traces in files:
+            if self.save_traces:
+                folder = os.path.join(self.folder,"traces")
+                if not os.path.isdir(os.path.join(self.folder,"traces")):
+                    os.mkdir(os.path.join(self.folder,"traces"))
+                if not os.path.isdir(os.path.join(self.folder,"traces", "step{}rep{}".format(step_id, rep_id))):
+                    os.mkdir(os.path.join(self.folder, "traces", "step{}rep{}".format(step_id, rep_id)))
+                pickle.dump([t, v], open(os.path.join(self.folder,"traces", "step{}rep{}".format(step_id, rep_id), "neuron_{}.p".format(neuron_id)), 'wb'))
+            results[neuron_id] = self.process_trace(t, v, neuron_id, step_id, rep_id)
+        # Now store measurements in a file:
+        if self.save_results:
+            if not os.path.isdir(os.path.join(self.folder,"results/")):
+                os.mkdir(os.path.join(self.folder,"results/"))
+            pickle.dump(results, open(os.path.join(self.folder,"results/","step{}_rep{}.p".format(step_id, rep_id)), 'wb'))
+        self.all_results.append(results)
+
+
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         # TODO implement fitting of tau_m
@@ -536,64 +572,8 @@ class Calibrate_tau_m(BaseCalibration):
 
     def store_results(self):
         # TODO detect and store broken neurons
-        super(Calibrate_g_L, self).store_calibration_results(neuron_parameter.I_gl)
+        super(Calibrate_g_l, self).store_calibration_results(neuron_parameter.I_gl)
 
-
-
-# TODO, playground for digital spike measures atm.
-class Calibrate_g_L(BaseCalibration):
-    def get_parameters(self):
-        parameters = super(Calibrate_g_L, self).get_parameters()
-        for neuron_id in self.get_neurons():
-            parameters[neuron_id].update({
-                neuron_parameter.E_l: Voltage(1100, apply_calibration = True),
-                neuron_parameter.V_t: Voltage(1000, apply_calibration = True),
-            })
-        return parameters
-
-    def get_shared_parameters(self):
-        parameters = super(Calibrate_g_L, self).get_shared_parameters()
-        for block_id in range(4):
-            parameters[block_id][shared_parameter.V_reset] = Voltage(800, apply_calibration = True)
-        return parameters
-
-    def get_steps(self):
-        steps = []
-        #for current in range(700, 1050, 50):
-        for current in range(700, 1000, 100):
-            steps.append({neuron_parameter.I_gl: Current(current)})
-        return defaultdict(lambda: steps)
-
-    def init_experiment(self):
-        super(Calibrate_g_L, self).init_experiment()
-        self.description = "Calibrate_g_L experiment." # Change this for all child classes
-        self.repetitions = 1
-        self.E_syni_dist = -100
-        self.E_synx_dist = +100
-        self.save_results = True
-        self.save_traces = False
-
-    def process_trace(self, t, v, neuron_id, step_id, rep_id):
-        if np.std(v)*1000<5:
-            if not os.path.isdir(os.path.join(self.folder, "bad_traces")):
-                os.mkdir(os.path.join(self.folder, "bad_traces"))
-            pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
-            self.logger.WARN("Trace for neuron {} bad. Neuron not spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
-        spk = pycake.logic.spikes.detect_spikes(t,v)
-        f = pycake.logic.spikes.spikes_to_freqency(spk)
-        E_l = 1100.
-        C = 2.16456E-12
-        V_t = max(v)*1000.
-        V_r = min(v)*1000.
-        g_l = f * C * np.log((V_r-E_l)/(V_t-E_l)) * 1E9
-        return g_l
-
-    def process_results(self, neuron_ids):
-        self.process_calibration_results(neuron_ids, neuron_parameter.I_gl)
-
-    def store_results(self):
-        # TODO detect and store broken neurons
-        super(Calibrate_g_L, self).store_calibration_results(neuron_parameter.I_gl)
 
 
 # TODO

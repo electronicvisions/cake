@@ -18,6 +18,20 @@ class UpdateAnalogOutputConfigurator(pysthal.HICANNConfigurator):
         self.config_analog_readout(h, hicann)
         self.flush_fpga(fpga_handle)
 
+class UpdateCurrentStimulusConfigurator(pysthal.HICANNConfigurator):
+    """Change analog input only without writing other configuration."""
+    def config_fpga(self, *args):
+        """do not reset FPGA"""
+        pass
+
+    def config(self, fpga_handle, h, hicann):
+        """Call analog output related configuration functions."""
+        self.config_neuron_quads(h, hicann)
+        self.config_analog_readout(h, hicann)
+        self.config_fg_stimulus(h, hicann)
+        self.flush_fpga(fpga_handle)
+
+   
 
 class WriteFGTwiceConfigurator(pysthal.HICANNConfigurator):
     """Same as default configurator, but writes floating gates twice."""
@@ -46,6 +60,7 @@ class StHALContainer(object):
         self._connected = False
         self._cfg = WriteFGTwiceConfigurator()
         self._cfg_analog = UpdateAnalogOutputConfigurator()
+        self._cfg_stimulus = UpdateCurrentStimulusConfigurator()
         self.logger = pylogging.get("pycake.helper.sthal")
 
 
@@ -222,3 +237,18 @@ class StHALContainer(object):
         self.logger.DEBUG("connected {!s} -> {!s} -> {!s} -> {!s}".format(output_buffer, v_line, driver_line, driver))
         self.hicann.crossbar_switches.set(v_line, out_line, True)
         self.hicann.synapse_switches.set(v_line, driver_line, True)
+
+
+    def set_current_stimulus(self, neuron_id, stimulus):
+        """Write current stimulus configuration (only)."""
+        if not self._connected:
+            self.connect()
+        self.hicann.disable_current_stimulus()
+        coord_neuron = Coordinate.NeuronOnHICANN(Coordinate.Enum(neuron_id))
+        self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(0))
+        self.hicann.enable_aout(coord_neuron, Coordinate.AnalogOnHICANN(0))
+        self.hicann.enable_current_stimulus(coord_neuron)
+        self.hicann.setCurrentStimulus(coord_neuron, stimulus)
+
+        self.wafer.configure(self._cfg_stimulus)
+
