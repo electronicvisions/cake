@@ -1,9 +1,13 @@
 import pyhalbe
 from pycake.experiment import Voltage, Current
 import copy
+import os
 import sys
+
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
+
+folder = "/tmp"
 
 parameters = {
         # Set the ranges within which you want to calibrate
@@ -26,7 +30,7 @@ parameters = {
 
         # How many repetitions? Each repetition will take about 1 minute per step!
         "repetitions":  1,
-        
+
         # Set which calibrations you want to run
         "run_E_synx":  True,
         "run_E_syni":  True,
@@ -55,16 +59,16 @@ parameters = {
         "E_synx_description":   "E_synx calibration.",
         "E_syni_description":   "E_syni calibration",
         "E_l_description":      "E_l calibration",
-        "V_t_description":      "V_t calibration",  
+        "V_t_description":      "V_t calibration",
         "V_reset_description":  "V_reset calibration",
         "I_gl_description":     "I_gl calibration",
 
         # Where do you want to save the measurements (folder) and calibration data (backend_c for calibtic, backend_r for redman)?
         # Folders will be created if they do not exist already
-        "folder":       "/home/np001/temp/feature_parameterfile/",
-        "backend_c":    "/home/np001/temp/feature_parameterfile/backends/",
-        "backend_r":    "/home/np001/temp/feature_parameterfile/backends/",
-        
+        "folder":       folder,
+        "backend_c":    os.path.join(folder, "backends"),
+        "backend_r":    os.path.join(folder, "backends"),
+
         # Wafer and HICANN coordinates
         "coord_wafer":  pyhalbe.Coordinate.Wafer(),
         "coord_hicann": pyhalbe.Coordinate.HICANNOnWafer(pyhalbe.Coordinate.Enum(280)),
