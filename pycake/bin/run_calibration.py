@@ -10,11 +10,17 @@ import argparse
 import pycalibtic
 import pylogging
 
+# Activate logger before importing other stuff that might want to log
+default_logger = pylogging.get("Default")
+logger = pylogging.get("run_calibration")
+pylogging.default_config()
+
 from pycake.helpers.calibtic import init_backend as init_calibtic
 from pycake.helpers.redman import init_backend as init_redman
 from pycake.helpers.sthal import StHALContainer
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
 from pycake.calibration import base, lif, synapse
+
 
 def check_file(string):
     if not os.path.isfile(string):
@@ -30,8 +36,6 @@ parameters = imp.load_source('parameters', args.parameter_file).parameters
 
 neurons = range(512)
 
-default_logger = pylogging.get("Default")
-pylogging.set_loglevel(default_logger, pylogging.LogLevel.INFO)
 
 # Create necessary folders if the do not exist already
 if parameters['save_results']:
