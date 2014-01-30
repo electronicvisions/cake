@@ -112,6 +112,41 @@ pylogging.set_loglevel(default_logger, pylogging.LogLevel.ERROR)
 
 # Start measuring
 
+def do_calibration(calibration):
+    param = calibration.target_parameter
+    parameter_name = calibration.config_name
+
+    run = parameters["run_" + parameter_name]
+    overwrite = parameters['overwrite']
+    has_calibration = check_for_existing_calbration(getattr(neuron_parameter, x))
+
+    if not run:
+        return
+    if has_calibration and not overwrite:
+        logger.INFO("{} already calibrated. Calibration skipped.".format(parameter_name))
+        return
+
+    if has_calibration:
+        logger.WARN('Overwriting calibration for {}'.format(parameter_name))
+
+    # TODO check from here (and also above ;) )
+    calib = synapse.Calibrate_E_synx(neurons, sthal, parameters)
+    pylogging.set_loglevel(calib_E_synx.logger, pylogging.LogLevel.INFO)
+    try:
+        calib_E_synx.run_experiment()
+    except Exception,e:
+        print "ERROR: ", e
+        delete = raw_input("Delete folder {}? (yes / no)".format(calib_E_synx.folder))
+        if delete in ("yes","Yes","y","Y"):
+            try:
+                shutil.rmtree(calib_E_syni.folder)
+            except OSError as e: # Folder missing, TODO log something
+                print e
+                pass
+        raise
+
+# calibrate_something(synapse.Calibrate_E_synx)
+
 if parameters["calibrate"]:
     if parameters["run_E_synx"]:
         if parameters['overwrite'] or (not check_for_existing_calbration(neuron_parameter.E_synx)):
@@ -125,7 +160,11 @@ if parameters["calibrate"]:
                 print "ERROR: ", e
                 delete = raw_input("Delete folder {}? (yes / no)".format(calib_E_synx.folder))
                 if delete in ("yes","Yes","y","Y"):
-                    shutil.rmtree(calib_E_synx.folder)
+                    try:
+                        shutil.rmtree(calib_E_syni.folder)
+                    except OSError as e: # Folder missing, TODO log something
+                        print e
+                        pass
                 raise
         else:
             print "E_synx already calibrated. Calibration skipped."
@@ -142,7 +181,11 @@ if parameters["calibrate"]:
                 print "ERROR: ", e
                 delete = raw_input("Delete folder {}? (yes / no)".format(calib_E_syni.folder))
                 if delete in ("yes","Yes","y","Y"):
-                    shutil.rmtree(calib_E_syni.folder)
+                    try:
+                        shutil.rmtree(calib_E_syni.folder)
+                    except OSError as e: # Folder missing, TODO log something
+                        print e
+                        pass
                 raise
         else:
             print "E_syni already calibrated. Calibration skipped."
