@@ -1,4 +1,19 @@
+#!/usr/bin/env python
 """Runs E_l calibration, plots and saves data"""
+
+import shutil
+import sys
+import os
+import imp
+import argparse
+
+import pycalibtic
+import pylogging
+
+# Activate logger before importing other stuff that might want to log
+default_logger = pylogging.get("Default")
+logger = pylogging.get("run_calibration")
+pylogging.default_config()
 
 from pycake.helpers.calibtic import init_backend as init_calibtic
 from pycake.helpers.redman import init_backend as init_redman
@@ -6,32 +21,21 @@ from pycake.helpers.sthal import StHALContainer
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
 from pycake.calibration import base, lif, synapse
 
-import shutil
-import os
 
-import pylogging
+def check_file(string):
+    if not os.path.isfile(string):
+        msg = "parameter file '%r' not found! :p" % string
+        raise argparse.ArgumentTypeError(msg)
+    return string
 
-import sys
-import pycalibtic
-
-import imp
-
-
-# load specified file. if no file given, load standard file
-if len(sys.argv)>1 and os.path.isfile(sys.argv[1]):
-    try:
-        parameters = imp.load_source('parameters', sys.argv[1]).parameters
-    except:
-        print "Parameter file invalid."
-elif len(sys.argv)>1 and not os.path.isfile(sys.argv[1]):
-    print "Please specify a file containing the parameter dictionary."
-else:
-    parameters = imp.load_source('parameters', 'parameters.py').parameters
+parser = argparse.ArgumentParser(description='HICANN Calibration tool')
+parser.add_argument('parameter_file', type=check_file, nargs='?',
+                           help='')
+args = parser.parse_args()
+parameters = imp.load_source('parameters', args.parameter_file).parameters
 
 neurons = range(512)
 
-default_logger = pylogging.get("Default")
-pylogging.set_loglevel(default_logger, pylogging.LogLevel.INFO)
 
 # Create necessary folders if the do not exist already
 if parameters['save_results']:
