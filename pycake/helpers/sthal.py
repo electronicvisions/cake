@@ -18,29 +18,6 @@ class UpdateAnalogOutputConfigurator(pysthal.HICANNConfigurator):
         self.config_analog_readout(h, hicann)
         self.flush_fpga(fpga_handle)
 
-class UpdateCurrentStimulusConfigurator(pysthal.HICANNConfigurator):
-    """Change analog input only without writing other configuration."""
-    def config_fpga(self, *args):
-        """do not reset FPGA"""
-        pass
-
-    def config(self, fpga_handle, h, hicann):
-        """Call analog output related configuration functions."""
-        self.config_neuron_quads(h, hicann)
-        self.config_analog_readout(h, hicann)
-        self.config_fg_stimulus(h, hicann)
-        self.flush_fpga(fpga_handle)
-
-   
-
-class WriteFGTwiceConfigurator(pysthal.HICANNConfigurator):
-    """Same as default configurator, but writes floating gates twice."""
-    def config_floating_gates(self, handle, hicann):
-        """Write floating gates twice"""
-        pyhalbe.HICANN.set_fg_values(handle, hicann.floating_gates)
-        pyhalbe.HICANN.set_fg_values(handle, hicann.floating_gates)
-
-
 class StHALContainer(object):
     """Contains StHAL objects for hardware access. Multiple experiments can share one container."""
     def __init__(self, coord_wafer=Coordinate.Wafer(),
@@ -58,9 +35,7 @@ class StHALContainer(object):
         self.recording_time = recording_time
         self.coord_analog = coord_analog
         self._connected = False
-        self._cfg = WriteFGTwiceConfigurator()
         self._cfg_analog = UpdateAnalogOutputConfigurator()
-        self._cfg_stimulus = UpdateCurrentStimulusConfigurator()
         self.logger = pylogging.get("pycake.helper.sthal")
 
 
@@ -98,7 +73,7 @@ class StHALContainer(object):
         """Write full configuration."""
         if not self._connected:
             self.connect()
-        self.wafer.configure(self._cfg)
+        self.wafer.configure(pysthal.HICANNConfigurator())
 
     def switch_analog_output(self, neuron_id, l1address=0, analog=0):
         """Write analog output configuration (only)."""
@@ -239,16 +214,25 @@ class StHALContainer(object):
         self.hicann.synapse_switches.set(v_line, driver_line, True)
 
 
-    def set_current_stimulus(self, neuron_id, stimulus):
-        """Write current stimulus configuration (only)."""
+    def set_current_stimulus(self, stimulus):
+        """Updates current stimulus for all neurons"""
         if not self._connected:
             self.connect()
-        self.hicann.disable_current_stimulus()
-        coord_neuron = Coordinate.NeuronOnHICANN(Coordinate.Enum(neuron_id))
-        self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(0))
-        self.hicann.enable_aout(coord_neuron, Coordinate.AnalogOnHICANN(0))
-        self.hicann.enable_current_stimulus(coord_neuron)
-        self.hicann.setCurrentStimulus(coord_neuron, stimulus)
+        #for block in Coordinate.iter_all(Coordinate.FGBlockOnHICANN):
+        for block in range(4):
+            self.hicann.current_stimuli[block] = stimulus
+        # TODO write to FG
 
-        self.wafer.configure(self._cfg_stimulus)
+    def switch_current_stimulus(self, neuron_id):
+        """ Properly switches the current stimulus to a certain neuron.
+            To avoid invalid neuron configurations (see HICANN doc page 33),
+            all aouts and current stimuli are disabled before enabling them for one neuron."""
+        if not self._connected:
+            self.connect()
+        coord_neuron = Coordinate.NeuronOnHICANN(Coordinate.Enum(neuron_id))
+        self.hicann.disable_aout()
+        self.hicann.disable_current_stimulus()
+        self.hicann.enable_current_stimulus(coord_neuron)
+        self.hicann.enable_aout(coord_neuron, Coordinate.AnalogOnHICANN(0))
+        self.wafer.configure(self._cfg_analog)
 

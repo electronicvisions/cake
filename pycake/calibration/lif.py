@@ -501,6 +501,7 @@ class Calibrate_g_l(BaseCalibration):
         super(Calibrate_g_l, self).init_experiment()
         self.description = self.experiment_parameters['g_l_description'] # Change this for all child classes
         self.g_l_parameters = self.experiment_parameters['g_l_parameters']
+        self.sthal.recording_time = 0.001
 
     def get_parameters(self):
         parameters = super(Calibrate_g_l, self).get_parameters()
@@ -532,9 +533,30 @@ class Calibrate_g_l(BaseCalibration):
             steps.append({neuron_parameter.I_gl: Current(current)})
         return defaultdict(lambda: steps)
 
-    def measure(self, neuron_ids, step_id, rep_id):
-        """Perform measurements for a single step on one or multiple neurons."""
-        results = {}
+    def prepare_measurement(self, step_parameters, step_id, rep_id):
+        """Prepare measurement.
+        Perform reset, write general hardware settings.
+        """
+        neuron_parameters = step_parameters[0]
+        shared_parameters = step_parameters[1]
+
+        fgc = pyhalbe.HICANN.FGControl()
+        # Set neuron parameters for each neuron
+        for neuron_id in self.get_neurons():
+            coord = Coordinate.NeuronOnHICANN(Enum(neuron_id))
+            for parameter in neuron_parameters[neuron_id]:
+                value = neuron_parameters[neuron_id][parameter]
+                fgc.setNeuron(coord, parameter, value)
+
+        # Set block parameters for each block
+        for block_id in range(4):
+            coord = pyhalbe.Coordinate.FGBlockOnHICANN(pyhalbe.Coordinate.Enum(block_id))
+            for parameter in shared_parameters[block_id]:
+                value = shared_parameters[block_id][parameter]
+                fgc.setShared(coord, parameter, value)
+
+        self.sthal.hicann.floating_gates = fgc
+
         stimulus = pyhalbe.HICANN.FGStimulus()
         stimulus.setPulselength(15)
         stimulus.setContinuous(True)
@@ -542,8 +564,25 @@ class Calibrate_g_l(BaseCalibration):
         stimulus[:65] = [35] * 65
         stimulus[65:] = [0] * (len(stimulus) - 65)
 
+        self.sthal.set_current_stimulus(stimulus)
+
+        if self.bigcap is True:
+            # TODO add bigcap functionality
+            pass
+
+        if self.save_results:
+            if not os.path.isdir(os.path.join(self.folder,"floating_gates")):
+                os.mkdir(os.path.join(self.folder,"floating_gates"))
+            pickle.dump(fgc, open(os.path.join(self.folder,"floating_gates", "step{}rep{}.p".format(step_id,rep_id)), 'wb'))
+
+        self.sthal.write_config()
+
+
+    def measure(self, neuron_ids, step_id, rep_id):
+        """Perform measurements for a single step on one or multiple neurons."""
+        results = {}
         for neuron_id in neuron_ids:
-            self.sthal.set_current_stimulus(neuron_id, stimulus)
+            self.sthal.switch_current_stimulus(neuron_id)
             t, v = self.sthal.read_adc()
             # Save traces in files:
             if self.save_traces:
