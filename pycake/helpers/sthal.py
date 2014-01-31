@@ -150,13 +150,13 @@ class StHALContainer(object):
             self.logger.DEBUG("activate {!s} with period {}".format(bg, bg_period))
 
         for ii in range(4):
-            bg_top    = Coordinate.OutputBufferOnHICANN(2*ii)
-            bg_bottom = Coordinate.OutputBufferOnHICANN(2*ii+1)
+            bg_top    = Coordinate.OutputBufferOnHICANN(2*ii+1)
+            bg_bottom = Coordinate.OutputBufferOnHICANN(2*ii)
 
             drv_top    = Coordinate.SynapseDriverOnHICANN(
-                    Coordinate.Enum( 97 + ii * 4))
+                    Coordinate.Enum( 99 + ii * 4))
             drv_bottom = Coordinate.SynapseDriverOnHICANN(
-                    Coordinate.Enum( 124 - ii * 4))
+                    Coordinate.Enum( 126 - ii * 4))
             if ii < no_generators:
                 self.route(bg_top, drv_top)
                 self.route(bg_bottom, drv_bottom)
@@ -167,7 +167,7 @@ class StHALContainer(object):
                 self.disable_synapse_line(drv_bottom)
 
 
-    def enable_synapse_line(self, driver_c, l1address):
+    def enable_synapse_line(self, driver_c, l1address, exitatory=True):
         """
         """
 
@@ -197,7 +197,7 @@ class StHALContainer(object):
         synapse_decoder = [l1address.getSynapseDecoderMask()] * 256
         self.hicann.synapses[synapse_line_top].decoders[:] = synapse_decoder
         self.hicann.synapses[synapse_line_bottom].decoders[:] = synapse_decoder
-        self.logger.DEBUG("enabled {!s} listing to {}".format(driver_c, l1address))
+        self.logger.DEBUG("enabled {!s} listing to {!s}".format(driver_c, l1address))
 
     def disable_synapse_line(self, driver_c):
         """
@@ -223,9 +223,10 @@ class StHALContainer(object):
         """
 
         assert(route >= 0 and route <= 4)
+        repeater = output_buffer.repeater().horizontal()
         out_line = output_buffer.repeater().horizontal().line()
         driver_line = driver.line()
-        repeater_data = self.hicann.repeater[output_buffer.repeater().horizontal()]
+        repeater_data = self.hicann.repeater[repeater]
         repeater_data.setOutput(Coordinate.right, True)
         if driver.side() == Coordinate.left:
             v_line_value = 31 - out_line.value()/2
@@ -234,7 +235,9 @@ class StHALContainer(object):
             v_line_value = 128 + out_line.value()/2
             v_line_value += 32 * route
         v_line = Coordinate.VLineOnHICANN(v_line_value)
-        self.logger.DEBUG("connected {!s} -> {!s} -> {!s} -> {!s}".format(output_buffer, v_line, driver_line, driver))
+        chain = (output_buffer, repeater, out_line, v_line, driver_line, driver)
+        dbg = " -> ".join(['{!s}'] * len(chain))
+        self.logger.DEBUG("connected " + dbg.format(*chain))
         self.hicann.crossbar_switches.set(v_line, out_line, True)
         self.hicann.synapse_switches.set(v_line, driver_line, True)
 
