@@ -107,18 +107,15 @@ def check_for_existing_calbration(parameter):
             default_logger.INFO('Calibration for {} not existing.'.format(parameter.name))
             return False
 
- 
 pylogging.set_loglevel(default_logger, pylogging.LogLevel.ERROR)
 
-# Start measuring
-
 def do_calibration(calibration):
-    param = calibration.target_parameter
-    parameter_name = calibration.config_name
+    target_parameter = calibration.target_parameter
+    parameter_name = target_parameter.name
 
     run = parameters["run_" + parameter_name]
     overwrite = parameters['overwrite']
-    has_calibration = check_for_existing_calbration(getattr(neuron_parameter, x))
+    has_calibration = check_for_existing_calbration(target_parameter)
 
     if not run:
         return
@@ -130,218 +127,32 @@ def do_calibration(calibration):
         logger.WARN('Overwriting calibration for {}'.format(parameter_name))
 
     # TODO check from here (and also above ;) )
-    calib = synapse.Calibrate_E_synx(neurons, sthal, parameters)
-    pylogging.set_loglevel(calib_E_synx.logger, pylogging.LogLevel.INFO)
+    calib = calibration(neurons, sthal, parameters)
+    pylogging.set_loglevel(calib.logger, pylogging.LogLevel.INFO)
     try:
-        calib_E_synx.run_experiment()
+        calib.run_experiment()
     except Exception,e:
         print "ERROR: ", e
-        delete = raw_input("Delete folder {}? (yes / no)".format(calib_E_synx.folder))
+        delete = raw_input("Delete folder {}? (yes / no)".format(calib.folder))
         if delete in ("yes","Yes","y","Y"):
             try:
-                shutil.rmtree(calib_E_syni.folder)
+                shutil.rmtree(calib.folder)
             except OSError as e: # Folder missing, TODO log something
                 print e
                 pass
         raise
 
-# calibrate_something(synapse.Calibrate_E_synx)
-
 if parameters["calibrate"]:
-    if parameters["run_E_synx"]:
-        if parameters['overwrite'] or (not check_for_existing_calbration(neuron_parameter.E_synx)):
-            if parameters['overwrite'] and check_for_existing_calbration(neuron_parameter.E_synx):
-                print 'Overwriting calibration for E_synx'
-            calib_E_synx = synapse.Calibrate_E_synx(neurons, sthal, parameters)
-            pylogging.set_loglevel(calib_E_synx.logger, pylogging.LogLevel.INFO)
-            try:
-                calib_E_synx.run_experiment()
-            except Exception,e:
-                print "ERROR: ", e
-                delete = raw_input("Delete folder {}? (yes / no)".format(calib_E_synx.folder))
-                if delete in ("yes","Yes","y","Y"):
-                    try:
-                        shutil.rmtree(calib_E_syni.folder)
-                    except OSError as e: # Folder missing, TODO log something
-                        print e
-                        pass
-                raise
-        else:
-            print "E_synx already calibrated. Calibration skipped."
-
-    if parameters["run_E_syni"]:
-        if parameters['overwrite'] or (not check_for_existing_calbration(neuron_parameter.E_syni)):
-            if parameters['overwrite'] and check_for_existing_calbration(neuron_parameter.E_syni):
-                print 'Overwriting calibration for E_syni'
-            calib_E_syni = synapse.Calibrate_E_syni(neurons, sthal, parameters)
-            pylogging.set_loglevel(calib_E_syni.logger, pylogging.LogLevel.INFO)
-            try:
-                calib_E_syni.run_experiment()
-            except Exception,e:
-                print "ERROR: ", e
-                delete = raw_input("Delete folder {}? (yes / no)".format(calib_E_syni.folder))
-                if delete in ("yes","Yes","y","Y"):
-                    try:
-                        shutil.rmtree(calib_E_syni.folder)
-                    except OSError as e: # Folder missing, TODO log something
-                        print e
-                        pass
-                raise
-        else:
-            print "E_syni already calibrated. Calibration skipped."
-
-    if parameters["run_E_l"]:
-        if parameters['overwrite'] or (not check_for_existing_calbration(neuron_parameter.E_l)):
-            if parameters['overwrite'] and check_for_existing_calbration(neuron_parameter.E_l):
-                print 'Overwriting calibration for E_l'
-            calib_E_l = lif.Calibrate_E_l(neurons, sthal, parameters)
-            pylogging.set_loglevel(calib_E_l.logger, pylogging.LogLevel.INFO)
-            try:
-                calib_E_l.run_experiment()
-            except Exception,e:
-                print "ERROR: ", e
-                delete = raw_input("Delete folder {}? (yes / no)".format(calib_E_l.folder))
-                if delete in ("yes","Yes","y","Y"):
-                    shutil.rmtree(calib_E_l.folder)
-                raise
-        else:
-            print "E_l already calibrated. Calibration skipped."
-    
-    if parameters["run_V_t"]:
-        if parameters['overwrite'] or (not check_for_existing_calbration(neuron_parameter.V_t)):
-            if parameters['overwrite'] and check_for_existing_calbration(neuron_parameter.V_t):
-                print 'Overwriting calibration for V_t'
-            calib_V_t = lif.Calibrate_V_t(neurons, sthal, parameters)
-            pylogging.set_loglevel(calib_V_t.logger, pylogging.LogLevel.INFO)
-            try:
-                calib_V_t.run_experiment()
-            except Exception,e:
-                print "ERROR: ", e
-                delete = raw_input("Delete folder {}? (yes / no)".format(calib_V_t.folder))
-                if delete in ("yes","Yes","y","Y"):
-                    shutil.rmtree(calib_V_t.folder)
-                raise
-        else:
-            print "V_t already calibrated. Calibration skipped."
-    
-    if parameters["run_V_reset"]:
-        if parameters['overwrite'] or (not check_for_existing_calbration(shared_parameter.V_reset)):
-            if parameters['overwrite'] and check_for_existing_calbration(shared_parameter.V_reset):
-                print 'Overwriting calibration for V_reset'
-            # Calibrate V_reset
-            calib_V_reset = lif.Calibrate_V_reset(neurons, sthal, parameters)
-            pylogging.set_loglevel(calib_V_reset.logger, pylogging.LogLevel.INFO)
-            try:
-                calib_V_reset.run_experiment()
-            except Exception,e:
-                print "ERROR: ", e
-                delete = raw_input("Delete folder {}? (yes / no)".format(calib_V_reset.folder))
-                if delete in ("yes","Yes","y","Y"):
-                    shutil.rmtree(calib_V_reset.folder)
-                raise e
-            # Calibrate V_reset_shift
-            calib_V_reset_shift = lif.Calibrate_V_reset_shift(neurons, sthal, parameters)
-            pylogging.set_loglevel(calib_V_reset_shift.logger, pylogging.LogLevel.INFO)
-            try:
-                calib_V_reset_shift.run_experiment()
-            except Exception,e:
-                print "ERROR: ", e
-                delete = raw_input("Delete folder {}? (yes / no)".format(calib_V_reset.folder))
-                if delete in ("yes","Yes","y","Y"):
-                    shutil.rmtree(calib_V_reset_shift.folder)
-                raise
-        else:
-            print "V_reset already calibrated. Calibration skipped."
-    
-    if parameters["run_g_l"]:
-        calib_I_gl = lif.Calibrate_g_l(neurons, sthal, parameters)
-        pylogging.set_loglevel(calib_I_gl.logger, pylogging.LogLevel.INFO)
-        #try:
-        calib_I_gl.run_experiment()
-        #except:
-        #    print "ERROR: ", e
-        #    delete = raw_input("Delete folder {}? (yes / no)".format(calib_I_gl.folder))
-        #    if delete in ("yes","Yes","y","Y"):
-        #        shutil.rmtree(calib_I_gl.folder)
-        #    raise
-
+    for calibration in [synapse.Calibrate_E_synx, synapse.Calibrate_E_syni,
+                        lif.Calibrate_E_l, lif.Calibrate_V_t, lif.Calibrate_V_reset, 
+                        lif.Calibrate_V_reset_shift, lif.Calibrate_g_l]:
+        do_calibration(calibration)
 
 if parameters["measure"]:
-    if parameters["run_E_synx"]:
-        test_E_synx = synapse.Test_E_synx(neurons, sthal, parameters)
-        pylogging.set_loglevel(test_E_synx.logger, pylogging.LogLevel.INFO)
-        try:
-            test_E_synx.run_experiment()
-        except Exception,e:
-            print "ERROR: ", e
-            delete = raw_input("Delete folder {}? (yes / no)".format(test_E_synx.folder))
-            if delete in ("yes","Yes","y","Y"):
-                shutil.rmtree(test_E_synx.folder)
-            raise
-
-    if parameters["run_E_syni"]:
-        test_E_syni = synapse.Test_E_syni(neurons, sthal, parameters)
-        pylogging.set_loglevel(test_E_syni.logger, pylogging.LogLevel.INFO)
-        try:
-            test_E_syni.run_experiment()
-        except Exception,e:
-            print "ERROR: ", e
-            delete = raw_input("Delete folder {}? (yes / no)".format(test_E_syni.folder))
-            if delete in ("yes","Yes","y","Y"):
-                shutil.rmtree(test_E_syni.folder)
-            raise
-
-    if parameters["run_E_l"]:
-        test_E_l = lif.Test_E_l(neurons, sthal, parameters)
-        pylogging.set_loglevel(test_E_l.logger, pylogging.LogLevel.INFO)
-        try:
-            test_E_l.run_experiment()
-        except Exception,e:
-            print "ERROR: ", e
-            delete = raw_input("Delete folder {}? (yes / no)".format(test_E_l.folder))
-            if delete in ("yes","Yes","y","Y"):
-                shutil.rmtree(test_E_l.folder)
-            raise
-    
-    if parameters["run_V_t"]:
-        test_V_t = lif.Test_V_t(neurons, sthal, parameters)
-        pylogging.set_loglevel(test_V_t.logger, pylogging.LogLevel.INFO)
-        try:
-            test_V_t.run_experiment()
-        except Exception,e:
-            print "ERROR: ", e
-            delete = raw_input("Delete folder {}? (yes / no)".format(test_V_t.folder))
-            if delete in ("yes","Yes","y","Y"):
-                shutil.rmtree(test_V_t.folder)
-            raise
-    
-    if parameters["run_V_reset"]:
-        test_V_reset = lif.Test_V_reset(neurons, sthal, parameters)
-        pylogging.set_loglevel(test_V_reset.logger, pylogging.LogLevel.INFO)
-        try:
-            test_V_reset.run_experiment()
-        except Exception,e:
-            print "ERROR: ", e
-            delete = raw_input("Delete folder {}? (yes / no)".format(test_V_reset.folder))
-            if delete in ("yes","Yes","y","Y"):
-                shutil.rmtree(test_V_reset.folder)
-            raise
-    
-    
-    if parameters["run_g_l"]:
-        test_I_gl = lif.Test_g_L(neurons, sthal, parameters)
-        pylogging.set_loglevel(test_I_gl.logger, pylogging.LogLevel.INFO)
-        #try:
-        test_I_gl.run_experiment()
-        #except Exception,e:
-        #    print "ERROR: ", e
-        #    delete = raw_input("Delete folder {}? (yes / no)".format(test_I_gl.folder))
-        #    if delete in ("yes","Yes","y","Y"):
-        #        shutil.rmtree(test_I_gl.folder)
-        #    raise
-
-
-
+    for calibration in [synapse.Test_E_synx, synapse.Test_E_syni,
+                        lif.Test_E_l, lif.Test_V_t, lif.Test_V_reset, 
+                        lif.Test_g_l]:
+        do_calibration(calibration)
 
 quit()
 

@@ -24,10 +24,10 @@ parameters = {
         # Set which calibrations you want to run
         "run_E_synx":  False,
         "run_E_syni":  False,
-        "run_E_l":     False,
+        "run_E_l":     True,
         "run_V_t":     False,
         "run_V_reset": False,
-        "run_g_l":     True, # TODO g_l calibration is not yet implemented!
+        "run_I_gl":     False, # TODO g_l calibration is not yet implemented!
 
         # Measurement runs twice by default: first to generate calibration data, and a second time to measure the success of calibration
         # Here you can turn either of these runs on or off
@@ -43,7 +43,7 @@ parameters = {
         # This has nothing to do with the calibration data which is stored anyway!
         # You can also save all the traces for debugging purposes. Note that this takes a lot of space (100 MB per repetition)
         "save_results": True,
-        "save_traces":  True,
+        "save_traces":  False,
 
         # If you save al your measurements, each folder will have a description file. The following parameters let you specify additional info to be stored.
         "E_synx_description":   "E_synx calibration.",
@@ -51,13 +51,13 @@ parameters = {
         "E_l_description":      "E_l calibration",
         "V_t_description":      "V_t calibration",  
         "V_reset_description":  "V_reset calibration",
-        "g_l_description":     "I_gl calibration",
+        "I_gl_description":     "I_gl calibration",
 
         # Where do you want to save the measurements (folder) and calibration data (backend_c for calibtic, backend_r for redman)?
         # Folders will be created if they do not exist already
-        "folder":       "/home/np001/temp/TraceAverager/",
-        "backend_c":    "/home/np001/temp/TraceAverager/backends/",
-        "backend_r":    "/home/np001/temp/TraceAverager/backends/",
+        "folder":       "/home/np001/temp/reduce_redundancy/",
+        "backend_c":    "/home/np001/temp/reduce_redundancy/backends/",
+        "backend_r":    "/home/np001/temp/reduce_redundancy/backends/",
         
         # Wafer and HICANN coordinates
         "coord_wafer":  pyhalbe.Coordinate.Wafer(),
@@ -118,16 +118,10 @@ parameters = {
                                     neuron_parameter.I_gl:   Current(1000),
                                 },
 
-        "g_l_parameters":       {   neuron_parameter.E_l:        Voltage(600),
+        "I_gl_parameters":       {   neuron_parameter.E_l:        Voltage(600),
                                     neuron_parameter.V_t:        Voltage(1200),
                                     shared_parameter.V_reset:    Voltage(200),
                                 },
 }
-
-#test_params = copy.deepcopy(parameters["calibration_params"])
-#for exp in test_params:
-#    for par in test_params[exp]:
-#        test_params[exp][par].apply_calibration = True
-#parameters['test_params'] = test_params
 
 

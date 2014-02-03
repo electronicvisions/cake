@@ -145,7 +145,7 @@ class Experimentreader(object):
             f = open('{}/{}/description.txt'.format(self.workdir,expname), 'w')
         f.write(description)
 
-    def compare_experiments(self, parameter, experiment1, experiment2, step, repetition = None):
+    def compare_experiments(self, experiment1, experiment2, step, parameter, repetition = None):
         """ Plot histograms that compare two experiments.
             
             Args:

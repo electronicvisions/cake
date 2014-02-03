@@ -35,7 +35,11 @@ class BaseCalibration(BaseExperiment):
         if self._red_nrns is None:
             raise TypeError("can not store defects without Redman backend")
         self.folder = os.path.join(self.experiment_parameters["folder"], self.folder)
+
         self.base_parameters = self.experiment_parameters["base_parameters"]
+
+        self.specific_parameters = self.experiment_parameters["{}_parameters".format(self.target_parameter.name)]
+        self.description = self.experiment_parameters["{}_description".format(self.target_parameter.name)]
  
     def get_parameters(self):
         parameters = super(BaseCalibration, self).get_parameters()
@@ -47,6 +51,14 @@ class BaseCalibration(BaseExperiment):
                     pass
                 else:
                     raise TypeError('Only neuron_parameter or shared_parameter allowed') 
+            if self.specific_parameters:
+                for param, value in self.specific_parameters.iteritems():
+                    if isinstance(param, neuron_parameter):
+                        parameters[neuron_id][param] = value
+                    elif isinstance(param, shared_parameter):
+                        pass
+                    else:
+                        raise TypeError('Only neuron_parameter or shared_parameter allowed') 
         return parameters
 
     def get_shared_parameters(self):
@@ -59,7 +71,28 @@ class BaseCalibration(BaseExperiment):
                     parameters[block_id][param] = value
                 else:
                     raise TypeError('Only neuron_parameter or shared_parameter allowed') 
+            if self.specific_parameters:
+                for param, value in self.specific_parameters.iteritems():
+                    if isinstance(param, neuron_parameter):
+                        pass
+                    elif isinstance(param, shared_parameter):
+                        parameters[block_id][param] = value
+                    else:
+                        raise TypeError('Only neuron_parameter or shared_parameter allowed') 
         return parameters
+
+    def get_steps(self):
+        steps = []
+        for voltage in self.experiment_parameters["{}_range".format(self.target_parameter.name)]:  # 8 steps
+            steps.append({self.target_parameter: Voltage(voltage),
+                })
+        return defaultdict(lambda: steps)
+
+    def process_results(self, neuron_ids):
+        self.process_calibration_results(neuron_ids, self.target_parameter, linear_fit=True)
+
+    def store_results(self):
+        self.store_calibration_results(self.target_parameter)
 
 
     def process_calibration_results(self, neuron_ids, parameter, linear_fit=False):
@@ -212,49 +245,32 @@ class BaseCalibration(BaseExperiment):
 
 
 
-class BaseTest(BaseExperiment):
+class BaseTest(BaseCalibration):
     """Base class for calibration test experiments."""
     def init_experiment(self):
         super(BaseTest, self).init_experiment()
-        if self._calib_backend is None:
-            raise TypeError("can not store results without Calibtic backend")
-        if self._red_nrns is None:
-            raise TypeError("can not store defects without Redman backend")
-        self.folder = os.path.join(self.experiment_parameters["folder"], self.folder)
-        self.base_parameters = self.experiment_parameters["base_parameters"]
+        self.description = "TEST OF " + self.description
 
     def get_parameters(self):
         parameters = super(BaseTest, self).get_parameters()
         for neuron_id in self.get_neurons():
-            for param, value in self.base_parameters.iteritems():
-                if isinstance(param, neuron_parameter):
-                    parameters[neuron_id][param] = value
-                    parameters[neuron_id][param].apply_calibration = True
-                elif isinstance(param, shared_parameter):
-                    pass
-                else:
-                    raise TypeError('Only neuron_parameter or shared_parameter allowed') 
+            for param, value in parameters[neuron_id].iteritems():
+                value.apply_calibration = True
         return parameters
 
     def get_shared_parameters(self):
         parameters = super(BaseTest, self).get_shared_parameters()
         for block_id in range(4):
-            for param, value in self.base_parameters.iteritems():
-                if isinstance(param, neuron_parameter):
-                    pass
-                elif isinstance(param, shared_parameter):
-                    parameters[block_id][param] = value
-                    parameters[block_id][param].apply_calibration = True
-                else:
-                    raise TypeError('Only neuron_parameter or shared_parameter allowed') 
+            for param, value in parameters[block_id].iteritems():
+                value.apply_calibration = True
         return parameters
 
-    def isbroken(self, coefficients):
-        """ Specify the function that that tells us if a neuron is broken based on the fit coefficients.
-
-            Should return True or False
-        """
-        return False
+    def get_steps(self):
+        steps = []
+        for voltage in self.experiment_parameters["{}_range".format(self.target_parameter.name)]:  # 8 steps
+            steps.append({self.target_parameter: Voltage(voltage, apply_calibration = True),
+                })
+        return defaultdict(lambda: steps)
 
     def process_calibration_results(self, neuron_ids, parameter, linear_fit=False):
         pass

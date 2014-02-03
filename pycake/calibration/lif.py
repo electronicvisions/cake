@@ -31,41 +31,7 @@ shared_parameter = pyhalbe.HICANN.shared_parameter
 
 class Calibrate_E_l(BaseCalibration):
     """E_l calibration."""
-    def get_parameters(self):
-        parameters = super(Calibrate_E_l, self).get_parameters()
-        for neuron_id in self.get_neurons():
-            for param, value in self.E_l_parameters.iteritems():
-                if isinstance(param, neuron_parameter):
-                    parameters[neuron_id][param] = value
-                elif isinstance(param, shared_parameter):
-                    pass
-                else:
-                    raise TypeError('Only neuron_parameter or shared_parameter allowed') 
-        return parameters
-
-    def get_shared_parameters(self):
-        parameters = super(Calibrate_E_l, self).get_shared_parameters()
-        for block_id in range(4):
-            for param, value in self.E_l_parameters.iteritems():
-                if isinstance(param, neuron_parameter):
-                    pass
-                elif isinstance(param, shared_parameter):
-                    parameters[block_id][param] = value
-                else:
-                    raise TypeError('Only neuron_parameter or shared_parameter allowed') 
-        return parameters
-
-    def get_steps(self):
-        steps = []
-        for voltage in self.experiment_parameters["E_l_range"]:  # 8 steps
-            steps.append({neuron_parameter.E_l: Voltage(voltage),
-                })
-        return defaultdict(lambda: steps)
-
-    def init_experiment(self):
-        super(Calibrate_E_l, self).init_experiment()
-        self.description = self.experiment_parameters["E_l_description"]
-        self.E_l_parameters = self.experiment_parameters["E_l_parameters"]
+    target_parameter = neuron_parameter.E_l
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         if np.std(v)*1000>50:
@@ -75,51 +41,10 @@ class Calibrate_E_l(BaseCalibration):
             self.logger.WARN("Trace for neuron {} bad. Is neuron spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
         return np.mean(v)*1000 # Get the mean value * 1000 for mV
 
-    def process_results(self, neuron_ids):
-        super(Calibrate_E_l, self).process_calibration_results(neuron_ids, neuron_parameter.E_l, linear_fit=True)
-
-    def store_results(self):
-        super(Calibrate_E_l, self).store_calibration_results(neuron_parameter.E_l)
-
 
 class Calibrate_V_t(BaseCalibration):
     """V_t calibration."""
-    def get_parameters(self):
-        parameters = super(Calibrate_V_t, self).get_parameters()
-        for neuron_id in self.get_neurons():
-            for param, value in self.V_t_parameters.iteritems():
-                if isinstance(param, neuron_parameter):
-                    parameters[neuron_id][param] = value
-                    if param is neuron_parameter.E_l:
-                        parameters[neuron_id][param].apply_calibration = True
-                elif isinstance(param, shared_parameter):
-                    pass
-                else:
-                    raise TypeError('Only neuron_parameter or shared_parameter allowed') 
-        return parameters
-
-    def get_shared_parameters(self):
-        parameters = super(Calibrate_V_t, self).get_shared_parameters()
-        for block_id in range(4):
-            for param, value in self.V_t_parameters.iteritems():
-                if isinstance(param, neuron_parameter):
-                    pass
-                elif isinstance(param, shared_parameter):
-                    parameters[block_id][param] = value
-                else:
-                    raise TypeError('Only neuron_parameter or shared_parameter allowed') 
-        return parameters
-
-    def get_steps(self):
-        steps = []
-        for voltage in self.experiment_parameters["V_t_range"]:
-            steps.append({neuron_parameter.V_t: Voltage(voltage)})
-        return defaultdict(lambda: steps)
-
-    def init_experiment(self):
-        super(Calibrate_V_t, self).init_experiment()
-        self.description = "Calibrate_V_t with 1000 I_pl. Calibrated E_l."
-        self.V_t_parameters = self.experiment_parameters["V_t_parameters"]
+    target_parameter = neuron_parameter.V_t
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         if np.std(v)*1000<5:
@@ -130,53 +55,10 @@ class Calibrate_V_t(BaseCalibration):
         # Return max value. This should be more accurate than a mean value of all maxima because the ADC does not always hit the real maximum value, underestimating V_t.
         return np.max(v)*1000
 
-    def process_results(self, neuron_ids):
-        super(Calibrate_V_t, self).process_calibration_results(neuron_ids, neuron_parameter.V_t, linear_fit = True)
-
-    def store_results(self):
-        super(Calibrate_V_t, self).store_calibration_results(neuron_parameter.V_t)
-
 
 class Calibrate_V_reset(BaseCalibration):
     """V_reset calibration."""
-    def get_parameters(self):
-        parameters = super(Calibrate_V_reset, self).get_parameters()
-        for neuron_id in self.get_neurons():
-            for param, value in self.V_reset_parameters.iteritems():
-                if isinstance(param, neuron_parameter):
-                    parameters[neuron_id][param] = value
-                    if param in [neuron_parameter.E_l, neuron_parameter.V_t]:
-                        parameters[neuron_id][param].apply_calibration = True
-                elif isinstance(param, shared_parameter):
-                    pass
-                else:
-                    raise TypeError('Only neuron_parameter or shared_parameter allowed') 
-        return parameters
-
-    def get_shared_parameters(self):
-        parameters = super(Calibrate_V_reset, self).get_shared_parameters()
-
-        for block_id in range(4):
-            for param, value in self.V_reset_parameters.iteritems():
-                if isinstance(param, neuron_parameter):
-                    pass
-                elif isinstance(param, shared_parameter):
-                    parameters[block_id][param] = value
-                else:
-                    raise TypeError('Only neuron_parameter or shared_parameter allowed') 
-
-        return parameters
-
-    def get_shared_steps(self):
-        steps = []
-        for voltage in self.experiment_parameters["V_reset_range"]:
-            steps.append({shared_parameter.V_reset: Voltage(voltage)})
-        return defaultdict(lambda: steps)
-
-    def init_experiment(self):
-        super(Calibrate_V_reset, self).init_experiment()
-        self.description = "Calibrate_V_reset, I_pl HIGH. E_l and V_t calibrated."
-        self.V_reset_parameters = self.experiment_parameters['V_reset_parameters']
+    target_parameter = shared_parameter.V_reset
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         if np.std(v)*1000<5:
@@ -187,47 +69,14 @@ class Calibrate_V_reset(BaseCalibration):
         # Return min value. This should be more accurate than a mean value of all minima because the ADC does not always hit the real minimum value, overestimating V_reset.
         return np.min(v)*1000  
 
-    def process_results(self, neuron_ids):
-        self.process_calibration_results(neuron_ids, shared_parameter.V_reset, linear_fit = True)
-
-    def store_results(self):
-        super(Calibrate_V_reset, self).store_calibration_results(shared_parameter.V_reset)
-
 
 class Calibrate_V_reset_shift(Calibrate_V_reset):
     """V_reset_shift calibration."""
+    target_parameter = shared_parameter.V_reset
+
     def init_experiment(self):
         super(Calibrate_V_reset_shift, self).init_experiment()
         self.description = self.description + "Calibrate_V_reset_shift."
-        self.V_reset_parameters = self.experiment_parameters["V_reset_parameters"]
-
-    def get_parameters(self):
-        parameters = super(Calibrate_V_reset_shift, self).get_parameters()
-        for neuron_id in self.get_neurons():
-            for param, value in self.V_reset_parameters.iteritems():
-                if isinstance(param, neuron_parameter):
-                    parameters[neuron_id][param] = value
-                    if param in [neuron_parameter.E_l, neuron_parameter.V_t]:
-                        parameters[neuron_id][param].apply_calibration = True
-                elif isinstance(param, shared_parameter):
-                    pass
-                else:
-                    raise TypeError('Only neuron_parameter or shared_parameter allowed') 
-        return parameters
-
-    def get_shared_parameters(self):
-        parameters = super(Calibrate_V_reset_shift, self).get_shared_parameters()
-
-        for block_id in range(4):
-            for param, value in self.V_reset_parameters.iteritems():
-                if isinstance(param, neuron_parameter):
-                    pass
-                elif isinstance(param, shared_parameter):
-                    parameters[block_id][param] = value
-                    parameters[block_id][param].apply_calibration = True
-                else:
-                    raise TypeError('Only neuron_parameter or shared_parameter allowed') 
-        return parameters
 
     def get_shared_steps(self):
         steps = []
@@ -236,7 +85,7 @@ class Calibrate_V_reset_shift(Calibrate_V_reset):
         return defaultdict(lambda: steps)
 
     def process_results(self, neuron_ids):
-        """This base class function can be used by child classes as process_results."""
+        """ This is changed from the original processing function in order to calculate the V_reset shift."""
         # containers for final results
         results_mean = defaultdict(list)
         results_std = defaultdict(list)
@@ -315,6 +164,7 @@ class Calibrate_V_reset_shift(Calibrate_V_reset):
         self.logger.INFO("Storing calibration results")
         self.store_calibration(md)
 
+
 """
         Measurement classes start here. These classes are used to test if the calibration was successful.
         They do this by measuring with every calibration turned on.
@@ -322,43 +172,7 @@ class Calibrate_V_reset_shift(Calibrate_V_reset):
 
 class Test_E_l(BaseTest):
     """E_l calibration."""
-    def get_parameters(self):
-        parameters = super(Test_E_l, self).get_parameters()
-        for neuron_id in self.get_neurons():
-            for param, value in self.E_l_parameters.iteritems():
-                if isinstance(param, neuron_parameter):
-                    parameters[neuron_id][param] = value
-                    parameters[neuron_id][param].apply_calibration = True
-                elif isinstance(param, shared_parameter):
-                    pass
-                else:
-                    raise TypeError('Only neuron_parameter or shared_parameter allowed') 
-        return parameters
-
-    def get_shared_parameters(self):
-        parameters = super(Test_E_l, self).get_shared_parameters()
-        for block_id in range(4):
-            for param, value in self.E_l_parameters.iteritems():
-                if isinstance(param, neuron_parameter):
-                    pass
-                elif isinstance(param, shared_parameter):
-                    parameters[block_id][param] = value
-                    parameters[block_id][param].apply_calibration = True
-                else:
-                    raise TypeError('Only neuron_parameter or shared_parameter allowed') 
-        return parameters
-
-    def get_steps(self):
-        steps = []
-        for voltage in self.experiment_parameters["E_l_range"]:  # 8 steps
-            steps.append({neuron_parameter.E_l: Voltage(voltage, apply_calibration = True),
-                })
-        return defaultdict(lambda: steps)
-
-    def init_experiment(self):
-        super(Test_E_l, self).init_experiment()
-        self.description = "TEST OF " + self.experiment_parameters["E_l_description"]
-        self.E_l_parameters = self.experiment_parameters["E_l_parameters"]
+    target_parameter = neuron_parameter.E_l
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         if np.std(v)*1000>50:
@@ -368,53 +182,10 @@ class Test_E_l(BaseTest):
             self.logger.WARN("Trace for neuron {} bad. Is neuron spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
         return np.mean(v)*1000 # Get the mean value * 1000 for mV
 
-    def process_results(self, neuron_ids):
-        pass
-
-    def store_results(self):
-        pass
-
 
 class Test_V_t(BaseTest):
     """V_t calibration."""
-    def get_parameters(self):
-        parameters = super(Test_V_t, self).get_parameters()
-        for neuron_id in self.get_neurons():
-            for param, value in self.V_t_parameters.iteritems():
-                if isinstance(param, neuron_parameter):
-                    parameters[neuron_id][param] = value
-                    parameters[neuron_id][param].apply_calibration = True
-                elif isinstance(param, shared_parameter):
-                    pass
-                else:
-                    raise TypeError('Only neuron_parameter or shared_parameter allowed') 
-        return parameters
-
-    def get_shared_parameters(self):
-        parameters = super(Test_V_t, self).get_shared_parameters()
-
-        for block_id in range(4):
-            for param, value in self.V_t_parameters.iteritems():
-                if isinstance(param, neuron_parameter):
-                    pass
-                elif isinstance(param, shared_parameter):
-                    parameters[block_id][param] = value
-                    parameters[block_id][param].apply_calibration = True
-                else:
-                    raise TypeError('Only neuron_parameter or shared_parameter allowed') 
-
-        return parameters
-
-    def get_steps(self):
-        steps = []
-        for voltage in self.experiment_parameters["V_t_range"]:
-            steps.append({neuron_parameter.V_t: Voltage(voltage, apply_calibration = True)})
-        return defaultdict(lambda: steps)
-
-    def init_experiment(self):
-        super(Test_V_t, self).init_experiment()
-        self.description = "TEST OF " + self.experiment_parameters["V_t_description"]
-        self.V_t_parameters = self.experiment_parameters["V_t_parameters"]
+    target_parameter = neuron_parameter.V_t
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         if np.std(v)*1000<5:
@@ -425,53 +196,10 @@ class Test_V_t(BaseTest):
         # Return max value. This should be more accurate than a mean value of all maxima because the ADC does not always hit the real maximum value, underestimating V_t.
         return np.max(v)*1000
 
-    def process_results(self, neuron_ids):
-        pass
-
-    def store_results(self):
-        pass
-
 
 class Test_V_reset(BaseCalibration):
     """V_reset calibration."""
-    def get_parameters(self):
-        parameters = super(Test_V_reset, self).get_parameters()
-        for neuron_id in self.get_neurons():
-            for param, value in self.V_reset_parameters.iteritems():
-                if isinstance(param, neuron_parameter):
-                    parameters[neuron_id][param] = value
-                    if param in [neuron_parameter.E_l, neuron_parameter.V_t]:
-                        parameters[neuron_id][param].apply_calibration = True
-                elif isinstance(param, shared_parameter):
-                    pass
-                else:
-                    raise TypeError('Only neuron_parameter or shared_parameter allowed') 
-        return parameters
-
-    def get_shared_parameters(self):
-        parameters = super(Test_V_reset, self).get_shared_parameters()
-
-        for block_id in range(4):
-            for param, value in self.V_reset_parameters.iteritems():
-                if isinstance(param, neuron_parameter):
-                    pass
-                elif isinstance(param, shared_parameter):
-                    parameters[block_id][param] = value
-                    parameters[block_id][param].apply_calibration = True
-                else:
-                    raise TypeError('Only neuron_parameter or shared_parameter allowed') 
-        return parameters
-
-    def get_shared_steps(self):
-        steps = []
-        for voltage in self.experiment_parameters["V_reset_range"]:
-            steps.append({shared_parameter.V_reset: Voltage(voltage, apply_calibration = True)})
-        return defaultdict(lambda: steps)
-
-    def init_experiment(self):
-        super(Test_V_reset, self).init_experiment()
-        self.description = "TEST OF " + self.experiment_parameters["V_reset_description"]
-        self.V_reset_parameters = self.experiment_parameters["V_reset_parameters"]
+    target_parameter = shared_parameter.V_reset
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         if np.std(v)*1000<5:
@@ -482,13 +210,10 @@ class Test_V_reset(BaseCalibration):
         # Return min value. This should be more accurate than a mean value of all minima because the ADC does not always hit the real minimum value, overestimating V_reset.
         return np.min(v)*1000  
 
-    def process_results(self, neuron_ids):
-        pass
 
-    def store_results(self):
-        pass
-
-
+class Test_g_l(BaseTest):
+    target_parameter = neuron_parameter.I_gl
+    pass
 
 
 
@@ -498,11 +223,11 @@ class Test_V_reset(BaseCalibration):
 """
 
 class Calibrate_g_l(BaseCalibration):
+    target_parameter = neuron_parameter.I_gl
+
     def init_experiment(self):
         super(Calibrate_g_l, self).init_experiment()
         self.sthal.recording_time = 1e-3
-        self.description = self.experiment_parameters['g_l_description'] # Change this for all child classes
-        self.g_l_parameters = self.experiment_parameters['g_l_parameters']
         self.stim_length = 65
         self.pulse_length = 15
 
@@ -512,36 +237,6 @@ class Calibrate_g_l(BaseCalibration):
         coord_wafer = coord_hglobal.wafer()
         coord_hicann = coord_hglobal.on_wafer()
         self.trace_averager = createTraceAverager(coord_wafer, coord_hicann)
-
-    def get_parameters(self):
-        parameters = super(Calibrate_g_l, self).get_parameters()
-        for neuron_id in self.get_neurons():
-            for param, value in self.g_l_parameters.iteritems():
-                if isinstance(param, neuron_parameter):
-                    parameters[neuron_id][param] = value
-                elif isinstance(param, shared_parameter):
-                    pass
-                else:
-                    raise TypeError('Only neuron_parameter or shared_parameter allowed') 
-        return parameters
-
-    def get_shared_parameters(self):
-        parameters = super(Calibrate_g_l, self).get_shared_parameters()
-        for block_id in range(4):
-            for param, value in self.g_l_parameters.iteritems():
-                if isinstance(param, neuron_parameter):
-                    pass
-                elif isinstance(param, shared_parameter):
-                    parameters[block_id][param] = value
-                else:
-                    raise TypeError('Only neuron_parameter or shared_parameter allowed') 
-        return parameters
-
-    def get_steps(self):
-        steps = []
-        for current in self.experiment_parameters['I_gl_range']:
-            steps.append({neuron_parameter.I_gl: Current(current)})
-        return defaultdict(lambda: steps)
 
     def prepare_measurement(self, step_parameters, step_id, rep_id):
         """Prepare measurement.
@@ -611,21 +306,12 @@ class Calibrate_g_l(BaseCalibration):
         self.all_results.append(results)
 
 
-
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         # Get the time between each current pulse
         dt = 129 * 4 * (self.pulse_length + 1) / self.sthal.hicann.pll_freq
         mean_trace = self.trace_averager.get_average(v, dt)[0]
         tau_m = self.trace_averager.fit_exponential(mean_trace)
         return tau_m
-
-    def process_results(self, neuron_ids):
-        self.process_calibration_results(neuron_ids, neuron_parameter.I_gl)
-
-    def store_results(self):
-        # TODO detect and store broken neurons
-        super(Calibrate_g_l, self).store_calibration_results(neuron_parameter.I_gl)
-
 
 
 # TODO
@@ -665,83 +351,4 @@ class Calibrate_tau_ref(BaseCalibration):
             del ts
 
         self.all_results.append(results)
-
-class Calibrate_g_L_stepcurrent(BaseCalibration):
-    def get_parameters(self):
-        parameters = super(Calibrate_g_L_stepcurrent, self).get_parameters()
-        for neuron_id in self.get_neurons():
-            parameters[neuron_id].update({
-                pyhalbe.HICANN.neuron_parameter.E_l: Voltage(600, apply_calibration = True),
-                pyhalbe.HICANN.neuron_parameter.V_t: Voltage(1300, apply_calibration = True),
-            })
-        return parameters
-
-    def get_shared_parameters(self):
-        parameters = super(Calibrate_g_L_stepcurrent, self).get_shared_parameters()
-        for block_id in range(4):
-            parameters[block_id][pyhalbe.HICANN.shared_parameter.V_reset] = Voltage(700, apply_calibration = True)
-        return parameters
-
-    def get_steps(self):
-        steps = []
-        #for current in range(700, 1050, 50):
-        for current in range(700, 1300, 100):
-            steps.append({pyhalbe.HICANN.neuron_parameter.I_gl: Current(current)})
-        return defaultdict(lambda: steps)
-
-    def init_experiment(self):
-        super(Calibrate_g_L_stepcurrent, self).init_experiment()
-        self.description = "Capacitance g_L experiment. Membrane is fitted after step current." # Change this for all child classes
-        self.repetitions = 1
-        self.E_syni_dist = -100
-        self.E_synx_dist = +100
-        self.save_results = True
-        self.save_traces = False
-
-    def prepare_measurement(self, step_parameters, step_id, rep_id):
-        """Prepare measurement.
-        Perform reset, write general hardware settings.
-        """
-        neuron_parameters = step_parameters[0]
-        shared_parameters = step_parameters[1]
-
-        fgc = pyhalbe.HICANN.FGControl()
-        # Set neuron parameters for each neuron
-        for neuron_id in neuron_parameters:
-            coord = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(neuron_id))
-            for parameter in neuron_parameters[neuron_id]:
-                value = neuron_parameters[neuron_id][parameter]
-                fgc.setNeuron(coord, parameter, value)
-            fgstim = pyhalbe.HICANN.FGStimulus(10,10,False)
-            self.sthal.hicann.setCurrentStimulus(coord, fgstim)
-
-        # Set block parameters for each block
-        for block_id in shared_parameters:
-            coord = pyhalbe.Coordinate.FGBlockOnHICANN(pyhalbe.Coordinate.Enum(block_id))
-            for parameter in shared_parameters[block_id]:
-                value = shared_parameters[block_id][parameter]
-                fgc.setShared(coord, parameter, value)
-
-        self.sthal.hicann.floating_gates = fgc
-
-        if self.bigcap is True:
-            # TODO add bigcap functionality
-            pass
-
-        if self.save_results:
-            if not os.path.isdir(os.path.join(self.folder,"floating_gates/")):
-                os.mkdir(os.path.join(self.folder,"floating_gates/"))
-            pickle.dump(fgc, open(os.path.join("floating_gates/","step{}rep{}.p".format(step_id,rep_id)), 'wb'))
-
-        self.sthal.write_config()
-
-    def process_trace(self, t, v, neuron_id, step_id, rep_id):
-        return 0
-
-    def process_results(self, neuron_ids):
-        pass
-
-    def store_results(self):
-        pass
-
 
