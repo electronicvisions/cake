@@ -32,6 +32,9 @@ neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
 
 class Calibrate_E_synx(BaseCalibration):
+    target_parameter = neuron_parameter.E_synx
+    config_name = target_parameter.name
+
     def get_parameters(self):
         parameters = super(Calibrate_E_synx, self).get_parameters()
         for neuron_id in self.get_neurons():
@@ -56,7 +59,6 @@ class Calibrate_E_synx(BaseCalibration):
                     raise TypeError('Only neuron_parameter or shared_parameter allowed') 
         return parameters
 
-    
     def get_steps(self):
         steps = []
         for E_syn_voltage in self.experiment_parameters["E_synx_range"]: # 4 steps
@@ -71,6 +73,7 @@ class Calibrate_E_synx(BaseCalibration):
         self.E_synx_parameters = self.experiment_parameters['E_synx_parameters']
         self.E_syni_dist = None
         self.E_synx_dist = None
+        self.sthal.stimulateNeurons(5.0e6, 4)
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         if np.std(v)*1000>1000:
