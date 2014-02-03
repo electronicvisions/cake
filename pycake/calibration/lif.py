@@ -15,7 +15,7 @@ from pycake.helpers.sthal import StHALContainer, UpdateAnalogOutputConfigurator
 from pycake.helpers.units import Current, Voltage, DAC
 from pycake.helpers.trafos import HWtoDAC, HCtoDAC, DACtoHC, DACtoHW
 from pycake.calibration.base import BaseCalibration, BaseTest
-from pycake.helpers.TraceAverager import get_adc_freq
+from pycake.helpers.TraceAverager import createTraceAverager
 
 # Import everything needed for saving:
 import pickle
@@ -500,16 +500,18 @@ class Test_V_reset(BaseCalibration):
 class Calibrate_g_l(BaseCalibration):
     def init_experiment(self):
         super(Calibrate_g_l, self).init_experiment()
+        self.sthal.recording_time = 1e-3
         self.description = self.experiment_parameters['g_l_description'] # Change this for all child classes
         self.g_l_parameters = self.experiment_parameters['g_l_parameters']
-        self.sthal.recording_time = 0.001
+        self.stim_length = 65
+        self.pulse_length = 15
 
         # Get the trace averager
         self.logger.INFO("{}: Creating trace averager".format(time.asctime()))
         coord_hglobal = self.sthal.hicann.index()  # grab HICANNGlobal from StHAL
         coord_wafer = coord_hglobal.wafer()
         coord_hicann = coord_hglobal.on_wafer()
-        self.adc_freq = get_adc_freq()
+        self.trace_averager = createTraceAverager(coord_wafer, coord_hicann)
 
     def get_parameters(self):
         parameters = super(Calibrate_g_l, self).get_parameters()
@@ -566,11 +568,11 @@ class Calibrate_g_l(BaseCalibration):
         self.sthal.hicann.floating_gates = fgc
 
         stimulus = pyhalbe.HICANN.FGStimulus()
-        stimulus.setPulselength(15)
+        stimulus.setPulselength(self.pulse_length)
         stimulus.setContinuous(True)
 
-        stimulus[:65] = [35] * 65
-        stimulus[65:] = [0] * (len(stimulus) - 65)
+        stimulus[:self.stim_length] = [35] * self.stim_length
+        stimulus[self.stim_length:] = [0] * (len(stimulus) - self.stim_length)
 
         self.sthal.set_current_stimulus(stimulus)
 
@@ -611,8 +613,11 @@ class Calibrate_g_l(BaseCalibration):
 
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
-        # TODO implement fitting of tau_m
-        return 0
+        # Get the time between each current pulse
+        dt = 129 * 4 * (self.pulse_length + 1) / self.sthal.hicann.pll_freq
+        mean_trace = self.trace_averager.get_average(v, dt)[0]
+        tau_m = self.trace_averager.fit_exponential(mean_trace)
+        return tau_m
 
     def process_results(self, neuron_ids):
         self.process_calibration_results(neuron_ids, neuron_parameter.I_gl)

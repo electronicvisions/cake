@@ -12,7 +12,7 @@ parameters = {
         "E_l_range":    range(500,800,100),      # 12 steps
         "V_t_range":    range(600,900,100),      # 12 steps
         "V_reset_range":range(400,700,100),      # 12 steps
-        "I_gl_range":   range(100,150,50),     # 50 steps
+        "I_gl_range":   range(100,500,100),     # 50 steps
 
         # How far should the E_syn values be set around E_l
         "E_syni_dist":  -100,
@@ -55,9 +55,9 @@ parameters = {
 
         # Where do you want to save the measurements (folder) and calibration data (backend_c for calibtic, backend_r for redman)?
         # Folders will be created if they do not exist already
-        "folder":       "/home/np001/temp/V_reset_shift/",
-        "backend_c":    "/home/np001/temp/V_reset_shift/backends/",
-        "backend_r":    "/home/np001/temp/V_reset_shift/backends/",
+        "folder":       "/home/np001/temp/TraceAverager/",
+        "backend_c":    "/home/np001/temp/TraceAverager/backends/",
+        "backend_r":    "/home/np001/temp/TraceAverager/backends/",
         
         # Wafer and HICANN coordinates
         "coord_wafer":  pyhalbe.Coordinate.Wafer(),
