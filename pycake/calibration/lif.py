@@ -15,6 +15,7 @@ from pycake.helpers.sthal import StHALContainer, UpdateAnalogOutputConfigurator
 from pycake.helpers.units import Current, Voltage, DAC
 from pycake.helpers.trafos import HWtoDAC, HCtoDAC, DACtoHC, DACtoHW
 from pycake.calibration.base import BaseCalibration, BaseTest
+from pycake.helpers.TraceAverager import get_adc_freq
 
 # Import everything needed for saving:
 import pickle
@@ -501,6 +502,13 @@ class Calibrate_g_l(BaseCalibration):
         super(Calibrate_g_l, self).init_experiment()
         self.description = self.experiment_parameters['g_l_description'] # Change this for all child classes
         self.g_l_parameters = self.experiment_parameters['g_l_parameters']
+
+        # Get the trace averager
+        self.logger.INFO("{}: Creating trace averager".format(time.asctime()))
+        coord_hglobal = self.sthal.hicann.index()  # grab HICANNGlobal from StHAL
+        coord_wafer = coord_hglobal.wafer()
+        coord_hicann = coord_hglobal.on_wafer()
+        self.adc_freq = get_adc_freq()
 
     def get_parameters(self):
         parameters = super(Calibrate_g_l, self).get_parameters()

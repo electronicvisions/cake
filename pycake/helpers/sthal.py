@@ -139,7 +139,7 @@ class StHALContainer(object):
         assert(rate <= 5.0e6)
 
         l1address = pyhalbe.HICANN.L1Address(0)
-        bg_period = int(math.floor(self.hicann.pll_freq/rate) + 1)
+        bg_period = int(math.floor(self.hicann.pll_freq/rate) - 1)# + 1)
 
         for bg in Coordinate.iter_all(Coordinate.BackgroundGeneratorOnHICANN):
             generator = self.hicann.layer1[bg]

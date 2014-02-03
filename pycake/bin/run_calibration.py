@@ -53,7 +53,7 @@ coord_wafer  = parameters["coord_wafer"]
 coord_hicann = parameters["coord_hicann"]
 
 if parameters["clear"]:
-    print ("Clearing all calibration data")
+    logger.INFO("Clearing all calibration data.")
     filename_c = os.path.join(parameters["backend_c"], '{}.xml'.format("w{}-h{}".format(int(coord_wafer.value()), int(coord_hicann.id().value()))))
     filename_r = os.path.join(parameters["backend_r"], '{}.xml'.format("hicann-Wafer({})-Enum({})".format(int(coord_wafer.value()), int(coord_hicann.id().value()))))
     if os.path.isfile(filename_c): os.remove(filename_c)

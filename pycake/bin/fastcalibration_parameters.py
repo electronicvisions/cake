@@ -26,8 +26,8 @@ parameters = {
         "run_E_syni":  False,
         "run_E_l":     False,
         "run_V_t":     False,
-        "run_V_reset": True,
-        "run_g_l":     False, # TODO g_l calibration is not yet implemented!
+        "run_V_reset": False,
+        "run_g_l":     True, # TODO g_l calibration is not yet implemented!
 
         # Measurement runs twice by default: first to generate calibration data, and a second time to measure the success of calibration
         # Here you can turn either of these runs on or off
@@ -43,7 +43,7 @@ parameters = {
         # This has nothing to do with the calibration data which is stored anyway!
         # You can also save all the traces for debugging purposes. Note that this takes a lot of space (100 MB per repetition)
         "save_results": True,
-        "save_traces":  False,
+        "save_traces":  True,
 
         # If you save al your measurements, each folder will have a description file. The following parameters let you specify additional info to be stored.
         "E_synx_description":   "E_synx calibration.",
