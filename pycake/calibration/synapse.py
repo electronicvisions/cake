@@ -61,6 +61,7 @@ class Calibrate_E_syni(BaseCalibration):
         super(Calibrate_E_syni, self).init_experiment()
         self.E_syni_dist = None
         self.E_synx_dist = None
+        self.sthal.stimulateNeurons(5.0e6, 4)
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         if np.std(v)*1000>1000:
@@ -88,6 +89,12 @@ class Calibrate_tau_syni(BaseCalibration):
 class Test_E_synx(BaseTest):
     target_parameter = neuron_parameter.E_synx
 
+    def init_experiment(self):
+        super(Test_E_synx, self).init_experiment()
+        self.E_syni_dist = None
+        self.E_synx_dist = None
+        self.sthal.stimulateNeurons(5.0e6, 4)
+
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         if np.std(v)*1000>1000:
             if not os.path.isdir(os.path.join(self.folder, "bad_traces")):
@@ -98,6 +105,12 @@ class Test_E_synx(BaseTest):
     
 class Test_E_syni(BaseTest):
     target_parameter = neuron_parameter.E_syni
+
+    def init_experiment(self):
+        super(Test_E_syni, self).init_experiment()
+        self.E_syni_dist = None
+        self.E_synx_dist = None
+        self.sthal.stimulateNeurons(5.0e6, 4)
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         if np.std(v)*1000>1000:

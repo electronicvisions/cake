@@ -107,7 +107,7 @@ def check_for_existing_calbration(parameter):
             default_logger.INFO('Calibration for {} not existing.'.format(parameter.name))
             return False
 
-pylogging.set_loglevel(default_logger, pylogging.LogLevel.ERROR)
+pylogging.set_loglevel(default_logger, pylogging.LogLevel.INFO)
 
 def do_calibration(calibration):
     target_parameter = calibration.target_parameter
@@ -119,11 +119,11 @@ def do_calibration(calibration):
 
     if not run:
         return
-    if has_calibration and not overwrite:
+    if has_calibration and not overwrite and not issubclass(calibration, base.BaseTest):
         logger.INFO("{} already calibrated. Calibration skipped.".format(parameter_name))
         return
 
-    if has_calibration:
+    if has_calibration and not issubclass(calibration, base.BaseTest):
         logger.WARN('Overwriting calibration for {}'.format(parameter_name))
 
     # TODO check from here (and also above ;) )

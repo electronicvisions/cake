@@ -197,7 +197,7 @@ class Test_V_t(BaseTest):
         return np.max(v)*1000
 
 
-class Test_V_reset(BaseCalibration):
+class Test_V_reset(BaseTest):
     """V_reset calibration."""
     target_parameter = shared_parameter.V_reset
 

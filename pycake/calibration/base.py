@@ -83,10 +83,32 @@ class BaseCalibration(BaseExperiment):
 
     def get_steps(self):
         steps = []
-        for voltage in self.experiment_parameters["{}_range".format(self.target_parameter.name)]:  # 8 steps
-            steps.append({self.target_parameter: Voltage(voltage),
-                })
-        return defaultdict(lambda: steps)
+        if isinstance(self.target_parameter, neuron_parameter):
+            for stepvalue in self.experiment_parameters["{}_range".format(self.target_parameter.name)]:  # 8 steps
+                if self.target_parameter.name[0] in ['E', 'V']:
+                    steps.append({self.target_parameter: Voltage(stepvalue),
+                        })
+                else:
+                    steps.append({self.target_parameter: Current(stepvalue),
+                        })
+            return defaultdict(lambda: steps)
+        else:
+            return [defaultdict(lambda: {}) for neuron_id in self.get_neurons()]
+
+    def get_shared_steps(self):
+        steps = []
+        if isinstance(self.target_parameter, shared_parameter):
+            for stepvalue in self.experiment_parameters["{}_range".format(self.target_parameter.name)]:  # 8 steps
+                if self.target_parameter.name[0] in ['E', 'V']:
+                    steps.append({self.target_parameter: Voltage(stepvalue),
+                        })
+                else:
+                    steps.append({self.target_parameter: Current(stepvalue),
+                        })
+            return defaultdict(lambda: steps)
+        else:
+            return [defaultdict(lambda: {}) for block_id in range(4)]
+
 
     def process_results(self, neuron_ids):
         self.process_calibration_results(neuron_ids, self.target_parameter, linear_fit=True)
@@ -267,10 +289,31 @@ class BaseTest(BaseCalibration):
 
     def get_steps(self):
         steps = []
-        for voltage in self.experiment_parameters["{}_range".format(self.target_parameter.name)]:  # 8 steps
-            steps.append({self.target_parameter: Voltage(voltage, apply_calibration = True),
-                })
-        return defaultdict(lambda: steps)
+        if isinstance(self.target_parameter, neuron_parameter):
+            for stepvalue in self.experiment_parameters["{}_range".format(self.target_parameter.name)]:  # 8 steps
+                if self.target_parameter.name[0] in ['E', 'V']:
+                    steps.append({self.target_parameter: Voltage(stepvalue, apply_calibration = True),
+                        })
+                else:
+                    steps.append({self.target_parameter: Current(stepvalue, apply_calibration = True),
+                        })
+            return defaultdict(lambda: steps)
+        else:
+            return [defaultdict(lambda: {}) for neuron_id in self.get_neurons()]
+
+    def get_shared_steps(self):
+        steps = []
+        if isinstance(self.target_parameter, shared_parameter):
+            for stepvalue in self.experiment_parameters["{}_range".format(self.target_parameter.name)]:  # 8 steps
+                if self.target_parameter.name[0] in ['E', 'V']:
+                    steps.append({self.target_parameter: Voltage(stepvalue, apply_calibration = True),
+                        })
+                else:
+                    steps.append({self.target_parameter: Current(stepvalue, apply_calibration = True),
+                        })
+            return defaultdict(lambda: steps)
+        else:
+            return [defaultdict(lambda: {}) for block_id in range(4)]
 
     def process_calibration_results(self, neuron_ids, parameter, linear_fit=False):
         pass

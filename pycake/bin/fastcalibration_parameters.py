@@ -22,22 +22,22 @@ parameters = {
         "repetitions":  1,
         
         # Set which calibrations you want to run
-        "run_E_synx":  False,
-        "run_E_syni":  False,
-        "run_E_l":     True,
+        "run_E_synx":  True,
+        "run_E_syni":  True,
+        "run_E_l":     False,
         "run_V_t":     False,
         "run_V_reset": False,
         "run_I_gl":     False, # TODO g_l calibration is not yet implemented!
 
         # Measurement runs twice by default: first to generate calibration data, and a second time to measure the success of calibration
         # Here you can turn either of these runs on or off
-        "calibrate":    True,
+        "calibrate":    False,
         "measure":      True,
 
         # Overwrite old calibration data? This will not reset defect neurons!
         # Or even clear ALL calibration data before starting?
-        "overwrite":    True,
-        "clear":        True,
+        "overwrite":    False,
+        "clear":        False,
 
         # save_results will save all the measurements in a folder specified below.
         # This has nothing to do with the calibration data which is stored anyway!
