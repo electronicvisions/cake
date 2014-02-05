@@ -109,8 +109,8 @@ def check_for_existing_calbration(parameter):
 
 pylogging.set_loglevel(default_logger, pylogging.LogLevel.INFO)
 
-def do_calibration(calibration):
-    target_parameter = calibration.target_parameter
+def do_calibration(Calibration):
+    target_parameter = Calibration.target_parameter
     parameter_name = target_parameter.name
 
     run = parameters["run_" + parameter_name]
@@ -119,7 +119,7 @@ def do_calibration(calibration):
 
     if not run:
         return
-    if has_calibration and not overwrite and not issubclass(calibration, base.BaseTest):
+    if has_calibration and not overwrite and not issubclass(Calibration, base.BaseTest):
         logger.INFO("{} already calibrated. Calibration skipped.".format(parameter_name))
         return
 
@@ -127,19 +127,20 @@ def do_calibration(calibration):
         logger.WARN('Overwriting calibration for {}'.format(parameter_name))
 
     # TODO check from here (and also above ;) )
-    calib = calibration(neurons, sthal, parameters)
+    calib = Calibration(neurons, sthal, parameters)
     pylogging.set_loglevel(calib.logger, pylogging.LogLevel.INFO)
     try:
         calib.run_experiment()
     except Exception,e:
-        print "ERROR: ", e
-        delete = raw_input("Delete folder {}? (yes / no)".format(calib.folder))
-        if delete in ("yes","Yes","y","Y"):
-            try:
-                shutil.rmtree(calib.folder)
-            except OSError as e: # Folder missing, TODO log something
-                print e
-                pass
+        folder = getattr(calib, "folder", None)
+        if folder and os.path.exists(calib.folder):
+            delete = raw_input("Delete folder {}? (yes / no)".format(folder))
+            if delete in ("yes","Yes","y","Y"):
+                try:
+                    shutil.rmtree(folder)
+                except OSError as e: # Folder missing, TODO log something
+                    print e
+                    pass
         raise
 
 if parameters["calibrate"]:
