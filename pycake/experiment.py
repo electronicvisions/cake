@@ -366,23 +366,23 @@ class BaseExperiment(object):
             list of neuron dicts of parameter dicts for each step
 
             Example: {
-                        0: { # first step
-                            # neuron 0
+                        0: { # first neuron, all steps:
                             0: {neuron_parameter.E_l: Voltage(400)},
                             1: {neuron_parameter.E_l: Voltage(400)},
                            },
-                        1: { # second step
-                            0: neuron_parameter.E_l: Voltage(600)},
-                            1: neuron_parameter.E_l: Voltage(650)},
-                        },
+                        1: { # second neuron, all steps:
+                            0: {neuron_parameter.E_l: Voltage(600)},
+                            1: {neuron_parameter.E_l: Voltage(650)},
+                           },
+                        2: { # third neuron, all steps 
                             0: {neuron_parameter.E_l: Voltage(800)}
                             1: {neuron_parameter.E_l: Voltage(800)}
-                        }
+                           },...
                     }
         """
 
         # single step using default parameters
-        return [defaultdict(lambda: {}) for neuron_id in self.get_neurons()]
+        return {defaultdict(lambda: {}) for neuron_id in self.get_neurons()}
 
     def get_shared_steps(self):
         """Measurement shared steps for sweeping. Individual blocks may have

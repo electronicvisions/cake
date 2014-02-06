@@ -4,6 +4,9 @@
 """Calibration of LIF parameters."""
 
 import numpy as np
+import pylab
+import scipy
+from scipy.optimize import curve_fit
 import pylogging
 from collections import defaultdict
 import pyhalbe
@@ -211,7 +214,7 @@ class Test_V_reset(BaseTest):
         return np.min(v)*1000  
 
 
-class Test_g_l(BaseTest):
+class Test_I_g_l(BaseTest):
     target_parameter = neuron_parameter.I_gl
     pass
 
@@ -222,11 +225,11 @@ class Test_g_l(BaseTest):
         EVERYTHING AFTER THIS IS POINT STILL UNDER CONSTRUCTION
 """
 
-class Calibrate_g_l(BaseCalibration):
+class Calibrate_I_gl(BaseCalibration):
     target_parameter = neuron_parameter.I_gl
 
     def init_experiment(self):
-        super(Calibrate_g_l, self).init_experiment()
+        super(Calibrate_I_gl, self).init_experiment()
         self.sthal.recording_time = 1e-3
         self.stim_length = 65
         self.pulse_length = 15
@@ -237,6 +240,9 @@ class Calibrate_g_l(BaseCalibration):
         coord_wafer = coord_hglobal.wafer()
         coord_hicann = coord_hglobal.on_wafer()
         self.trace_averager = createTraceAverager(coord_wafer, coord_hicann)
+
+        # TEMPORARY SOLUTION:
+        self.save_traces = True
 
     def prepare_measurement(self, step_parameters, step_id, rep_id):
         """Prepare measurement.
@@ -286,9 +292,17 @@ class Calibrate_g_l(BaseCalibration):
     def measure(self, neuron_ids, step_id, rep_id):
         """Perform measurements for a single step on one or multiple neurons."""
         results = {}
+        chisquares = {}
+        # This magic number is the temporal distance of one current pulse repetition to the next one:
+        dt = 129 * 4 * (self.pulse_length + 1) / self.sthal.hicann.pll_freq
         for neuron_id in neuron_ids:
             self.sthal.switch_current_stimulus(neuron_id)
             t, v = self.sthal.read_adc()
+
+            # Convert the whole trace into a mean trace
+            mean_trace = self.trace_averager.get_average(v, dt)[0]
+            t, v = t[0:len(mean_trace)], mean_trace
+
             # Save traces in files:
             if self.save_traces:
                 folder = os.path.join(self.folder,"traces")
@@ -297,21 +311,74 @@ class Calibrate_g_l(BaseCalibration):
                 if not os.path.isdir(os.path.join(self.folder,"traces", "step{}rep{}".format(step_id, rep_id))):
                     os.mkdir(os.path.join(self.folder, "traces", "step{}rep{}".format(step_id, rep_id)))
                 pickle.dump([t, v], open(os.path.join(self.folder,"traces", "step{}rep{}".format(step_id, rep_id), "neuron_{}.p".format(neuron_id)), 'wb'))
-            results[neuron_id] = self.process_trace(t, v, neuron_id, step_id, rep_id)
+
+            results[neuron_id], chisquares[neuron_id] = self.process_trace(t, v, neuron_id, step_id, rep_id)
+
         # Now store measurements in a file:
         if self.save_results:
             if not os.path.isdir(os.path.join(self.folder,"results/")):
                 os.mkdir(os.path.join(self.folder,"results/"))
             pickle.dump(results, open(os.path.join(self.folder,"results/","step{}_rep{}.p".format(step_id, rep_id)), 'wb'))
+            if not os.path.isdir(os.path.join(self.folder,"chisquares/")):
+                os.mkdir(os.path.join(self.folder,"chisquares/"))
+            pickle.dump(chisquares, open(os.path.join(self.folder,"chisquares/","step{}_rep{}.p".format(step_id, rep_id)), 'wb'))
         self.all_results.append(results)
 
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
-        # Get the time between each current pulse
-        dt = 129 * 4 * (self.pulse_length + 1) / self.sthal.hicann.pll_freq
-        mean_trace = self.trace_averager.get_average(v, dt)[0]
-        tau_m = self.trace_averager.fit_exponential(mean_trace)
-        return tau_m
+        # Capacity if bigcap is turned on:
+        C = 2.16456e-12
+        tau_m, red_chisquare = self.fit_exponential(v)
+        g_l = C / tau_m
+        return tau_m, red_chisquare
+
+    def get_decay_fit_range(self, trace):
+        """Cuts the trace for the exponential fit. This is done by calculating the second derivative."""
+        filter_width = 100e-9
+        dt = 1/self.trace_averager.adc_freq
+    
+        diff = pylab.roll(trace, 1) - trace
+        diff2 = diff - pylab.roll(diff, -1)
+        diff2 /= (dt ** 2)
+    
+        kernel = scipy.signal.gaussian(len(trace), filter_width / dt)
+        kernel /= pylab.sum(kernel)
+        kernel = pylab.roll(kernel, int(len(trace) / 2))
+        diff2_smooth = pylab.real(pylab.ifft(pylab.fft(kernel) * pylab.fft(diff2)))
+
+        fitstart = np.argmin(diff2_smooth)
+        fitstop = np.argmax(diff2_smooth)
+
+        if fitstart > fitstop:
+            trace = pylab.roll(trace, -fitstart)
+            trace_cut = trace[:fitstop-fitstart+len(trace)]
+            fittime = np.arange(0, fitstop-fitstart+len(trace))
+        else:
+            trace_cut = trace[fitstart:fitstop]
+            fittime = np.arange(fitstart, fitstop)
+
+        return trace_cut, fittime
+    
+    def fit_exponential(self, mean_trace, stim_length = 65):
+        """ Fit an exponential function to the mean trace. """
+        func = lambda x, tau, offset, a: a * np.exp(-(x - x[0]) / tau) + offset
+    
+        trace_cut, fittime = self.get_decay_fit_range(mean_trace)
+    
+        expf, pcov, infodict, errmsg, ier = curve_fit(
+            func,
+            fittime,
+            trace_cut,
+            [.5, 100., 0.1],
+            full_output=True)
+    
+        tau = expf[0] / self.trace_averager.adc_freq 
+
+        DOF = len(fittime) - len(expf)
+        red_chisquare = sum(infodict["fvec"] ** 2) / (DOF)
+    
+        return tau, red_chisquare
+
 
 
 # TODO

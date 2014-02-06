@@ -299,7 +299,7 @@ class BaseTest(BaseCalibration):
                         })
             return defaultdict(lambda: steps)
         else:
-            return [defaultdict(lambda: {}) for neuron_id in self.get_neurons()]
+            return {defaultdict(lambda: {}) for neuron_id in self.get_neurons()}
 
     def get_shared_steps(self):
         steps = []

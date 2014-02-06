@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-"""Runs E_l calibration, plots and saves data"""
 
 import shutil
 import sys
@@ -9,6 +8,17 @@ import argparse
 
 import pycalibtic
 import pylogging
+
+def check_file(string):
+    if not os.path.isfile(string):
+        msg = "parameter file '%r' not found! :p" % string
+        raise argparse.ArgumentTypeError(msg)
+    return string
+
+parser = argparse.ArgumentParser(description='HICANN Calibration tool. Takes a parameter file as input. See pycake/bin/parameters.py to see an example.')
+parser.add_argument('parameter_file', type=check_file, nargs='?',
+                           help='')
+args = parser.parse_args()
 
 # Activate logger before importing other stuff that might want to log
 default_logger = pylogging.get("Default")
@@ -22,16 +32,6 @@ from pyhalbe.HICANN import neuron_parameter, shared_parameter
 from pycake.calibration import base, lif, synapse
 
 
-def check_file(string):
-    if not os.path.isfile(string):
-        msg = "parameter file '%r' not found! :p" % string
-        raise argparse.ArgumentTypeError(msg)
-    return string
-
-parser = argparse.ArgumentParser(description='HICANN Calibration tool')
-parser.add_argument('parameter_file', type=check_file, nargs='?',
-                           help='')
-args = parser.parse_args()
 parameters = imp.load_source('parameters', args.parameter_file).parameters
 
 neurons = range(512)
@@ -65,6 +65,7 @@ backend_r = init_redman(path=parameters["backend_r"])
 
 sthal = StHALContainer(coord_wafer, coord_hicann)
 
+pylogging.set_loglevel(default_logger, pylogging.LogLevel.INFO)
 
 def check_for_existing_calbration(parameter):
     path = parameters['backend_c']
@@ -79,35 +80,34 @@ def check_for_existing_calbration(parameter):
             backend.load("w{}-h{}".format(parameters['coord_wafer'].value(), parameters['coord_hicann'].id().value()), md, hc)
             nc = hc.atNeuronCollection()
         except RuntimeError:
-            default_logger.INFO('Backend not found. Creating new Backend.')
+            logger.INFO('Backend not found. Creating new Backend.')
             return False
         for neuron in range(512):
             try:
                 calib = nc.at(neuron).at(parameter)
-                default_logger.INFO('Calibration for {} existing.'.format(parameter.name))
+                logger.INFO('Calibration for {} existing.'.format(parameter.name))
                 return True
             except (RuntimeError, IndexError):
                 continue
-            default_logger.INFO('Calibration for {} not existing.'.format(parameter.name))
+            logger.INFO('Calibration for {} not existing.'.format(parameter.name))
             return False
     else:
         try:
             backend.load("w{}-h{}".format(parameters['coord_wafer'].value(), parameters['coord_hicann'].id().value()), md, hc)
             bc = hc.atBlockCollection()
         except RuntimeError:
-            default_logger.INFO('Backend not found. Creating new Backend.')
+            logger.INFO('Backend not found. Creating new Backend.')
             return False
         for block in range(4):
             try:
                 calib = bc.at(block).at(parameter)
-                default_logger.INFO('Calibration for {} existing.'.format(parameter.name))
+                logger.INFO('Calibration for {} existing.'.format(parameter.name))
                 return True
             except (RuntimeError, IndexError):
                 continue
-            default_logger.INFO('Calibration for {} not existing.'.format(parameter.name))
+            logger.INFO('Calibration for {} not existing.'.format(parameter.name))
             return False
 
-pylogging.set_loglevel(default_logger, pylogging.LogLevel.INFO)
 
 def do_calibration(calibration):
     target_parameter = calibration.target_parameter
@@ -145,13 +145,13 @@ def do_calibration(calibration):
 if parameters["calibrate"]:
     for calibration in [synapse.Calibrate_E_synx, synapse.Calibrate_E_syni,
                         lif.Calibrate_E_l, lif.Calibrate_V_t, lif.Calibrate_V_reset, 
-                        lif.Calibrate_V_reset_shift, lif.Calibrate_g_l]:
+                        lif.Calibrate_V_reset_shift, lif.Calibrate_I_gl]:
         do_calibration(calibration)
 
 if parameters["measure"]:
     for calibration in [synapse.Test_E_synx, synapse.Test_E_syni,
-                        lif.Test_E_l, lif.Test_V_t, lif.Test_V_reset, 
-                        lif.Test_g_l]:
+            lif.Test_E_l, lif.Test_V_t, lif.Test_V_reset]:
+                        #lif.Test_I_gl]:
         do_calibration(calibration)
 
 quit()

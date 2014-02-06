@@ -9,54 +9,56 @@ import matplotlib.pyplot as plt
 import re
 import sys
 
+from pyhalbe.HICANN import neuron_parameter, shared_parameter
+
 # hack to enable pickling of old experiments from back in the days when cake was the capitol of Egypt
 import pycake
 sys.modules['pycairo'] = pycake 
 
-valid_params = [pyhalbe.HICANN.neuron_parameter.E_synx,
-                pyhalbe.HICANN.neuron_parameter.I_spikeamp,
-                pyhalbe.HICANN.neuron_parameter.V_synx,
-                pyhalbe.HICANN.neuron_parameter.E_syni,
-                pyhalbe.HICANN.neuron_parameter.V_syni,
-                pyhalbe.HICANN.neuron_parameter.E_l,
-                pyhalbe.HICANN.neuron_parameter.V_t,
-                pyhalbe.HICANN.neuron_parameter.I_radapt,
-                pyhalbe.HICANN.neuron_parameter.I_convi,
-                pyhalbe.HICANN.neuron_parameter.I_gl,
-                pyhalbe.HICANN.neuron_parameter.I_convx,
-                pyhalbe.HICANN.neuron_parameter.I_gladapt,
-                pyhalbe.HICANN.neuron_parameter.V_exp,
-                pyhalbe.HICANN.neuron_parameter.V_syntci,
-                pyhalbe.HICANN.neuron_parameter.I_intbbi,
-                pyhalbe.HICANN.neuron_parameter.I_fire,
-                pyhalbe.HICANN.neuron_parameter.V_syntcx,
-                pyhalbe.HICANN.neuron_parameter.I_intbbx,
-                pyhalbe.HICANN.neuron_parameter.I_rexp,
-                pyhalbe.HICANN.neuron_parameter.I_pl,
-                pyhalbe.HICANN.neuron_parameter.I_bexp]
+valid_params = [neuron_parameter.E_synx,
+                neuron_parameter.I_spikeamp,
+                neuron_parameter.V_synx,
+                neuron_parameter.E_syni,
+                neuron_parameter.V_syni,
+                neuron_parameter.E_l,
+                neuron_parameter.V_t,
+                neuron_parameter.I_radapt,
+                neuron_parameter.I_convi,
+                neuron_parameter.I_gl,
+                neuron_parameter.I_convx,
+                neuron_parameter.I_gladapt,
+                neuron_parameter.V_exp,
+                neuron_parameter.V_syntci,
+                neuron_parameter.I_intbbi,
+                neuron_parameter.I_fire,
+                neuron_parameter.V_syntcx,
+                neuron_parameter.I_intbbx,
+                neuron_parameter.I_rexp,
+                neuron_parameter.I_pl,
+                neuron_parameter.I_bexp]
 
-valid_shared_params = [pyhalbe.HICANN.shared_parameter.V_clra,
-                       pyhalbe.HICANN.shared_parameter.V_clrc,
-                       pyhalbe.HICANN.shared_parameter.V_reset,
-                       pyhalbe.HICANN.shared_parameter.V_dllres,
-                       pyhalbe.HICANN.shared_parameter.V_bout,
-                       pyhalbe.HICANN.shared_parameter.V_dtc,
-                       pyhalbe.HICANN.shared_parameter.V_thigh,
-                       pyhalbe.HICANN.shared_parameter.V_br,
-                       pyhalbe.HICANN.shared_parameter.I_breset,
-                       pyhalbe.HICANN.shared_parameter.V_m,
-                       pyhalbe.HICANN.shared_parameter.V_dep,
-                       pyhalbe.HICANN.shared_parameter.V_tlow,
-                       pyhalbe.HICANN.shared_parameter.V_gmax1,
-                       pyhalbe.HICANN.shared_parameter.V_gmax0,
-                       pyhalbe.HICANN.shared_parameter.V_gmax3,
-                       pyhalbe.HICANN.shared_parameter.V_gmax2,
-                       pyhalbe.HICANN.shared_parameter.V_ccas,
-                       pyhalbe.HICANN.shared_parameter.V_stdf,
-                       pyhalbe.HICANN.shared_parameter.V_fac,
-                       pyhalbe.HICANN.shared_parameter.V_bexp,
-                       pyhalbe.HICANN.shared_parameter.I_bstim,
-                       pyhalbe.HICANN.shared_parameter.V_bstdf]
+valid_shared_params = [shared_parameter.V_clra,
+                       shared_parameter.V_clrc,
+                       shared_parameter.V_reset,
+                       shared_parameter.V_dllres,
+                       shared_parameter.V_bout,
+                       shared_parameter.V_dtc,
+                       shared_parameter.V_thigh,
+                       shared_parameter.V_br,
+                       shared_parameter.I_breset,
+                       shared_parameter.V_m,
+                       shared_parameter.V_dep,
+                       shared_parameter.V_tlow,
+                       shared_parameter.V_gmax1,
+                       shared_parameter.V_gmax0,
+                       shared_parameter.V_gmax3,
+                       shared_parameter.V_gmax2,
+                       shared_parameter.V_ccas,
+                       shared_parameter.V_stdf,
+                       shared_parameter.V_fac,
+                       shared_parameter.V_bexp,
+                       shared_parameter.I_bstim,
+                       shared_parameter.V_bstdf]
 
 
 class Experimentreader(object):
@@ -165,7 +167,7 @@ class Experimentreader(object):
         exp1 = self.load_experiment(experiment1)
         exp2 = self.load_experiment(experiment2)
 
-        if type(parameter) is pyhalbe.HICANN.neuron_parameter:
+        if type(parameter) is neuron_parameter:
             steps1 = exp1.steps
             steps2 = exp1.steps
         else:
@@ -260,6 +262,13 @@ class Experiment(object):
             if os.path.isfile("{}/sthalcontainer.p".format(self.workdir)):
                 self.sthalcontainer = pickle.load(open("{}/sthalcontainer.p".format(self.workdir)))
             self.stepnum = len(self.results)
+
+    def get_steps(self, parameter):
+        if isinstance(parameter, neuron_parameter):
+            return [j[parameter].value for i,j in self.steps.iteritems()]
+        else:
+            return [j[parameter].value for i,j in self.shared_steps.iteritems()]
+
     
     def get_trace(self, neuron_id, step_id = 0, rep_id = 0):
             """ Get the traces of one neurons from a specific measurement
@@ -353,12 +362,12 @@ class Experiment(object):
 
             Returns:
                 dictionary:
-                    {pyhalbe.HICANN.neuron_parameter.E_l: 300, ...}
+                    {neuron_parameter.E_l: 300, ...}
         """
         neuron_params = {}
         
         neuron_coord = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(neuron_id))
-        for param in pyhalbe.HICANN.neuron_parameter.names.values():
+        for param in neuron_parameter.names.values():
             if param in valid_params:
                 neuron_params[param] = self.sthalcontainer.floating_gates.getNeuron(neuron_coord, param)
 
@@ -373,15 +382,15 @@ class Experiment(object):
 
             Returns:
                 dictionary:
-                    {pyhalbe.HICANN.shared_parameter.V_reset: 300, ...}
+                    {shared_parameter.V_reset: 300, ...}
         """
         block_coord = pyhalbe.Coordinate.FGBlockOnHICANN(pyhalbe.Coordinate.Enum(block_id))
         shared_params = {}
-        for param in pyhalbe.HICANN.shared_parameter.names.values():
+        for param in shared_parameter.names.values():
             if param in valid_shared_params:
-                if ((param is pyhalbe.HICANN.shared_parameter.V_clrc) or (param is pyhalbe.HICANN.shared_parameter.V_bexp)) and ((block_id is 0) or (block_id is 2)):
+                if ((param is shared_parameter.V_clrc) or (param is shared_parameter.V_bexp)) and ((block_id is 0) or (block_id is 2)):
                     continue
-                elif ((param is pyhalbe.HICANN.shared_parameter.V_clra) or (param is pyhalbe.HICANN.shared_parameter.V_bout)) and ((block_id is 1) or (block_id is 3)):
+                elif ((param is shared_parameter.V_clra) or (param is shared_parameter.V_bout)) and ((block_id is 1) or (block_id is 3)):
                     continue
                 else:
                     shared_params[param] = self.sthalcontainer.floating_gates.getShared(block_coord, param) 
@@ -407,9 +416,9 @@ class Experiment(object):
         if mean:
             mean_data = self.mean_over_reps()
             mean_data_sorted = [[mean_data[0][sid][neuron_id] for sid in range(self.stepnum)],[mean_data[1][sid][neuron_id] for sid in range(self.stepnum)]]
-            return mean_data_sorted
+            return np.array(mean_data_sorted)
         else:
-            return [[self.results[sid][rep][neuron_id] for sid in range(self.stepnum)] for rep in range(self.reps)]
+            return np.array([[self.results[sid][rep][neuron_id] for sid in range(self.stepnum)] for rep in range(self.reps)])
 
     def plot_trace(self, neuron_id, step, repetition):
         """ Plot the trace of a neuron.
@@ -438,7 +447,7 @@ class Experiment(object):
 
             Args:
                 neuron_id, step = int
-                parameter = pyhalbe.HICANN.neuron_parameter.E_l etc.
+                parameter = neuron_parameter.E_l etc.
 
             Returns:
                 matplotlib.pyplot.figure object
