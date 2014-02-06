@@ -9,9 +9,9 @@ from collections import defaultdict
 import pyhalbe
 import pycalibtic
 import pyredman as redman
-from pycake.helpers.calibtic import create_pycalibtic_polynomial
-from pycake.helpers.units import Current, Voltage, DAC
 from pycake.experiment import BaseExperiment
+from pycake.helpers.calibtic import create_pycalibtic_polynomial
+from pycake.helpers.units import Unit, Current, Voltage, DAC
 from pycake.helpers.trafos import HWtoDAC, DACtoHW, HCtoDAC, DACtoHC, HWtoHC, HCtoHW
 
 # Import everything needed for saving:
@@ -22,12 +22,34 @@ import os
 # shorter names
 Coordinate = pyhalbe.Coordinate
 Enum = Coordinate.Enum
+FGBlockOnHICANN = Coordinate.FGBlockOnHICANN
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
 
 
 class BaseCalibration(BaseExperiment):
     """Base class for calibration experiments."""
+
+    def get_config(self, config_key):
+        """returns a given key for experiment"""
+        config_name = self.target_parameter.name
+        key = "{}_{}".format(config_name, config_key)
+        return self.experiment_parameters[key]
+
+    def set_config(self, config_key, value):
+        """sets a given key for experiment"""
+        config_name = self.target_parameter.name
+        key = "{}_{}".format(config_name, config_key)
+        self.experiment_parameters[key] = value
+
+    def get_step_value(self, value, apply_calibration):
+        if self.target_parameter.name[0] in ['E', 'V']:
+            return {self.target_parameter:
+                    Voltage(value, apply_calibration=apply_calibration)}
+        else:
+            return {self.target_parameter:
+                    Current(value, apply_calibration=apply_calibration)}
+
     def init_experiment(self):
         super(BaseCalibration, self).init_experiment()
         if self._calib_backend is None:
@@ -37,78 +59,45 @@ class BaseCalibration(BaseExperiment):
         self.folder = os.path.join(self.experiment_parameters["folder"], self.folder)
 
         self.base_parameters = self.experiment_parameters["base_parameters"]
+        self.base_parameters.update(self.get_config("parameters"))
+        for param, value in self.base_parameters.iteritems():
+            if not isinstance(param, (neuron_parameter, shared_parameter)):
+                raise TypeError('Only neuron_parameter or shared_parameter allowed')
+            if not isinstance(value, Unit):
+                raise TypeError('Values must be given as Unit not as {}'.format(
+                    type(value)))
 
-        self.specific_parameters = self.experiment_parameters["{}_parameters".format(self.target_parameter.name)]
-        self.description = self.experiment_parameters["{}_description".format(self.target_parameter.name)]
- 
+        self.description =  self.get_config("description")
+
     def get_parameters(self):
         parameters = super(BaseCalibration, self).get_parameters()
-        for neuron_id in self.get_neurons():
-            for param, value in self.base_parameters.iteritems():
-                if isinstance(param, neuron_parameter):
-                    parameters[neuron_id][param] = value
-                elif isinstance(param, shared_parameter):
-                    pass
-                else:
-                    raise TypeError('Only neuron_parameter or shared_parameter allowed') 
-            if self.specific_parameters:
-                for param, value in self.specific_parameters.iteritems():
-                    if isinstance(param, neuron_parameter):
-                        parameters[neuron_id][param] = value
-                    elif isinstance(param, shared_parameter):
-                        pass
-                    else:
-                        raise TypeError('Only neuron_parameter or shared_parameter allowed') 
-        return parameters
+        neuron_parameters = dict( (param, v) for param, v in self.base_parameters.iteritems()
+                if isinstance(param, neuron_parameter))
+        shared_parameters = dict( (param, v) for param, v in self.base_parameters.iteritems()
+                if isinstance(param, shared_parameter))
 
-    def get_shared_parameters(self):
-        parameters = super(BaseCalibration, self).get_shared_parameters()
-        for block_id in range(4):
-            for param, value in self.base_parameters.iteritems():
-                if isinstance(param, neuron_parameter):
-                    pass
-                elif isinstance(param, shared_parameter):
-                    parameters[block_id][param] = value
-                else:
-                    raise TypeError('Only neuron_parameter or shared_parameter allowed') 
-            if self.specific_parameters:
-                for param, value in self.specific_parameters.iteritems():
-                    if isinstance(param, neuron_parameter):
-                        pass
-                    elif isinstance(param, shared_parameter):
-                        parameters[block_id][param] = value
-                    else:
-                        raise TypeError('Only neuron_parameter or shared_parameter allowed') 
+        for neuron in self.get_neurons():
+            parameters[neuron].update(neuron_parameters)
+        for block in Coordinate.iter_all(FGBlockOnHICANN):
+            parameters[block].update(shared_parameters)
         return parameters
 
     def get_steps(self):
-        steps = []
-        if isinstance(self.target_parameter, neuron_parameter):
-            for stepvalue in self.experiment_parameters["{}_range".format(self.target_parameter.name)]:  # 8 steps
-                if self.target_parameter.name[0] in ['E', 'V']:
-                    steps.append({self.target_parameter: Voltage(stepvalue),
-                        })
-                else:
-                    steps.append({self.target_parameter: Current(stepvalue),
-                        })
-            return defaultdict(lambda: steps)
-        else:
-            return [defaultdict(lambda: {}) for neuron_id in self.get_neurons()]
+        return self.get_steps_impl(False)
 
-    def get_shared_steps(self):
-        steps = []
-        if isinstance(self.target_parameter, shared_parameter):
-            for stepvalue in self.experiment_parameters["{}_range".format(self.target_parameter.name)]:  # 8 steps
-                if self.target_parameter.name[0] in ['E', 'V']:
-                    steps.append({self.target_parameter: Voltage(stepvalue),
-                        })
-                else:
-                    steps.append({self.target_parameter: Current(stepvalue),
-                        })
-            return defaultdict(lambda: steps)
-        else:
-            return [defaultdict(lambda: {}) for block_id in range(4)]
+    def get_steps_impl(self, apply_calibration):
+        target = self.target_parameter
 
+        if isinstance(target, neuron_parameter):
+            def make(step_value):
+                step = {target: self.get_step_value(step_value, apply_calibration)}
+                return dict((n, step) for n in self.get_neurons())
+        if isinstance(target, shared_parameter):
+            def make(step_value):
+                step = {target: self.get_step_value(step_value, apply_calibration)}
+                return dict((b, step) for b in Coordinate.iter_all(FGBlockOnHICANN))
+
+        return [make(v) for v in self.get_config("range")]
 
     def process_results(self, neuron_ids):
         self.process_calibration_results(neuron_ids, self.target_parameter, linear_fit=True)
@@ -264,9 +253,6 @@ class BaseCalibration(BaseExperiment):
         return False
 
 
-
-
-
 class BaseTest(BaseCalibration):
     """Base class for calibration test experiments."""
     def init_experiment(self):
@@ -288,32 +274,7 @@ class BaseTest(BaseCalibration):
         return parameters
 
     def get_steps(self):
-        steps = []
-        if isinstance(self.target_parameter, neuron_parameter):
-            for stepvalue in self.experiment_parameters["{}_range".format(self.target_parameter.name)]:  # 8 steps
-                if self.target_parameter.name[0] in ['E', 'V']:
-                    steps.append({self.target_parameter: Voltage(stepvalue, apply_calibration = True),
-                        })
-                else:
-                    steps.append({self.target_parameter: Current(stepvalue, apply_calibration = True),
-                        })
-            return defaultdict(lambda: steps)
-        else:
-            return {defaultdict(lambda: {}) for neuron_id in self.get_neurons()}
-
-    def get_shared_steps(self):
-        steps = []
-        if isinstance(self.target_parameter, shared_parameter):
-            for stepvalue in self.experiment_parameters["{}_range".format(self.target_parameter.name)]:  # 8 steps
-                if self.target_parameter.name[0] in ['E', 'V']:
-                    steps.append({self.target_parameter: Voltage(stepvalue, apply_calibration = True),
-                        })
-                else:
-                    steps.append({self.target_parameter: Current(stepvalue, apply_calibration = True),
-                        })
-            return defaultdict(lambda: steps)
-        else:
-            return [defaultdict(lambda: {}) for block_id in range(4)]
+        return self.get_steps_impl(self, True)
 
     def process_calibration_results(self, neuron_ids, parameter, linear_fit=False):
         pass
