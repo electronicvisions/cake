@@ -59,10 +59,6 @@ if parameters["clear"]:
     if os.path.isfile(filename_c): os.remove(filename_c)
     if os.path.isfile(filename_r): os.remove(filename_r)
 
-# Initialize Calibtic and Redman backends
-backend_c = init_calibtic(path=parameters["backend_c"])
-backend_r = init_redman(path=parameters["backend_r"])
-
 sthal = StHALContainer(coord_wafer, coord_hicann)
 
 pylogging.set_loglevel(default_logger, pylogging.LogLevel.INFO)
@@ -128,7 +124,7 @@ def do_calibration(Calibration):
 
     # TODO check from here (and also above ;) )
     calib = Calibration(neurons, sthal, parameters)
-    pylogging.set_loglevel(calib.logger, pylogging.LogLevel.INFO)
+    pylogging.set_loglevel(calib.logger, pylogging.LogLevel.TRACE)
     try:
         calib.run_experiment()
     except Exception,e:

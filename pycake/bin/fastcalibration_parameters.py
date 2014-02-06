@@ -2,17 +2,21 @@ import pyhalbe
 from pycake.experiment import Voltage, Current
 import copy
 import sys
+import os
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
 
+folder = "/home/np001/temp/new_get_steps/"
+
 parameters = {
         # Set the ranges within which you want to calibrate
-        "E_synx_range": range(650,1050,100),    # 16 steps
+        #"E_synx_range": range(650,1050,100),    # 16 steps
+        "E_synx_range": range(650,850,100),    # 16 steps
         "E_syni_range": range(350,750,100),    # 16 steps
         "E_l_range":    range(500,800,100),      # 12 steps
         "V_t_range":    range(600,900,100),      # 12 steps
         "V_reset_range":range(400,700,100),      # 12 steps
-        "I_gl_range":   range(100,500,100),     # 50 steps
+        "I_gl_range":   range(0,500,100),     # 50 steps
 
         # How far should the E_syn values be set around E_l
         "E_syni_dist":  -100,
@@ -23,7 +27,7 @@ parameters = {
         
         # Set which calibrations you want to run
         "run_E_synx":  True,
-        "run_E_syni":  True,
+        "run_E_syni":  False,
         "run_E_l":     False,
         "run_V_t":     False,
         "run_V_reset": False,
@@ -31,19 +35,19 @@ parameters = {
 
         # Measurement runs twice by default: first to generate calibration data, and a second time to measure the success of calibration
         # Here you can turn either of these runs on or off
-        "calibrate":    False,
+        "calibrate":    True,
         "measure":      True,
 
         # Overwrite old calibration data? This will not reset defect neurons!
         # Or even clear ALL calibration data before starting?
-        "overwrite":    False,
-        "clear":        False,
+        "overwrite":    True,
+        "clear":        True,
 
         # save_results will save all the measurements in a folder specified below.
         # This has nothing to do with the calibration data which is stored anyway!
         # You can also save all the traces for debugging purposes. Note that this takes a lot of space (100 MB per repetition)
         "save_results": True,
-        "save_traces":  False,
+        "save_traces":  True,
 
         # If you save al your measurements, each folder will have a description file. The following parameters let you specify additional info to be stored.
         "E_synx_description":   "E_synx calibration.",
@@ -51,13 +55,13 @@ parameters = {
         "E_l_description":      "E_l calibration",
         "V_t_description":      "V_t calibration",  
         "V_reset_description":  "V_reset calibration",
-        "I_gl_description":     "I_gl calibration",
+        "I_gl_description":     "g_l measurement",
 
         # Where do you want to save the measurements (folder) and calibration data (backend_c for calibtic, backend_r for redman)?
         # Folders will be created if they do not exist already
-        "folder":       "/home/np001/temp/reduce_redundancy/",
-        "backend_c":    "/home/np001/temp/reduce_redundancy/backends/",
-        "backend_r":    "/home/np001/temp/reduce_redundancy/backends/",
+        "folder":       folder,
+        "backend_c":    os.path.join(folder, "backends"),
+        "backend_r":    os.path.join(folder, "backends"),
         
         # Wafer and HICANN coordinates
         "coord_wafer":  pyhalbe.Coordinate.Wafer(),

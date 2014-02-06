@@ -43,10 +43,11 @@ class BaseExperiment(object):
 
         # TODO only accept NeuronOnHICANN coordinates?
         self.neuron_ids = [NeuronOnHICANN(Enum(n) if isinstance(n, int) else n) for n in neuron_ids]
+        self.blocks = [block for block in Coordinate.iter_all(FGBlockOnHICANN)]
         self._repetitions = 1
 
-        calibtic_backend = init_calibtic(path = parameters["backend_c"])
-        redman_backend = init_redman(path = parameters["backend_r"])
+        calibtic_backend = init_calibtic(type = 'xml', path = parameters["backend_c"])
+        redman_backend = init_redman(type = 'xml', path = parameters["backend_r"])
 
         self._calib_backend = calibtic_backend
         self._calib_hc = None
@@ -88,7 +89,6 @@ class BaseExperiment(object):
         wafer = redman.Wafer(backend, coord_wafer)
         if not wafer.hicanns().has(coord_hicann):
             raise ValueError("HICANN {} is marked as defect.".format(int(coord_hicann.id())))
-        self._red_wafer = wafer
         hicann = wafer.find(coord_hicann)
         self._red_hicann = hicann
         self._red_nrns = hicann.neurons()
@@ -203,47 +203,59 @@ class BaseExperiment(object):
         neuron_ids = self.get_neurons()
         base_parameters = self.get_parameters()
 
-        def get_calibrated(value, cal, coord, name, param):
+        def get_calibrated(parameters, ncal, coord, param):
             value = parameters[param]
-            dac_value = value.toDAC() #implizit range check!
-            if cal and value.apply_calibration:
+            dac_value = value.toDAC().value #implicit range check!
+            dac_value_uncalibrated = dac_value
+            if ncal and value.apply_calibration:
                 try:
-                    calibration = cal.at(param)
+                    calibration = ncal.at(param)
                     dac_value = int(round(calibration.apply(dac_value)))
                 except (RuntimeError, IndexError),e:
                     pass
                 except Exception,e:
                     raise e
-            else:
-                self.logger.WARN("Neuron {} not working. Skipping calibration.".format(neuron_id))
 
             # TODO check with Dominik
-            if param == neuron_parameter.E_syni_dist and self.E_syni_dist:
-                dac_value += self.E_syni_dist
-            if param == neuron_parameter.E_synx_dist and self.E_synx_dist:
-                dac_value += self.E_syni_dist
+            if param == neuron_parameter.E_syni and self.E_syni_dist:
+                E_l_uncalibrated = parameters[neuron_parameter.E_l]
+                calibrated_E_l = get_calibrated(E_l_uncalibrated, True, coord, neuron_parameter.E_l)
+                dac_value = calibrated_E_l + self.E_syni_dist * 1023/1800.
+
+            if param == neuron_parameter.E_synx and self.E_synx_dist:
+                E_l_uncalibrated = base_params[coord][neuron_parameter.E_l]
+                calibrated_E_l = get_calibrated(E_l_uncalibrated, True, coord, neuron_parameter.E_l)
+                dac_value = calibrated_E_l + self.E_synx_dist * 1023/1800.
 
             if dac_value < 0 or dac_value > 1023:
-                msg = "Calibrated value for {} on {} has value {} out of range"
-                self.logger.WARN(msg.format(name, neuron, dac_value))
-                dac_value = dac_value
+                msg = "Calibrated value for {} on Neuron {} has value {} out of range. Using uncalibrated value."
+                self.logger.WARN(msg.format(param.name, coord.id(), dac_value))
+                dac_value = dac_value_uncalibrated
 
+            return dac_value
 
         for neuron in Coordinate.iter_all(NeuronOnHICANN):
             parameters = base_parameters[neuron]
             parameters.update(step[neuron])
             ncal = None
-            if not self._red_nrns.has(neuron):
+            self.logger.TRACE("Neuron {} has: {}".format(neuron.id(), self._red_nrns.has(neuron)))
+            #if not self._red_nrns.has(neuron):
+            if self._red_nrns.has(neuron):
+                self.logger.TRACE("Neuron {} not marked as broken".format(neuron.id()))
                 try:
-                    ncal = self._calib_nc.at(neuron_id)
+                    ncal = self._calib_nc.at(neuron.id().value())
+                    self.logger.TRACE("Calibration for Neuron {} found.".format(neuron.id()))
                 except (IndexError):
+                    self.logger.WARN("No calibration found for {}".format(neuron.id()))
                     pass
             else:
-                self.logger.WARN("Neuron {} not working. Skipping calibration.".format(neuron))
+                self.logger.WARN("Neuron {} marked as not working. Skipping calibration.".format(neuron.id()))
 
             for name, param in neuron_parameter.names.iteritems():
-                value = get_calibrated(parameters[param], ncal, neuron,
-                        name, param)
+                if name[0] == '_':
+                    continue
+                value = get_calibrated(parameters, ncal, neuron,
+                        param)
                 fgc.setNeuron(neuron, param, value)
 
         for block in Coordinate.iter_all(FGBlockOnHICANN):
@@ -252,18 +264,21 @@ class BaseExperiment(object):
 
             # apply calibration
             try:
-                bcal = self._calib_bc.at(block_id)
+                bcal = self._calib_bc.at(block.id().value())
             except (IndexError):
+                self.logger.WARN("No calibration found for {}".format(block))
                 bcal = None
 
-            even  = block.value().id()%2 == 0
+            even  = block.id().value()%2 == 0
             for name, param in shared_parameter.names.iteritems():
                 if (even and (name in ("V_clrc", "V_bexp"))):
                     continue
                 if (not even and (name in ("V_clra", "V_bout"))):
                     continue
-                value = get_calibrated(parameters[param], ncal, neuron,
-                        name, param)
+                if name[0] == '_':
+                    continue
+                value = get_calibrated(parameters, ncal, neuron,
+                        param)
                 fgc.setShared(block, param, value)
 
         self.sthal.hicann.floating_gates = fgc
@@ -330,12 +345,20 @@ class BaseExperiment(object):
 
         return self.neuron_ids  # TODO move this to a property
 
+    def get_blocks(self):
+        """ Return all blocks on this HICANN.
+        """
+
+        return self.blocks  # TODO move this to a property
+
     def run_experiment(self):
         """Run the experiment and process results."""
         logger = self.logger
 
         self.init_experiment()
         neuron_ids = self.get_neurons()
+
+        parameters = self.get_parameters()
 
         self.all_results = []
         steps = self.get_steps()
@@ -369,22 +392,22 @@ class BaseExperiment(object):
             # dump neuron parameters and steps:
             paramdump = {nid: parameters[nid] for nid in self.get_neurons()}
             pickle.dump(paramdump, open(os.path.join(self.folder,"parameters.p"),"wb"))
-            stepdump = {sid: steps[0][sid] for sid in range(num_steps)}
-            pickle.dump(stepdump, open(os.path.join(self.folder,"steps.p"),"wb"))
+            #stepdump = {sid: steps[0][sid] for sid in range(num_steps)}
+            pickle.dump(steps, open(os.path.join(self.folder,"steps.p"),"wb"))
 
             # dump shared parameters and steps:
-            sharedparamdump = {bid: shared_parameters[bid] for bid in range(4)}
-            pickle.dump(sharedparamdump, open(os.path.join(self.folder,"shared_parameters.p"),"wb"))
-            sharedstepdump = {sid: shared_steps[0][sid] for sid in range(num_shared_steps)}
-            pickle.dump(sharedstepdump, open(os.path.join(self.folder,"shared_steps.p"),"wb"))
+            #sharedparamdump = {bid: shared_parameters[bid] for bid in range(4)}
+            #pickle.dump(sharedparamdump, open(os.path.join(self.folder,"shared_parameters.p"),"wb"))
+            #sharedstepdump = {sid: shared_steps[0][sid] for sid in range(num_shared_steps)}
+            #pickle.dump(sharedstepdump, open(os.path.join(self.folder,"shared_steps.p"),"wb"))
 
         logger.INFO("Experiment {}".format(self.description))
         logger.INFO("Created folders in {}".format(self.folder))
 
-        for step in steps:
+        for step_id, step in enumerate(steps):
                 step_parameters = self.prepare_parameters(step)
                 for r in range(self.repetitions):
-                    logger.INFO("{} - Step {}/{} repetition {}/{}.".format(time.asctime(),step_id+1, max(num_steps, num_shared_steps), r+1, self.repetitions))
+                    logger.INFO("{} - Step {}/{} repetition {}/{}.".format(time.asctime(),step_id+1, num_steps, r+1, self.repetitions))
                     logger.INFO("{} - Preparing measurement --> setting floating gates".format(time.asctime()))
                     self.prepare_measurement(step_parameters, step_id, r)
                     logger.INFO("{} - Measuring.".format(time.asctime()))

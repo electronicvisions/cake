@@ -49,7 +49,7 @@ class Calibrate_E_synx(BaseCalibration):
         return np.mean(v) * 1000 
     
     def isbroken(self, coeffs):
-        if abs(coeffs[1] - 1) > 0.4:     # Broken if slope of the fit is too high or too small
+        if abs(coeffs[0] - 1) > 0.4:     # Broken if slope of the fit is too high or too small
             return True
         else:
             return False
@@ -72,7 +72,7 @@ class Calibrate_E_syni(BaseCalibration):
         return np.mean(v) * 1000 
     
     def isbroken(self, coeffs):
-        if abs(coeffs[1] - 1) > 0.4:     # Broken if slope of the fit is too high or too small
+        if abs(coeffs[0] - 1) > 0.4:     # Broken if slope of the fit is too high or too small
             return True
         else:
             return False

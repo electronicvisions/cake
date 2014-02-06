@@ -44,11 +44,9 @@ class BaseCalibration(BaseExperiment):
 
     def get_step_value(self, value, apply_calibration):
         if self.target_parameter.name[0] in ['E', 'V']:
-            return {self.target_parameter:
-                    Voltage(value, apply_calibration=apply_calibration)}
+            return Voltage(value, apply_calibration=apply_calibration)
         else:
-            return {self.target_parameter:
-                    Current(value, apply_calibration=apply_calibration)}
+            return Current(value, apply_calibration=apply_calibration)
 
     def init_experiment(self):
         super(BaseCalibration, self).init_experiment()
@@ -90,29 +88,34 @@ class BaseCalibration(BaseExperiment):
 
         if isinstance(target, neuron_parameter):
             def make(step_value):
+                result = defaultdict(dict)
                 step = {target: self.get_step_value(step_value, apply_calibration)}
-                return dict((n, step) for n in self.get_neurons())
+                for n in self.get_neurons():
+                    result[n] = step
+                return result
         if isinstance(target, shared_parameter):
             def make(step_value):
+                result = defaultdict(dict)
                 step = {target: self.get_step_value(step_value, apply_calibration)}
-                return dict((b, step) for b in Coordinate.iter_all(FGBlockOnHICANN))
+                for b in Coordinate.iter_all(FGBlockOnHICANN):
+                    result[b] = step
+                return result
 
         return [make(v) for v in self.get_config("range")]
 
     def process_results(self, neuron_ids):
-        self.process_calibration_results(neuron_ids, self.target_parameter, linear_fit=True)
+        self.process_calibration_results(neuron_ids, self.target_parameter, 1)
 
     def store_results(self):
         self.store_calibration_results(self.target_parameter)
 
 
-    def process_calibration_results(self, neuron_ids, parameter, linear_fit=False):
+    def process_calibration_results(self, neurons, parameter, dim):
         """This base class function can be used by child classes as process_results."""
         # containers for final results
-        results_mean = defaultdict(list)
-        results_std = defaultdict(list)
-        results_polynomial = {}
-        results_broken = []  # will contain neuron_ids which are broken
+        self.results_mean = defaultdict(list)
+        self.results_std = defaultdict(list)
+        self.results_polynomial = {}
 
         # self.all_results contains all measurements, need to untangle
         # repetitions and steps
@@ -121,84 +124,39 @@ class BaseCalibration(BaseExperiment):
         step_results = defaultdict(list)
         for result in self.all_results:
             # still in the same step, collect repetitions for averaging
-            for neuron_id in neuron_ids:
-                step_results[neuron_id].append(result[neuron_id])
+            for neuron in neurons:
+                step_results[neuron].append(result[neuron])
             repetition += 1
             if repetition > self.repetitions:
                 # step is done; average, store and reset
-                for neuron_id in neuron_ids:
-                    results_mean[neuron_id].append(HWtoDAC(np.mean(step_results[neuron_id]), parameter))
-                    results_std[neuron_id].append(HWtoDAC(np.std(step_results[neuron_id]), parameter))
+                for neuron in neurons:
+                    mean = HWtoDAC(np.mean(step_results[neuron]), parameter)
+                    std = HWtoDAC(np.std(step_results[neuron]), parameter)
+                    self.results_mean[neuron].append(mean)
+                    self.results_std[neuron].append(std)
                 repetition = 1
                 step_results = defaultdict(list)
 
         # For shared parameters: mean over one block
-        if type(parameter) is shared_parameter:
-            results_mean_shared = defaultdict(list)
-            results_std_shared = defaultdict(list)
-            for block_id in range(4):
-                results_mean_shared[block_id] = np.mean([results_mean[n_id] for n_id in range(block_id,block_id+128)], axis = 0)
-                results_std_shared[block_id] = np.mean([results_std[n_id] for n_id in range(block_id,block_id+128)], axis = 0)
+        if isinstance(parameter, shared_parameter):
+            self.results_mean_shared = defaultdict(list)
+            self.results_std_shared = defaultdict(list)
+            for block in self.get_blocks():
+                neurons_on_block = [n.getNeuronOnHICANN(block) for n in Coordinate.iter_all(NeuronOnFGBlock)]
+                self.results_mean_shared[block] = np.mean([results_mean[n_coord] for n_coord in neurons_on_block], axis = 0)
+                self.results_std_shared[block] = np.mean([results_std[n_coord] for n_coord in neurons_on_block], axis = 0)
 
+        steps = self.get_steps()
 
-
-        if type(parameter) is shared_parameter:
-            all_steps = self.get_shared_steps()
-            for block_id in range(4):
-                results_mean_shared[block_id] = np.array(results_mean_shared[block_id])
-                results_std_shared[block_id] = np.array(results_std_shared[block_id])
-                steps = [HCtoDAC(step[parameter].value, parameter, rounded = False) for step in all_steps[block_id]]
-                if linear_fit:
-                    # linear fit
-                    m, b = np.linalg.lstsq(zip(results_mean_shared[block_id], [1]*len(results_mean_shared[block_id])), steps)[0]
-                    coeffs = [b, m]
-                else:
-                    # fit polynomial to results
-                    weight = 1./(results_std_shared[block_id] + 1e-8)  # add a tiny value because std may be zero
-                    # note that np.polynomial.polynomial.polyfit coefficients have
-                    # reverse order compared to np.polyfit
-                    # to reverse coefficients: rcoeffs = coeffs[::-1]
-                    coeffs = np.polynomial.polynomial.polyfit(results_mean_shared[block_id], steps, 2, w=weight)
-                    # TODO check coefficients for broken behavior
-                results_polynomial[block_id] = create_pycalibtic_polynomial(coeffs)
-            self.results_mean_shared = results_mean_shared
-            self.results_std_shared = results_std_shared
+        if isinstance(parameter, shared_parameter):
+            for block in self.get_blocks():
+                self.results_polynomial[block] = self.do_fit(block, parameter, steps, 
+                        self.results_mean_shared[block], self.results_std_shared[block], dim)
 
         else: #if neuron_parameter:
-            all_steps = self.get_steps()
-            for neuron_id in neuron_ids:
-                results_mean[neuron_id] = np.array(results_mean[neuron_id])
-                results_std[neuron_id] = np.array(results_std[neuron_id])
-                steps = [HCtoDAC(step[parameter].value, parameter) for step in all_steps[neuron_id]]
-                if linear_fit:
-                    # linear fit
-                    m, b = np.linalg.lstsq(zip(results_mean[neuron_id], [1]*len(results_mean[neuron_id])), steps)[0]
-                    coeffs = [b, m]
-                    # TODO find criteria for broken neurons. Until now, no broken neurons exist
-                    if self.isbroken(coeffs):
-                        results_broken.append(neuron_id)
-                        self.logger.INFO("Neuron {0} marked as broken with coefficients of {1:.2f} and {2:.2f}".format(neuron_id, m, b))
-                    #if parameter is neuron_parameter.E_l:
-                    #    if not (m > 1.0 and m < 1.5 and b < 0 and b > -500):
-                    #        # this neuron is broken
-                    #        results_broken.append(neuron_id)
-                else:
-                    # fit polynomial to results
-                    weight = 1./(results_std[neuron_id] + 1e-8)  # add a tiny value because std may be zero
-
-                    # note that np.polynomial.polynomial.polyfit coefficients have
-                    # reverse order compared to np.polyfit
-                    # to reverse coefficients: rcoeffs = coeffs[::-1]
-                    coeffs = np.polynomial.polynomial.polyfit(results_mean[neuron_id], steps, 2, w=weight)
-                    # TODO check coefficients for broken behavior
-                self.logger.INFO("Neuron {} calibrated successfully with coefficients {}".format(neuron_id, coeffs))
-                results_polynomial[neuron_id] = create_pycalibtic_polynomial(coeffs)
-            self.results_mean = results_mean
-            self.results_std = results_std
-
-        # make final results available
-        self.results_polynomial = results_polynomial
-        self.results_broken = results_broken
+            for neuron in neurons:
+                self.results_polynomial[neuron] = self.do_fit(neuron, parameter, steps, 
+                        self.results_mean[neuron], self.results_std[neuron], dim)
 
     def store_calibration_results(self, parameter):
         """This base class function can be used by child classes as store_results."""
@@ -209,41 +167,47 @@ class BaseCalibration(BaseExperiment):
 
         logger = self.logger
 
-        if type(parameter) is neuron_parameter:
-            isneuron = True
-        else:
-            isneuron = False
+        isneuron = isinstance(parameter, neuron_parameter)
 
         if isneuron:
             collection = self._calib_nc
+            CollectionType = pycalibtic.NeuronCalibration 
+            redman = self._red_nrns
         else:
             collection = self._calib_bc
+            CollectionType = pycalibtic.SharedCalibration()
+            redman = None
 
-        nrns = self._red_nrns
 
-        for index in results:
-            if isneuron:
-                coord = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(index))
-            else:
-                coord = pyhalbe.Coordinate.FGBlockOnHICANN(pyhalbe.Coordinate.Enum(index))
-
-            broken = index in self.results_broken
-            if broken:
-                if nrns.has(coord):  # not disabled
-                    nrns.disable(coord)
-                    # TODO reset/delete calibtic function for this neuron
+        for coord, result in results.iteritems():
+            index = coord.id().value()
+            if result is None and redman and not redman.has(coord):
+                redman.disable(coord)
+                # TODO reset/delete calibtic function for this neuron
             else:  # store in calibtic
                 if not collection.exists(index):
                     logger.INFO("No existing calibration data for neuron {} found, creating default dataset".format(index))
-                    if isneuron:
-                        cal = pycalibtic.NeuronCalibration()
-                    else:
-                        cal = pycalibtic.SharedCalibration()
+                    cal = CollectionType()
                     collection.insert(index, cal)
-                collection.at(index).reset(parameter, results[index])
+                collection.at(index).reset(parameter, result)
 
         self.logger.INFO("Storing calibration results")
         self.store_calibration(md)
+
+    def do_fit(self, coord, parameter, steps, mean, std, dim):
+        step_values = [step[coord][parameter].toDAC().value for step in steps]
+        # TODO think about the weight thing
+        weight = 1./(np.array(std) + 1e-8)  # add a tiny value because std may be zero
+        coeffs = np.polynomial.polynomial.polyfit(mean, step_values, dim, w=weight)
+        coeffs = coeffs[::-1]
+
+        if self.isbroken(coeffs):
+            self.logger.WARN("{} with coefficients {} marked as broken.".format(coord, coeffs))
+            return None
+        else:
+            self.logger.INFO("Neuron {} calibrated successfully with coefficients {}".format(coord, coeffs))
+            return create_pycalibtic_polynomial(coeffs)
+
 
     def isbroken(self, coefficients):
         """ Specify the function that that tells us if a neuron is broken based on the fit coefficients.
@@ -266,15 +230,8 @@ class BaseTest(BaseCalibration):
                 value.apply_calibration = True
         return parameters
 
-    def get_shared_parameters(self):
-        parameters = super(BaseTest, self).get_shared_parameters()
-        for block_id in range(4):
-            for param, value in parameters[block_id].iteritems():
-                value.apply_calibration = True
-        return parameters
-
     def get_steps(self):
-        return self.get_steps_impl(self, True)
+        return self.get_steps_impl(True)
 
     def process_calibration_results(self, neuron_ids, parameter, linear_fit=False):
         pass

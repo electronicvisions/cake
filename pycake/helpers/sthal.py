@@ -75,11 +75,10 @@ class StHALContainer(object):
             self.connect()
         self.wafer.configure(pysthal.HICANNConfigurator())
 
-    def switch_analog_output(self, neuron_id, l1address=0, analog=0):
+    def switch_analog_output(self, coord_neuron, l1address=0, analog=0):
         """Write analog output configuration (only)."""
         if not self._connected:
             self.connect()
-        coord_neuron = Coordinate.NeuronOnHICANN(Coordinate.Enum(neuron_id))
         self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(l1address))
         self.hicann.enable_aout(coord_neuron, Coordinate.AnalogOnHICANN(analog))
         self.wafer.configure(self._cfg_analog)
