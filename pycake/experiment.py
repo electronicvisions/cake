@@ -206,7 +206,6 @@ class BaseExperiment(object):
         def get_calibrated(parameters, ncal, coord, param):
             value = parameters[param]
             dac_value = value.toDAC().value #implicit range check!
-            dac_value_uncalibrated = dac_value
             if ncal and value.apply_calibration:
                 try:
                     calibration = ncal.at(param)
@@ -219,18 +218,18 @@ class BaseExperiment(object):
             # TODO check with Dominik
             if param == neuron_parameter.E_syni and self.E_syni_dist:
                 E_l_uncalibrated = parameters[neuron_parameter.E_l]
-                calibrated_E_l = get_calibrated(E_l_uncalibrated, True, coord, neuron_parameter.E_l)
-                dac_value = calibrated_E_l + self.E_syni_dist * 1023/1800.
+                calibrated_E_l = get_calibrated(parameters, True, coord, neuron_parameter.E_l)
+                dac_value = int(calibrated_E_l + self.E_syni_dist * 1023/1800.)
 
             if param == neuron_parameter.E_synx and self.E_synx_dist:
-                E_l_uncalibrated = base_params[coord][neuron_parameter.E_l]
-                calibrated_E_l = get_calibrated(E_l_uncalibrated, True, coord, neuron_parameter.E_l)
-                dac_value = calibrated_E_l + self.E_synx_dist * 1023/1800.
+                E_l_uncalibrated = parameters[neuron_parameter.E_l]
+                calibrated_E_l = get_calibrated(parameters, True, coord, neuron_parameter.E_l)
+                dac_value = int(calibrated_E_l + self.E_synx_dist * 1023/1800.)
 
             if dac_value < 0 or dac_value > 1023:
                 msg = "Calibrated value for {} on Neuron {} has value {} out of range. Using uncalibrated value."
                 self.logger.WARN(msg.format(param.name, coord.id(), dac_value))
-                dac_value = dac_value_uncalibrated
+                dac_value = value.toDAC().value
 
             return dac_value
 
