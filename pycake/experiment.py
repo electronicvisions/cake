@@ -299,7 +299,8 @@ class BaseExperiment(object):
             pass
 
         if self.save_results:
-            self.pickle(self.sthal.hicann.floating_gates, self.folder, "floating_gates")
+            fg_folder = os.path.join(self.folder, 'floating_gates')
+            self.pickle(self.sthal.hicann.floating_gates, fg_folder, "step{}rep{}.p".format(step_id, rep_id))
 
         self.sthal.write_config()
 

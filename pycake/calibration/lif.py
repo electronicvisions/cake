@@ -79,7 +79,7 @@ class Calibrate_V_reset_shift(Calibrate_V_reset):
 
     def init_experiment(self):
         super(Calibrate_V_reset_shift, self).init_experiment()
-        self.description = self.description + "Calibrate_V_reset_shift."
+        self.description = self.description + " Calibrate_V_reset_shift."
 
     def get_shared_steps(self):
         steps = []
@@ -137,35 +137,36 @@ class Calibrate_V_reset_shift(Calibrate_V_reset):
         self.results_broken = results_broken
 
     def store_results(self):
-        """This base class function can be used by child classes as store_results."""
-        results = self.results_polynomial
-        md = pycalibtic.MetaData()
-        md.setAuthor("pycake")
-        md.setComment("calibration")
+        pass
+        #"""This base class function can be used by child classes as store_results."""
+        #results = self.results_polynomial
+        #md = pycalibtic.MetaData()
+        #md.setAuthor("pycake")
+        #md.setComment("calibration")
 
-        logger = self.logger
+        #logger = self.logger
 
-        collection = self._calib_nc
+        #collection = self._calib_nc
 
-        nrns = self._red_nrns
+        #nrns = self._red_nrns
 
-        for index in results:
-            coord = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(index))
-            broken = index in self.results_broken
-            if broken:
-                if nrns.has(coord):  # not disabled
-                    nrns.disable(coord)
-                    # TODO reset/delete calibtic function for this neuron
-            else:  # store in calibtic
-                if not collection.exists(index):
-                    logger.INFO("No existing calibration data for neuron {} found, creating default dataset".format(index))
-                    cal = pycalibtic.NeuronCalibration()
-                    collection.insert(index, cal)
-                collection.at(index).reset(21, results[index])
+        #for index in results:
+        #    coord = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(index))
+        #    broken = index in self.results_broken
+        #    if broken:
+        #        if nrns.has(coord):  # not disabled
+        #            nrns.disable(coord)
+        #            # TODO reset/delete calibtic function for this neuron
+        #    else:  # store in calibtic
+        #        if not collection.exists(index):
+        #            logger.INFO("No existing calibration data for neuron {} found, creating default dataset".format(index))
+        #            cal = pycalibtic.NeuronCalibration()
+        #            collection.insert(index, cal)
+        #        collection.at(index).reset(21, results[index])
 
 
-        self.logger.INFO("Storing calibration results")
-        self.store_calibration(md)
+        #self.logger.INFO("Storing calibration results")
+        #self.store_calibration(md)
 
 
 """
