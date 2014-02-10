@@ -20,6 +20,7 @@ from pycake.helpers.trafos import HWtoDAC, DACtoHW, HCtoDAC, DACtoHC, HWtoHC, HC
 import pickle
 import time
 import os
+import bz2
 
 import copy
 
@@ -298,10 +299,7 @@ class BaseExperiment(object):
             pass
 
         if self.save_results:
-            fgc = self.sthal.hicann.floating_gates
-            if not os.path.isdir(os.path.join(self.folder,"floating_gates")):
-                os.mkdir(os.path.join(self.folder,"floating_gates"))
-            pickle.dump(fgc, open(os.path.join(self.folder,"floating_gates", "step{}rep{}.p".format(step_id,rep_id)), 'wb'))
+            self.pickle(self.sthal.hicann.floating_gates, self.folder, "floating_gates")
 
         self.sthal.write_config()
 
@@ -386,19 +384,20 @@ class BaseExperiment(object):
         # Save default and step parameters and description to files
         # Also save sthal container to extract standard sthal parameters later:
         if self.save_results:
-            if not os.path.isdir(self.folder):
-                os.mkdir(self.folder)
-            pickle.dump(self.experiment_parameters, open(os.path.join(self.folder,'parameterfile.p'), 'wb'))
-            pickle.dump(self.sthal.hicann, open(os.path.join(self.folder,'sthalcontainer.p'),"wb"))
-            pickle.dump(self.sthal.status(), open(os.path.join(self.folder,'wafer_status.p'),'wb'))
+            self.pickle(self.experiment_parameters, self.folder, 'parameterfile.p')
+            self.pickle(self.sthal.hicann, self.folder, 'sthalcontainer.p')
+            self.pickle(self.repetitions, self.folder, "repetitions.p")
             open(os.path.join(self.folder,'description.txt'), 'w').write(self.description)
             if self.target_parameter:
-                pickle.dump(self.target_parameter, open(os.path.join(self.folder, 'target_parameter.p'), 'wb'))
+                self.pickle(self.target_parameter, self.folder, 'target_parameter.p')
                 
 
             # dump neuron parameters and steps:
-            pickle.dump(parameters, open(os.path.join(self.folder,"parameters.p"),"wb"))
-            pickle.dump(steps, open(os.path.join(self.folder,"steps.p"),"wb"))
+            self.pickle(parameters, self.folder, "parameters.p")
+            self.pickle(steps, self.folder, "steps.p")
+
+            # This connects implicitly to the wafer
+            self.pickle(self.sthal.status(), self.folder, 'wafer_status.p')
 
         logger.INFO("Experiment {}".format(self.description))
         logger.INFO("Created folders in {}".format(self.folder))
@@ -416,26 +415,42 @@ class BaseExperiment(object):
         self.process_results(neuron_ids)
         self.store_results()
 
+    def pickle(self, data, folder, filename):
+        if not os.path.isdir(folder):
+            os.makedirs(folder)
+        with open(os.path.join(folder, filename), "wb") as f:
+                pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+
+    def pickle_compressed(self, data, folder, filename):
+        if os.path.splitext(filename)[1] != '.bz2':
+            filename += '.bz2'
+        if not os.path.isdir(folder):
+            os.makedirs(folder)
+        with bz2.BZ2File(os.path.join(folder, filename), "wb") as f:
+                pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+
+    def save_trace(self, t, v, neuron, step_id, rep_id):
+        if self.save_traces:
+            folder = os.path.join(self.folder,"traces", "step{}rep{}".format(step_id, rep_id))
+            filename = "neuron_{}.p".format(neuron.id().value())
+            self.pickle([t, v], folder, filename)
+
+    def save_result(self, result, step_id, rep_id):
+        if self.save_results:
+            folder = os.path.join(self.folder, "results")
+            filename = "step{}_rep{}.p".format(step_id, rep_id)
+            self.pickle(result, folder, filename)
+
     def measure(self, neuron_ids, step_id, rep_id):
         """Perform measurements for a single step on one or multiple neurons."""
         results = {}
         for neuron_id in neuron_ids:
             self.sthal.switch_analog_output(neuron_id)
             t, v = self.sthal.read_adc()
-            # Save traces in files:
-            if self.save_traces:
-                folder = os.path.join(self.folder,"traces")
-                if not os.path.isdir(os.path.join(self.folder,"traces")):
-                    os.mkdir(os.path.join(self.folder,"traces"))
-                if not os.path.isdir(os.path.join(self.folder,"traces", "step{}rep{}".format(step_id, rep_id))):
-                    os.mkdir(os.path.join(self.folder, "traces", "step{}rep{}".format(step_id, rep_id)))
-                pickle.dump([t, v], open(os.path.join(self.folder,"traces", "step{}rep{}".format(step_id, rep_id), "neuron_{}.p".format(neuron_id)), 'wb'))
+            self.save_trace(t, v, neuron_id, step_id, rep_id)
             results[neuron_id] = self.process_trace(t, v, neuron_id, step_id, rep_id)
         # Now store measurements in a file:
-        if self.save_results:
-            if not os.path.isdir(os.path.join(self.folder,"results/")):
-                os.mkdir(os.path.join(self.folder,"results/"))
-            pickle.dump(results, open(os.path.join(self.folder,"results/","step{}_rep{}.p".format(step_id, rep_id)), 'wb'))
+        self.save_result(results, step_id, rep_id)
         self.all_results.append(results)
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):

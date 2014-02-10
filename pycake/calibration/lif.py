@@ -287,28 +287,22 @@ class Calibrate_I_gl(BaseCalibration):
             mean_trace = np.array(mean_trace)
             std_trace = np.array(std_trace)
             std_trace /= np.sqrt(np.floor(len(v)/len(mean_trace)))
+
             t = t[0:len(mean_trace)]
             v = mean_trace
 
             # Save traces in files:
             if self.save_traces:
-                folder = os.path.join(self.folder,"traces")
-                if not os.path.isdir(os.path.join(self.folder,"traces")):
-                    os.mkdir(os.path.join(self.folder,"traces"))
-                if not os.path.isdir(os.path.join(self.folder,"traces", "step{}rep{}".format(step_id, rep_id))):
-                    os.mkdir(os.path.join(self.folder, "traces", "step{}rep{}".format(step_id, rep_id)))
-                pickle.dump([t, v], open(os.path.join(self.folder,"traces", "step{}rep{}".format(step_id, rep_id), "neuron_{}.p".format(neuron_id)), 'wb'))
+                self.save_trace(t, v, neuron_id, step_id, rep_id)
 
             results[neuron_id], chisquares[neuron_id] = self.process_trace(t, mean_trace, std_trace, neuron_id, step_id, rep_id)
 
         # Now store measurements in a file:
         if self.save_results:
-            if not os.path.isdir(os.path.join(self.folder,"results/")):
-                os.mkdir(os.path.join(self.folder,"results/"))
-            pickle.dump(results, open(os.path.join(self.folder,"results/","step{}_rep{}.p".format(step_id, rep_id)), 'wb'))
-            if not os.path.isdir(os.path.join(self.folder,"chisquares/")):
-                os.mkdir(os.path.join(self.folder,"chisquares/"))
-            pickle.dump(chisquares, open(os.path.join(self.folder,"chisquares/","step{}_rep{}.p".format(step_id, rep_id)), 'wb'))
+            self.save_result(results, step_id, rep_id)
+            #if not os.path.isdir(os.path.join(self.folder,"chisquares/")):
+            #    os.mkdir(os.path.join(self.folder,"chisquares/"))
+            #pickle.dump(chisquares, open(os.path.join(self.folder,"chisquares/","step{}_rep{}.p".format(step_id, rep_id)), 'wb'))
         self.all_results.append(results)
 
 
@@ -317,7 +311,7 @@ class Calibrate_I_gl(BaseCalibration):
         C = 2.16456e-12
         tau_m, red_chisquare = self.fit_exponential(mean_trace, std_trace)
         g_l = C / tau_m
-        return tau_m, red_chisquare
+        return g_l, red_chisquare
 
     def get_decay_fit_range(self, trace):
         """Cuts the trace for the exponential fit. This is done by calculating the second derivative."""
