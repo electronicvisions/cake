@@ -27,11 +27,8 @@ def _find_spikes_in_preout(trace):
         positions.append(pos)
     return np.array(positions)
 
-def createTraceAverager(coord_wafer, coord_hicann):
+def _get_preout_trace(coord_wafer, coord_hicann, bg_rate, recording_time):
     analog = Coordinate.AnalogOnHICANN(0)
-    bg_rate = 100.0e3
-    recording_time = 1000.0 / bg_rate
-
     sthal = StHALContainer(coord_wafer, coord_hicann, analog, recording_time)
     pylogging.set_loglevel(pylogging.get("pycake.helper.sthal"), pylogging.LogLevel.DEBUG)
     # We need SynapseDriverOnHICANN(Enum(111)), this should be covered
@@ -39,22 +36,28 @@ def createTraceAverager(coord_wafer, coord_hicann):
     sthal.hicann.analog.set_preout(analog)
     # TODO skip floating gates to speed up
     sthal.write_config()
-
     times, trace = sthal.read_adc()
-    pos = _find_spikes_in_preout(trace)
+    sthal.disconnect()
+    return trace
 
+def createTraceAverager(coord_wafer, coord_hicann):
+    analog = Coordinate.AnalogOnHICANN(0)
+    bg_rate = 100.0e3
+    recording_time = 1000.0 / bg_rate
+    trace = _get_preout_trace(
+            coord_wafer, coord_hicann, bg_rate, recording_time)
+    pos = _find_spikes_in_preout(trace)
     n = len(pos)
-    
     expected_t = np.arange(n) / bg_rate
     adc_freq, _ = np.polyfit(expected_t, pos, 1)
-
-    sthal.disconnect()
-
     return TraceAverager(adc_freq)
 
 class TraceAverager(object):
     def __init__(self,  adc_freq):
         self.adc_freq = adc_freq
+        self.logger = pylogging.get("pycake.helper.TraceAverager")
+        msg = "Initialized TraceAverager with adc frequency of {} MHz"
+        self.logger.INFO(msg.format(self.adc_freq))
 
     def _get_chunks(self, trace, dt):
         n = len(trace)

@@ -26,6 +26,9 @@ class StHALContainer(object):
                  recording_time=1.e-4):
         """Initialize StHAL. kwargs default to vertical setup configuration."""
 
+        self.coord_wafer = coord_wafer
+        self.coord_hicann = coord_hicann
+
         wafer = pysthal.Wafer(coord_wafer)  # Stateful HICANN Container
         hicann = wafer[coord_hicann]
 
@@ -113,7 +116,7 @@ class StHALContainer(object):
         assert(rate <= 5.0e6)
 
         l1address = pyhalbe.HICANN.L1Address(0)
-        bg_period = int(math.floor(self.hicann.pll_freq/rate) - 1)# + 1)
+        bg_period = int(math.floor(self.hicann.pll_freq/rate) - 1)
 
         for bg in Coordinate.iter_all(Coordinate.BackgroundGeneratorOnHICANN):
             generator = self.hicann.layer1[bg]
@@ -157,17 +160,25 @@ class StHALContainer(object):
         driver[top].set_decoder(bottom, driver_decoder)
         driver[top].set_gmax_div(left, 1)
         driver[top].set_gmax_div(right, 1)
-        driver[top].set_syn_in(left, 1)
-        driver[top].set_syn_in(right, 0)
+        driver[top].set_syn_in(left, 1) # Esynx
+        driver[top].set_syn_in(right, 0) # Esyni, perhaps
         driver[top].set_gmax(0)
         driver[bottom] = driver[top]
         driver[bottom].set_syn_in(left, 0)
+        driver[bottom].set_syn_in(right, 1)
+
+        if exitatory:
+            w_top = [pyhalbe.HICANN.SynapseWeight(15)] * 256
+            w_bottom = [pyhalbe.HICANN.SynapseWeight(0)] * 256
+        else:
+            w_top = [pyhalbe.HICANN.SynapseWeight(0)] * 256
+            w_bottom = [pyhalbe.HICANN.SynapseWeight(15)] * 256
+
 
         synapse_line_top    = Coordinate.SynapseRowOnHICANN(driver_c, top)
         synapse_line_bottom = Coordinate.SynapseRowOnHICANN(driver_c, bottom)
-        weights = [pyhalbe.HICANN.SynapseWeight(15)] * 256
-        self.hicann.synapses[synapse_line_top].weights[:] = weights
-        self.hicann.synapses[synapse_line_bottom].weights[:] = weights
+        self.hicann.synapses[synapse_line_top].weights[:] = w_top
+        self.hicann.synapses[synapse_line_bottom].weights[:] = w_bottom
         synapse_decoder = [l1address.getSynapseDecoderMask()] * 256
         self.hicann.synapses[synapse_line_top].decoders[:] = synapse_decoder
         self.hicann.synapses[synapse_line_bottom].decoders[:] = synapse_decoder
