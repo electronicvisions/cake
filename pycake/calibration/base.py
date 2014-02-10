@@ -142,9 +142,9 @@ class BaseCalibration(BaseExperiment):
             self.results_mean_shared = defaultdict(list)
             self.results_std_shared = defaultdict(list)
             for block in self.get_blocks():
-                neurons_on_block = [n.getNeuronOnHICANN(block) for n in Coordinate.iter_all(NeuronOnFGBlock)]
-                self.results_mean_shared[block] = np.mean([results_mean[n_coord] for n_coord in neurons_on_block], axis = 0)
-                self.results_std_shared[block] = np.mean([results_std[n_coord] for n_coord in neurons_on_block], axis = 0)
+                neurons_on_block = [n.getNeuronOnHICANN(block) for n in Coordinate.iter_all(Coordinate.NeuronOnFGBlock)]
+                self.results_mean_shared[block] = np.mean([self.results_mean[n_coord] for n_coord in neurons_on_block], axis = 0)
+                self.results_std_shared[block] = np.mean([self.results_std[n_coord] for n_coord in neurons_on_block], axis = 0)
 
         steps = self.get_steps()
 
@@ -175,7 +175,7 @@ class BaseCalibration(BaseExperiment):
             redman = self._red_nrns
         else:
             collection = self._calib_bc
-            CollectionType = pycalibtic.SharedCalibration()
+            CollectionType = pycalibtic.SharedCalibration
             redman = None
 
 

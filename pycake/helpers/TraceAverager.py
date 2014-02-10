@@ -33,7 +33,6 @@ def createTraceAverager(coord_wafer, coord_hicann):
     recording_time = 1000.0 / bg_rate
 
     sthal = StHALContainer(coord_wafer, coord_hicann, analog, recording_time)
-    pylogging.set_loglevel(pylogging.get("pycake.helper.sthal"), pylogging.LogLevel.DEBUG)
     # We need SynapseDriverOnHICANN(Enum(111)), this should be covered
     sthal.stimulateNeurons(bg_rate, 4)
     sthal.hicann.analog.set_preout(analog)

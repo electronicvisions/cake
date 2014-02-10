@@ -61,7 +61,6 @@ if parameters["clear"]:
 
 sthal = StHALContainer(coord_wafer, coord_hicann)
 
-pylogging.set_loglevel(default_logger, pylogging.LogLevel.INFO)
 
 def check_for_existing_calbration(parameter):
     path = parameters['backend_c']
@@ -124,7 +123,7 @@ def do_calibration(Calibration):
 
     # TODO check from here (and also above ;) )
     calib = Calibration(neurons, sthal, parameters)
-    pylogging.set_loglevel(calib.logger, pylogging.LogLevel.TRACE)
+    pylogging.set_loglevel(calib.logger, pylogging.LogLevel.INFO)
     try:
         calib.run_experiment()
     except Exception,e:
@@ -138,6 +137,12 @@ def do_calibration(Calibration):
                     print e
                     pass
         raise
+
+
+
+
+
+pylogging.set_loglevel(default_logger, pylogging.LogLevel.ERROR)
 
 if parameters["calibrate"]:
     for calibration in [synapse.Calibrate_E_synx, synapse.Calibrate_E_syni,

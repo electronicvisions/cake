@@ -230,7 +230,7 @@ class Calibrate_I_gl(BaseCalibration):
 
     def init_experiment(self):
         super(Calibrate_I_gl, self).init_experiment()
-        self.sthal.recording_time = 1e-3
+        self.sthal.recording_time = 5e-3
         self.stim_length = 65
         self.pulse_length = 15
 
@@ -240,34 +240,16 @@ class Calibrate_I_gl(BaseCalibration):
         coord_wafer = coord_hglobal.wafer()
         coord_hicann = coord_hglobal.on_wafer()
         self.trace_averager = createTraceAverager(coord_wafer, coord_hicann)
+        self.logger.INFO("{}: Trace averager created with ACD clock of {} Hz".format(time.asctime(), self.trace_averager.adc_freq))
 
         # TEMPORARY SOLUTION:
-        self.save_traces = True
+        # self.save_traces = True
 
     def prepare_measurement(self, step_parameters, step_id, rep_id):
-        """Prepare measurement.
+        """Prepare measurement. This is done for each repetition,
         Perform reset, write general hardware settings.
+        For I_gl measurement: Set current stimulus
         """
-        neuron_parameters = step_parameters[0]
-        shared_parameters = step_parameters[1]
-
-        fgc = pyhalbe.HICANN.FGControl()
-        # Set neuron parameters for each neuron
-        for neuron_id in self.get_neurons():
-            coord = Coordinate.NeuronOnHICANN(Enum(neuron_id))
-            for parameter in neuron_parameters[neuron_id]:
-                value = neuron_parameters[neuron_id][parameter]
-                fgc.setNeuron(coord, parameter, value)
-
-        # Set block parameters for each block
-        for block_id in range(4):
-            coord = pyhalbe.Coordinate.FGBlockOnHICANN(pyhalbe.Coordinate.Enum(block_id))
-            for parameter in shared_parameters[block_id]:
-                value = shared_parameters[block_id][parameter]
-                fgc.setShared(coord, parameter, value)
-
-        self.sthal.hicann.floating_gates = fgc
-
         stimulus = pyhalbe.HICANN.FGStimulus()
         stimulus.setPulselength(self.pulse_length)
         stimulus.setContinuous(True)
@@ -282,6 +264,7 @@ class Calibrate_I_gl(BaseCalibration):
             pass
 
         if self.save_results:
+            fgc = self.sthal.hicann.floating_gates
             if not os.path.isdir(os.path.join(self.folder,"floating_gates")):
                 os.mkdir(os.path.join(self.folder,"floating_gates"))
             pickle.dump(fgc, open(os.path.join(self.folder,"floating_gates", "step{}rep{}.p".format(step_id,rep_id)), 'wb'))
@@ -300,8 +283,12 @@ class Calibrate_I_gl(BaseCalibration):
             t, v = self.sthal.read_adc()
 
             # Convert the whole trace into a mean trace
-            mean_trace = self.trace_averager.get_average(v, dt)[0]
-            t, v = t[0:len(mean_trace)], mean_trace
+            mean_trace, std_trace = self.trace_averager.get_average(v, dt)
+            mean_trace = np.array(mean_trace)
+            std_trace = np.array(std_trace)
+            std_trace /= np.sqrt(np.floor(len(v)/len(mean_trace)))
+            t = t[0:len(mean_trace)]
+            v = mean_trace
 
             # Save traces in files:
             if self.save_traces:
@@ -312,7 +299,7 @@ class Calibrate_I_gl(BaseCalibration):
                     os.mkdir(os.path.join(self.folder, "traces", "step{}rep{}".format(step_id, rep_id)))
                 pickle.dump([t, v], open(os.path.join(self.folder,"traces", "step{}rep{}".format(step_id, rep_id), "neuron_{}.p".format(neuron_id)), 'wb'))
 
-            results[neuron_id], chisquares[neuron_id] = self.process_trace(t, v, neuron_id, step_id, rep_id)
+            results[neuron_id], chisquares[neuron_id] = self.process_trace(t, mean_trace, std_trace, neuron_id, step_id, rep_id)
 
         # Now store measurements in a file:
         if self.save_results:
@@ -325,16 +312,16 @@ class Calibrate_I_gl(BaseCalibration):
         self.all_results.append(results)
 
 
-    def process_trace(self, t, v, neuron_id, step_id, rep_id):
+    def process_trace(self, t, mean_trace, std_trace, neuron_id, step_id, rep_id):
         # Capacity if bigcap is turned on:
         C = 2.16456e-12
-        tau_m, red_chisquare = self.fit_exponential(v)
+        tau_m, red_chisquare = self.fit_exponential(mean_trace, std_trace)
         g_l = C / tau_m
         return tau_m, red_chisquare
 
     def get_decay_fit_range(self, trace):
         """Cuts the trace for the exponential fit. This is done by calculating the second derivative."""
-        filter_width = 100e-9
+        filter_width = 250e-9 # Not a magic number! This was carefully tuned to give best results
         dt = 1/self.trace_averager.adc_freq
     
         diff = pylab.roll(trace, 1) - trace
@@ -359,7 +346,7 @@ class Calibrate_I_gl(BaseCalibration):
 
         return trace_cut, fittime
     
-    def fit_exponential(self, mean_trace, stim_length = 65):
+    def fit_exponential(self, mean_trace, std_trace, stim_length = 65):
         """ Fit an exponential function to the mean trace. """
         func = lambda x, tau, offset, a: a * np.exp(-(x - x[0]) / tau) + offset
     
@@ -371,6 +358,7 @@ class Calibrate_I_gl(BaseCalibration):
             trace_cut,
             [.5, 100., 0.1],
             full_output=True)
+            #sigma=std_trace[fittime],
     
         tau = expf[0] / self.trace_averager.adc_freq 
 

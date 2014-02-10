@@ -37,6 +37,8 @@ class BaseExperiment(object):
 
     Provides a function to run and process an experiment.
     """
+    target_parameter = None
+
     def __init__(self, neuron_ids, sthal_container, parameters, loglevel=None):
         self.experiment_parameters = parameters
         self.sthal = sthal_container
@@ -64,7 +66,10 @@ class BaseExperiment(object):
         if calibtic_backend:
             self.init_calibration()
 
-        self.logger = pylogging.get("pycake.experiment")
+        if self.target_parameter:
+            self.logger = pylogging.get("pycake.experiment.{}".format(self.target_parameter.name))
+        else:
+            self.logger = pylogging.get("pycake.experiment")
         if not loglevel is None:
             pylogging.set_loglevel(self.logger, pylogging.LogLevel.INFO)
 
@@ -183,7 +188,36 @@ class BaseExperiment(object):
 
         return result
 
-    def prepare_parameters(self, step):
+    def get_calibrated(self, parameters, ncal, coord, param):
+        value = parameters[param]
+        dac_value = value.toDAC().value #implicit range check!
+        dac_value_uncalibrated = dac_value
+        if ncal and value.apply_calibration:
+            try:
+                calibration = ncal.at(param)
+                dac_value = int(round(calibration.apply(dac_value)))
+            except (RuntimeError, IndexError),e:
+                pass
+            except Exception,e:
+                raise e
+
+        # TODO check with Dominik
+        if param == neuron_parameter.E_syni and self.E_syni_dist:
+            calibrated_E_l = self.get_calibrated(parameters, ncal, coord, neuron_parameter.E_l)
+            dac_value = calibrated_E_l + self.E_syni_dist * 1023/1800.
+
+        if param == neuron_parameter.E_synx and self.E_synx_dist:
+            calibrated_E_l = self.get_calibrated(parameters, ncal, coord, neuron_parameter.E_l)
+            dac_value = calibrated_E_l + self.E_synx_dist * 1023/1800.
+
+        if dac_value < 0 or dac_value > 1023:
+            msg = "Calibrated value for {} on Neuron {} has value {} out of range. Using uncalibrated value."
+            self.logger.WARN(msg.format(param.name, coord.id(), dac_value))
+            dac_value = dac_value_uncalibrated
+
+        return int(round(dac_value))
+
+    def prepare_parameters(self, step, step_id):
         """Prepare parameters before writing them to the hardware.
 
         This includes converting to DAC values, applying calibration and
@@ -203,36 +237,6 @@ class BaseExperiment(object):
         neuron_ids = self.get_neurons()
         base_parameters = self.get_parameters()
 
-        def get_calibrated(parameters, ncal, coord, param):
-            value = parameters[param]
-            dac_value = value.toDAC().value #implicit range check!
-            if ncal and value.apply_calibration:
-                try:
-                    calibration = ncal.at(param)
-                    dac_value = int(round(calibration.apply(dac_value)))
-                except (RuntimeError, IndexError),e:
-                    pass
-                except Exception,e:
-                    raise e
-
-            # TODO check with Dominik
-            if param == neuron_parameter.E_syni and self.E_syni_dist:
-                E_l_uncalibrated = parameters[neuron_parameter.E_l]
-                calibrated_E_l = get_calibrated(parameters, True, coord, neuron_parameter.E_l)
-                dac_value = int(calibrated_E_l + self.E_syni_dist * 1023/1800.)
-
-            if param == neuron_parameter.E_synx and self.E_synx_dist:
-                E_l_uncalibrated = parameters[neuron_parameter.E_l]
-                calibrated_E_l = get_calibrated(parameters, True, coord, neuron_parameter.E_l)
-                dac_value = int(calibrated_E_l + self.E_synx_dist * 1023/1800.)
-
-            if dac_value < 0 or dac_value > 1023:
-                msg = "Calibrated value for {} on Neuron {} has value {} out of range. Using uncalibrated value."
-                self.logger.WARN(msg.format(param.name, coord.id(), dac_value))
-                dac_value = value.toDAC().value
-
-            return dac_value
-
         for neuron in Coordinate.iter_all(NeuronOnHICANN):
             parameters = base_parameters[neuron]
             parameters.update(step[neuron])
@@ -245,7 +249,8 @@ class BaseExperiment(object):
                     ncal = self._calib_nc.at(neuron.id().value())
                     self.logger.TRACE("Calibration for Neuron {} found.".format(neuron.id()))
                 except (IndexError):
-                    self.logger.WARN("No calibration found for {}".format(neuron.id()))
+                    if step_id == 0:
+                        self.logger.WARN("No calibration found for neuron {}".format(neuron.id()))
                     pass
             else:
                 self.logger.WARN("Neuron {} marked as not working. Skipping calibration.".format(neuron.id()))
@@ -253,7 +258,7 @@ class BaseExperiment(object):
             for name, param in neuron_parameter.names.iteritems():
                 if name[0] == '_':
                     continue
-                value = get_calibrated(parameters, ncal, neuron,
+                value = self.get_calibrated(parameters, ncal, neuron,
                         param)
                 fgc.setNeuron(neuron, param, value)
 
@@ -265,7 +270,8 @@ class BaseExperiment(object):
             try:
                 bcal = self._calib_bc.at(block.id().value())
             except (IndexError):
-                self.logger.WARN("No calibration found for {}".format(block))
+                if step_id == 0:
+                    self.logger.WARN("No calibration found for neuron {}".format(block))
                 bcal = None
 
             even  = block.id().value()%2 == 0
@@ -276,15 +282,15 @@ class BaseExperiment(object):
                     continue
                 if name[0] == '_':
                     continue
-                value = get_calibrated(parameters, ncal, neuron,
+                value = self.get_calibrated(parameters, ncal, neuron,
                         param)
                 fgc.setShared(block, param, value)
 
         self.sthal.hicann.floating_gates = fgc
 
     def prepare_measurement(self, step_parameters, step_id, rep_id):
-        """Prepare measurement.
-        Perform reset, write general hardware settings.
+        """Prepare measurement. This is done for each repetition,
+        Perform reset, write general hardware settings which were set in prepare_parameters.
         """
 
         if self.bigcap is True:
@@ -385,26 +391,20 @@ class BaseExperiment(object):
             pickle.dump(self.experiment_parameters, open(os.path.join(self.folder,'parameterfile.p'), 'wb'))
             pickle.dump(self.sthal.hicann, open(os.path.join(self.folder,'sthalcontainer.p'),"wb"))
             pickle.dump(self.sthal.status(), open(os.path.join(self.folder,'wafer_status.p'),'wb'))
-            pickle.dump(self.repetitions, open(os.path.join(self.folder,"repetitions.p"), 'wb'))
             open(os.path.join(self.folder,'description.txt'), 'w').write(self.description)
+            if self.target_parameter:
+                pickle.dump(self.target_parameter, open(os.path.join(self.folder, 'target_parameter.p'), 'wb'))
+                
 
             # dump neuron parameters and steps:
-            paramdump = {nid: parameters[nid] for nid in self.get_neurons()}
-            pickle.dump(paramdump, open(os.path.join(self.folder,"parameters.p"),"wb"))
-            #stepdump = {sid: steps[0][sid] for sid in range(num_steps)}
+            pickle.dump(parameters, open(os.path.join(self.folder,"parameters.p"),"wb"))
             pickle.dump(steps, open(os.path.join(self.folder,"steps.p"),"wb"))
-
-            # dump shared parameters and steps:
-            #sharedparamdump = {bid: shared_parameters[bid] for bid in range(4)}
-            #pickle.dump(sharedparamdump, open(os.path.join(self.folder,"shared_parameters.p"),"wb"))
-            #sharedstepdump = {sid: shared_steps[0][sid] for sid in range(num_shared_steps)}
-            #pickle.dump(sharedstepdump, open(os.path.join(self.folder,"shared_steps.p"),"wb"))
 
         logger.INFO("Experiment {}".format(self.description))
         logger.INFO("Created folders in {}".format(self.folder))
 
         for step_id, step in enumerate(steps):
-                step_parameters = self.prepare_parameters(step)
+                step_parameters = self.prepare_parameters(step, step_id)
                 for r in range(self.repetitions):
                     logger.INFO("{} - Step {}/{} repetition {}/{}.".format(time.asctime(),step_id+1, num_steps, r+1, self.repetitions))
                     logger.INFO("{} - Preparing measurement --> setting floating gates".format(time.asctime()))

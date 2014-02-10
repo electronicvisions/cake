@@ -225,13 +225,12 @@ class StHALContainer(object):
             self.hicann.current_stimuli[block] = stimulus
         # TODO write to FG
 
-    def switch_current_stimulus(self, neuron_id):
+    def switch_current_stimulus(self, coord_neuron):
         """ Properly switches the current stimulus to a certain neuron.
             To avoid invalid neuron configurations (see HICANN doc page 33),
             all aouts and current stimuli are disabled before enabling them for one neuron."""
         if not self._connected:
             self.connect()
-        coord_neuron = Coordinate.NeuronOnHICANN(Coordinate.Enum(neuron_id))
         self.hicann.disable_aout()
         self.hicann.disable_current_stimulus()
         self.hicann.enable_current_stimulus(coord_neuron)
