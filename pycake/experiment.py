@@ -424,7 +424,7 @@ class BaseExperiment(object):
         if self.save_traces:
             folder = os.path.join(self.folder,"traces", "step{}rep{}".format(step_id, rep_id))
             filename = "neuron_{}.p".format(neuron.id().value())
-            self.pickle([t, v], folder, filename)
+            self.pickle_compressed([t, v], folder, filename)
 
     def save_result(self, result, step_id, rep_id):
         if self.save_results:
