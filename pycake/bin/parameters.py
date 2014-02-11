@@ -45,9 +45,9 @@ parameters = {
 
         # save_results will save all the measurements in a folder specified below.
         # This has nothing to do with the calibration data which is stored anyway!
-        # You can also save all the traces for debugging purposes. Note that this takes a lot of space (100 MB per repetition)
+        # You can also save all the traces for debugging purposes. Note that this takes a lot of space (20 MB per repetition)
         "save_results": True,
-        "save_traces":  False,
+        "save_traces":  True,
 
         # If you save al your measurements, each folder will have a description file. The following parameters let you specify additional info to be stored.
         "E_synx_description":   "E_synx calibration.",
@@ -67,6 +67,8 @@ parameters = {
         "coord_wafer":  pyhalbe.Coordinate.Wafer(),
         "coord_hicann": pyhalbe.Coordinate.HICANNOnWafer(pyhalbe.Coordinate.Enum(280)),
 
+        # Maximum tries in case an experiment should fail
+        "max_tries":    3,
 
         # Here you can set the fixed parameters for each calibration.
         # base_parameters are set for all calibrations 

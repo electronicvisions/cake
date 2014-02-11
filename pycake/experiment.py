@@ -414,6 +414,7 @@ class BaseExperiment(object):
         self.sthal.disconnect()
 
         logger.INFO("Processing results")
+        self.sthal.disconnect()
         self.process_results(neuron_ids)
         self.store_results()
 

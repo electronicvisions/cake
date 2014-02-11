@@ -125,7 +125,17 @@ def do_calibration(Calibration):
     calib = Calibration(neurons, sthal, parameters)
     pylogging.set_loglevel(calib.logger, pylogging.LogLevel.INFO)
     try:
-        calib.run_experiment()
+        # Try several times in case experiment should fail
+        for attempt in range(parameters["max_tries"]):
+            try:
+                calib.run_experiment()
+                return
+            except RuntimeError, e:
+                logger.ERROR(e)
+                logger.WARN("Restarting experiment. Try no. {}/{}".format(attempt+1, parameters["max_tries"]))
+        raise
+
+    # If all attemps failed:
     except Exception,e:
         folder = getattr(calib, "folder", None)
         if folder and os.path.exists(calib.folder):
@@ -148,13 +158,14 @@ if parameters["calibrate"]:
     for calibration in [synapse.Calibrate_E_synx, synapse.Calibrate_E_syni,
                         lif.Calibrate_E_l, lif.Calibrate_V_t, lif.Calibrate_V_reset, 
                         lif.Calibrate_V_reset_shift, lif.Calibrate_I_gl]:
-        do_calibration(calibration)
+            do_calibration(calibration)
+
 
 if parameters["measure"]:
     for calibration in [synapse.Test_E_synx, synapse.Test_E_syni,
             lif.Test_E_l, lif.Test_V_t, lif.Test_V_reset]:
                         #lif.Test_I_gl]:
-        do_calibration(calibration)
+            do_calibration(calibration)
 
-quit()
+#quit()
 

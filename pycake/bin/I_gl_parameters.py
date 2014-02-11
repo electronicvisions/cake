@@ -6,7 +6,7 @@ import os
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
 
-folder = "/home/np001/temp/I_gl_test"
+folder = "/home/np001/experiments/I_gl_ideal_curve"
 
 parameters = {
         # Set the ranges within which you want to calibrate
@@ -15,14 +15,14 @@ parameters = {
         "E_l_range":    range(500, 800, 50),      # 3 steps
         "V_t_range":    range(600, 900, 50),      # 3 steps
         "V_reset_range":range(400, 700, 50),      # 3 steps >> 17 steps * 40 seconds > ca 12 min
-        "I_gl_range":   range(600, 800, 50),     # 24 steps * 2 minutes > 48 minures
+        "I_gl_range":   range(0, 2500, 50),     # 24 steps * 2 minutes > 48 minures
 
         # How far should the E_syn values be set around E_l
         "E_syni_dist":  -100,
         "E_synx_dist":  100,
 
         # How many repetitions? Each repetition will take about 1 minute per step!
-        "repetitions":  2,
+        "repetitions":  3,
         
         # Set which calibrations you want to run
         "run_E_synx":   False,
@@ -30,7 +30,7 @@ parameters = {
         "run_E_l":      False,
         "run_V_t":      False,
         "run_V_reset":  False,
-        "run_I_gl":     True, # TODO g_l calibration is not yet implemented!
+        "run_I_gl":     False, # TODO g_l calibration is not yet implemented!
 
         # Measurement runs twice by default: first to generate calibration data, and a second time to measure the success of calibration
         # Here you can turn either of these runs on or off
@@ -39,7 +39,7 @@ parameters = {
 
         # Overwrite old calibration data? This will not reset defect neurons!
         # Or even clear ALL calibration data before starting?
-        "overwrite":    True,
+        "overwrite":    False,
         "clear":        False,
 
         # save_results will save all the measurements in a folder specified below.
@@ -49,12 +49,12 @@ parameters = {
         "save_traces":  True,
 
         # If you save al your measurements, each folder will have a description file. The following parameters let you specify additional info to be stored.
-        "E_synx_description":   "E_synx calibration.",
-        "E_syni_description":   "E_syni calibration",
-        "E_l_description":      "E_l calibration",
-        "V_t_description":      "V_t calibration",  
-        "V_reset_description":  "V_reset calibration",
-        "I_gl_description":     "g_l measurement. Filter width set to 250e-9. sigma weighting turned off in curve_fit",
+        "E_synx_description":   "E_synx calibration. Traces saved.",
+        "E_syni_description":   "E_syni calibration. Traces saved.",
+        "E_l_description":      "E_l calibration. Traces saved.",
+        "V_t_description":      "V_t calibration. Traces saved.",  
+        "V_reset_description":  "V_reset calibration. Traces saved.",
+        "I_gl_description":     "g_l measurement. Traces saved. Should be used to get the ideal g_l -> I_gl curve",
 
         # Where do you want to save the measurements (folder) and calibration data (backend_c for calibtic, backend_r for redman)?
         # Folders will be created if they do not exist already
@@ -66,6 +66,8 @@ parameters = {
         "coord_wafer":  pyhalbe.Coordinate.Wafer(),
         "coord_hicann": pyhalbe.Coordinate.HICANNOnWafer(pyhalbe.Coordinate.Enum(280)),
 
+        # Maximum tries in case an experiment should fail
+        "max_tries":    3,
 
         # Here you can set the fixed parameters for each calibration.
         # base_parameters are set for all calibrations 

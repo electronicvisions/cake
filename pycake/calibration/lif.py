@@ -284,7 +284,7 @@ class Calibrate_I_gl(BaseCalibration):
             t, v = self.sthal.read_adc()
 
             # Convert the whole trace into a mean trace
-            mean_trace, std_trace = self.trace_averager.get_average(v, dt)
+            mean_trace, std_trace, n_mean = self.trace_averager.get_average(v, dt)
             mean_trace = np.array(mean_trace)
             std_trace = np.array(std_trace)
             std_trace /= np.sqrt(np.floor(len(v)/len(mean_trace)))
