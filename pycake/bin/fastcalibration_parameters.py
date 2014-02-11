@@ -1,22 +1,21 @@
 import pyhalbe
 from pycake.experiment import Voltage, Current
 import copy
-import os
 import sys
-
+import os
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
 
-folder = "/tmp/calibration"
+folder = "/home/np001/temp/fast_test/"
 
 parameters = {
         # Set the ranges within which you want to calibrate
-        "E_synx_range": range(650,1000,25),    # 16 steps
-        "E_syni_range": range(350,750,25),    # 16 steps
-        "E_l_range":    range(500,800,25),      # 12 steps
-        "V_t_range":    range(600,900,25),      # 12 steps
-        "V_reset_range":range(400,700,25),      # 12 steps
-        "I_gl_range":   range(100,150,50),     # 50 steps
+        "E_synx_range": range(650,950,100),    # 3 steps
+        "E_syni_range": range(350,650,100),    # 3 steps
+        "E_l_range":    range(500,800,100),      # 3 steps
+        "V_t_range":    range(600,900,100),      # 3 steps
+        "V_reset_range":range(400,700,100),      # 3 steps
+        "I_gl_range":   range(100,500,100),     # 4 steps -> 19 steps
 
         # How far should the E_syn values be set around E_l
         "E_syni_dist":  -100,
@@ -24,14 +23,14 @@ parameters = {
 
         # How many repetitions? Each repetition will take about 1 minute per step!
         "repetitions":  1,
-
+        
         # Set which calibrations you want to run
         "run_E_synx":  True,
         "run_E_syni":  True,
         "run_E_l":     True,
         "run_V_t":     True,
         "run_V_reset": True,
-        "run_I_gl":     False, # TODO I_gl calibration is not yet implemented!
+        "run_I_gl":     False, # TODO g_l calibration is not yet implemented!
 
         # Measurement runs twice by default: first to generate calibration data, and a second time to measure the success of calibration
         # Here you can turn either of these runs on or off
@@ -39,30 +38,30 @@ parameters = {
         "measure":      True,
 
         # Overwrite old calibration data? This will not reset defect neurons!
-        "overwrite":    True,
         # Or even clear ALL calibration data before starting?
-        "clear":        False,
+        "overwrite":    True,
+        "clear":        True,
 
         # save_results will save all the measurements in a folder specified below.
         # This has nothing to do with the calibration data which is stored anyway!
-        # You can also save all the traces for debugging purposes. Note that this takes a lot of space (20 MB per repetition)
+        # You can also save all the traces for debugging purposes. Note that this takes a lot of space (100 MB per repetition)
         "save_results": True,
-        "save_traces":  True,
+        "save_traces":  False,
 
         # If you save al your measurements, each folder will have a description file. The following parameters let you specify additional info to be stored.
         "E_synx_description":   "E_synx calibration.",
         "E_syni_description":   "E_syni calibration",
         "E_l_description":      "E_l calibration",
-        "V_t_description":      "V_t calibration",
+        "V_t_description":      "V_t calibration",  
         "V_reset_description":  "V_reset calibration",
-        "I_gl_description":     "I_gl calibration",
+        "I_gl_description":     "g_l measurement",
 
         # Where do you want to save the measurements (folder) and calibration data (backend_c for calibtic, backend_r for redman)?
         # Folders will be created if they do not exist already
         "folder":       folder,
         "backend_c":    os.path.join(folder, "backends"),
         "backend_r":    os.path.join(folder, "backends"),
-
+        
         # Wafer and HICANN coordinates
         "coord_wafer":  pyhalbe.Coordinate.Wafer(),
         "coord_hicann": pyhalbe.Coordinate.HICANNOnWafer(pyhalbe.Coordinate.Enum(280)),
@@ -99,7 +98,6 @@ parameters = {
                                     neuron_parameter.I_convi: Current(0),
                                     neuron_parameter.V_syntcx: Voltage(1800),
                                     neuron_parameter.V_syntci: Voltage(1800),
-                                    neuron_parameter.V_t:       Voltage(1200),
                                     shared_parameter.V_reset:  Voltage(200),
                                 },
 
@@ -107,7 +105,6 @@ parameters = {
                                     neuron_parameter.I_convx: Current(0),
                                     neuron_parameter.V_syntci: Voltage(1800),
                                     neuron_parameter.V_syntcx: Voltage(1800),
-                                    neuron_parameter.V_t:       Voltage(1200),
                                     shared_parameter.V_reset:  Voltage(200),
                                 },
 

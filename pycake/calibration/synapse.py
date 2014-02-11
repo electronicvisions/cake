@@ -12,9 +12,11 @@ import pyhalbe
 import pycalibtic
 import pyredman as redman
 import pycake.logic.spikes
+import scipy.stats as stats
 from pycake.helpers.calibtic import create_pycalibtic_polynomial
 from pycake.helpers.sthal import StHALContainer, UpdateAnalogOutputConfigurator
 from pycake.helpers.units import Current, Voltage, DAC
+from pycake.calibration.base import BaseCalibration, BaseTest
 
 import pysthal
 
@@ -29,44 +31,14 @@ Enum = Coordinate.Enum
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
 
-
-from pycake.calibration.base import BaseCalibration
-
-import scipy.stats as stats
-
 class Calibrate_E_synx(BaseCalibration):
-    def get_parameters(self):
-        parameters = super(Calibrate_E_synx, self).get_parameters()
-        for neuron_id in self.get_neurons():
-            parameters[neuron_id].update({
-                neuron_parameter.I_gl: Current(0),
-                neuron_parameter.V_t: Voltage(1400, apply_calibration = True),
-                neuron_parameter.I_convi: Current(0),
-                neuron_parameter.I_convx: Current(2500),
-                neuron_parameter.V_syntcx: Voltage(1800),
-            })
-        return parameters
-
-    def get_shared_parameters(self):
-        parameters = super(Calibrate_E_synx, self).get_shared_parameters()
-        for block_id in range(4):
-            parameters[block_id][shared_parameter.V_reset] = Voltage(400, apply_calibration = True)
-        return parameters
-
-    
-    def get_steps(self):
-        steps = []
-        for E_syn_voltage in range(650,1050,50): # 4 steps
-            steps.append({neuron_parameter.E_synx: Voltage(E_syn_voltage),
-                })
-        return defaultdict(lambda: steps)
+    target_parameter = neuron_parameter.E_synx
 
     def init_experiment(self):
         super(Calibrate_E_synx, self).init_experiment()
-        self.repetitions = 2
-        self.save_results = True
-        self.save_traces = False
-        self.description = "Calibrate_E_synx via synaptic leakage."
+        self.E_syni_dist = None
+        self.E_synx_dist = None
+        self.sthal.stimulateNeurons(5.0e6, 4)
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         if np.std(v)*1000>1000:
@@ -76,53 +48,20 @@ class Calibrate_E_synx(BaseCalibration):
             self.logger.WARN("Trace for neuron {} bad. Is neuron spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
         return np.mean(v) * 1000 
     
-    def process_results(self, neuron_ids):
-        #pass
-        super(Calibrate_E_synx, self).process_calibration_results(neuron_ids, neuron_parameter.E_synx, linear_fit=True)
-
-    def store_results(self):
-        #pass
-        super(Calibrate_E_synx, self).store_calibration_results(neuron_parameter.E_synx)
-
     def isbroken(self, coeffs):
-        if abs(coeffs[1] - 1) > 0.4:     # Broken if slope of the fit is too high or too small
+        if abs(coeffs[0] - 1) > 0.4:     # Broken if slope of the fit is too high or too small
             return True
         else:
             return False
 
 class Calibrate_E_syni(BaseCalibration):
-    def get_parameters(self):
-        parameters = super(Calibrate_E_syni, self).get_parameters()
-        for neuron_id in self.get_neurons():
-            parameters[neuron_id].update({
-                neuron_parameter.I_gl: Current(0),
-                neuron_parameter.V_t: Voltage(1400, apply_calibration = True),
-                neuron_parameter.I_convi: Current(2500),
-                neuron_parameter.I_convx: Current(0),
-                neuron_parameter.V_syntci: Voltage(1800),
-            })
-        return parameters
-
-    def get_shared_parameters(self):
-        parameters = super(Calibrate_E_syni, self).get_shared_parameters()
-        for block_id in range(4):
-            parameters[block_id][shared_parameter.V_reset] = Voltage(400, apply_calibration = True)
-        return parameters
-
-    
-    def get_steps(self):
-        steps = []
-        for E_syn_voltage in range(350,750,25): # 4 steps
-            steps.append({neuron_parameter.E_syni: Voltage(E_syn_voltage),
-                })
-        return defaultdict(lambda: steps)
+    target_parameter = neuron_parameter.E_syni
 
     def init_experiment(self):
         super(Calibrate_E_syni, self).init_experiment()
-        self.repetitions = 2
-        self.save_results = True
-        self.save_traces = False
-        self.description = "Calibrate_E_syni via synaptic leakage."
+        self.E_syni_dist = None
+        self.E_synx_dist = None
+        self.sthal.stimulateNeurons(5.0e6, 4)
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         if np.std(v)*1000>1000:
@@ -132,14 +71,51 @@ class Calibrate_E_syni(BaseCalibration):
             self.logger.WARN("Trace for neuron {} bad. Is neuron spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
         return np.mean(v) * 1000 
     
-    def process_results(self, neuron_ids):
-        super(Calibrate_E_syni, self).process_calibration_results(neuron_ids, neuron_parameter.E_syni, linear_fit=True)
-
-    def store_results(self):
-        super(Calibrate_E_syni, self).store_calibration_results(neuron_parameter.E_syni)
-
     def isbroken(self, coeffs):
-        if abs(coeffs[1] - 1) > 0.4:     # Broken if slope of the fit is too high or too small
+        if abs(coeffs[0] - 1) > 0.4:     # Broken if slope of the fit is too high or too small
             return True
         else:
             return False
+
+
+# TODO
+class Calibrate_tau_synx(BaseCalibration):
+    pass
+
+class Calibrate_tau_syni(BaseCalibration):
+    pass
+
+
+class Test_E_synx(BaseTest):
+    target_parameter = neuron_parameter.E_synx
+
+    def init_experiment(self):
+        super(Test_E_synx, self).init_experiment()
+        self.E_syni_dist = None
+        self.E_synx_dist = None
+        self.sthal.stimulateNeurons(5.0e6, 4)
+
+    def process_trace(self, t, v, neuron_id, step_id, rep_id):
+        if np.std(v)*1000>1000:
+            if not os.path.isdir(os.path.join(self.folder, "bad_traces")):
+                os.mkdir(os.path.join(self.folder, "bad_traces"))
+            pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
+            self.logger.WARN("Trace for neuron {} bad. Is neuron spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
+        return np.mean(v) * 1000 
+    
+class Test_E_syni(BaseTest):
+    target_parameter = neuron_parameter.E_syni
+
+    def init_experiment(self):
+        super(Test_E_syni, self).init_experiment()
+        self.E_syni_dist = None
+        self.E_synx_dist = None
+        self.sthal.stimulateNeurons(5.0e6, 4)
+
+    def process_trace(self, t, v, neuron_id, step_id, rep_id):
+        if np.std(v)*1000>1000:
+            if not os.path.isdir(os.path.join(self.folder, "bad_traces")):
+                os.mkdir(os.path.join(self.folder, "bad_traces"))
+            pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
+            self.logger.WARN("Trace for neuron {} bad. Is neuron spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
+        return np.mean(v) * 1000 

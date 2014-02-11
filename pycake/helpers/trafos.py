@@ -3,7 +3,7 @@
 There are four parameter types:
     Bio: pyNN parameters
     HW: Hardware parameter (what you want to have on the hardware, e.g. V_mem, g_l, tau_ref, ...)
-    HC: Hardware config parameter (voltages and currents that are set in the hardware, e.g. I_gl, I_pl instead of g_l and tau_ref...)
+    HC: Hardware control parameter (voltages and currents that are set in the hardware, e.g. I_gl, I_pl instead of g_l and tau_ref...)
     DAC: 10 bit floating gate values. Calibration will be applied to these values
 
 Bio is still work in progress
@@ -59,14 +59,14 @@ current_params = [neuron_parameter.I_spikeamp,
                   shared_parameter.I_breset,
                   shared_parameter.I_bstim] 
 
-# Polynoms for the transformation from Hardware to Hardwareconfig parameters
-# Polynom coefficients are in this order: a*x^2 + b*x + c
-# These polynom coefficients are the product of Marcos transistor-level simulations
+# Polynomials for the transformation from Hardware to Hardwarecontrol parameters
+# Polynomial coefficients are in this order: a*x^2 + b*x + c
+# These polynomial coefficients are the results of Marcos transistor-level simulations
 HWtoHC_polys = { 
         neuron_parameter.E_l:       [        1.,  0.],
         neuron_parameter.V_t:       [        1.,  0.],
         shared_parameter.V_reset:   [        1.,  0.],
-        #neuron_parameter.I_gl:     [5.52E-10, 0.24, 0.89],
+        #neuron_parameter.I_gl:     [5.52E-10, 0.24, 0.89], # <-- Marcos values
         neuron_parameter.I_gl:      [4.32743990e-03, -3.08259218e+00, 9.79811614e+02],
         neuron_parameter.E_syni:    [        1.,  0.],
         neuron_parameter.E_synx:    [        1.,  0.],
@@ -79,14 +79,14 @@ def DACtoHW(value, parameter):
     return HCtoHW(DACtoHC(value, parameter), parameter)
 
 def HWtoHC(value, parameter):
-    """ Transform hardware parameter to Hardwareconfig parameter.
+    """ Transform hardware parameter to Hardwarecontrol parameter.
         
         Args:
             value = hardware value
             parameter = pyhalbe.HICANN.neuron_parameter or pyhalbe.HICANN.shared_parameter
 
         Return:
-            Hardwareconfig value
+            Hardwarecontrol value
     """
     if parameter in HWtoHC_polys.keys():
         return np.polyval(HWtoHC_polys[parameter], value)
@@ -117,7 +117,7 @@ def HCtoHW(value, parameter):
             raise ValueError("No valid transformation found.")
 
 def HCtoDAC(value, parameter, rounded = True):
-    """ Transform hardware config parameter to DAC value.
+    """ Transform hardware control parameter to DAC value.
         
         Args:
             value = hardware value
@@ -146,7 +146,7 @@ def HCtoDAC(value, parameter, rounded = True):
         #raise ValueError("DAC-Value {} for parameter {} out of range".format(DAC,parameter.name))
 
 def DACtoHC(value, parameter):
-    """ Transform DAC value to hardware config parameter.
+    """ Transform DAC value to hardware control parameter.
         
         Args:
             value = DAC value

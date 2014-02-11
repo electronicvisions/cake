@@ -67,8 +67,6 @@ parameters = {
         "coord_wafer":  pyhalbe.Coordinate.Wafer(),
         "coord_hicann": pyhalbe.Coordinate.HICANNOnWafer(pyhalbe.Coordinate.Enum(280)),
 
-        # Maximum tries in case an experiment should fail
-        "max_tries":    3,
 
         # Here you can set the fixed parameters for each calibration.
         # base_parameters are set for all calibrations 
