@@ -709,29 +709,58 @@ class Experiment_old(object):
                 self.sthalcontainer = pickle.load(open("{}/sthalcontainer.p".format(self.workdir)))
             self.num_steps = len(self.results)
 
-    def get_steps(self, parameter):
-        if isinstance(parameter, neuron_parameter):
-            return [j[parameter].value for i,j in self.steps.iteritems()]
+    def pickle_load(self, folder, filename):
+        fullpath = os.path.join(folder, filename)
+        if (os.path.exists(fullpath + ".bz2")):
+            fullpath += ".bz2"
+        if fullpath.endswith(".bz2"):
+            with bz2.BZ2File(fullpath, 'r') as f:
+                return pickle.load(f)
         else:
-            return [j[parameter].value for i,j in self.shared_steps.iteritems()]
+            with open(fullpath, 'r') as f:
+                return pickle.load(f)
 
-    
+    def get_steps(self, parameter):
+        ret = []
+        for step in self.steps:
+            v = step.itervalues().next()
+            ret.append(v[parameter].value)
+        return ret
+
+    def _get_trace(self, neuron_id, step_id, rep_id, pattern):
+        """ Implementation for get_trace and get_averaged_trace"""
+        try:
+            path = '{}/traces/step{}rep{}'.format(self.workdir,step_id,rep_id)
+            trace = self.pickle_load(path, pattern.format(neuron_id))
+        except IOError:
+            print 'No traces saved'
+            return
+        return trace
+
     def get_trace(self, neuron_id, step_id = 0, rep_id = 0):
-            """ Get the traces of one neurons from a specific measurement
-            
-                Args:
-                    step_id = int
-                    rep_id = int repetition
-                
-                Returns:
-                    Numpy array of pickled traces
-            """
-            try:
-                trace = np.array(pickle.load(open('{}/traces/step{}rep{}/neuron_{}.p'.format(self.workdir,step_id,rep_id,neuron_id))))
-            except IOError:
-                print 'No traces saved'
-                return
-            return trace
+        """ Get the traces of one neurons from a specific measurement
+
+            Args:
+                step_id = int
+                rep_id = int repetition
+
+            Returns:
+                Numpy array of pickled traces
+        """
+        return self._get_trace(neuron_id, step_id, rep_id, 'neuron_{}.p')
+
+    def get_averaged_trace(self, neuron_id, step_id = 0, rep_id = 0):
+        """ Get the traces of one neurons from a specific measurement after
+        averaging of the trace (e.g. for I_gl or V_syntcx)
+
+            Args:
+                step_id = int
+                rep_id = int repetition
+
+            Returns:
+                Numpy array of pickled traces
+        """
+        return self._get_trace(neuron_id, step_id, rep_id, 'neuron_mean_{}.p')
 
     def mean_over_reps(self):
         """ 

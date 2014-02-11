@@ -411,6 +411,7 @@ class BaseExperiment(object):
                     self.prepare_measurement(step_parameters, step_id, r)
                     logger.INFO("{} - Measuring.".format(time.asctime()))
                     self.measure(neuron_ids, step_id, r)
+        self.sthal.disconnect()
 
         logger.INFO("Processing results")
         self.process_results(neuron_ids)
@@ -420,7 +421,7 @@ class BaseExperiment(object):
         if not os.path.isdir(folder):
             os.makedirs(folder)
         with open(os.path.join(folder, filename), "wb") as f:
-                pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
 
     def pickle_compressed(self, data, folder, filename):
         if os.path.splitext(filename)[1] != '.bz2':
@@ -428,11 +429,14 @@ class BaseExperiment(object):
         if not os.path.isdir(folder):
             os.makedirs(folder)
         with bz2.BZ2File(os.path.join(folder, filename), "wb") as f:
-                pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+
+    def get_trace_folder(self, step_id, rep_id):
+        return os.path.join(self.folder,"traces", "step{}rep{}".format(step_id, rep_id))
 
     def save_trace(self, t, v, neuron, step_id, rep_id):
         if self.save_traces:
-            folder = os.path.join(self.folder,"traces", "step{}rep{}".format(step_id, rep_id))
+            folder = self.get_trace_folder(step_id, rep_id)
             filename = "neuron_{}.p".format(neuron.id().value())
             self.pickle_compressed([t, v], folder, filename)
 

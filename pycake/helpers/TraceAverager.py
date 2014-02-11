@@ -77,6 +77,6 @@ class TraceAverager(object):
     def get_average(self, trace, dt):
         """Gives mean and std of trace slices with length dt"""
         chunks = self.get_chunks(trace, dt)
-        return np.mean(chunks, axis = 0), np.std(chunks, axis = 0, ddof = 1)
+        return np.mean(chunks, axis = 0), np.std(chunks, axis = 0, ddof = 1), chunks.shape[0]
 
 

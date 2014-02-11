@@ -20,8 +20,8 @@ class UpdateAnalogOutputConfigurator(pysthal.HICANNConfigurator):
 
 class StHALContainer(object):
     """Contains StHAL objects for hardware access. Multiple experiments can share one container."""
-    def __init__(self, coord_wafer=Coordinate.Wafer(),
-                 coord_hicann=Coordinate.HICANNOnWafer(Coordinate.Enum(280)),
+    def __init__(self, coord_wafer,
+                 coord_hicann,
                  coord_analog=Coordinate.AnalogOnHICANN(0),
                  recording_time=1.e-4):
         """Initialize StHAL. kwargs default to vertical setup configuration."""
