@@ -66,8 +66,9 @@ HWtoHC_polys = {
         neuron_parameter.E_l:       [        1.,  0.],
         neuron_parameter.V_t:       [        1.,  0.],
         shared_parameter.V_reset:   [        1.,  0.],
-        #neuron_parameter.I_gl:     [5.52E-10, 0.24, 0.89], # <-- Marcos values
-        neuron_parameter.I_gl:      [4.32743990e-03, -3.08259218e+00, 9.79811614e+02],
+        # My measured parameters from /home/np001/experiments/I_gl_ideal_curve/
+        neuron_parameter.I_gl:      [  4.90185342e+14,  -1.19763859e+09,   9.38291537e+02],
+        #neuron_parameter.I_gl:      [4.32743990e-03, -3.08259218e+00, 9.79811614e+02], # <-- Marco Parameters
         neuron_parameter.E_syni:    [        1.,  0.],
         neuron_parameter.E_synx:    [        1.,  0.],
         }

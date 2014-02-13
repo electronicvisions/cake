@@ -212,9 +212,17 @@ class BaseExperiment(object):
             dac_value = calibrated_E_l + self.E_synx_dist * 1023/1800.
 
         if dac_value < 0 or dac_value > 1023:
-            msg = "Calibrated value for {} on Neuron {} has value {} out of range. Using uncalibrated value."
-            self.logger.WARN(msg.format(param.name, coord.id(), dac_value))
-            dac_value = dac_value_uncalibrated
+            if self.target_parameter is neuron_parameter.I_gl: # I_gl handled in another way. Maybe do this for other parameters as well.
+                msg = "Calibrated value for {} on Neuron {} has value {} out of range. Using lowest possible value."
+                self.logger.WARN(msg.format(param.name, coord.id(), dac_value))
+                if dac_value < 0:
+                    dac_value = 10      # I_gl of 0 gives weird results --> set to 10 DAC
+                else:
+                    dac_value = 1023
+            else:
+                msg = "Calibrated value for {} on Neuron {} has value {} out of range. Using uncalibrated value."
+                self.logger.WARN(msg.format(param.name, coord.id(), dac_value))
+                dac_value = dac_value_uncalibrated
 
         return int(round(dac_value))
 
@@ -411,12 +419,12 @@ class BaseExperiment(object):
                     self.prepare_measurement(step_parameters, step_id, r)
                     logger.INFO("{} - Measuring.".format(time.asctime()))
                     self.measure(neuron_ids, step_id, r)
-        self.sthal.disconnect()
 
         logger.INFO("Processing results")
-        self.sthal.disconnect()
         self.process_results(neuron_ids)
         self.store_results()
+        self.sthal.disconnect()
+
 
     def pickle(self, data, folder, filename):
         if not os.path.isdir(folder):

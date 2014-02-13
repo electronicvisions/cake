@@ -163,9 +163,8 @@ if parameters["calibrate"]:
 
 if parameters["measure"]:
     for calibration in [synapse.Test_E_synx, synapse.Test_E_syni,
-            lif.Test_E_l, lif.Test_V_t, lif.Test_V_reset]:
-                        #lif.Test_I_gl]:
+            lif.Test_E_l, lif.Test_V_t, lif.Test_V_reset, lif.Test_I_gl]:
             do_calibration(calibration)
 
-#quit()
+quit()
 

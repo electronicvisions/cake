@@ -257,7 +257,15 @@ class Experiment(object):
             if not hasattr(self, 'repetitions'):
                 self.repetitions = self.parameterfile['repetitions']
 
-            result_files = sorted(os.listdir(results_folder), key=lambda x: int(re.findall("[0-9]+", x)[0]))
+
+            regex = re.compile(r'step(\d+)_rep(\d+)\.p(.bz2)?')
+            matches = [regex.match(filename) for filename in os.listdir(results_folder)]
+            matches = filter(bool, matches)
+            def unpack(m):
+                    return (int(m.group(1)), int(m.group(2)), m.group(0))
+            ordered = sorted([unpack(m) for m in matches if m])
+            result_files = [o[-1] for o in ordered]
+
 
             self.results_unsorted = [pickle.load(open(os.path.join(results_folder, fname))) for fname in result_files]
 

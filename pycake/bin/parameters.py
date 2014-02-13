@@ -84,14 +84,14 @@ parameters = {
                                 neuron_parameter.I_intbbi: Current(2000),  # integrator bias in synapse
                                 neuron_parameter.I_intbbx: Current(2000),  # integrator bias in synapse
                                 neuron_parameter.I_pl: Current(2000),      # tau_refrac
-                                neuron_parameter.I_radapt: Current(2000),  #
+                                neuron_parameter.I_radapt: Current(2500),  #
                                 neuron_parameter.I_rexp: Current(750),     # something about the strength of exp term
                                 neuron_parameter.I_spikeamp: Current(2000),#
                                 neuron_parameter.V_exp: Voltage(536),      # exponential term
-                                neuron_parameter.V_syni: Voltage(1000),    # inhibitory synaptic reversal potential
+                                neuron_parameter.V_syni: Voltage(1000),    # technical parameter that drives the integrator 
                                 neuron_parameter.V_syntci: Voltage(1375),   # inhibitory synapse time constant
                                 neuron_parameter.V_syntcx: Voltage(1375),   # excitatory synapse time constant
-                                neuron_parameter.V_synx: Voltage(1000),    # excitatory synaptic reversal potential
+                                neuron_parameter.V_synx: Voltage(1000),    # technical parameter that drives the integrator 
                                 neuron_parameter.V_t: Voltage(1000),       # recommended threshold, maximum is 1100
                                 },
 
