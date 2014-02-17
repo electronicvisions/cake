@@ -39,6 +39,7 @@ class BaseExperiment(object):
     Provides a function to run and process an experiment.
     """
     target_parameter = None
+    denmem_size = 1
 
     def __init__(self, neuron_ids, sthal_container, parameters, loglevel=None):
         self.experiment_parameters = parameters
@@ -163,10 +164,8 @@ class BaseExperiment(object):
         for neuron in Coordinate.iter_all(NeuronOnHICANN):
             values = {}
             for name, param in neuron_parameter.names.iteritems():
-                if name[0] in ("E", "V"):
-                    values[param] = Voltage(fgc.getNeuron(neuron, param), apply_calibration)
-                elif name[0] == "I":
-                    values[param] = Current(fgc.getNeuron(neuron, param), apply_calibration)
+                if name[0] is not '_':
+                    values[param] = DAC(fgc.getNeuron(neuron, param), apply_calibration)
             result[neuron] = values
 
         # use halbe default parameters
@@ -178,11 +177,8 @@ class BaseExperiment(object):
                     continue
                 if (not even and (name in ("V_clra", "V_bout"))):
                     continue
-
-                if name[0] in ("V", "E"):
-                    values[param] = Voltage(fgc.getShared(block, param))
-                elif name[0] in ("I", "i"):
-                    values[param] = Current(fgc.getShared(block, param))
+                if name[0] is not '_':
+                    values[param] = DAC(fgc.getShared(block, param))
                 else:  # "__last_neuron"n
                     pass
             result[block] = values
@@ -213,7 +209,7 @@ class BaseExperiment(object):
 
         if dac_value < 0 or dac_value > 1023:
             if self.target_parameter is neuron_parameter.I_gl: # I_gl handled in another way. Maybe do this for other parameters as well.
-                msg = "Calibrated value for {} on Neuron {} has value {} out of range. Using lowest possible value."
+                msg = "Calibrated value for {} on Neuron {} has value {} out of range. Value clipped to range."
                 self.logger.WARN(msg.format(param.name, coord.id(), dac_value))
                 if dac_value < 0:
                     dac_value = 10      # I_gl of 0 gives weird results --> set to 10 DAC

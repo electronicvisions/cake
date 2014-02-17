@@ -288,6 +288,7 @@ class Calibrate_I_gl(BaseCalibration):
 class Test_E_l(BaseTest):
     """E_l calibration."""
     target_parameter = neuron_parameter.E_l
+    denmem_size = 4
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         if np.std(v)*1000>50:
