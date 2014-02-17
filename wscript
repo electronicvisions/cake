@@ -8,7 +8,7 @@ from waflib.extras.gtest import summary
 
 
 def depends(ctx):
-    ctx('sthal', branch='dev_polymorphic_handle')
+    ctx('sthal')
     ctx('symap2ic', 'src/pylogging')
     ctx('calibtic', 'pycalibtic', branch='dev_sthal')  # sthal does not depend on pycalibtic
     ctx('redman', 'pyredman')
