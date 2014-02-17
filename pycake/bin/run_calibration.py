@@ -16,8 +16,7 @@ def check_file(string):
     return string
 
 parser = argparse.ArgumentParser(description='HICANN Calibration tool. Takes a parameter file as input. See pycake/bin/parameters.py to see an example.')
-parser.add_argument('parameter_file', type=check_file, nargs='?',
-                           help='')
+parser.add_argument('parameter_file', type=check_file, help='')
 args = parser.parse_args()
 
 # Activate logger before importing other stuff that might want to log
