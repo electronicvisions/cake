@@ -252,7 +252,7 @@ class BaseExperiment(object):
                 self.logger.TRACE("Neuron {} not marked as broken".format(neuron.id()))
                 try:
                     ncal = self._calib_nc.at(neuron.id().value())
-                    self.logger.TRACE("Calibration for Neuron {} found.".format(neuron.id()))
+                    self.logger.INFO("Calibration for Neuron {} found.".format(neuron.id()))
                 except (IndexError):
                     if step_id == 0:
                         self.logger.WARN("No calibration found for neuron {}".format(neuron.id()))
