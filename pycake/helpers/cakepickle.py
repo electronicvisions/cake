@@ -514,7 +514,7 @@ class Experiment(object):
             Returns:
                 matplotlib.pyplot.figure object
         """
-        xs = [step[parameter].value for step in self.steps.values()]
+        xs = self.get_steps(parameter)
         ys = self.get_neuron_results(neuron_id)[0]
         y_errs = self.get_neuron_results(neuron_id)[1]
 
