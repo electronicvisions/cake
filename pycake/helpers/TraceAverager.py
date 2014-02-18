@@ -4,6 +4,7 @@ from pyhalbe import Coordinate
 from pycake.helpers.sthal import StHALContainer
 
 import pylogging
+logger = pylogging.get("pycake.helper.TraceAverager")
 
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
@@ -54,9 +55,8 @@ def createTraceAverager(coord_wafer, coord_hicann):
 class TraceAverager(object):
     def __init__(self,  adc_freq):
         self.adc_freq = adc_freq
-        self.logger = pylogging.get("pycake.helper.TraceAverager")
         msg = "Initialized TraceAverager with adc frequency of {} MHz"
-        self.logger.INFO(msg.format(self.adc_freq))
+        logger.INFO(msg.format(self.adc_freq))
 
     def _get_chunks(self, trace, dt):
         n = len(trace)
