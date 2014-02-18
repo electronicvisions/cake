@@ -36,11 +36,6 @@ class BaseCalibration(BaseExperiment):
         key = "{}_{}".format(config_name, config_key)
         return self.experiment_parameters[key]
 
-    def get_config_with_default(self, config_key, default):
-        config_name = self.target_parameter.name
-        key = "{}_{}".format(config_name, config_key)
-        return self.experiment_parameters.get(key, default)
-
     def set_config(self, config_key, value):
         """sets a given key for experiment"""
         config_name = self.target_parameter.name
@@ -113,6 +108,7 @@ class BaseCalibration(BaseExperiment):
 
     def store_results(self):
         self.store_calibration_results(self.target_parameter)
+
 
     def process_calibration_results(self, neurons, parameter, dim):
         """This base class function can be used by child classes as process_results."""
