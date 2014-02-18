@@ -276,7 +276,7 @@ class BaseExperiment(object):
                 bcal = self._calib_bc.at(block.id().value())
             except (IndexError):
                 if step_id == 0:
-                    self.logger.WARN("No calibration found for neuron {}".format(block))
+                    self.logger.WARN("No calibration found for block {}".format(block))
                 bcal = None
 
             even  = block.id().value()%2 == 0
