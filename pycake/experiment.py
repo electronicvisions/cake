@@ -15,7 +15,6 @@ from pycake.helpers.redman import init_backend as init_redman
 import pyredman as redman
 from pycake.helpers.units import Current, Voltage, DAC
 from pycake.helpers.trafos import HWtoDAC, DACtoHW, HCtoDAC, DACtoHC, HWtoHC, HCtoHW
-from pycake.helpers.WorkerPool import WorkerPool
 
 # Import everything needed for saving:
 import pickle
@@ -253,7 +252,7 @@ class BaseExperiment(object):
                 self.logger.TRACE("Neuron {} not marked as broken".format(neuron.id()))
                 try:
                     ncal = self._calib_nc.at(neuron.id().value())
-                    self.logger.TRACE("Calibration for Neuron {} found.".format(neuron.id()))
+                    self.logger.INFO("Calibration for Neuron {} found.".format(neuron.id()))
                 except (IndexError):
                     if step_id == 0:
                         self.logger.WARN("No calibration found for neuron {}".format(neuron.id()))
@@ -277,7 +276,7 @@ class BaseExperiment(object):
                 bcal = self._calib_bc.at(block.id().value())
             except (IndexError):
                 if step_id == 0:
-                    self.logger.WARN("No calibration found for neuron {}".format(block))
+                    self.logger.WARN("No calibration found for block {}".format(block))
                 bcal = None
 
             even  = block.id().value()%2 == 0
@@ -420,15 +419,14 @@ class BaseExperiment(object):
         self.store_results()
         self.sthal.disconnect()
 
-    @staticmethod
-    def pickle(data, folder, filename):
+
+    def pickle(self, data, folder, filename):
         if not os.path.isdir(folder):
             os.makedirs(folder)
         with open(os.path.join(folder, filename), "wb") as f:
             pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
 
-    @staticmethod
-    def pickle_compressed(data, folder, filename):
+    def pickle_compressed(self, data, folder, filename):
         if os.path.splitext(filename)[1] != '.bz2':
             filename += '.bz2'
         if not os.path.isdir(folder):
@@ -439,10 +437,11 @@ class BaseExperiment(object):
     def get_trace_folder(self, step_id, rep_id):
         return os.path.join(self.folder,"traces", "step{}rep{}".format(step_id, rep_id))
 
-    @staticmethod
-    def save_trace(folder, t, v, neuron):
-        filename = "neuron_{}.p".format(neuron.id().value())
-        BaseExperiment.pickle_compressed([t, v], folder, filename)
+    def save_trace(self, t, v, neuron, step_id, rep_id):
+        if self.save_traces:
+            folder = self.get_trace_folder(step_id, rep_id)
+            filename = "neuron_{}.p".format(neuron.id().value())
+            self.pickle_compressed([t, v], folder, filename)
 
     def save_result(self, result, step_id, rep_id):
         if self.save_results:
@@ -450,40 +449,17 @@ class BaseExperiment(object):
             filename = "step{}_rep{}.p".format(step_id, rep_id)
             self.pickle(result, folder, filename)
 
-    def process_trace_data(self, neuron_id):
-        return tuple()
-
     def measure(self, neuron_ids, step_id, rep_id):
         """Perform measurements for a single step on one or multiple neurons."""
-        workers_save = WorkerPool(self.save_trace)
-        traces = []
+        results = {}
         for neuron_id in neuron_ids:
-            print neuron_id
             self.sthal.switch_analog_output(neuron_id)
             t, v = self.sthal.read_adc()
-            traces.append((t, v, neuron_id, step_id, rep_id))
-            if self.save_traces:
-                workers_save.do(self.get_trace_folder(step_id, rep_id), t, v, neuron_id)
-        workers_save.join()
-
-        process_trace = self.get_process_trace_callback()
-        if process_trace:
-            t0 = time.time()
-            workers_process = WorkerPool(process_trace)
-            for t in traces:
-                workers_process.do(*t)
-            results = workers_process.join()
-            self.logger.INFO("Waited {}s to join workers".format(time.time() - t0))
-        else:
-            results = [self.process_trace(*t) for t in traces]
-
-        results = dict(zip(neuron_ids, results))
+            self.save_trace(t, v, neuron_id, step_id, rep_id)
+            results[neuron_id] = self.process_trace(t, v, neuron_id, step_id, rep_id)
+        # Now store measurements in a file:
         self.save_result(results, step_id, rep_id)
         self.all_results.append(results)
-
-    def get_process_trace_callback(self):
-        """Hook, if it returns a callable, this will be used vor parallel result processing"""
-        return None
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         """Hook class for processing measured traces. Should return one value."""
