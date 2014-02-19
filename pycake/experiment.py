@@ -351,7 +351,6 @@ class BaseExperiment(object):
         All neurons will be prepared with the same parameters (except for calibration differences)
         and each neuron will be measured in the measure step.
         """
-
         return self.neuron_ids  # TODO move this to a property
 
     def get_blocks(self):
@@ -394,8 +393,7 @@ class BaseExperiment(object):
             self.pickle(self.sthal.hicann, self.folder, 'sthalcontainer.p')
             self.pickle(self.repetitions, self.folder, "repetitions.p")
             open(os.path.join(self.folder,'description.txt'), 'w').write(self.description)
-            if self.target_parameter:
-                self.pickle(self.target_parameter, self.folder, 'target_parameter.p')
+            self.pickle(self.target_parameter, self.folder, 'target_parameter.p')
                 
 
             # dump neuron parameters and steps:

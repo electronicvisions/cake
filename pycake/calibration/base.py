@@ -143,10 +143,16 @@ class BaseCalibration(BaseExperiment):
 
         # For shared parameters: mean over one block
         if isinstance(parameter, shared_parameter):
+            def iter_v_reset(block):
+                neuron_on_quad = Coordinate.NeuronOnQuad(block.x(), block.y())
+                for quad in Coordinate.iter_all(Coordinate.QuadOnHICANN):
+                    yield Coordinate.NeuronOnHICANN(quad, neuron_on_quad)
+                return
+
             self.results_mean_shared = defaultdict(list)
             self.results_std_shared = defaultdict(list)
             for block in self.get_blocks():
-                neurons_on_block = [n.getNeuronOnHICANN(block) for n in Coordinate.iter_all(Coordinate.NeuronOnFGBlock)]
+                neurons_on_block = [n for n in iter_v_reset(block)]
                 self.results_mean_shared[block] = np.mean([self.results_mean[n_coord] for n_coord in neurons_on_block], axis = 0)
                 self.results_std_shared[block] = np.mean([self.results_std[n_coord] for n_coord in neurons_on_block], axis = 0)
 
