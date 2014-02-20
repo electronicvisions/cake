@@ -8,6 +8,7 @@ import shutil
 import matplotlib.pyplot as plt
 import re
 import sys
+import Coordinate
 
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
 
@@ -275,7 +276,8 @@ class Experiment(object):
                 self.results.append([])
                 for rep in range(self.repetitions):
                     try:
-                        self.results[step].append(self.results_unsorted[rep + step*self.repetitions].values())
+                        rep_results = [self.get_result(nid, step, rep) for nid in range(512)]
+                        self.results[step].append(rep_results)
                     except IndexError:
                         print "Step {} Rep {} not found.".format(step,rep)
             self.results = np.array(self.results)
@@ -296,6 +298,12 @@ class Experiment(object):
                 break  # executed if 'continue' was skipped (break)
 
             self.num_steps = len(self.results)
+
+    def get_result(self, neuron_id, step_id, rep_id):
+        result = self.results_unsorted[rep_id + step_id * self.repetitions]
+        neuron = Coordinate.NeuronOnHICANN(Coordinate.Enum(neuron_id))
+        return result[neuron]
+
 
     def pickle_load(self, folder, filename):
         fullpath = os.path.join(folder, filename)
