@@ -46,7 +46,7 @@ class BaseExperiment(object):
         self.sthal = sthal_container
 
         # TODO only accept NeuronOnHICANN coordinates?
-        self.neuron_ids = [NeuronOnHICANN(Enum(n) if isinstance(n, int) else n) for n in neuron_ids]
+        self.neurons = [NeuronOnHICANN(Enum(n) if isinstance(n, int) else n) for n in neuron_ids]
         self.blocks = [block for block in Coordinate.iter_all(FGBlockOnHICANN)]
         self._repetitions = 1
 
@@ -241,7 +241,7 @@ class BaseExperiment(object):
 
         fgc = pyhalbe.HICANN.FGControl()
 
-        neuron_ids = self.get_neurons()
+        neurons = self.get_neurons()
         base_parameters = self.get_parameters()
 
         for neuron in Coordinate.iter_all(NeuronOnHICANN):
@@ -352,7 +352,7 @@ class BaseExperiment(object):
         All neurons will be prepared with the same parameters (except for calibration differences)
         and each neuron will be measured in the measure step.
         """
-        return self.neuron_ids  # TODO move this to a property
+        return self.neurons  # TODO move this to a property
 
     def get_blocks(self):
         """ Return all blocks on this HICANN.
@@ -365,7 +365,7 @@ class BaseExperiment(object):
         logger = self.logger
 
         self.init_experiment()
-        neuron_ids = self.get_neurons()
+        neurons = self.get_neurons()
 
         parameters = self.get_parameters()
 
@@ -419,10 +419,10 @@ class BaseExperiment(object):
                     if not self.save_traces:
                         self.prepare_measurement(step_parameters, step_id, r)
                     logger.INFO("{} - Measuring.".format(time.asctime()))
-                    self.measure(neuron_ids, step_id, r)
+                    self.measure(neurons, step_id, r)
 
         logger.INFO("Processing results")
-        self.process_results(neuron_ids)
+        self.process_results(neurons)
         self.store_results()
         if self.sthal._connected:
             self.sthal.disconnect()
@@ -489,7 +489,7 @@ class BaseExperiment(object):
         """Hook class for processing measured traces. Should return one value."""
         return 0
 
-    def process_results(self, neuron_ids):
+    def process_results(self, neurons):
         """Process measured data."""
         pass  # no processing
 
