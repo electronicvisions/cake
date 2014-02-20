@@ -411,12 +411,12 @@ class BaseExperiment(object):
             logger.INFO("Reading traces from {}.".format(self.trace_folder))
 
         for step_id, step in enumerate(steps):
-                if not self.save_traces:
+                if not self.trace_folder:
                     step_parameters = self.prepare_parameters(step, step_id)
                 for r in range(self.repetitions):
                     logger.INFO("{} - Step {}/{} repetition {}/{}.".format(time.asctime(),step_id+1, num_steps, r+1, self.repetitions))
                     logger.INFO("{} - Preparing measurement --> setting floating gates".format(time.asctime()))
-                    if not self.save_traces:
+                    if not self.trace_folder:
                         self.prepare_measurement(step_parameters, step_id, r)
                     logger.INFO("{} - Measuring.".format(time.asctime()))
                     self.measure(neurons, step_id, r)
