@@ -247,12 +247,12 @@ class BaseExperiment(object):
             parameters.update(step[neuron])
             ncal = None
             self.logger.TRACE("Neuron {} has: {}".format(neuron.id(), self._red_nrns.has(neuron)))
-            #if not self._red_nrns.has(neuron):
             if self._red_nrns.has(neuron):
                 self.logger.TRACE("Neuron {} not marked as broken".format(neuron.id()))
                 try:
                     ncal = self._calib_nc.at(neuron.id().value())
-                    self.logger.INFO("Calibration for Neuron {} found.".format(neuron.id()))
+                    if step_id == 0: # Only show this info in first step
+                        self.logger.INFO("Calibration for Neuron {} found.".format(neuron.id()))
                 except (IndexError):
                     if step_id == 0:
                         self.logger.WARN("No calibration found for neuron {}".format(neuron.id()))
@@ -460,6 +460,15 @@ class BaseExperiment(object):
         # Now store measurements in a file:
         self.save_result(results, step_id, rep_id)
         self.all_results.append(results)
+
+    def correct_for_readout_shift(self, value, neuron):
+        neuron_id = neuron.id().value()
+        try:
+            shift = self._calib_nc.at(neuron_id).at(21).apply(value * 1023/1800.) * 1800./1023.
+            return value - shift
+        except:
+            raise
+            return value
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         """Hook class for processing measured traces. Should return one value."""
