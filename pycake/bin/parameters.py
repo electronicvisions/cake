@@ -70,6 +70,17 @@ parameters = {
         # Maximum tries in case an experiment should fail
         "max_tries":    3,
 
+
+        # If you want to load previously measured traces instead of
+        # measuring new ones, specify the experiment folders here
+        "E_synx_traces":   None,
+        "E_syni_traces":   None,
+        "E_l_traces":      None,
+        "V_t_traces":      None,
+        "V_reset_traces":  None,
+        "I_gl_traces":     None,
+
+
         # Here you can set the fixed parameters for each calibration.
         # base_parameters are set for all calibrations 
         "base_parameters":   {  neuron_parameter.E_l: Voltage(600),
