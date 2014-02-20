@@ -102,7 +102,7 @@ class Calibrate_V_reset(BaseCalibration):
                 # to start some time after spike and stop early to avoid taking rising edge
                 only_base.append(v[n+int(delta_t/start_div):n+int(delta_t/end_div)])
             else:
-                print "skipping duplicate"
+                #print "skipping duplicate"
                 pass
             last_n = n
         #----------------------------------------------------------------------
