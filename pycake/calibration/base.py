@@ -55,6 +55,7 @@ class BaseCalibration(BaseExperiment):
         if self._red_nrns is None:
             raise TypeError("can not store defects without Redman backend")
         self.folder = os.path.join(self.experiment_parameters["folder"], self.folder)
+        self.trace_folder = self.get_config('traces')
 
         self.base_parameters = self.experiment_parameters["base_parameters"]
         self.base_parameters.update(self.get_config("parameters"))

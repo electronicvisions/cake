@@ -42,7 +42,8 @@ class Calibrate_E_l(BaseCalibration):
                 os.mkdir(os.path.join(self.folder, "bad_traces"))
             pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
             self.logger.WARN("Trace for neuron {} bad. Is neuron spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
-        return np.mean(v)*1000 # Get the mean value * 1000 for mV
+        #return np.mean(v)*1000 # Get the mean value * 1000 for mV
+        return self.correct_for_readout_shift(np.mean(v)*1000, neuron_id) # Get the mean value * 1000 for mV
 
 
 class Calibrate_V_t(BaseCalibration):
@@ -136,7 +137,7 @@ class Calibrate_readout_shift(Calibrate_V_reset):
             block = neuron.sharedFGBlock()
             step_values = [step[block][shared_parameter.V_reset].toDAC().value for step in steps]
             weight = 1./(np.array(self.results_diff_std[neuron]) + 1e-8)  # add a tiny value because std may be zero
-            coeffs = np.polynomial.polynomial.polyfit(step_values, self.results_diff_mean[neuron], 1, w=weight)
+            coeffs = np.polynomial.polynomial.polyfit(step_values, self.results_diff_mean[neuron], 0, w=weight)
             coeffs = coeffs[::-1]
 
             if self.isbroken(coeffs):
