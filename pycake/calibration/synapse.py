@@ -49,7 +49,7 @@ class Calibrate_E_synx(BaseCalibration):
                 os.mkdir(os.path.join(self.folder, "bad_traces"))
             pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
             self.logger.WARN("Trace for neuron {} bad. Is neuron spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
-        return np.mean(v) * 1000 
+        return self.correct_for_readout_shift(np.mean(v) * 1000, neuron_id)
     
     def isbroken(self, coeffs):
         if abs(coeffs[0] - 1) > 0.4:     # Broken if slope of the fit is too high or too small
@@ -72,7 +72,7 @@ class Calibrate_E_syni(BaseCalibration):
                 os.mkdir(os.path.join(self.folder, "bad_traces"))
             pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
             self.logger.WARN("Trace for neuron {} bad. Is neuron spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
-        return np.mean(v) * 1000 
+        return self.correct_for_readout_shift(np.mean(v) * 1000, neuron_id)
     
     def isbroken(self, coeffs):
         if abs(coeffs[0] - 1) > 0.4:     # Broken if slope of the fit is too high or too small
@@ -282,7 +282,7 @@ class Test_E_synx(BaseTest):
                 os.mkdir(os.path.join(self.folder, "bad_traces"))
             pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
             self.logger.WARN("Trace for neuron {} bad. Is neuron spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
-        return np.mean(v) * 1000 
+        return self.correct_for_readout_shift(np.mean(v) * 1000, neuron_id)
     
 class Test_E_syni(BaseTest):
     target_parameter = neuron_parameter.E_syni
@@ -299,4 +299,4 @@ class Test_E_syni(BaseTest):
                 os.mkdir(os.path.join(self.folder, "bad_traces"))
             pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
             self.logger.WARN("Trace for neuron {} bad. Is neuron spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
-        return np.mean(v) * 1000 
+        return self.correct_for_readout_shift(np.mean(v) * 1000, neuron_id)
