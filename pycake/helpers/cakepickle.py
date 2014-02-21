@@ -544,7 +544,7 @@ class Experiment(object):
             except:
                 print "Parameter error: No parameter found or no parameter given"
                 return
-        xs = [step[parameter].value for step in self.steps.values()]
+        xs = self.get_steps()
         ys = self.get_neuron_results(neuron_id)[0]
         y_errs = self.get_neuron_results(neuron_id)[1]
 
