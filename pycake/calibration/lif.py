@@ -112,6 +112,8 @@ class Calibrate_V_reset(BaseCalibration):
         # take mean
         if N:
             baseline /= N
+        else:
+            baseline = np.min(v)
 
         #----------------------------------------------------------------------
 
