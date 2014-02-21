@@ -85,22 +85,24 @@ def check_for_existing_calbration(parameter):
                 continue
             logger.INFO('Calibration for {} not existing.'.format(parameter.name))
             return False
-    else:
+    elif parameter is shared_parameter.V_reset:
         try:
             backend.load("w{}-h{}".format(parameters['coord_wafer'].value(), parameters['coord_hicann'].id().value()), md, hc)
-            bc = hc.atBlockCollection()
+            nc = hc.atNeuronCollection()
         except RuntimeError:
             logger.INFO('Backend not found. Creating new Backend.')
             return False
-        for block in range(4):
+        for neuron_id in range(512):
             try:
-                calib = bc.at(block).at(parameter)
-                logger.INFO('Calibration for {} existing.'.format(parameter.name))
+                calib = nc.at(neuron_id).at(21)
+                logger.INFO('Calibration for readout shift existing.')
                 return True
             except (RuntimeError, IndexError):
                 continue
-            logger.INFO('Calibration for {} not existing.'.format(parameter.name))
+            logger.INFO('Calibration for readout shift not existing.')
             return False
+    else:
+        return False
 
 
 def do_calibration(Calibration):
@@ -136,35 +138,39 @@ def do_calibration(Calibration):
 
     # If all attemps failed:
     except Exception,e:
-        folder = getattr(calib, "folder", None)
-        if folder and os.path.exists(calib.folder):
-            delete = raw_input("Delete folder {}? (yes / no)".format(folder))
-            if delete in ("yes","Yes","y","Y"):
-                try:
-                    shutil.rmtree(folder)
-                except OSError as e: # Folder missing, TODO log something
-                    print e
-                    pass
+        #folder = getattr(calib, "folder", None)
+        #if folder and os.path.exists(calib.folder):
+        #    delete = raw_input("Delete folder {}? (yes / no)".format(folder))
+        #    if delete in ("yes","Yes","y","Y"):
+        #        try:
+        #            shutil.rmtree(folder)
+        #        except OSError as e: # Folder missing, TODO log something
+        #            print e
+        #            pass
         raise
 
 
 logger.INFO("Measuring readout shift.")
 
-#calib_readout_shift = lif.Calibrate_readout_shift(neurons, sthal, parameters)
-#calib_readout_shift.run_experiment()
-
 pylogging.set_loglevel(default_logger, pylogging.LogLevel.ERROR)
 
 if parameters["calibrate"]:
-    for calibration in [synapse.Calibrate_E_synx, synapse.Calibrate_E_syni,
-                        lif.Calibrate_E_l, lif.Calibrate_V_t, lif.Calibrate_V_reset, 
+    for calibration in [lif.Calibrate_readout_shift,
+                        synapse.Calibrate_E_synx,
+                        synapse.Calibrate_E_syni,
+                        lif.Calibrate_E_l,
+                        lif.Calibrate_V_t,
                         lif.Calibrate_I_gl]:
             do_calibration(calibration)
 
 
 if parameters["measure"]:
-    for calibration in [synapse.Test_E_synx, synapse.Test_E_syni,
-            lif.Test_E_l, lif.Test_V_t, lif.Test_V_reset, lif.Test_I_gl]:
+    for calibration in [lif.Test_V_reset,
+                        synapse.Test_E_synx,
+                        synapse.Test_E_syni,
+                        lif.Test_E_l,
+                        lif.Test_V_t,
+                        lif.Test_I_gl]:
             do_calibration(calibration)
 
 quit()

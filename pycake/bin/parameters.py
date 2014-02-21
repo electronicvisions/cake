@@ -11,27 +11,27 @@ folder = "/tmp/calibration"
 
 parameters = {
         # Set the ranges within which you want to calibrate
-        "E_synx_range": range(650,1000,25),    # 16 steps
-        "E_syni_range": range(350,750,25),    # 16 steps
-        "E_l_range":    range(500,800,25),      # 12 steps
+        "V_reset_range":range(200,800,25),      # 12 steps
+        "E_synx_range": range(650,1100,25),    # 16 steps
+        "E_syni_range": range(350,850,25),    # 16 steps
+        "E_l_range":    range(500,900,25),      # 12 steps
         "V_t_range":    range(600,900,25),      # 12 steps
-        "V_reset_range":range(400,700,25),      # 12 steps
         "I_gl_range":   range(100,150,50),     # 50 steps
 
         # How far should the E_syn values be set around E_l
-        "E_syni_dist":  -100,
-        "E_synx_dist":  100,
+        "E_syni_dist": -150,
+        "E_synx_dist":  150,
 
         # How many repetitions? Each repetition will take about 1 minute per step!
-        "repetitions":  1,
+        "repetitions":  3,
 
         # Set which calibrations you want to run
+        "run_V_reset": True,
         "run_E_synx":  True,
         "run_E_syni":  True,
         "run_E_l":     True,
         "run_V_t":     True,
-        "run_V_reset": True,
-        "run_I_gl":     False, # TODO I_gl calibration is not yet implemented!
+        "run_I_gl":    True,
 
         # Measurement runs twice by default: first to generate calibration data, and a second time to measure the success of calibration
         # Here you can turn either of these runs on or off
@@ -50,11 +50,11 @@ parameters = {
         "save_traces":  True,
 
         # If you save al your measurements, each folder will have a description file. The following parameters let you specify additional info to be stored.
+        "V_reset_description":  "V_reset calibration",
         "E_synx_description":   "E_synx calibration.",
         "E_syni_description":   "E_syni calibration",
         "E_l_description":      "E_l calibration",
         "V_t_description":      "V_t calibration",
-        "V_reset_description":  "V_reset calibration",
         "I_gl_description":     "I_gl calibration",
 
         # Where do you want to save the measurements (folder) and calibration data (backend_c for calibtic, backend_r for redman)?
@@ -104,22 +104,25 @@ parameters = {
                                 neuron_parameter.V_syntcx: Voltage(1375),   # excitatory synapse time constant
                                 neuron_parameter.V_synx: Voltage(1000),    # technical parameter that drives the integrator 
                                 neuron_parameter.V_t: Voltage(1000),       # recommended threshold, maximum is 1100
+
+                                shared_parameter.V_bout: Voltage(750),
+                                shared_parameter.V_bexp: Voltage(750),
                                 },
 
         "E_synx_parameters":     {  neuron_parameter.I_gl: Current(0),          # I_gl and I_convi MUST be set to 0
                                     neuron_parameter.I_convi: Current(0),
                                     neuron_parameter.V_syntcx: Voltage(1800),
                                     neuron_parameter.V_syntci: Voltage(1800),
-                                    neuron_parameter.V_t:       Voltage(1200),
-                                    shared_parameter.V_reset:  Voltage(200),
+                                    neuron_parameter.V_t:       Voltage(1250),
+                                    shared_parameter.V_reset:  Voltage(100),
                                 },
 
         "E_syni_parameters":     {  neuron_parameter.I_gl: Current(0),
                                     neuron_parameter.I_convx: Current(0),
                                     neuron_parameter.V_syntci: Voltage(1800),
                                     neuron_parameter.V_syntcx: Voltage(1800),
-                                    neuron_parameter.V_t:       Voltage(1200),
-                                    shared_parameter.V_reset:  Voltage(200),
+                                    neuron_parameter.V_t:       Voltage(1250),
+                                    shared_parameter.V_reset:  Voltage(100),
                                 },
 
         "E_l_parameters":       {   neuron_parameter.V_t:        Voltage(1200),
@@ -127,17 +130,17 @@ parameters = {
                                     shared_parameter.V_reset:      Voltage(300),
                                 },
 
-        "V_t_parameters":       {   neuron_parameter.E_l:        Voltage(1000),
+        "V_t_parameters":       {   neuron_parameter.E_l:        Voltage(1050),
                                     neuron_parameter.I_gl:       Current(1000),
                                     shared_parameter.V_reset:    Voltage(400),
                                 },
 
         "V_reset_parameters":   {   neuron_parameter.E_l:    Voltage(1100),
-                                    neuron_parameter.V_t:    Voltage(800),
+                                    neuron_parameter.V_t:    Voltage(900),
                                     neuron_parameter.I_gl:   Current(1000),
                                 },
 
-        "I_gl_parameters":       {   neuron_parameter.E_l:        Voltage(600),
+        "I_gl_parameters":       {  neuron_parameter.E_l:        Voltage(600),
                                     neuron_parameter.V_t:        Voltage(1200),
                                     shared_parameter.V_reset:    Voltage(200),
                                 },

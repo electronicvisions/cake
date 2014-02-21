@@ -505,7 +505,7 @@ class BaseExperiment(object):
             shift = self._calib_nc.at(neuron_id).at(21).apply(value * 1023/1800.) * 1800./1023.
             return value - shift
         except:
-            raise
+            logger.WARN("No readout shift calibration for neuron {} found. Using unshifted values.".format(neuron))
             return value
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
