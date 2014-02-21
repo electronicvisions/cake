@@ -527,7 +527,7 @@ class Experiment(object):
             print "No traces saved."
             return
 
-    def plot_neuron_results(self, neuron_id, parameter = None):
+    def plot_neuron_results(self, neuron_id, parameter = None, guideline_offset=0, guideline_slope=1):
         """ Plot all measurement results for one neuron.
 
             Args:
@@ -550,15 +550,21 @@ class Experiment(object):
 
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        xs = self.get_steps()
-        ax.plot(xs,xs, linestyle = "dashed", color="k", alpha = 0.8)
+
+        steps_x = self.get_steps()
+
+        steps_y = np.array(steps_x)
+        steps_y *= guideline_slope
+        steps_y += guideline_offset
+
+        ax.plot(steps_x, steps_y, linestyle = "dashed", color="k", alpha = 0.8)
 
         for nid in neuron_id:
             
             ys = self.get_neuron_results(nid)[0]
             y_errs = self.get_neuron_results(nid)[1]
 
-            ax.errorbar(xs,ys,y_errs)
+            ax.errorbar(steps_x,ys,y_errs)
 
         return fig
 
