@@ -148,15 +148,17 @@ def do_calibration(Calibration):
         raise
 
 
+logger.INFO("Measuring readout shift.")
 
-
+#calib_readout_shift = lif.Calibrate_readout_shift(neurons, sthal, parameters)
+#calib_readout_shift.run_experiment()
 
 pylogging.set_loglevel(default_logger, pylogging.LogLevel.ERROR)
 
 if parameters["calibrate"]:
     for calibration in [synapse.Calibrate_E_synx, synapse.Calibrate_E_syni,
                         lif.Calibrate_E_l, lif.Calibrate_V_t, lif.Calibrate_V_reset, 
-                        lif.Calibrate_V_reset_shift, lif.Calibrate_I_gl]:
+                        lif.Calibrate_I_gl]:
             do_calibration(calibration)
 
 

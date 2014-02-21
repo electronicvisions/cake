@@ -42,7 +42,8 @@ class Calibrate_E_l(BaseCalibration):
                 os.mkdir(os.path.join(self.folder, "bad_traces"))
             pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
             self.logger.WARN("Trace for neuron {} bad. Is neuron spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
-        return np.mean(v)*1000 # Get the mean value * 1000 for mV
+        #return np.mean(v)*1000 # Get the mean value * 1000 for mV
+        return self.correct_for_readout_shift(np.mean(v)*1000, neuron_id) # Get the mean value * 1000 for mV
 
 
 class Calibrate_V_t(BaseCalibration):
@@ -69,31 +70,72 @@ class Calibrate_V_reset(BaseCalibration):
                 os.mkdir(os.path.join(self.folder, "bad_traces"))
             pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
             self.logger.WARN("Trace for neuron {} bad. Neuron not spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
-        # Return min value. This should be more accurate than a mean value of all minima because the ADC does not always hit the real minimum value, overestimating V_reset.
-        return np.min(v)*1000  
 
+        std_v = np.std(v)
 
-class Calibrate_V_reset_shift(Calibrate_V_reset):
+        # to be tuned
+        drop_threshold = -std_v/2
+        min_drop_distance = 5
+        start_div = 10
+        end_div = 5
+
+        # find right edge of spike --------------------------------------------
+        diff = np.diff(v)
+        drop = np.where(diff < drop_threshold)[0]
+        #----------------------------------------------------------------------
+
+        # the differences of the drop position n yields the time between spikes
+        drop_diff = np.diff(drop)
+        # filter consecutive values
+        drop_diff_filtered = drop_diff[drop_diff > min_drop_distance]
+        # take mean of differences
+        delta_t = np.mean(drop_diff_filtered)
+        #----------------------------------------------------------------------
+
+        # collect baseline voltages -------------------------------------------
+        only_base = []
+        last_n = -1
+
+        baseline = 0
+        N = 0
+
+        for n in drop[np.where(np.diff(drop) > min_drop_distance)[0]]:
+
+            # start some time after spike and stop early to avoid taking rising edge
+            start = n+int(delta_t/start_div)
+            end = n+int(delta_t/end_div)
+
+            if start < len(v) and end < len(v):
+                baseline += np.mean(v[start:end])
+                N += 1
+
+        # take mean
+        if N:
+            baseline /= N
+        else:
+            baseline = np.min(v)
+
+        #----------------------------------------------------------------------
+
+        # convert to mV
+        v_reset = baseline*1000
+
+        return v_reset
+
+class Calibrate_readout_shift(Calibrate_V_reset):
     """V_reset_shift calibration."""
     target_parameter = shared_parameter.V_reset
 
     def init_experiment(self):
-        super(Calibrate_V_reset_shift, self).init_experiment()
-        self.description = self.description + " Calibrate_V_reset_shift."
+        super(Calibrate_readout_shift, self).init_experiment()
+        self.description = self.description + " Calibrate readout shift."
 
-    def get_shared_steps(self):
-        steps = []
-        for voltage in self.experiment_parameters["V_reset_range"]:
-            steps.append({shared_parameter.V_reset: Voltage(voltage, apply_calibration = True)})
-        return defaultdict(lambda: steps)
-
-    def process_results(self, neuron_ids):
-        """ This is changed from the original processing function in order to calculate the V_reset shift."""
+    def process_calibration_results(self, neurons, parameter, dim):
+        """This base class function can be used by child classes as process_results."""
         # containers for final results
-        results_mean = defaultdict(list)
-        results_std = defaultdict(list)
-        results_polynomial = {}
-        results_broken = []  # will contain neuron_ids which are broken
+        self.results_mean = defaultdict(list)
+        self.results_std = defaultdict(list)
+        self.results_polynomial = {}
 
         # self.all_results contains all measurements, need to untangle
         # repetitions and steps
@@ -102,44 +144,90 @@ class Calibrate_V_reset_shift(Calibrate_V_reset):
         step_results = defaultdict(list)
         for result in self.all_results:
             # still in the same step, collect repetitions for averaging
-            for neuron_id in neuron_ids:
-                step_results[neuron_id].append(result[neuron_id])
+            for neuron in neurons:
+                step_results[neuron].append(result[neuron])
             repetition += 1
             if repetition > self.repetitions:
                 # step is done; average, store and reset
-                for neuron_id in neuron_ids:
-                    results_mean[neuron_id].append(HWtoDAC(np.mean(step_results[neuron_id]), shared_parameter.V_reset))
-                    results_std[neuron_id].append(HWtoDAC(np.std(step_results[neuron_id]), shared_parameter.V_reset))
+                for neuron in neurons:
+                    mean = HWtoDAC(np.mean(step_results[neuron]), parameter)
+                    std = HWtoDAC(np.std(step_results[neuron]), parameter)
+                    self.results_mean[neuron].append(mean)
+                    self.results_std[neuron].append(std)
                 repetition = 1
                 step_results = defaultdict(list)
-        
-        # Find the shift of each neuron compared to applied V_reset:
-        all_steps = self.get_shared_steps()
-        for neuron_id in neuron_ids:
-            results_mean[neuron_id] = np.array(results_mean[neuron_id])
-            results_std[neuron_id] = np.array(results_std[neuron_id])
-            steps = [HCtoDAC(step[shared_parameter.V_reset].value, shared_parameter.V_reset) for step in all_steps[neuron_id]]
-            # linear fit
-            m,b = np.polyfit(steps, results_mean[neuron_id], 1)
-            coeffs = [b, m-1]
-            # TODO find criteria for broken neurons. Until now, no broken neurons exist
+
+        # For shared parameters: mean over one block
+        def iter_v_reset(block):
+            neuron_on_quad = Coordinate.NeuronOnQuad(block.x(), block.y())
+            for quad in Coordinate.iter_all(Coordinate.QuadOnHICANN):
+                yield Coordinate.NeuronOnHICANN(quad, neuron_on_quad)
+            return
+
+        self.results_mean_shared = defaultdict(list)
+        self.results_std_shared = defaultdict(list)
+        for block in self.get_blocks():
+            neurons_on_block = [n for n in iter_v_reset(block)]
+            self.results_mean_shared[block] = np.mean([self.results_mean[n_coord] for n_coord in neurons_on_block], axis = 0)
+            self.results_std_shared[block] = np.mean([self.results_std[n_coord] for n_coord in neurons_on_block], axis = 0)
+
+        steps = self.get_steps()
+
+        self.results_diff_mean = defaultdict(list)
+        self.results_diff_std = defaultdict(list)
+
+        for neuron in self.get_neurons():
+            block = neuron.sharedFGBlock()
+            self.results_diff_mean[neuron] = [self.results_mean[neuron][step_id] - self.results_mean_shared[block][step_id] for step_id in range(len(steps))]
+            self.results_diff_std[neuron] = [np.sqrt(self.results_std[neuron][step_id]**2 + self.results_std_shared[block][step_id]**2) for step_id in range(len(steps))] 
+
+
+        for neuron in self.get_neurons():
+            block = neuron.sharedFGBlock()
+            step_values = [step[block][shared_parameter.V_reset].toDAC().value for step in steps]
+            weight = 1./(np.array(self.results_diff_std[neuron]) + 1e-8)  # add a tiny value because std may be zero
+            coeffs = np.polynomial.polynomial.polyfit(step_values, self.results_diff_mean[neuron], 0, w=weight)
+            coeffs = coeffs[::-1]
+
             if self.isbroken(coeffs):
-                results_broken.append(neuron_id)
-                self.logger.INFO("Neuron {0} marked as broken with coefficients of {1:.2f} and {2:.2f}".format(neuron_id, m, b))
-            self.logger.INFO("Neuron {} calibrated successfully with coefficients {}".format(neuron_id, coeffs))
-            results_polynomial[neuron_id] = create_pycalibtic_polynomial(coeffs)
-
-        self.results_mean = results_mean
-        self.results_std = results_std
-
-        # make final results available
-        self.results_polynomial = results_polynomial
-        self.results_broken = results_broken
+                self.logger.WARN("{} with coefficients {} marked as broken.".format(neuron, coeffs))
+                return None
+            else:
+                self.logger.INFO("Neuron {} calibrated successfully with coefficients {}".format(neuron, coeffs))
+            self.results_polynomial[neuron] = create_pycalibtic_polynomial(coeffs)
 
     def store_results(self):
-        # TODO wait until calibtic can handle V_reset_shift storage
-        pass
+        # Store readout shift as 21st parameter
+        self.store_calibration_results(21)
 
+    def store_calibration_results(self, parameter):
+        """This base class function can be used by child classes as store_results."""
+        results = self.results_polynomial
+        md = pycalibtic.MetaData()
+        md.setAuthor("pycake")
+        md.setComment("calibration")
+
+        logger = self.logger
+
+        collection = self._calib_nc
+        CollectionType = pycalibtic.NeuronCalibration 
+        redman = self._red_nrns
+
+
+        for coord, result in results.iteritems():
+            index = coord.id().value()
+            if result is None and redman and not redman.has(coord):
+                redman.disable(coord)
+                # TODO reset/delete calibtic function for this neuron
+            else:  # store in calibtic
+                if not collection.exists(index):
+                    logger.INFO("No existing calibration data for neuron {} found, creating default dataset".format(index))
+                    cal = CollectionType()
+                    collection.insert(index, cal)
+                collection.at(index).reset(parameter, result)
+
+        self.logger.INFO("Storing calibration results")
+        self.store_calibration(md)
 
 class Calibrate_I_gl(BaseCalibration):
     target_parameter = neuron_parameter.I_gl

@@ -47,7 +47,7 @@ class BaseExperiment(object):
         self.sthal = sthal_container
 
         # TODO only accept NeuronOnHICANN coordinates?
-        self.neuron_ids = [NeuronOnHICANN(Enum(n) if isinstance(n, int) else n) for n in neuron_ids]
+        self.neurons = [NeuronOnHICANN(Enum(n) if isinstance(n, int) else n) for n in neuron_ids]
         self.blocks = [block for block in Coordinate.iter_all(FGBlockOnHICANN)]
         self._repetitions = 1
 
@@ -75,6 +75,8 @@ class BaseExperiment(object):
             self.logger = pylogging.get("pycake.experiment")
         if not loglevel is None:
             pylogging.set_loglevel(self.logger, pylogging.LogLevel.INFO)
+
+        self.trace_folder = None
 
     def init_experiment(self):
         """Hook for child classes. Executed by run_experiment(). These are standard parameters."""
@@ -240,7 +242,7 @@ class BaseExperiment(object):
 
         fgc = pyhalbe.HICANN.FGControl()
 
-        neuron_ids = self.get_neurons()
+        neurons = self.get_neurons()
         base_parameters = self.get_parameters()
 
         for neuron in Coordinate.iter_all(NeuronOnHICANN):
@@ -248,12 +250,12 @@ class BaseExperiment(object):
             parameters.update(step[neuron])
             ncal = None
             self.logger.TRACE("Neuron {} has: {}".format(neuron.id(), self._red_nrns.has(neuron)))
-            #if not self._red_nrns.has(neuron):
             if self._red_nrns.has(neuron):
                 self.logger.TRACE("Neuron {} not marked as broken".format(neuron.id()))
                 try:
                     ncal = self._calib_nc.at(neuron.id().value())
-                    self.logger.INFO("Calibration for Neuron {} found.".format(neuron.id()))
+                    if step_id == 0: # Only show this info in first step
+                        self.logger.INFO("Calibration for Neuron {} found.".format(neuron.id()))
                 except (IndexError):
                     if step_id == 0:
                         self.logger.WARN("No calibration found for neuron {}".format(neuron.id()))
@@ -351,8 +353,7 @@ class BaseExperiment(object):
         All neurons will be prepared with the same parameters (except for calibration differences)
         and each neuron will be measured in the measure step.
         """
-
-        return self.neuron_ids  # TODO move this to a property
+        return self.neurons  # TODO move this to a property
 
     def get_blocks(self):
         """ Return all blocks on this HICANN.
@@ -365,7 +366,7 @@ class BaseExperiment(object):
         logger = self.logger
 
         self.init_experiment()
-        neuron_ids = self.get_neurons()
+        neurons = self.get_neurons()
 
         parameters = self.get_parameters()
 
@@ -394,8 +395,7 @@ class BaseExperiment(object):
             self.pickle(self.sthal.hicann, self.folder, 'sthalcontainer.p')
             self.pickle(self.repetitions, self.folder, "repetitions.p")
             open(os.path.join(self.folder,'description.txt'), 'w').write(self.description)
-            if self.target_parameter:
-                self.pickle(self.target_parameter, self.folder, 'target_parameter.p')
+            self.pickle(self.target_parameter, self.folder, 'target_parameter.p')
                 
 
             # dump neuron parameters and steps:
@@ -403,24 +403,30 @@ class BaseExperiment(object):
             self.pickle(steps, self.folder, "steps.p")
 
             # This connects implicitly to the wafer
-            self.pickle(self.sthal.status(), self.folder, 'wafer_status.p')
+            if not self.trace_folder:
+                self.pickle(self.sthal.status(), self.folder, 'wafer_status.p')
 
         logger.INFO("Experiment {}".format(self.description))
         logger.INFO("Created folders in {}".format(self.folder))
+        if self.trace_folder:
+            logger.INFO("Reading traces from {}.".format(self.trace_folder))
 
         for step_id, step in enumerate(steps):
-                step_parameters = self.prepare_parameters(step, step_id)
+                if not self.trace_folder:
+                    step_parameters = self.prepare_parameters(step, step_id)
                 for r in range(self.repetitions):
                     logger.INFO("{} - Step {}/{} repetition {}/{}.".format(time.asctime(),step_id+1, num_steps, r+1, self.repetitions))
                     logger.INFO("{} - Preparing measurement --> setting floating gates".format(time.asctime()))
-                    self.prepare_measurement(step_parameters, step_id, r)
+                    if not self.trace_folder:
+                        self.prepare_measurement(step_parameters, step_id, r)
                     logger.INFO("{} - Measuring.".format(time.asctime()))
-                    self.measure(neuron_ids, step_id, r)
+                    self.measure(neurons, step_id, r)
 
         logger.INFO("Processing results")
-        self.process_results(neuron_ids)
+        self.process_results(neurons)
         self.store_results()
-        self.sthal.disconnect()
+        if self.sthal._connected:
+            self.sthal.disconnect()
 
     @staticmethod
     def pickle(data, folder, filename):
@@ -452,20 +458,26 @@ class BaseExperiment(object):
             filename = "step{}_rep{}.p".format(step_id, rep_id)
             self.pickle(result, folder, filename)
 
-    def process_trace_data(self, neuron_id):
-        return tuple()
+    def load_trace(self, nid, step_id, rep_id):
+        this_step_folder = os.path.join(self.trace_folder, 'step{}rep{}/'.format(step_id, rep_id))
+        nid = neuron.id().value()
+        fullpath = os.path.join(this_step_folder, 'neuron_{}.p.bz2'.format(nid))
+        with bz2.BZ2File(fullpath, 'r') as f:
+            return pickle.load(f)
 
-    def measure(self, neuron_ids, step_id, rep_id):
+    def measure(self, neurons, step_id, rep_id):
         """Perform measurements for a single step on one or multiple neurons."""
         workers_save = WorkerPool(self.save_trace)
         traces = []
-        for neuron_id in neuron_ids:
-            print neuron_id
-            self.sthal.switch_analog_output(neuron_id)
-            t, v = self.sthal.read_adc()
-            traces.append((t, v, neuron_id, step_id, rep_id))
+        for neuron in neurons:
+            if self.trace_folder:
+                t, v = self.load_trace(neuron, step_id, rep_id)
+            else:
+                self.sthal.switch_analog_output(neuron)
+                t, v = self.sthal.read_adc()
+            traces.append((t, v, neuron, step_id, rep_id))
             if self.save_traces:
-                workers_save.do(self.get_trace_folder(step_id, rep_id), t, v, neuron_id)
+                workers_save.do(self.get_trace_folder(step_id, rep_id), t, v, neuron)
         workers_save.join()
 
         process_trace = self.get_process_trace_callback()
@@ -479,7 +491,7 @@ class BaseExperiment(object):
         else:
             results = [self.process_trace(*t) for t in traces]
 
-        results = dict(zip(neuron_ids, results))
+        results = dict(zip(neurons, results))
         self.save_result(results, step_id, rep_id)
         self.all_results.append(results)
 
@@ -487,11 +499,20 @@ class BaseExperiment(object):
         """Hook, if it returns a callable, this will be used vor parallel result processing"""
         return None
 
+    def correct_for_readout_shift(self, value, neuron):
+        neuron_id = neuron.id().value()
+        try:
+            shift = self._calib_nc.at(neuron_id).at(21).apply(value * 1023/1800.) * 1800./1023.
+            return value - shift
+        except:
+            raise
+            return value
+
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         """Hook class for processing measured traces. Should return one value."""
         return 0
 
-    def process_results(self, neuron_ids):
+    def process_results(self, neurons):
         """Process measured data."""
         pass  # no processing
 
