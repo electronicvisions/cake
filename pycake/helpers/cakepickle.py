@@ -527,11 +527,11 @@ class Experiment(object):
             print "No traces saved."
             return
 
-    def plot_neuron_results(self, neuron_id, step, parameter = None):
+    def plot_neuron_results(self, neuron_id, parameter = None):
         """ Plot all measurement results for one neuron.
 
             Args:
-                neuron_id, step = int
+                neuron_id = a single or a list of neuron ids
                 parameter = For newer experiments, this can be left blank
                             For older experiments, specify the target parameter
 
@@ -544,14 +544,22 @@ class Experiment(object):
             except:
                 print "Parameter error: No parameter found or no parameter given"
                 return
-        xs = self.get_steps()
-        ys = self.get_neuron_results(neuron_id)[0]
-        y_errs = self.get_neuron_results(neuron_id)[1]
+
+        if not isinstance(neuron_id, list):
+            neuron_id = [neuron_id]
 
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        ax.errorbar(xs,ys,y_errs)
+        xs = self.get_steps()
         ax.plot(xs,xs, linestyle = "dashed", color="k", alpha = 0.8)
+
+        for nid in neuron_id:
+            
+            ys = self.get_neuron_results(nid)[0]
+            y_errs = self.get_neuron_results(nid)[1]
+
+            ax.errorbar(xs,ys,y_errs)
+
         return fig
 
     def get_broken_neurons(self):
