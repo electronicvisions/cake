@@ -343,7 +343,7 @@ class Experiment(object):
             path = '{}/traces/step{}rep{}'.format(self.workdir,step_id,rep_id)
             trace = self.pickle_load(path, pattern.format(neuron_id))
         except IOError:
-            print 'No traces saved'
+            print 'No traces saved for neuron {}, step {} and rep {}.'.format(neuron_id,step_id,rep_id)
             return
         return trace
 
@@ -524,7 +524,7 @@ class Experiment(object):
             ax.plot(trace[0]*xaxis_scale, trace[1])
             return fig
         else:
-            print "No traces saved."
+            print 'No traces saved for neuron {}, step {} and rep {}.'.format(neuron_id,step,repetition)
             return
 
     def plot_neuron_results(self, neuron_id, parameter = None, guideline_offset=0, guideline_slope=1):
