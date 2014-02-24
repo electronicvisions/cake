@@ -548,6 +548,7 @@ class Experiment(object):
 
         fig = plt.figure()
         ax = fig.add_subplot(111)
+        ax.set_xlabel(self.target_parameter.name)
 
         steps_x = self.get_steps()
 
