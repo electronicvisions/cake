@@ -503,7 +503,7 @@ class Experiment(object):
         else:
             return np.array([[self.results[sid][rep][neuron_id] for sid in range(self.num_steps)] for rep in range(self.repetitions)])
 
-    def plot_trace(self, neuron_id, step, repetition, xaxis_scale=1., start_percent=0., stop_percent=100., show_title=False):
+    def plot_trace(self, neuron_id, step, repetition, xaxis_scale=1., start_percent=0., stop_percent=100., show_title=False, show_legend=False):
         """ Plot the trace of a neuron.
 
             Args:
@@ -528,7 +528,11 @@ class Experiment(object):
             start_index = int(start_percent/100.*len(trace[0]))
             stop_index = int(stop_percent/100.*len(trace[0])) + 1
 
-            ax.plot((trace[0]*xaxis_scale)[start_index:stop_index], trace[1][start_index:stop_index])
+            ax.plot((trace[0]*xaxis_scale)[start_index:stop_index], trace[1][start_index:stop_index], label="membrane potential")
+
+            if show_legend:
+                plt.legend()
+
             return fig
         else:
             print 'No traces saved for neuron {}, step {} and rep {}.'.format(neuron_id,step,repetition)
