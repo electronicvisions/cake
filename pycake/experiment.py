@@ -460,7 +460,7 @@ class BaseExperiment(object):
 
     def load_trace(self, nid, step_id, rep_id):
         this_step_folder = os.path.join(self.trace_folder, 'step{}rep{}/'.format(step_id, rep_id))
-        nid = neuron.id().value()
+        nid = nid.id().value()
         fullpath = os.path.join(this_step_folder, 'neuron_{}.p.bz2'.format(nid))
         with bz2.BZ2File(fullpath, 'r') as f:
             return pickle.load(f)
