@@ -347,6 +347,15 @@ class Experiment(object):
             return
         return trace
 
+    def get_plot_result(self, neuron_id, step_id, rep_id):
+        """ Implementation for get_trace and get_averaged_trace"""
+        try:
+            path = '{}/plot_results/step{}rep{}'.format(self.workdir,step_id,rep_id)
+            plot_result = self.pickle_load(path, "plot_result_{}.p".format(neuron_id))
+            return plot_result
+        except IOError:
+            raise IOError('No plot_results saved for neuron {}, step {} and rep {}. {} (+ extension) is missing.'.format(neuron_id,step_id,rep_id, path))
+
     def get_trace(self, neuron_id, step_id = 0, rep_id = 0):
         """ Get the traces of one neurons from a specific measurement
 
@@ -503,7 +512,7 @@ class Experiment(object):
         else:
             return np.array([[self.results[sid][rep][neuron_id] for sid in range(self.num_steps)] for rep in range(self.repetitions)])
 
-    def plot_trace(self, neuron_id, step, repetition, xaxis_scale=1., start_percent=0., stop_percent=100., show_title=False, show_legend=False):
+    def plot_trace(self, neuron_id, step, repetition, xaxis_scale=1., start_percent=0., stop_percent=100., show_title=False, show_legend=False, include_result=False):
         """ Plot the trace of a neuron.
 
             Args:
@@ -529,6 +538,11 @@ class Experiment(object):
             stop_index = int(stop_percent/100.*len(trace[0])) + 1
 
             ax.plot((trace[0]*xaxis_scale)[start_index:stop_index], trace[1][start_index:stop_index], label="membrane potential")
+
+            if include_result:
+                ax.plot((trace[0]*xaxis_scale)[start_index:stop_index], 
+                        self.get_plot_result(neuron_id, step, repetition)[1][start_index:stop_index], 
+                        linestyle = "dashed", color="k", alpha = 0.8, label="result")
 
             if show_legend:
                 plt.legend()

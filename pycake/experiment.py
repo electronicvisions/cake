@@ -447,9 +447,17 @@ class BaseExperiment(object):
     def get_trace_folder(self, step_id, rep_id):
         return os.path.join(self.folder,"traces", "step{}rep{}".format(step_id, rep_id))
 
+    def get_plot_result_folder(self, step_id, rep_id):
+        return os.path.join(self.folder,"plot_results", "step{}rep{}".format(step_id, rep_id))
+
     @staticmethod
     def save_trace(folder, t, v, neuron):
         filename = "neuron_{}.p".format(neuron.id().value())
+        BaseExperiment.pickle_compressed([t, v], folder, filename)
+
+    @staticmethod
+    def save_plot_result(folder, t, v, neuron):
+        filename = "plot_result_{}.p".format(neuron.id().value())
         BaseExperiment.pickle_compressed([t, v], folder, filename)
 
     def save_result(self, result, step_id, rep_id):
@@ -495,6 +503,17 @@ class BaseExperiment(object):
         self.save_result(results, step_id, rep_id)
         self.all_results.append(results)
 
+        #
+
+        if hasattr(self,"plot_result_in_trace"):
+            workers_save = WorkerPool(self.save_plot_result)
+            for neuron, t in zip(neurons,traces):
+
+                times, p  = self.plot_result_in_trace(*t)
+
+                workers_save.do(self.get_plot_result_folder(step_id, rep_id), times, p, neuron)
+            workers_save.join()
+
     def get_process_trace_callback(self):
         """Hook, if it returns a callable, this will be used vor parallel result processing"""
         return None
@@ -511,6 +530,10 @@ class BaseExperiment(object):
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         """Hook class for processing measured traces. Should return one value."""
         return 0
+
+    #def plot_result_in_trace(self, t, v, neuron, step_id, rep_id):
+    #    """Function for plotting results to measured traces. Must return a pair of times and values lists."""
+    #    return None
 
     def process_results(self, neurons):
         """Process measured data."""

@@ -36,6 +36,10 @@ class Calibrate_E_l(BaseCalibration):
     """E_l calibration."""
     target_parameter = neuron_parameter.E_l
 
+    def plot_result_in_trace(self, t, v, neuron, step_id, rep_id):
+
+        return t, [self.all_results[rep_id][neuron]/1000.]*len(t)
+
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         if np.std(v)*1000>50:
             if not os.path.isdir(os.path.join(self.folder, "bad_traces")):
@@ -63,6 +67,10 @@ class Calibrate_V_t(BaseCalibration):
 class Calibrate_V_reset(BaseCalibration):
     """V_reset calibration."""
     target_parameter = shared_parameter.V_reset
+
+    def plot_result_in_trace(self, t, v, neuron, step_id, rep_id):
+
+        return t, [self.all_results[rep_id][neuron]/1000.]*len(t)
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         if np.std(v)*1000<5:
