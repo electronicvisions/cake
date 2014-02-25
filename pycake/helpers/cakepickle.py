@@ -503,7 +503,7 @@ class Experiment(object):
         else:
             return np.array([[self.results[sid][rep][neuron_id] for sid in range(self.num_steps)] for rep in range(self.repetitions)])
 
-    def plot_trace(self, neuron_id, step, repetition, xaxis_scale=1.):
+    def plot_trace(self, neuron_id, step, repetition, xaxis_scale=1., start_percent=0., stop_percent=100.):
         """ Plot the trace of a neuron.
 
             Args:
@@ -521,7 +521,11 @@ class Experiment(object):
             ax = fig.add_subplot(111)
             ax.set_xlabel("t{} [s]".format("" if not xaxis_scale != 1. else (" * %.1E" % xaxis_scale)))
             ax.set_ylabel('V [V]')
-            ax.plot(trace[0]*xaxis_scale, trace[1])
+
+            start_index = int(start_percent/100.*len(trace[0]))
+            stop_index = int(stop_percent/100.*len(trace[0])) + 1
+
+            ax.plot((trace[0]*xaxis_scale)[start_index:stop_index], trace[1][start_index:stop_index])
             return fig
         else:
             print 'No traces saved for neuron {}, step {} and rep {}.'.format(neuron_id,step,repetition)
