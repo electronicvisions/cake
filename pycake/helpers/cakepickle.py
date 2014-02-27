@@ -80,11 +80,12 @@ class Experimentreader(object):
         else:
             self.workdir = os.getcwd()
 
-    def list_experiments(self, prnt = True):
+    def list_experiments(self, prnt = True, s=slice(None)):
         """ List all experiments in the folder. 
 
             Args:
                 prnt = (True|False) do you want to print directly?
+                s = slice object to restrict range of printed experiments
 
             Returns:
                 if prnt = False: List of experiment names and descriptions
@@ -92,12 +93,17 @@ class Experimentreader(object):
         dirs = np.sort([name for name in os.listdir(self.workdir) if os.path.isdir(os.path.join(self.workdir, name))])
         i=0
         expdirs = []
+        to_be_printed = []
         for dr in dirs:
             if os.path.isfile(os.path.join(self.workdir,dr,"description.txt")):
                 expdirs.append(dr)
                 if prnt:
-                    print "{0:02d}  {1}: ".format(i,dr), open('{}/{}/description.txt'.format(self.workdir,dr)).readline()
-                    i = i+1
+                    to_be_printed.append("{0:02d}  {1}: ".format(i,dr) + " " + open('{}/{}/description.txt'.format(self.workdir,dr)).readline())
+                i = i+1
+
+        for p in to_be_printed[s]:
+            print p
+
         return expdirs
     
     def load_experiment(self, expname):
