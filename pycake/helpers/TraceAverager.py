@@ -61,22 +61,21 @@ class TraceAverager(object):
     def _get_chunks(self, trace, dt):
         n = len(trace)
         dpos = dt * self.adc_freq
+        chunks = int(np.floor(n / dpos))
         window_size = int(dpos)
-        pos = 0
-        while pos + dpos < n:
-            a = int(pos)
-            b = a + window_size
-            yield trace[a:b]
-            pos += dpos
-        return
+        result = np.empty( (chunks, window_size ) )
+        # Starting position of chunks
+        positions = np.arange(chunks, dtype=np.float) * dpos
+        for ii, pos in enumerate(positions):
+            result[ii] = trace[pos:pos+window_size]
+        return result
 
     def get_chunks(self, trace, dt):
         """Splits trace in chunks of lenght dt"""
-        return np.array([x for x in self._get_chunks(trace, dt)])
+        return self._get_chunks(trace, dt)
 
     def get_average(self, trace, dt):
         """Gives mean and std of trace slices with length dt"""
         chunks = self.get_chunks(trace, dt)
         return np.mean(chunks, axis = 0), np.std(chunks, axis = 0, ddof = 1), chunks.shape[0]
-
 
