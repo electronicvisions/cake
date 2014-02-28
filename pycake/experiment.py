@@ -302,7 +302,7 @@ class BaseExperiment(object):
                     continue
                 if name[0] == '_':
                     continue
-                value = self.get_calibrated(parameters, ncal, neuron,
+                value = self.get_calibrated(parameters, bcal, block,
                         param)
                 fgc.setShared(block, param, value)
 
