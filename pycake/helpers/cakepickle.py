@@ -196,11 +196,17 @@ class Experimentreader(object):
             data1 = exp1.results[step][repetition]
             data2 = exp2.results[step][repetition]
 
-        # Use step of neuron 0... not pretty but working
-        neuron0 = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(0))
-        target = steps1[step][neuron0][parameter].value
-        minval = int(round(steps1[0][neuron0][parameter].value * 0.9))
-        maxval = int(round(steps1[len(steps1)-1][neuron0][parameter].value * 1.1))
+        isneuron = isinstance(parameter, neuron_parameter) # else is shared parameter
+
+        if isneuron:
+            # Use step of neuron 0... not pretty but working
+            neuron_or_fgblock0 = pyhalbe.Coordinate.NeuronOnHICANN(pyhalbe.Coordinate.Enum(0))
+        else:
+            neuron_or_fgblock0 = pyhalbe.Coordinate.FGBlockOnHICANN(pyhalbe.Coordinate.Enum(0))
+
+        target = steps1[step][neuron_or_fgblock0][parameter].value
+        minval = int(round(steps1[0][neuron_or_fgblock0][parameter].value * 0.9))
+        maxval = int(round(steps1[len(steps1)-1][neuron_or_fgblock0][parameter].value * 1.1))
         fig = plt.figure()
         ax = fig.add_subplot(111)
         h1 = ax.hist(data1, range(minval,maxval,int((maxval-minval)/70)), label = 'uncalibrated')
