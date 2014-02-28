@@ -221,6 +221,7 @@ class Calibrate_I_gl(BaseCalibration):
         self.sthal.recording_time = 5e-3
         self.stim_length = 65
         self.pulse_length = 15
+        self.stim_current = 35          # Stim current in nA
 
         # Get the trace averager
         self.logger.INFO("{}: Creating trace averager".format(time.asctime()))
@@ -239,7 +240,7 @@ class Calibrate_I_gl(BaseCalibration):
         stimulus.setPulselength(self.pulse_length)
         stimulus.setContinuous(True)
 
-        stimulus[:self.stim_length] = [35] * self.stim_length
+        stimulus[:self.stim_length] = [self.stim_current] * self.stim_length
         stimulus[self.stim_length:] = [0] * (len(stimulus) - self.stim_length)
 
         self.sthal.set_current_stimulus(stimulus)
