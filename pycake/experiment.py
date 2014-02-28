@@ -199,6 +199,8 @@ class BaseExperiment(object):
         return result
 
     def get_calibrated(self, parameters, ncal, coord, param):
+        """ Returns calibrated DAC value from Voltage or Current value
+        """
         value = parameters[param]
         dac_value = value.toDAC().value #implicit range check!
         dac_value_uncalibrated = dac_value
