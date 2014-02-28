@@ -169,8 +169,13 @@ class BaseCalibration(BaseExperiment):
                 self.results_polynomial[neuron] = self.do_fit(neuron, parameter, steps, 
                         self.results_mean[neuron], self.results_std[neuron], dim)
 
-    def store_calibration_results(self, parameter):
-        """This base class function can be used by child classes as store_results."""
+    def store_calibration_results(self, parameter, isneuron=None):
+        """This base class function can be used by child classes as store_results.
+
+           isneuron - if is set to True (False) a neuron (shared) calibration is filled
+                      if set to None, the type of calibration is deduced from 'parameter'
+
+        """
         results = self.results_polynomial
         md = pycalibtic.MetaData()
         md.setAuthor("pycake")
@@ -178,7 +183,7 @@ class BaseCalibration(BaseExperiment):
 
         logger = self.logger
 
-        isneuron = isinstance(parameter, neuron_parameter)
+        isneuron = isinstance(parameter, neuron_parameter) if isneuron == None else isneuron
 
         if isneuron:
             collection = self._calib_nc
