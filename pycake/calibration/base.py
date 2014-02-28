@@ -188,14 +188,17 @@ class BaseCalibration(BaseExperiment):
         if isneuron:
             collection = self._calib_nc
             CollectionType = pycalibtic.NeuronCalibration 
+            coordinates = self.get_neurons()
             redman = self._red_nrns
         else:
             collection = self._calib_bc
             CollectionType = pycalibtic.SharedCalibration
+            coordinates = self.get_blocks()
             redman = None
 
 
-        for coord, result in results.iteritems():
+        for coord in coordinates:
+            result = results[coord]
             index = coord.id().value()
             if result is None and redman and not redman.has(coord):
                 redman.disable(coord)
