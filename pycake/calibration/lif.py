@@ -189,20 +189,15 @@ class Calibrate_readout_shift(Calibrate_V_reset):
             self.results_diff_mean[neuron] = [self.results_mean[neuron][step_id] - self.results_mean_shared[block][step_id] for step_id in range(len(steps))]
             self.results_diff_std[neuron] = [np.sqrt(self.results_std[neuron][step_id]**2 + self.results_std_shared[block][step_id]**2) for step_id in range(len(steps))] 
 
-
         for neuron in self.get_neurons():
             block = neuron.sharedFGBlock()
-            step_values = [step[block][shared_parameter.V_reset].toDAC().value for step in steps]
-            weight = 1./(np.array(self.results_diff_std[neuron]) + 1e-8)  # add a tiny value because std may be zero
-            coeffs = np.polynomial.polynomial.polyfit(step_values, self.results_diff_mean[neuron], 0, w=weight)
-            coeffs = coeffs[::-1]
-
-            if self.isbroken(coeffs):
-                self.logger.WARN("{} with coefficients {} marked as broken.".format(neuron, coeffs))
-                return None
-            else:
-                self.logger.INFO("Neuron {} calibrated successfully with coefficients {}".format(neuron, coeffs))
-            self.results_polynomial[neuron] = create_pycalibtic_polynomial(coeffs)
+            self.results_polynomial[neuron] = self.do_fit(coord=block,
+                                                          parameter=shared_parameter.V_reset,
+                                                          steps=steps,
+                                                          mean=self.results_diff_mean[neuron],
+                                                          std=self.results_diff_std[neuron],
+                                                          dim=0,
+                                                          swap_fit_x_y=True)
 
     def store_results(self):
         # Store readout shift as 21st parameter
