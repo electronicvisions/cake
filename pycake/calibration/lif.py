@@ -33,6 +33,14 @@ neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
 
 def find_baseline(t,v):
+        """ find baseline of trace
+
+            t - list of time stamps
+            v - corresponding values
+
+            returns baseline and time between values in unit index (do t[delta_t] to get delta in units of time)
+        """
+
         std_v = np.std(v)
 
         # to be tuned
@@ -79,7 +87,7 @@ def find_baseline(t,v):
 
         #----------------------------------------------------------------------
 
-        return baseline
+        return baseline, delta_t
 
 class Calibrate_E_l(BaseCalibration):
     """E_l calibration."""
@@ -116,7 +124,9 @@ class Calibrate_V_reset(BaseCalibration):
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         if np.std(v)*1000<5 or True: self.report_bad_trace(t, v, step_id, rep_id, neuron_id)
 
-        return find_baseline(t,v) * 1000
+        baseline, delta_t = find_baseline(t,v)
+
+        return baseline * 1000
 
 
     def process_calibration_results(self, neurons, parameter, dim):
@@ -368,7 +378,9 @@ class Test_V_reset(BaseTest):
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         if np.std(v)*1000<5: self.report_bad_trace(t, v, step_id, rep_id, neuron_id)
 
-        return self.correct_for_readout_shift(find_baseline(t,v) * 1000, neuron_id)
+        baseline, delta_t = find_baseline(t,v)
+
+        return self.correct_for_readout_shift(baseline * 1000, neuron_id)
 
 class Test_I_gl(BaseTest):
     target_parameter = neuron_parameter.I_gl
