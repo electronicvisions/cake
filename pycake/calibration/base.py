@@ -136,8 +136,8 @@ class BaseCalibration(BaseExperiment):
             if repetition > self.repetitions:
                 # step is done; average, store and reset
                 for neuron in neurons:
-                    mean = HWtoDAC(np.mean(step_results[neuron]), parameter)
-                    std = HWtoDAC(np.std(step_results[neuron]), parameter)
+                    mean = HWtoDAC(np.mean(step_results[neuron]), parameter, rounded = False)
+                    std = HWtoDAC(np.std(step_results[neuron]), parameter, rounded = False)
                     self.results_mean[neuron].append(mean)
                     self.results_std[neuron].append(std)
                 repetition = 1
