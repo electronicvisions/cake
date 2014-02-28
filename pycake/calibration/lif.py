@@ -122,7 +122,7 @@ class Calibrate_V_reset(BaseCalibration):
         return t, [self.all_results[rep_id][neuron]/1000.]*len(t)
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
-        if np.std(v)*1000<5 or True: self.report_bad_trace(t, v, step_id, rep_id, neuron_id)
+        if np.std(v)*1000<5: self.report_bad_trace(t, v, step_id, rep_id, neuron_id)
 
         baseline, delta_t = find_baseline(t,v)
 
