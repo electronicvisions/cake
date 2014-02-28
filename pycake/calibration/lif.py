@@ -31,6 +31,54 @@ Enum = Coordinate.Enum
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
 
+def find_baseline(t,v):
+        std_v = np.std(v)
+
+        # to be tuned
+        drop_threshold = -std_v/2
+        min_drop_distance = 5
+        start_div = 10
+        end_div = 5
+
+        # find right edge of spike --------------------------------------------
+        diff = np.diff(v)
+        drop = np.where(diff < drop_threshold)[0]
+        #----------------------------------------------------------------------
+
+        # the differences of the drop position n yields the time between spikes
+        drop_diff = np.diff(drop)
+        # filter consecutive values
+        drop_diff_filtered = drop_diff[drop_diff > min_drop_distance]
+        # take mean of differences
+        delta_t = np.mean(drop_diff_filtered)
+        #----------------------------------------------------------------------
+
+        # collect baseline voltages -------------------------------------------
+        only_base = []
+        last_n = -1
+
+        baseline = 0
+        N = 0
+
+        for n in drop[np.where(np.diff(drop) > min_drop_distance)[0]]:
+
+            # start some time after spike and stop early to avoid taking rising edge
+            start = n+int(delta_t/start_div)
+            end = n+int(delta_t/end_div)
+
+            if start < len(v) and end < len(v):
+                baseline += np.mean(v[start:end])
+                N += 1
+
+        # take mean
+        if N:
+            baseline /= N
+        else:
+            baseline = np.min(v)
+
+        #----------------------------------------------------------------------
+
+        return baseline
 
 class Calibrate_E_l(BaseCalibration):
     """E_l calibration."""
@@ -79,56 +127,7 @@ class Calibrate_V_reset(BaseCalibration):
             pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
             self.logger.WARN("Trace for neuron {} bad. Neuron not spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
 
-        std_v = np.std(v)
-
-        # to be tuned
-        drop_threshold = -std_v/2
-        min_drop_distance = 5
-        start_div = 10
-        end_div = 5
-
-        # find right edge of spike --------------------------------------------
-        diff = np.diff(v)
-        drop = np.where(diff < drop_threshold)[0]
-        #----------------------------------------------------------------------
-
-        # the differences of the drop position n yields the time between spikes
-        drop_diff = np.diff(drop)
-        # filter consecutive values
-        drop_diff_filtered = drop_diff[drop_diff > min_drop_distance]
-        # take mean of differences
-        delta_t = np.mean(drop_diff_filtered)
-        #----------------------------------------------------------------------
-
-        # collect baseline voltages -------------------------------------------
-        only_base = []
-        last_n = -1
-
-        baseline = 0
-        N = 0
-
-        for n in drop[np.where(np.diff(drop) > min_drop_distance)[0]]:
-
-            # start some time after spike and stop early to avoid taking rising edge
-            start = n+int(delta_t/start_div)
-            end = n+int(delta_t/end_div)
-
-            if start < len(v) and end < len(v):
-                baseline += np.mean(v[start:end])
-                N += 1
-
-        # take mean
-        if N:
-            baseline /= N
-        else:
-            baseline = np.min(v)
-
-        #----------------------------------------------------------------------
-
-        # convert to mV
-        v_reset = baseline*1000
-
-        return self.correct_for_readout_shift(v_reset, neuron_id)
+        return find_baseline(t,v) * 1000
 
 
     def process_calibration_results(self, neurons, parameter, dim):
@@ -391,54 +390,7 @@ class Test_V_reset(BaseTest):
             pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
             self.logger.WARN("Trace for neuron {} bad. Neuron not spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
 
-        std_v = np.std(v)
-
-        # to be tuned
-        drop_threshold = -std_v/2
-        min_drop_distance = 5
-        start_div = 10
-        end_div = 5
-
-        # find right edge of spike --------------------------------------------
-        diff = np.diff(v)
-        drop = [(n,d) for n,d in enumerate(diff) if d < drop_threshold]
-        #print "drops", [n for n,d in drop]
-        #----------------------------------------------------------------------
-
-        # the differences of the drop position n yields the time between spikes
-        drop_diff = np.diff([n for n,d in drop])
-        #print "drop_diff", drop_diff
-        # but only if consecutive values (it's still below drop_threshold) are not considered
-        drop_diff2 = [(n,d) for n,d in enumerate(drop_diff) if d > min_drop_distance]
-        delta_t = np.mean([d for n,d in drop_diff2])
-        #print "delta_t", delta_t
-        #----------------------------------------------------------------------
-
-        # collect baseline voltages -------------------------------------------
-        only_base = []
-        last_n = -1
-        for n,d in drop:
-            if n-last_n > min_drop_distance:
-                # to start some time after spike and stop early to avoid taking rising edge
-                only_base.append(v[n+int(delta_t/start_div):n+int(delta_t/end_div)])
-            else:
-                #print "skipping duplicate"
-                pass
-            last_n = n
-        #----------------------------------------------------------------------
-
-        # take mean of all baselines
-        baselines = []
-        for ob in only_base:
-            if len(ob):
-                baselines.append(np.mean(ob))
-        baseline = np.mean(baselines)
-        #----------------------------------------------------------------------
-
-        # convert to mV
-        v_reset = baseline*1000
-
-        return self.correct_for_readout_shift(v_reset, neuron_id)
+        return self.correct_for_readout_shift(find_baseline(t,v) * 1000, neuron_id)
 
 class Test_I_gl(BaseTest):
     target_parameter = neuron_parameter.I_gl
