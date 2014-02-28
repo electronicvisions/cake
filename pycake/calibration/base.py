@@ -210,11 +210,14 @@ class BaseCalibration(BaseExperiment):
         self.logger.INFO("Storing calibration results")
         self.store_calibration(md)
 
-    def do_fit(self, coord, parameter, steps, mean, std, dim):
+    def do_fit(self, coord, parameter, steps, mean, std, dim, swap_fit_x_y=False):
         step_values = [step[coord][parameter].toDAC().value for step in steps]
         # TODO think about the weight thing
         weight = 1./(np.array(std) + 1e-8)  # add a tiny value because std may be zero
-        coeffs = np.polynomial.polynomial.polyfit(mean, step_values, dim, w=weight)
+        coeffs = np.polynomial.polynomial.polyfit(mean        if not swap_fit_x_y else step_values,
+                                                  step_values if not swap_fit_x_y else mean,
+                                                  dim,
+                                                  w=weight)
         coeffs = coeffs[::-1]
 
         if self.isbroken(coeffs):
