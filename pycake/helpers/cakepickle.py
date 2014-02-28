@@ -156,7 +156,9 @@ class Experimentreader(object):
             f = open('{}/{}/description.txt'.format(self.workdir,expname), 'w')
         f.write(description)
 
-    def compare_experiments(self, experiment1, experiment2, step, parameter = None, repetition = None):
+    def compare_experiments(self, experiment1, experiment2, step,
+            parameter = None, repetition = None, alpha = 1.0, xlim = None, n_bins = 70, show_legend = True, show_title = True,
+            label1 = 'uncalibrated', label2 = 'calibrated'):
         """ Plot histograms that compare two experiments.
             
             Args:
@@ -167,6 +169,10 @@ class Experimentreader(object):
                             if nothing given, mean over repetitions is compared
                 parameter:  for older pickles, you need to specify the parameter.
                             files pickled after 2014-02-07 do not need this as they save the target parameter
+                alpha:      set transparency of second histogram
+                xlim:       set xlim. When nothing is set, xlim is automatically detected for this experiment
+                n_bins:     Number of bins.
+                label1/2:   Histogram labels
 
             Returns:
                 matplotlib.pyplot.figure object with the histogram
@@ -209,14 +215,21 @@ class Experimentreader(object):
         maxval = int(round(steps1[len(steps1)-1][neuron_or_fgblock0][parameter].value * 1.1))
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        h1 = ax.hist(data1, range(minval,maxval,int((maxval-minval)/70)), label = 'uncalibrated')
-        h2 = ax.hist(data2, range(minval,maxval,int((maxval-minval)/70)), label = 'calibrated')
-        max_y = max(max(h1[0]),max(h2[0]))
-        ax.vlines(target, 0, max_y, linestyle = 'dashed', color = 'k', label = 'target')
-        ax.set_title("Comparison of {} values.".format(parameter.name))
+        h1 = ax.hist(data1, range(minval,maxval,int((maxval-minval)/n_bins)), label = label1)
+        h2 = ax.hist(data2, range(minval,maxval,int((maxval-minval)/n_bins)), label = label2, alpha = alpha)
+        ylim = ax.get_ylim()
+        ax.vlines(target, 0, ylim[1], linestyle = 'dashed', color = 'k', label = 'target', linewidth = 2)
+        ax.set_ylim(ylim)
+        if show_title:
+            ax.set_title("Comparison of {} values.".format(parameter.name))
         ax.set_xlabel(parameter.name)
         ax.set_ylabel("Occurences")
-        ax.legend(loc = 0)
+        if show_legend:
+            ax.legend(loc = 0)
+
+        if xlim:
+            ax.set_xlim(xlim)
+
         return fig
 
     def print_results(self, experiments):
