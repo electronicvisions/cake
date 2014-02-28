@@ -526,7 +526,33 @@ class Test_I_gl(BaseTest):
         EVERYTHING AFTER THIS IS POINT STILL UNDER CONSTRUCTION
 """
 
+class Calibrate_I_pl(BaseCalibration):
 
+    target_parameter = neuron_parameter.I_pl
+
+    def process_step(self, s):
+        return 1./s
+
+    def process_trace(self, t, v, neuron_id, step_id, rep_id):
+        if np.std(v)*1000<5: self.report_bad_trace(t, v, step_id, rep_id, neuron_id)
+
+        baseline, delta_t = find_baseline(t,v)
+
+        return t[delta_t]
+
+class Test_I_pl(BaseTest):
+
+    target_parameter = neuron_parameter.I_pl
+
+    def process_step(self, s):
+        return 1./s
+
+    def process_trace(self, t, v, neuron_id, step_id, rep_id):
+        if np.std(v)*1000<5: self.report_bad_trace(t, v, step_id, rep_id, neuron_id)
+
+        baseline, delta_t = find_baseline(t,v)
+
+        return t[delta_t]
 
 # TODO
 class Calibrate_tau_ref(BaseCalibration):
