@@ -128,7 +128,7 @@ class Calibrate_V_reset(BaseCalibration):
         # convert to mV
         v_reset = baseline*1000
 
-        return v_reset
+        return self.correct_for_readout_shift(v_reset, neuron_id)
 
 class Calibrate_readout_shift(Calibrate_V_reset):
     """V_reset_shift calibration."""
@@ -361,7 +361,6 @@ class Calibrate_I_gl(BaseCalibration):
 class Test_E_l(BaseTest):
     """E_l calibration."""
     target_parameter = neuron_parameter.E_l
-    denmem_size = 4
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
         if np.std(v)*1000>50:
