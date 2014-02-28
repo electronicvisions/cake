@@ -206,36 +206,7 @@ class Calibrate_readout_shift(Calibrate_V_reset):
 
     def store_results(self):
         # Store readout shift as 21st parameter
-        self.store_calibration_results(21)
-
-    def store_calibration_results(self, parameter):
-        """This base class function can be used by child classes as store_results."""
-        results = self.results_polynomial
-        md = pycalibtic.MetaData()
-        md.setAuthor("pycake")
-        md.setComment("calibration")
-
-        logger = self.logger
-
-        collection = self._calib_nc
-        CollectionType = pycalibtic.NeuronCalibration 
-        redman = self._red_nrns
-
-
-        for coord, result in results.iteritems():
-            index = coord.id().value()
-            if result is None and redman and not redman.has(coord):
-                redman.disable(coord)
-                # TODO reset/delete calibtic function for this neuron
-            else:  # store in calibtic
-                if not collection.exists(index):
-                    logger.INFO("No existing calibration data for neuron {} found, creating default dataset".format(index))
-                    cal = CollectionType()
-                    collection.insert(index, cal)
-                collection.at(index).reset(parameter, result)
-
-        self.logger.INFO("Storing calibration results")
-        self.store_calibration(md)
+        self.store_calibration_results(21, isneuron=True)
 
 class Calibrate_I_gl(BaseCalibration):
     target_parameter = neuron_parameter.I_gl
