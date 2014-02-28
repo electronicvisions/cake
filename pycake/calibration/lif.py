@@ -199,9 +199,19 @@ class Calibrate_readout_shift(Calibrate_V_reset):
                                                           dim=0,
                                                           swap_fit_x_y=True)
 
+        for block in self.get_blocks():
+            self.results_polynomial[block] = self.do_fit(coord=block,
+                                                         parameter=shared_parameter.V_reset,
+                                                         steps=steps,
+                                                         mean=self.results_mean_shared[block],
+                                                         std=self.results_std_shared[block],
+                                                         dim=1,
+                                                         swap_fit_x_y=False)
+
     def store_results(self):
         # Store readout shift as 21st parameter
         self.store_calibration_results(21, isneuron=True)
+        self.store_calibration_results(shared_parameter.V_reset)
 
 class Calibrate_I_gl(BaseCalibration):
     target_parameter = neuron_parameter.I_gl
