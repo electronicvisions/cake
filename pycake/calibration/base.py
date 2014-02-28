@@ -247,8 +247,11 @@ class BaseTest(BaseCalibration):
 
     def get_parameters(self):
         parameters = super(BaseTest, self).get_parameters()
-        for neuron_id in self.get_neurons():
-            for param, value in parameters[neuron_id].iteritems():
+        for neuron in self.get_neurons():
+            for param, value in parameters[neuron].iteritems():
+                value.apply_calibration = True
+        for block in self.get_blocks():
+            for param, value in parameters[block].iteritems():
                 value.apply_calibration = True
         return parameters
 
