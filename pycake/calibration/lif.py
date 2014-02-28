@@ -19,6 +19,7 @@ from pycake.helpers.units import Current, Voltage, DAC
 from pycake.helpers.trafos import HWtoDAC, HCtoDAC, DACtoHC, DACtoHW
 from pycake.calibration.base import BaseCalibration, BaseTest
 from pycake.helpers.TraceAverager import createTraceAverager
+import pycake.helpers.misc as misc
 
 # Import everything needed for saving:
 import pickle
@@ -232,8 +233,7 @@ class Calibrate_I_gl(BaseCalibration):
 
         if self.save_results:
             fgc = self.sthal.hicann.floating_gates
-            if not os.path.isdir(os.path.join(self.folder,"floating_gates")):
-                os.mkdir(os.path.join(self.folder,"floating_gates"))
+            misc.mkdir_p(os.path.join(self.folder,"floating_gates"))
             pickle.dump(fgc, open(os.path.join(self.folder,"floating_gates", "step{}rep{}.p".format(step_id,rep_id)), 'wb'))
 
         self.sthal.write_config()
@@ -410,8 +410,7 @@ class Test_I_gl(BaseTest):
 
         if self.save_results:
             fgc = self.sthal.hicann.floating_gates
-            if not os.path.isdir(os.path.join(self.folder,"floating_gates")):
-                os.mkdir(os.path.join(self.folder,"floating_gates"))
+            misc.mkdir_p(os.path.join(self.folder,"floating_gates"))
             pickle.dump(fgc, open(os.path.join(self.folder,"floating_gates", "step{}rep{}.p".format(step_id,rep_id)), 'wb'))
 
         self.sthal.write_config()
