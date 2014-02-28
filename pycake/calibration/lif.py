@@ -130,13 +130,6 @@ class Calibrate_V_reset(BaseCalibration):
 
         return self.correct_for_readout_shift(v_reset, neuron_id)
 
-class Calibrate_readout_shift(Calibrate_V_reset):
-    """V_reset_shift calibration."""
-    target_parameter = shared_parameter.V_reset
-
-    def init_experiment(self):
-        super(Calibrate_readout_shift, self).init_experiment()
-        self.description = self.description + " Calibrate readout shift."
 
     def process_calibration_results(self, neurons, parameter, dim):
         """This base class function can be used by child classes as process_results."""
@@ -212,6 +205,7 @@ class Calibrate_readout_shift(Calibrate_V_reset):
         # Store readout shift as 21st parameter
         self.store_calibration_results(21, isneuron=True)
         self.store_calibration_results(shared_parameter.V_reset)
+
 
 class Calibrate_I_gl(BaseCalibration):
     target_parameter = neuron_parameter.I_gl
