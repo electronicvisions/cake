@@ -21,6 +21,7 @@ from pycake.helpers.WorkerPool import WorkerPool
 import pickle
 import time
 import os
+import errno
 import bz2
 
 import copy
@@ -30,6 +31,15 @@ Coordinate = pyhalbe.Coordinate
 Enum = Coordinate.Enum
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
+
+# http://stackoverflow.com/a/600612/1350789
+def mkdir_p(path):
+    try:
+        os.makedirs(path)
+    except OSError as exc: # Python >2.5
+        if exc.errno == errno.EEXIST and os.path.isdir(path):
+            pass
+        else: raise
 
 class BaseExperiment(object):
     """Base class for running experiments on individual neurons.
@@ -430,8 +440,7 @@ class BaseExperiment(object):
 
     @staticmethod
     def pickle(data, folder, filename):
-        if not os.path.isdir(folder):
-            os.makedirs(folder)
+        mkdir_p(folder)
         with open(os.path.join(folder, filename), "wb") as f:
             pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
 
@@ -439,8 +448,7 @@ class BaseExperiment(object):
     def pickle_compressed(data, folder, filename):
         if os.path.splitext(filename)[1] != '.bz2':
             filename += '.bz2'
-        if not os.path.isdir(folder):
-            os.makedirs(folder)
+        mkdir_p(folder)
         with bz2.BZ2File(os.path.join(folder, filename), "wb") as f:
             pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
 
