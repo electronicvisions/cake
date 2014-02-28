@@ -13,6 +13,7 @@ from pycake.experiment import BaseExperiment
 from pycake.helpers.calibtic import create_pycalibtic_polynomial
 from pycake.helpers.units import Unit, Current, Voltage, DAC
 from pycake.helpers.trafos import HWtoDAC, DACtoHW, HCtoDAC, DACtoHC, HWtoHC, HCtoHW
+import pycake.helpers.misc as misc
 
 # Import everything needed for saving:
 import pickle
@@ -238,6 +239,11 @@ class BaseCalibration(BaseExperiment):
         """
         return False
 
+    def report_bad_trace(self, t, v, step_id, rep_id, neuron_id):
+        folder=os.path.join(self.folder, "bad_traces")
+        misc.mkdir_p(folder)
+        pickle.dump([t,v], open(os.path.join(folder,"bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
+        self.logger.WARN("Trace for neuron {} bad. Neuron not spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
 
 class BaseTest(BaseCalibration):
     """Base class for calibration test experiments."""

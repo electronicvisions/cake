@@ -48,11 +48,8 @@ class Calibrate_E_synx(BaseCalibration):
         return t, [self.all_results[rep_id][neuron]/1000.]*len(t)
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
-        if np.std(v)*1000>1000:
-            if not os.path.isdir(os.path.join(self.folder, "bad_traces")):
-                os.mkdir(os.path.join(self.folder, "bad_traces"))
-            pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
-            self.logger.WARN("Trace for neuron {} bad. Is neuron spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
+        if np.std(v)*1000>1000: self.report_bad_trace(t, v, step_id, rep_id, neuron_id)
+
         return self.correct_for_readout_shift(np.mean(v) * 1000, neuron_id)
     
     def isbroken(self, coeffs):
@@ -71,11 +68,8 @@ class Calibrate_E_syni(BaseCalibration):
         self.sthal.stimulateNeurons(5.0e6, 4)
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
-        if np.std(v)*1000>1000:
-            if not os.path.isdir(os.path.join(self.folder, "bad_traces")):
-                os.mkdir(os.path.join(self.folder, "bad_traces"))
-            pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
-            self.logger.WARN("Trace for neuron {} bad. Is neuron spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
+        if np.std(v)*1000>1000: self.report_bad_trace(t, v, step_id, rep_id, neuron_id)
+
         return self.correct_for_readout_shift(np.mean(v) * 1000, neuron_id)
     
     def isbroken(self, coeffs):
@@ -281,11 +275,8 @@ class Test_E_synx(BaseTest):
         self.sthal.stimulateNeurons(5.0e6, 4)
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
-        if np.std(v)*1000>1000:
-            if not os.path.isdir(os.path.join(self.folder, "bad_traces")):
-                os.mkdir(os.path.join(self.folder, "bad_traces"))
-            pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
-            self.logger.WARN("Trace for neuron {} bad. Is neuron spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
+        if np.std(v)*1000>1000: self.report_bad_trace(t, v, step_id, rep_id, neuron_id)
+
         return self.correct_for_readout_shift(np.mean(v) * 1000, neuron_id)
     
 class Test_E_syni(BaseTest):
@@ -298,9 +289,6 @@ class Test_E_syni(BaseTest):
         self.sthal.stimulateNeurons(5.0e6, 4)
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
-        if np.std(v)*1000>1000:
-            if not os.path.isdir(os.path.join(self.folder, "bad_traces")):
-                os.mkdir(os.path.join(self.folder, "bad_traces"))
-            pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
-            self.logger.WARN("Trace for neuron {} bad. Is neuron spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
+        if np.std(v)*1000>1000: self.report_bad_trace(t, v, step_id, rep_id, neuron_id)
+
         return self.correct_for_readout_shift(np.mean(v) * 1000, neuron_id)

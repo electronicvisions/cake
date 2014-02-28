@@ -89,11 +89,7 @@ class Calibrate_E_l(BaseCalibration):
         return t, [self.all_results[rep_id][neuron]/1000.]*len(t)
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
-        if np.std(v)*1000>50:
-            if not os.path.isdir(os.path.join(self.folder, "bad_traces")):
-                os.mkdir(os.path.join(self.folder, "bad_traces"))
-            pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
-            self.logger.WARN("Trace for neuron {} bad. Is neuron spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
+        if np.std(v)*1000>50: self.report_bad_trace(t, v, step_id, rep_id, neuron_id)
         #return np.mean(v)*1000 # Get the mean value * 1000 for mV
         return self.correct_for_readout_shift(np.mean(v)*1000, neuron_id) # Get the mean value * 1000 for mV
 
@@ -103,11 +99,7 @@ class Calibrate_V_t(BaseCalibration):
     target_parameter = neuron_parameter.V_t
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
-        if np.std(v)*1000<5:
-            if not os.path.isdir(os.path.join(self.folder, "bad_traces")):
-                os.mkdir(os.path.join(self.folder, "bad_traces"))
-            pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
-            self.logger.WARN("Trace for neuron {} bad. Neuron not spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
+        if np.std(v)*1000<5: self.report_bad_trace(t, v, step_id, rep_id, neuron_id)
         # Return max value. This should be more accurate than a mean value of all maxima because the ADC does not always hit the real maximum value, underestimating V_t.
         return self.correct_for_readout_shift(np.max(v)*1000, neuron_id)
 
@@ -121,11 +113,7 @@ class Calibrate_V_reset(BaseCalibration):
         return t, [self.all_results[rep_id][neuron]/1000.]*len(t)
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
-        if np.std(v)*1000<5:
-            if not os.path.isdir(os.path.join(self.folder, "bad_traces")):
-                os.mkdir(os.path.join(self.folder, "bad_traces"))
-            pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
-            self.logger.WARN("Trace for neuron {} bad. Neuron not spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
+        if np.std(v)*1000<5 or True: self.report_bad_trace(t, v, step_id, rep_id, neuron_id)
 
         return find_baseline(t,v) * 1000
 
@@ -356,11 +344,8 @@ class Test_E_l(BaseTest):
     target_parameter = neuron_parameter.E_l
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
-        if np.std(v)*1000>50:
-            if not os.path.isdir(os.path.join(self.folder, "bad_traces")):
-                os.mkdir(os.path.join(self.folder, "bad_traces"))
-            pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
-            self.logger.WARN("Trace for neuron {} bad. Is neuron spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
+        if np.std(v)*1000>50: self.report_bad_trace(t, v, step_id, rep_id, neuron_id)
+
         #return np.mean(v)*1000 # Get the mean value * 1000 for mV
         return self.correct_for_readout_shift(np.mean(v)*1000, neuron_id) # Get the mean value * 1000 for mV
 
@@ -370,11 +355,8 @@ class Test_V_t(BaseTest):
     target_parameter = neuron_parameter.V_t
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
-        if np.std(v)*1000<5:
-            if not os.path.isdir(os.path.join(self.folder, "bad_traces")):
-                os.mkdir(os.path.join(self.folder, "bad_traces"))
-            pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
-            self.logger.WARN("Trace for neuron {} bad. Neuron not spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
+        if np.std(v)*1000<5: self.report_bad_trace(t, v, step_id, rep_id, neuron_id)
+
         # Return max value. This should be more accurate than a mean value of all maxima because the ADC does not always hit the real maximum value, underestimating V_t.
         return self.correct_for_readout_shift(np.max(v)*1000, neuron_id)
 
@@ -384,11 +366,7 @@ class Test_V_reset(BaseTest):
     target_parameter = shared_parameter.V_reset
 
     def process_trace(self, t, v, neuron_id, step_id, rep_id):
-        if np.std(v)*1000<5:
-            if not os.path.isdir(os.path.join(self.folder, "bad_traces")):
-                os.mkdir(os.path.join(self.folder, "bad_traces"))
-            pickle.dump([t,v], open(os.path.join(self.folder,"bad_traces","bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
-            self.logger.WARN("Trace for neuron {} bad. Neuron not spiking? Saved to bad_trace_s{}_r{}_n{}.p".format(neuron_id, step_id, rep_id, neuron_id))
+        if np.std(v)*1000<5: self.report_bad_trace(t, v, step_id, rep_id, neuron_id)
 
         return self.correct_for_readout_shift(find_baseline(t,v) * 1000, neuron_id)
 
