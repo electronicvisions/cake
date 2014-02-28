@@ -89,18 +89,18 @@ class Calibrate_E_l(BaseCalibration):
 
         return t, [self.all_results[rep_id][neuron]/1000.]*len(t)
 
-    def process_trace(self, t, v, neuron_id, step_id, rep_id):
-        if np.std(v)*1000>50: self.report_bad_trace(t, v, step_id, rep_id, neuron_id)
+    def process_trace(self, t, v, neuron, step_id, rep_id):
+        if np.std(v)*1000>50: self.report_bad_trace(t, v, step_id, rep_id, neuron)
         #return np.mean(v)*1000 # Get the mean value * 1000 for mV
-        return self.correct_for_readout_shift(np.mean(v)*1000, neuron_id) # Get the mean value * 1000 for mV
+        return self.correct_for_readout_shift(np.mean(v)*1000, neuron) # Get the mean value * 1000 for mV
 
 
 class Calibrate_V_t(BaseCalibration):
     """V_t calibration."""
     target_parameter = neuron_parameter.V_t
 
-    def process_trace(self, t, v, neuron_id, step_id, rep_id):
-        if np.std(v)*1000<5: self.report_bad_trace(t, v, step_id, rep_id, neuron_id)
+    def process_trace(self, t, v, neuron, step_id, rep_id):
+        if np.std(v)*1000<5: self.report_bad_trace(t, v, step_id, rep_id, neuron)
         # Return max value. This should be more accurate than a mean value of all maxima because the ADC does not always hit the real maximum value, underestimating V_t.
         return self.correct_for_readout_shift(np.max(v)*1000, neuron_id)
 
@@ -113,8 +113,8 @@ class Calibrate_V_reset(BaseCalibration):
 
         return t, [self.all_results[rep_id][neuron]/1000.]*len(t)
 
-    def process_trace(self, t, v, neuron_id, step_id, rep_id):
-        if np.std(v)*1000<5 or True: self.report_bad_trace(t, v, step_id, rep_id, neuron_id)
+    def process_trace(self, t, v, neuron, step_id, rep_id):
+        if np.std(v)*1000<5 or True: self.report_bad_trace(t, v, step_id, rep_id, neuron)
 
         return find_baseline(t,v) * 1000
 
@@ -239,41 +239,48 @@ class Calibrate_I_gl(BaseCalibration):
         self.sthal.write_config()
 
 
-    def measure(self, neuron_ids, step_id, rep_id):
+    def measure(self, neurons, step_id, rep_id):
         """Perform measurements for a single step on one or multiple neurons."""
-        results = {}
-        chisquares = {}
+        workers_save = WorkerPool(self.save_trace)
+        traces = []
         # This magic number is the temporal distance of one current pulse repetition to the next one:
         dt = 129 * 4 * (self.pulse_length + 1) / self.sthal.hicann.pll_freq
-        for neuron_id in neuron_ids:
-            self.sthal.switch_current_stimulus(neuron_id)
-            t, v = self.sthal.read_adc()
+        for neuron in neurons:
+            if self.trace_folder:
+                t, v = self.load_trace(neuron, step_id, rep_id)
+            else:
+                self.sthal.switch_analog_output(neuron)
+                t, v = self.sthal.read_adc()
 
-            # Convert the whole trace into a mean trace
-            mean_trace, std_trace, n_mean = self.trace_averager.get_average(v, dt)
-            mean_trace = np.array(mean_trace)
-            std_trace = np.array(std_trace)
-            std_trace /= np.sqrt(np.floor(len(v)/len(mean_trace)))
+                mean_trace, std_trace, n_mean = self.trace_averager.get_average(v, dt)
+                mean_trace = np.array(mean_trace)
+                std_trace = np.array(std_trace)
+                std_trace /= np.sqrt(np.floor(len(v)/len(mean_trace)))
 
-            t = t[0:len(mean_trace)]
-            v = mean_trace
+                t = t[0:len(mean_trace)]
+                v = mean_trace
 
-            # Save traces in files:
+            traces.append((t, v, neuron, step_id, rep_id))
             if self.save_traces:
-                self.save_trace(t, v, neuron_id, step_id, rep_id)
+                workers_save.do(self.get_trace_folder(step_id, rep_id), t, v, neuron)
+        workers_save.join()
 
-            results[neuron_id], chisquares[neuron_id] = self.process_trace(t, mean_trace, std_trace, neuron_id, step_id, rep_id)
+        process_trace = self.get_process_trace_callback()
+        if process_trace:
+            t0 = time.time()
+            workers_process = WorkerPool(process_trace)
+            for t in traces:
+                workers_process.do(*t)
+            results = workers_process.join()
+            self.logger.INFO("Waited {}s to join workers".format(time.time() - t0))
+        else:
+            results = [self.process_trace(*t) for t in traces]
 
-        # Now store measurements in a file:
-        if self.save_results:
-            self.save_result(results, step_id, rep_id)
-            #if not os.path.isdir(os.path.join(self.folder,"chisquares/")):
-            #    os.mkdir(os.path.join(self.folder,"chisquares/"))
-            #pickle.dump(chisquares, open(os.path.join(self.folder,"chisquares/","step{}_rep{}.p".format(step_id, rep_id)), 'wb'))
+        results = dict(zip(neurons, results))
+        self.save_result(results, step_id, rep_id)
         self.all_results.append(results)
 
-
-    def process_trace(self, t, mean_trace, std_trace, neuron_id, step_id, rep_id):
+    def process_trace(self, t, mean_trace, std_trace, neuron, step_id, rep_id):
         # Capacity if bigcap is turned on:
         C = 2.16456e-12
         tau_m, red_chisquare = self.fit_exponential(mean_trace, std_trace)
@@ -328,9 +335,9 @@ class Calibrate_I_gl(BaseCalibration):
     
         return tau, red_chisquare
 
-    def process_results(self, neuron_ids):
+    def process_results(self, neurons):
         # I_gl should be fitted with 2nd degree polynomial
-        self.process_calibration_results(neuron_ids, self.target_parameter, 2)
+        self.process_calibration_results(neurons, self.target_parameter, 2)
 
 
 
@@ -343,32 +350,32 @@ class Test_E_l(BaseTest):
     """E_l calibration."""
     target_parameter = neuron_parameter.E_l
 
-    def process_trace(self, t, v, neuron_id, step_id, rep_id):
-        if np.std(v)*1000>50: self.report_bad_trace(t, v, step_id, rep_id, neuron_id)
+    def process_trace(self, t, v, neuron, step_id, rep_id):
+        if np.std(v)*1000>50: self.report_bad_trace(t, v, step_id, rep_id, neuron)
 
         #return np.mean(v)*1000 # Get the mean value * 1000 for mV
-        return self.correct_for_readout_shift(np.mean(v)*1000, neuron_id) # Get the mean value * 1000 for mV
+        return self.correct_for_readout_shift(np.mean(v)*1000, neuron) # Get the mean value * 1000 for mV
 
 
 class Test_V_t(BaseTest):
     """V_t calibration."""
     target_parameter = neuron_parameter.V_t
 
-    def process_trace(self, t, v, neuron_id, step_id, rep_id):
-        if np.std(v)*1000<5: self.report_bad_trace(t, v, step_id, rep_id, neuron_id)
+    def process_trace(self, t, v, neuron, step_id, rep_id):
+        if np.std(v)*1000<5: self.report_bad_trace(t, v, step_id, rep_id, neuron)
 
         # Return max value. This should be more accurate than a mean value of all maxima because the ADC does not always hit the real maximum value, underestimating V_t.
-        return self.correct_for_readout_shift(np.max(v)*1000, neuron_id)
+        return self.correct_for_readout_shift(np.max(v)*1000, neuron)
 
 
 class Test_V_reset(BaseTest):
     """V_reset calibration."""
     target_parameter = shared_parameter.V_reset
 
-    def process_trace(self, t, v, neuron_id, step_id, rep_id):
-        if np.std(v)*1000<5: self.report_bad_trace(t, v, step_id, rep_id, neuron_id)
+    def process_trace(self, t, v, neuron, step_id, rep_id):
+        if np.std(v)*1000<5: self.report_bad_trace(t, v, step_id, rep_id, neuron)
 
-        return self.correct_for_readout_shift(find_baseline(t,v) * 1000, neuron_id)
+        return self.correct_for_readout_shift(find_baseline(t,v) * 1000, neuron)
 
 class Test_I_gl(BaseTest):
     target_parameter = neuron_parameter.I_gl
@@ -415,42 +422,48 @@ class Test_I_gl(BaseTest):
 
         self.sthal.write_config()
 
-
-    def measure(self, neuron_ids, step_id, rep_id):
+    def measure(self, neurons, step_id, rep_id):
         """Perform measurements for a single step on one or multiple neurons."""
-        results = {}
-        chisquares = {}
+        workers_save = WorkerPool(self.save_trace)
+        traces = []
         # This magic number is the temporal distance of one current pulse repetition to the next one:
         dt = 129 * 4 * (self.pulse_length + 1) / self.sthal.hicann.pll_freq
-        for neuron_id in neuron_ids:
-            self.sthal.switch_current_stimulus(neuron_id)
-            t, v = self.sthal.read_adc()
+        for neuron in neurons:
+            if self.trace_folder:
+                t, v = self.load_trace(neuron, step_id, rep_id)
+            else:
+                self.sthal.switch_analog_output(neuron)
+                t, v = self.sthal.read_adc()
 
-            # Convert the whole trace into a mean trace
-            mean_trace, std_trace, n_mean = self.trace_averager.get_average(v, dt)
-            mean_trace = np.array(mean_trace)
-            std_trace = np.array(std_trace)
-            std_trace /= np.sqrt(np.floor(len(v)/len(mean_trace)))
+                mean_trace, std_trace, n_mean = self.trace_averager.get_average(v, dt)
+                mean_trace = np.array(mean_trace)
+                std_trace = np.array(std_trace)
+                std_trace /= np.sqrt(np.floor(len(v)/len(mean_trace)))
 
-            t = t[0:len(mean_trace)]
-            v = mean_trace
+                t = t[0:len(mean_trace)]
+                v = mean_trace
 
-            # Save traces in files:
+            traces.append((t, v, neuron, step_id, rep_id))
             if self.save_traces:
-                self.save_trace(t, v, neuron_id, step_id, rep_id)
+                workers_save.do(self.get_trace_folder(step_id, rep_id), t, v, neuron)
+        workers_save.join()
 
-            results[neuron_id], chisquares[neuron_id] = self.process_trace(t, mean_trace, std_trace, neuron_id, step_id, rep_id)
+        process_trace = self.get_process_trace_callback()
+        if process_trace:
+            t0 = time.time()
+            workers_process = WorkerPool(process_trace)
+            for t in traces:
+                workers_process.do(*t)
+            results = workers_process.join()
+            self.logger.INFO("Waited {}s to join workers".format(time.time() - t0))
+        else:
+            results = [self.process_trace(*t) for t in traces]
 
-        # Now store measurements in a file:
-        if self.save_results:
-            self.save_result(results, step_id, rep_id)
-            #if not os.path.isdir(os.path.join(self.folder,"chisquares/")):
-            #    os.mkdir(os.path.join(self.folder,"chisquares/"))
-            #pickle.dump(chisquares, open(os.path.join(self.folder,"chisquares/","step{}_rep{}.p".format(step_id, rep_id)), 'wb'))
+        results = dict(zip(neurons, results))
+        self.save_result(results, step_id, rep_id)
         self.all_results.append(results)
 
-
-    def process_trace(self, t, mean_trace, std_trace, neuron_id, step_id, rep_id):
+    def process_trace(self, t, mean_trace, std_trace, neuron, step_id, rep_id):
         # Capacity if bigcap is turned on:
         C = 2.16456e-12
         tau_m, red_chisquare = self.fit_exponential(mean_trace, std_trace)

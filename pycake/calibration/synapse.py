@@ -47,10 +47,10 @@ class Calibrate_E_synx(BaseCalibration):
 
         return t, [self.all_results[rep_id][neuron]/1000.]*len(t)
 
-    def process_trace(self, t, v, neuron_id, step_id, rep_id):
-        if np.std(v)*1000>1000: self.report_bad_trace(t, v, step_id, rep_id, neuron_id)
+    def process_trace(self, t, v, neuron, step_id, rep_id):
+        if np.std(v)*1000>1000: self.report_bad_trace(t, v, step_id, rep_id, neuron)
 
-        return self.correct_for_readout_shift(np.mean(v) * 1000, neuron_id)
+        return self.correct_for_readout_shift(np.mean(v) * 1000, neuron)
     
     def isbroken(self, coeffs):
         if abs(coeffs[0] - 1) > 0.4:     # Broken if slope of the fit is too high or too small
@@ -67,10 +67,10 @@ class Calibrate_E_syni(BaseCalibration):
         self.E_synx_dist = None
         self.sthal.stimulateNeurons(5.0e6, 4)
 
-    def process_trace(self, t, v, neuron_id, step_id, rep_id):
-        if np.std(v)*1000>1000: self.report_bad_trace(t, v, step_id, rep_id, neuron_id)
+    def process_trace(self, t, v, neuron, step_id, rep_id):
+        if np.std(v)*1000>1000: self.report_bad_trace(t, v, step_id, rep_id, neuron)
 
-        return self.correct_for_readout_shift(np.mean(v) * 1000, neuron_id)
+        return self.correct_for_readout_shift(np.mean(v) * 1000, neuron)
     
     def isbroken(self, coeffs):
         if abs(coeffs[0] - 1) > 0.4:     # Broken if slope of the fit is too high or too small
@@ -156,7 +156,7 @@ class Calibrate_V_syntc_preperation(BaseCalibration):
     def get_results(self):
         return self.averager, self.all_results[0]
 
-    def process_calibration_results(self, neuron_ids, parameter, linear_fit=False):
+    def process_calibration_results(self, neurons, parameter, linear_fit=False):
         pass
 
     def store_calibration_results(self, parameter):
@@ -237,7 +237,7 @@ class Calibrate_V_syntc(BaseCalibration):
     def process_calibration_results(self, neurons, parameter, dim):
         pass
 
-    def process_results(self, neuron_ids):
+    def process_results(self, neurons):
         pass
 
     def store_results(self):
@@ -274,10 +274,10 @@ class Test_E_synx(BaseTest):
         self.E_synx_dist = None
         self.sthal.stimulateNeurons(5.0e6, 4)
 
-    def process_trace(self, t, v, neuron_id, step_id, rep_id):
-        if np.std(v)*1000>1000: self.report_bad_trace(t, v, step_id, rep_id, neuron_id)
+    def process_trace(self, t, v, neuron, step_id, rep_id):
+        if np.std(v)*1000>1000: self.report_bad_trace(t, v, step_id, rep_id, neuron)
 
-        return self.correct_for_readout_shift(np.mean(v) * 1000, neuron_id)
+        return self.correct_for_readout_shift(np.mean(v) * 1000, neuron)
     
 class Test_E_syni(BaseTest):
     target_parameter = neuron_parameter.E_syni
@@ -288,7 +288,7 @@ class Test_E_syni(BaseTest):
         self.E_synx_dist = None
         self.sthal.stimulateNeurons(5.0e6, 4)
 
-    def process_trace(self, t, v, neuron_id, step_id, rep_id):
-        if np.std(v)*1000>1000: self.report_bad_trace(t, v, step_id, rep_id, neuron_id)
+    def process_trace(self, t, v, neuron, step_id, rep_id):
+        if np.std(v)*1000>1000: self.report_bad_trace(t, v, step_id, rep_id, neuron)
 
-        return self.correct_for_readout_shift(np.mean(v) * 1000, neuron_id)
+        return self.correct_for_readout_shift(np.mean(v) * 1000, neuron)

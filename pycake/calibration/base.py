@@ -110,8 +110,8 @@ class BaseCalibration(BaseExperiment):
 
         return [make(v) for v in self.get_config("range")]
 
-    def process_results(self, neuron_ids):
-        self.process_calibration_results(neuron_ids, self.target_parameter, 1)
+    def process_results(self, neurons):
+        self.process_calibration_results(neurons, self.target_parameter, 1)
 
     def store_results(self):
         self.store_calibration_results(self.target_parameter)
@@ -239,7 +239,8 @@ class BaseCalibration(BaseExperiment):
         """
         return False
 
-    def report_bad_trace(self, t, v, step_id, rep_id, neuron_id):
+    def report_bad_trace(self, t, v, step_id, rep_id, neuron):
+        neuron_id = neuron.id().value
         folder=os.path.join(self.folder, "bad_traces")
         misc.mkdir_p(folder)
         pickle.dump([t,v], open(os.path.join(folder,"bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
@@ -264,7 +265,7 @@ class BaseTest(BaseCalibration):
     def get_steps(self):
         return self.get_steps_impl(True)
 
-    def process_calibration_results(self, neuron_ids, parameter, linear_fit=False):
+    def process_calibration_results(self, neurons, parameter, linear_fit=False):
         pass
 
     def store_calibration_results(self, parameter):

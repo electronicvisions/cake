@@ -528,7 +528,7 @@ class BaseExperiment(object):
             self.logger.WARN("No readout shift calibration for neuron {} found. Using unshifted values.".format(neuron))
             return value
 
-    def process_trace(self, t, v, neuron_id, step_id, rep_id):
+    def process_trace(self, t, v, neuron, step_id, rep_id):
         """Hook class for processing measured traces. Should return one value."""
         return 0
 
