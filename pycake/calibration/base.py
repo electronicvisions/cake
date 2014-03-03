@@ -240,7 +240,7 @@ class BaseCalibration(BaseExperiment):
         return False
 
     def report_bad_trace(self, t, v, step_id, rep_id, neuron):
-        neuron_id = neuron.id().value
+        neuron_id = neuron.id().value()
         folder=os.path.join(self.folder, "bad_traces")
         misc.mkdir_p(folder)
         pickle.dump([t,v], open(os.path.join(folder,"bad_trace_s{}_r{}_n{}.p".format(step_id, rep_id, neuron_id)), 'wb'))
