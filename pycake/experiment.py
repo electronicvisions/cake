@@ -191,6 +191,15 @@ class BaseExperiment(object):
 
     def get_calibrated(self, parameters, ncal, coord, param, step_id):
         """ Returns calibrated DAC value from Voltage or Current value
+            If DAC value is out of range, it is clipped.
+
+            Args:
+                parameters: All parameters of the experiment
+                ncal: which calibration should be used?
+                coord: neuron coordinate
+                param: parameter that should be calibrated
+            Returns:
+                Calibrated DAC value (if calibration existed)
         """
         value = parameters[param]
         dac_value = value.toDAC().value #implicit range check!
