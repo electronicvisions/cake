@@ -189,7 +189,7 @@ class BaseExperiment(object):
 
         return result
 
-    def get_calibrated(self, parameters, ncal, coord, param):
+    def get_calibrated(self, parameters, ncal, coord, param, step_id):
         """ Returns calibrated DAC value from Voltage or Current value
         """
         value = parameters[param]
@@ -200,6 +200,9 @@ class BaseExperiment(object):
                 calibration = ncal.at(param)
                 dac_value = int(round(calibration.apply(dac_value)))
             except (RuntimeError, IndexError),e:
+                if step_id == 0:
+                    # Only give this warning in first step
+                    self.logger.WARN("{}: Parameter {} not calibrated.".format(coord, param.name))
                 pass
             except Exception,e:
                 raise e
