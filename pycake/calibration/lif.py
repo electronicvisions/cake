@@ -388,7 +388,7 @@ class Test_V_reset(BaseTest):
 
         baseline, delta_t = find_baseline(t,v)
 
-        return self.correct_for_readout_shift(baseline * 1000, neuron_id)
+        return self.correct_for_readout_shift(baseline * 1000, neuron)
 
 class Test_I_gl(BaseTest):
     target_parameter = neuron_parameter.I_gl
