@@ -218,11 +218,11 @@ class BaseExperiment(object):
 
         # TODO check with Dominik
         if param == neuron_parameter.E_syni and self.E_syni_dist:
-            calibrated_E_l = self.get_calibrated(parameters, ncal, coord, neuron_parameter.E_l)
+            calibrated_E_l = self.get_calibrated(parameters, ncal, coord, neuron_parameter.E_l, step_id)
             dac_value = calibrated_E_l + self.E_syni_dist * 1023/1800.
 
         if param == neuron_parameter.E_synx and self.E_synx_dist:
-            calibrated_E_l = self.get_calibrated(parameters, ncal, coord, neuron_parameter.E_l)
+            calibrated_E_l = self.get_calibrated(parameters, ncal, coord, neuron_parameter.E_l, step_id)
             dac_value = calibrated_E_l + self.E_synx_dist * 1023/1800.
 
         if dac_value < 0 or dac_value > 1023:
