@@ -214,7 +214,7 @@ class BaseExperiment(object):
             dac_value = calibrated_E_l + self.E_synx_dist * 1023/1800.
 
         if dac_value < 0 or dac_value > 1023:
-            if self.target_parameter is neuron_parameter.I_gl: # I_gl handled in another way. Maybe do this for other parameters as well.
+            if self.target_parameter == neuron_parameter.I_gl: # I_gl handled in another way. Maybe do this for other parameters as well.
                 msg = "Calibrated value for {} on Neuron {} has value {} out of range. Value clipped to range."
                 self.logger.WARN(msg.format(param.name, coord.id(), dac_value))
                 if dac_value < 0:

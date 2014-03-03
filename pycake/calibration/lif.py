@@ -19,6 +19,7 @@ from pycake.helpers.units import Current, Voltage, DAC
 from pycake.helpers.trafos import HWtoDAC, HCtoDAC, DACtoHC, DACtoHW
 from pycake.calibration.base import BaseCalibration, BaseTest
 from pycake.helpers.TraceAverager import createTraceAverager
+from pycake.helpers.WorkerPool import WorkerPool
 import pycake.helpers.misc as misc
 
 # Import everything needed for saving:
@@ -110,7 +111,7 @@ class Calibrate_V_t(BaseCalibration):
     def process_trace(self, t, v, neuron, step_id, rep_id):
         if np.std(v)*1000<5: self.report_bad_trace(t, v, step_id, rep_id, neuron)
         # Return max value. This should be more accurate than a mean value of all maxima because the ADC does not always hit the real maximum value, underestimating V_t.
-        return self.correct_for_readout_shift(np.max(v)*1000, neuron_id)
+        return self.correct_for_readout_shift(np.max(v)*1000, neuron)
 
 
 class Calibrate_V_reset(BaseCalibration):
@@ -270,7 +271,7 @@ class Calibrate_I_gl(BaseCalibration):
                 t = t[0:len(mean_trace)]
                 v = mean_trace
 
-            traces.append((t, v, neuron, step_id, rep_id))
+            traces.append((t, v, std_trace, neuron, step_id, rep_id))
             if self.save_traces:
                 workers_save.do(self.get_trace_folder(step_id, rep_id), t, v, neuron)
         workers_save.join()
@@ -455,7 +456,7 @@ class Test_I_gl(BaseTest):
                 t = t[0:len(mean_trace)]
                 v = mean_trace
 
-            traces.append((t, v, neuron, step_id, rep_id))
+            traces.append((t, v, std_trace, neuron, step_id, rep_id))
             if self.save_traces:
                 workers_save.do(self.get_trace_folder(step_id, rep_id), t, v, neuron)
         workers_save.join()
@@ -532,9 +533,6 @@ class Test_I_gl(BaseTest):
 
     pass
 
-
-
-
 """
         EVERYTHING AFTER THIS IS POINT STILL UNDER CONSTRUCTION
 """
@@ -604,4 +602,3 @@ class Calibrate_tau_ref(BaseCalibration):
             del ts
 
         self.all_results.append(results)
-
