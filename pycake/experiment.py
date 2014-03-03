@@ -234,9 +234,12 @@ class BaseExperiment(object):
                 else:
                     dac_value = 1023
             else:
-                msg = "Calibrated value for {} on Neuron {} has value {} out of range. Using uncalibrated value."
+                msg = "Calibrated value for {} on Neuron {} has value {} out of range. Value clipped to range."
                 self.logger.WARN(msg.format(param.name, coord.id(), dac_value))
-                dac_value = dac_value_uncalibrated
+                if dac_value < 0:
+                    dac_value = 0      # I_gl of 0 gives weird results --> set to 10 DAC
+                else:
+                    dac_value = 1023
 
         return int(round(dac_value))
 
@@ -265,24 +268,20 @@ class BaseExperiment(object):
             parameters.update(step[neuron])
             ncal = None
             self.logger.TRACE("Neuron {} has: {}".format(neuron.id(), self._red_nrns.has(neuron)))
-            if self._red_nrns.has(neuron):
-                self.logger.TRACE("Neuron {} not marked as broken".format(neuron.id()))
-                try:
-                    ncal = self._calib_nc.at(neuron.id().value())
-                    if step_id == 0: # Only show this info in first step
-                        self.logger.INFO("Calibration for Neuron {} found.".format(neuron.id()))
-                except (IndexError):
-                    if step_id == 0:
-                        self.logger.WARN("No calibration found for neuron {}".format(neuron.id()))
-                    pass
-            else:
-                self.logger.WARN("Neuron {} marked as not working. Skipping calibration.".format(neuron.id()))
+            try:
+                ncal = self._calib_nc.at(neuron.id().value())
+                #if step_id == 0: # Only show this info in first step
+                #    self.logger.INFO("Calibration for Neuron {} found.".format(neuron.id()))
+            except (IndexError):
+                if step_id == 0:
+                    self.logger.WARN("No calibration found for neuron {}.".format(neuron.id()))
+                pass
 
             for name, param in neuron_parameter.names.iteritems():
                 if name[0] == '_':
                     continue
                 value = self.get_calibrated(parameters, ncal, neuron,
-                        param)
+                        param, step_id)
                 fgc.setNeuron(neuron, param, value)
 
         for block in Coordinate.iter_all(FGBlockOnHICANN):
