@@ -305,7 +305,7 @@ class BaseExperiment(object):
                 if name[0] == '_':
                     continue
                 value = self.get_calibrated(parameters, bcal, block,
-                        param)
+                        param, step_id)
                 fgc.setShared(block, param, value)
 
         self.sthal.hicann.floating_gates = fgc
