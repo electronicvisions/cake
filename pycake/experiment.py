@@ -70,10 +70,7 @@ class BaseExperiment(object):
         if calibtic_backend:
             self.init_calibration()
 
-        if self.target_parameter:
-            self.logger = pylogging.get("pycake.experiment.{}".format(self.target_parameter.name))
-        else:
-            self.logger = pylogging.get("pycake.experiment")
+        self.logger = pylogging.get("pycake.experiment.{}".format(self.target_parameter.name))
         if not loglevel is None:
             pylogging.set_loglevel(self.logger, pylogging.LogLevel.INFO)
 
