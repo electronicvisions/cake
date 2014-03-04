@@ -216,12 +216,12 @@ class Calibrate_I_gl(BaseCalibration):
         self.stim_current = 35          # Stim current in nA
 
         # Get the trace averager
-        self.logger.INFO("{}: Creating trace averager".format(time.asctime()))
+        self.progress_logger.INFO("{}: Creating trace averager".format(time.asctime()))
         coord_hglobal = self.sthal.hicann.index()  # grab HICANNGlobal from StHAL
         coord_wafer = coord_hglobal.wafer()
         coord_hicann = coord_hglobal.on_wafer()
         self.trace_averager = createTraceAverager(coord_wafer, coord_hicann)
-        self.logger.INFO("{}: Trace averager created with ACD clock of {} Hz".format(time.asctime(), self.trace_averager.adc_freq))
+        self.progress_logger.INFO("{}: Trace averager created with ACD clock of {} Hz".format(time.asctime(), self.trace_averager.adc_freq))
 
     def prepare_measurement(self, step_parameters, step_id, rep_id):
         """Prepare measurement. This is done for each repetition,
