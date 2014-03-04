@@ -100,7 +100,6 @@ class Calibrate_E_l(BaseCalibration):
 
     def process_trace(self, t, v, neuron, step_id, rep_id):
         if np.std(v)*1000>50: self.report_bad_trace(t, v, step_id, rep_id, neuron)
-        #return np.mean(v)*1000 # Get the mean value * 1000 for mV
         return self.correct_for_readout_shift(np.mean(v)*1000, neuron) # Get the mean value * 1000 for mV
 
 
