@@ -149,11 +149,6 @@ def do_calibration(Calibration):
         #            pass
         raise
 
-
-logger.INFO("Measuring readout shift.")
-
-pylogging.set_loglevel(default_logger, pylogging.LogLevel.ERROR)
-
 if parameters["calibrate"]:
     for calibration in [lif.Calibrate_V_reset,
                         synapse.Calibrate_E_synx,
