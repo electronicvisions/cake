@@ -33,20 +33,23 @@ from pycake.calibration import base, lif, synapse
 
 parameters = imp.load_source('parameters', args.parameter_file).parameters
 
-neurons = range(512)
+# Add logger from this file
+pylogging.reset()
+pylogging.append_to_cout(logger)
 
+neurons = range(512)
 
 # Create necessary folders if the do not exist already
 if parameters['save_results']:
     if not os.path.exists(parameters['folder']):
         os.makedirs(parameters['folder'])
-        print ("Creating folder {}".format(parameters['folder']))
+        logger.INFO("Creating folder {}".format(parameters['folder']))
     if not os.path.exists(parameters['backend_c']):
         os.makedirs(parameters['backend_c'])
-        print ("Creating folder {}".format(parameters['backend_c']))
+        logger.INFO("Creating folder {}".format(parameters['backend_c']))
     if not os.path.exists(parameters['backend_r']):
         os.makedirs(parameters['backend_r'])
-        print ("Creating folder {}".format(parameters['backend_r']))
+        logger.INFO("Creating folder {}".format(parameters['backend_r']))
 
 coord_wafer  = parameters["coord_wafer"]
 coord_hicann = parameters["coord_hicann"]
@@ -124,7 +127,13 @@ def do_calibration(Calibration):
 
     # TODO check from here (and also above ;) )
     calib = Calibration(neurons, sthal, parameters)
-    pylogging.set_loglevel(calib.logger, pylogging.LogLevel.INFO)
+
+    # Log progress to cout
+    pylogging.append_to_cout(calib.progress_logger)
+    # Log everything to file
+    calib_logfile = os.path.join(parameters['folder'], calib.folder, 'logfile.txt')
+    pylogging.append_to_file(calib_logfile, pylogging.get_root())
+
     try:
         # Try several times in case experiment should fail
         for attempt in range(parameters["max_tries"]):

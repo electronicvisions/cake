@@ -75,8 +75,6 @@ class BaseExperiment(object):
 
         self.logger = pylogging.get("pycake.experiment.{}".format(self.target_parameter.name))
         self.progress_logger = pylogging.get("pycake.experiment.{}.progress".format(self.target_parameter.name))
-        if not loglevel is None:
-            pylogging.set_loglevel(self.logger, pylogging.LogLevel.INFO)
 
         self.trace_folder = None
 
