@@ -74,6 +74,7 @@ class BaseExperiment(object):
             self.init_calibration()
 
         self.logger = pylogging.get("pycake.experiment.{}".format(self.target_parameter.name))
+        self.progress_logger = pylogging.get("pycake.experiment.{}.progress".format(self.target_parameter.name))
         if not loglevel is None:
             pylogging.set_loglevel(self.logger, pylogging.LogLevel.INFO)
 
@@ -147,7 +148,7 @@ class BaseExperiment(object):
         self._red_hicann.commit()
         if not metadata:
             metadata = self._calib_md
-        self.logger.INFO("Storing calibration into backend")
+        self.progress_logger.INFO("Storing calibration into backend")
 
         name = self.get_calibtic_name()
         self._calib_backend.store(name, metadata, self._calib_hc)
@@ -376,6 +377,7 @@ class BaseExperiment(object):
     def run_experiment(self):
         """Run the experiment and process results."""
         logger = self.logger
+        progress_logger = self.progress_logger
 
         self.init_experiment()
         neurons = self.get_neurons()
@@ -418,23 +420,23 @@ class BaseExperiment(object):
             if not self.trace_folder:
                 self.pickle(self.sthal.status(), self.folder, 'wafer_status.p')
 
-        logger.INFO("Experiment {}".format(self.description))
-        logger.INFO("Created folders in {}".format(self.folder))
+        progress_logger.INFO("Experiment {}".format(self.description))
+        progress_logger.INFO("Created folders in {}".format(self.folder))
         if self.trace_folder:
-            logger.INFO("Reading traces from {}.".format(self.trace_folder))
+            progress_logger.INFO("Reading traces from {}.".format(self.trace_folder))
 
         for step_id, step in enumerate(steps):
                 if not self.trace_folder:
                     step_parameters = self.prepare_parameters(step, step_id)
                 for r in range(self.repetitions):
-                    logger.INFO("{} - Step {}/{} repetition {}/{}.".format(time.asctime(),step_id+1, num_steps, r+1, self.repetitions))
-                    logger.INFO("{} - Preparing measurement --> setting floating gates".format(time.asctime()))
+                    progress_logger.INFO("{} - Step {}/{} repetition {}/{}.".format(time.asctime(),step_id+1, num_steps, r+1, self.repetitions))
+                    progress_logger.INFO("{} - Preparing measurement --> setting floating gates".format(time.asctime()))
                     if not self.trace_folder:
                         self.prepare_measurement(step_parameters, step_id, r)
-                    logger.INFO("{} - Measuring.".format(time.asctime()))
+                    progress_logger.INFO("{} - Measuring.".format(time.asctime()))
                     self.measure(neurons, step_id, r)
 
-        logger.INFO("Processing results")
+        progress_logger.INFO("Processing results")
         self.process_results(neurons)
         self.store_results()
         if self.sthal._connected:
