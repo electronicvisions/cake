@@ -60,6 +60,9 @@ class BaseExperiment(object):
         self._calib_nc = None
         self._calib_bc = None
 
+        localtime = time.localtime()
+        self.folder = "exp{0:02d}{1:02d}_{2:02d}{3:02d}".format(localtime.tm_mon, localtime.tm_mday, localtime.tm_hour, localtime.tm_min)
+
         if redman_backend:
             self.init_redman(redman_backend)
         else:
@@ -85,8 +88,6 @@ class BaseExperiment(object):
         self.repetitions = self.experiment_parameters["repetitions"]
         self.bigcap = True
         self.description = "Basic experiment."  # Change this for all child classes
-        localtime = time.localtime()
-        self.folder = "exp{0:02d}{1:02d}_{2:02d}{3:02d}".format(localtime.tm_mon, localtime.tm_mday, localtime.tm_hour, localtime.tm_min)
 
     def init_redman(self, backend):
         """Initialize defect management for given backend."""
