@@ -146,7 +146,7 @@ class BaseExperiment(object):
         self._red_hicann.commit()
         if not metadata:
             metadata = self._calib_md
-        self.progress_logger.INFO("Storing calibration into backend")
+        self.progress_logger.INFO("{} - Storing calibration into backend".format(time.asctime()))
 
         name = self.get_calibtic_name()
         self._calib_backend.store(name, metadata, self._calib_hc)
@@ -418,10 +418,10 @@ class BaseExperiment(object):
             if not self.trace_folder:
                 self.pickle(self.sthal.status(), self.folder, 'wafer_status.p')
 
-        progress_logger.INFO("Experiment {}".format(self.description))
-        progress_logger.INFO("Created folders in {}".format(self.folder))
+        progress_logger.INFO("{} - Experiment {}".format(time.asctime(), self.description))
+        progress_logger.INFO("{} - Created folders in {}".format(time.asctime(), self.folder))
         if self.trace_folder:
-            progress_logger.INFO("Reading traces from {}.".format(self.trace_folder))
+            progress_logger.INFO("{} - Reading traces from {}.".format(self.trace_folder))
 
         for step_id, step in enumerate(steps):
                 if not self.trace_folder:
@@ -434,7 +434,7 @@ class BaseExperiment(object):
                     progress_logger.INFO("{} - Measuring.".format(time.asctime()))
                     self.measure(neurons, step_id, r)
 
-        progress_logger.INFO("Processing results")
+        progress_logger.INFO("{} - Processing results".format(time.asctime()))
         self.process_results(neurons)
         self.store_results()
         if self.sthal._connected:
