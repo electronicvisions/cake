@@ -50,12 +50,12 @@ parameters = {
         "save_traces":  True,
 
         # If you save al your measurements, each folder will have a description file. The following parameters let you specify additional info to be stored.
-        "V_reset_description":  "V_reset calibration",
+        "V_reset_description":  "V_reset and readout shift calibration.",
         "E_synx_description":   "E_synx calibration.",
-        "E_syni_description":   "E_syni calibration",
-        "E_l_description":      "E_l calibration",
-        "V_t_description":      "V_t calibration",
-        "I_gl_description":     "I_gl calibration",
+        "E_syni_description":   "E_syni calibration.",
+        "E_l_description":      "E_l calibration.",
+        "V_t_description":      "V_t calibration.",
+        "I_gl_description":     "I_gl calibration.",
 
         # Where do you want to save the measurements (folder) and calibration data (backend_c for calibtic, backend_r for redman)?
         # Folders will be created if they do not exist already
@@ -86,7 +86,7 @@ parameters = {
         "base_parameters":   {  neuron_parameter.E_l: Voltage(600),
                                 neuron_parameter.E_syni: Voltage(500),     # synapse
                                 neuron_parameter.E_synx: Voltage(700),    # synapse
-                                neuron_parameter.I_bexp: Current(0),       # exponential term set to 0
+                                neuron_parameter.I_bexp: Current(2500),       # exponential term set to 0
                                 neuron_parameter.I_convi: Current(2500),   # bias current for synaptic input
                                 neuron_parameter.I_convx: Current(2500),   # bias current for synaptic input
                                 neuron_parameter.I_fire: Current(0),       # adaptation term b
@@ -96,17 +96,17 @@ parameters = {
                                 neuron_parameter.I_intbbx: Current(2000),  # integrator bias in synapse
                                 neuron_parameter.I_pl: Current(2000),      # tau_refrac
                                 neuron_parameter.I_radapt: Current(2500),  #
-                                neuron_parameter.I_rexp: Current(750),     # something about the strength of exp term
+                                neuron_parameter.I_rexp: Current(2500),     # something about the strength of exp term
                                 neuron_parameter.I_spikeamp: Current(2000),#
-                                neuron_parameter.V_exp: Voltage(536),      # exponential term
+                                neuron_parameter.V_exp: Voltage(1800),      # exponential term
                                 neuron_parameter.V_syni: Voltage(1000),    # technical parameter that drives the integrator 
                                 neuron_parameter.V_syntci: Voltage(1375),   # inhibitory synapse time constant
                                 neuron_parameter.V_syntcx: Voltage(1375),   # excitatory synapse time constant
                                 neuron_parameter.V_synx: Voltage(1000),    # technical parameter that drives the integrator 
                                 neuron_parameter.V_t: Voltage(1000),       # recommended threshold, maximum is 1100
 
-                                shared_parameter.V_bout: Voltage(750),
-                                shared_parameter.V_bexp: Voltage(750),
+                                shared_parameter.V_bexp: Current(2500),
+                                shared_parameter.V_bout: Current(750),
                                 },
 
         "E_synx_parameters":     {  neuron_parameter.I_gl: Current(0),          # I_gl and I_convi MUST be set to 0
