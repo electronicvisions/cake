@@ -259,7 +259,7 @@ class Calibrate_I_gl(BaseCalibration):
             if self.trace_folder:
                 t, v = self.load_trace(neuron, step_id, rep_id)
             else:
-                self.sthal.switch_analog_output(neuron)
+                self.sthal.switch_current_stimulus(neuron)
                 t, v = self.sthal.read_adc()
 
                 mean_trace, std_trace, n_mean = self.trace_averager.get_average(v, dt)
@@ -397,6 +397,7 @@ class Test_I_gl(BaseTest):
         self.sthal.recording_time = 5e-3
         self.stim_length = 65
         self.pulse_length = 15
+        self.stim_current = 35          # Stim current in nA
 
         # Get the trace averager
         self.logger.INFO("{}: Creating trace averager".format(time.asctime()))
@@ -405,9 +406,6 @@ class Test_I_gl(BaseTest):
         coord_hicann = coord_hglobal.on_wafer()
         self.trace_averager = createTraceAverager(coord_wafer, coord_hicann)
         self.logger.INFO("{}: Trace averager created with ACD clock of {} Hz".format(time.asctime(), self.trace_averager.adc_freq))
-
-        # TEMPORARY SOLUTION:
-        # self.save_traces = True
 
     def prepare_measurement(self, step_parameters, step_id, rep_id):
         """Prepare measurement. This is done for each repetition,
@@ -418,7 +416,7 @@ class Test_I_gl(BaseTest):
         stimulus.setPulselength(self.pulse_length)
         stimulus.setContinuous(True)
 
-        stimulus[:self.stim_length] = [35] * self.stim_length
+        stimulus[:self.stim_length] = [self.stim_current] * self.stim_length
         stimulus[self.stim_length:] = [0] * (len(stimulus) - self.stim_length)
 
         self.sthal.set_current_stimulus(stimulus)
@@ -444,7 +442,7 @@ class Test_I_gl(BaseTest):
             if self.trace_folder:
                 t, v = self.load_trace(neuron, step_id, rep_id)
             else:
-                self.sthal.switch_analog_output(neuron)
+                self.sthal.switch_current_stimulus(neuron)
                 t, v = self.sthal.read_adc()
 
                 mean_trace, std_trace, n_mean = self.trace_averager.get_average(v, dt)
