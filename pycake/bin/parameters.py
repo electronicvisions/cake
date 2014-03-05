@@ -111,6 +111,7 @@ parameters = {
 
         "E_synx_parameters":     {  neuron_parameter.I_gl: Current(0),          # I_gl and I_convi MUST be set to 0
                                     neuron_parameter.I_convi: Current(0),
+                                    neuron_parameter.E_syni: Voltage(100),
                                     neuron_parameter.V_syntcx: Voltage(1800),
                                     neuron_parameter.V_syntci: Voltage(1800),
                                     neuron_parameter.V_t:       Voltage(1250),
@@ -119,6 +120,7 @@ parameters = {
 
         "E_syni_parameters":     {  neuron_parameter.I_gl: Current(0),
                                     neuron_parameter.I_convx: Current(0),
+                                    neuron_parameter.E_synx: Voltage(100),
                                     neuron_parameter.V_syntci: Voltage(1800),
                                     neuron_parameter.V_syntcx: Voltage(1800),
                                     neuron_parameter.V_t:       Voltage(1250),
