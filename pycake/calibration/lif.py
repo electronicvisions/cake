@@ -215,6 +215,12 @@ class Calibrate_I_gl(BaseCalibration):
         self.pulse_length = 15
         self.stim_current = 35          # Stim current in nA
 
+        if self.save_results:
+            stim_parameters = {'stim_length': self.stim_length,
+                               'pulse_length': self.pulse_length,
+                               'stim_current': self.stim_current}
+            self.pickle(stim_parameters, self.folder, 'stim_parameters.p')
+
         # Get the trace averager
         self.progress_logger.INFO("{}: Creating trace averager".format(time.asctime()))
         coord_hglobal = self.sthal.hicann.index()  # grab HICANNGlobal from StHAL
