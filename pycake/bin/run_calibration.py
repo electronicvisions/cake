@@ -163,6 +163,7 @@ if parameters["calibrate"]:
                         synapse.Calibrate_E_synx,
                         synapse.Calibrate_E_syni,
                         lif.Calibrate_E_l,
+                        synapse.Calibrate_V_syntcx,
                         lif.Calibrate_V_t,
                         lif.Calibrate_I_gl]:
             do_calibration(calibration)

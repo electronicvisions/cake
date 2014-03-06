@@ -323,10 +323,9 @@ class Experiment(object):
             self.num_steps = len(self.results)
 
     def get_result(self, neuron_id, step_id, rep_id):
-        result = self.results_unsorted[rep_id + step_id * self.repetitions]
+        result = self.results[step_id][rep_id]
         neuron = Coordinate.NeuronOnHICANN(Coordinate.Enum(neuron_id))
-        return result[neuron]
-
+        return result[neuron.id().value()]
 
     def pickle_load(self, folder, filename):
         fullpath = os.path.join(folder, filename)
