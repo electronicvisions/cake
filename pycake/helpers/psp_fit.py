@@ -68,20 +68,23 @@ def fit(psp_shape, time, voltage, error_estimate, maxcall=1000,
     logger.TRACE("                Reduced Chi**2: {}".format(red_chi2))
 
     # return code 1 to 4 indicates success
-    success = ier in [1, 2, 3, 4]
-    if not success:
+    success = True
+    if not ier in [1, 2, 3, 4]:
+        success = False
         logger.INFO("Fit rejected by fitting error: {} (code: {})".format(
             fit_msg, ier))
-        success = False
 
     if cov_x is None:
         success = False
         logger.INFO("Fit rejected by missing covariance matrix")
     else:
-        fail_neg = np.any(np.diag(cov_x) < 0)
         if fail_on_negative_cov is not None:
-            success = np.any(np.logical_and(np.diag(cov_x) < 0,
-                            fail_on_negative_cov))
+            negative = np.logical_and(np.diag(cov_x) < 0, fail_on_negative_cov)
+            names = [ n for n, ok in zip(parnames, negative) if ok ]
+            if np.any(negative):
+                logger.INFO("Fit rejected by negative covariance of"
+                    "parameters " + ",".join(names))
+                success = False
         cov_x *= error_estimate ** 2
 
     if red_chi2 > maximal_red_chi2:
