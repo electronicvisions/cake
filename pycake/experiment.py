@@ -404,7 +404,7 @@ class BaseExperiment(object):
         # Also save sthal container to extract standard sthal parameters later:
         if self.save_results:
             self.pickle(self.experiment_parameters, self.folder, 'parameterfile.p')
-            self.pickle(self.sthal.hicann, self.folder, 'sthalcontainer.p')
+            self.pickle(self.sthal.wafer, self.folder, 'sthalcontainer.p')
             self.pickle(self.repetitions, self.folder, "repetitions.p")
             open(os.path.join(self.folder,'description.txt'), 'w').write(self.description)
             self.pickle(self.target_parameter, self.folder, 'target_parameter.p')
