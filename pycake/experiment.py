@@ -421,7 +421,7 @@ class BaseExperiment(object):
         progress_logger.INFO("{} - Experiment {}".format(time.asctime(), self.description))
         progress_logger.INFO("{} - Created folders in {}".format(time.asctime(), self.folder))
         if self.trace_folder:
-            progress_logger.INFO("{} - Reading traces from {}.".format(self.trace_folder))
+            progress_logger.INFO("{} - Reading traces from {}.".format(time.asctime(), self.trace_folder))
 
         for step_id, step in enumerate(steps):
                 if not self.trace_folder:
