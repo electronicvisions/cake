@@ -404,7 +404,7 @@ class BaseExperiment(object):
         # Also save sthal container to extract standard sthal parameters later:
         if self.save_results:
             self.pickle(self.experiment_parameters, self.folder, 'parameterfile.p')
-            self.pickle(self.sthal.hicann, self.folder, 'sthalcontainer.p')
+            self.pickle(self.sthal.wafer, self.folder, 'sthalcontainer.p')
             self.pickle(self.repetitions, self.folder, "repetitions.p")
             open(os.path.join(self.folder,'description.txt'), 'w').write(self.description)
             self.pickle(self.target_parameter, self.folder, 'target_parameter.p')
@@ -421,7 +421,7 @@ class BaseExperiment(object):
         progress_logger.INFO("{} - Experiment {}".format(time.asctime(), self.description))
         progress_logger.INFO("{} - Created folders in {}".format(time.asctime(), self.folder))
         if self.trace_folder:
-            progress_logger.INFO("{} - Reading traces from {}.".format(self.trace_folder))
+            progress_logger.INFO("{} - Reading traces from {}.".format(time.asctime(), self.trace_folder))
 
         for step_id, step in enumerate(steps):
                 if not self.trace_folder:

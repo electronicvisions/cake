@@ -6,6 +6,7 @@ fit.fit
 import pylab as p
 import inspect
 from scipy.integrate import trapz
+import numexpr
 
 
 def jacobian(func, p0, epsilon=1e-8):
@@ -81,6 +82,11 @@ class DoubleExponentialPSP(PSPShape):
 
         self.__shape_switch_limit = 1e-8
 
+    def is_singular(self, tau_frac):
+        return (1. - self.__shape_switch_limit
+                < tau_frac
+                < 1. + self.__shape_switch_limit)
+
     @staticmethod
     def __psp_singular(height, times):
         """
@@ -92,10 +98,7 @@ class DoubleExponentialPSP(PSPShape):
         times : numpy.ndarray
             array of time points at which the function is evaluated
         """
-        A = height * p.exp(1)
-
-        v = A * p.exp(-times) * times
-        return v
+        return height * p.exp(1-times) * times
 
     @staticmethod
     def __psp_normal(height, tau_frac, t):
@@ -110,7 +113,8 @@ class DoubleExponentialPSP(PSPShape):
         """
         A = height / (tau_frac ** (-1. / (tau_frac - 1.))
                       - tau_frac ** (-tau_frac / (tau_frac - 1.)))
-        v = A * (p.exp(-t / tau_frac) - p.exp(-t))
+        # A little bit faster with numexpr
+        v = numexpr.evaluate("A * (exp(-t / tau_frac) - exp(-t))")
         return v
 
     def __call__(self, time, height, tau_1, tau_2, start, offset):
@@ -123,11 +127,8 @@ class DoubleExponentialPSP(PSPShape):
         tau_frac = tau_2 / p.float64(tau_1)
         t = p.maximum((time - start) / p.float64(tau_1), 0)
 
-        self.__shape_switch_limit = 1E-8
 
-        if (1. - self.__shape_switch_limit
-                < tau_frac
-                < 1. + self.__shape_switch_limit):
+        if self.is_singular(tau_frac):
             return self.__psp_singular(height, t) + offset
         else:
             return self.__psp_normal(height, tau_frac, t) + offset
@@ -293,3 +294,90 @@ class DoubleExponentialPSP(PSPShape):
         result_error = p.dot(p.dot(j, covariance_matrix), j)
 
         return result, p.sqrt(result_error)
+
+
+class DoubleExponentialPSPOpt(DoubleExponentialPSP):
+    @staticmethod
+    def __psp_normal(height, tau_frac, t):
+        """
+        Evaluate the alpha psp for the case tau_1 != tau_2
+
+        tau_frac : float
+            ratio tau_1 / tau_2
+
+        t : numpy.ndarray
+            array of time points at which the function is evaluated
+        """
+        A = height * tau_frac ** (tau_frac / (tau_frac - 1)) / (tau_frac - 1)
+        v = A * (p.exp(-t / tau_frac) - p.exp(-t))
+        return v
+
+    def __call__(self, time, height, tau_1, tau_2, start, offset):
+        """
+        evaluate the psp for the given parameters
+        """
+        tau_1 = p.maximum(tau_1, 0.)
+        tau_2 = p.maximum(tau_2, 0.)
+
+        tau_frac, t = self.prepare_t(time, tau_1, tau_2, start)
+
+        print "FUN:", height, tau_frac, tau_1, tau_2, start, offset
+
+        if self.is_singular(tau_frac):
+            return self.__psp_singular(height, t) + offset
+        else:
+            return self.__psp_normal(height, tau_frac, t) + offset
+
+    def prepare_t(self, t, tau_1, tau_2, start):
+        tau_frac = tau_2 / p.float64(tau_1)
+        t = p.maximum((t - start) / p.float64(tau_1), 0)
+        return tau_frac, t
+
+    def jacobian(self, time, height, tau_1, tau_2, start, offset):
+        tau_frac, t = self.prepare_t(time, tau_1, tau_2, start)
+        if self.is_singular(tau_frac):
+            raise Exception
+        else:
+            return self.__jacobian_normal(height, tau_frac, tau_1, tau_2, start, offset, t)
+
+    @staticmethod
+    def __jacobian_normal(height, tau_frac, tau_1, tau_2, start, offset, t):
+        """
+        Determines the jacobian for the case tau_1 != tau_2
+
+        t : numpy.ndarray
+            array of time points at which the function is evaluated
+        """
+        print "JAC:", height, tau_frac, tau_1, tau_2, start, offset
+
+        pos_start = p.searchsorted(t, start)
+        A = tau_frac ** (tau_frac / (tau_frac - 1)) / (tau_frac - 1)
+        e = p.exp(-t / tau_frac)
+        et = e * t
+        B = e - p.exp(-t)
+
+        # Partial derivatives
+        dA_dtau_frac = - A * p.log(tau_frac) / (tau_frac - 1)**2
+        dA_dtau1 = - dA_dtau_frac * tau_2 / (tau_1*tau_1)
+        dA_dtau2 =   dA_dtau_frac / tau_1
+
+        dB_dtau1 = - et / tau_2
+        dB_dtau2 =   dB_dtau1 / -tau_frac
+
+        # Inner derivativ from scaling t by 1/tau_1
+        dB_dtau1 *= p.exp(t * (tau_1 - tau_2) / tau_2) * tau_frac
+
+        # Final derivatives
+        dheight = A * B
+        dstart = height * A * (e/tau_frac - p.exp(-t)) / tau_1
+        dtau1 = height * (dA_dtau1 * B + A * dB_dtau1)
+        dtau2 = height * (dA_dtau2 * B + A * dB_dtau2)
+        doffset = p.ones(len(t), dtype=p.float64)
+
+        result = p.array([dheight, dtau1, dtau2, dstart, doffset])
+        if p.any(p.isnan(result)):
+            print "HELP!!!"
+            print height, tau_frac, tau_1, tau_2, start, offset
+            print [p.any(p.isnan(x)) for x in result]
+
+        return result

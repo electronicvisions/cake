@@ -64,7 +64,7 @@ if parameters["clear"]:
 sthal = StHALContainer(coord_wafer, coord_hicann)
 
 
-def check_for_existing_calbration(parameter):
+def check_for_existing_calibration(parameter):
     path = parameters['backend_c']
     lib = pycalibtic.loadLibrary('libcalibtic_xml.so')
     backend = pycalibtic.loadBackend(lib)
@@ -114,7 +114,7 @@ def do_calibration(Calibration):
 
     run = parameters["run_" + parameter_name]
     overwrite = parameters['overwrite']
-    has_calibration = check_for_existing_calbration(target_parameter)
+    has_calibration = check_for_existing_calibration(target_parameter)
 
     if not run:
         return
@@ -163,6 +163,7 @@ if parameters["calibrate"]:
                         synapse.Calibrate_E_synx,
                         synapse.Calibrate_E_syni,
                         lif.Calibrate_E_l,
+                        synapse.Calibrate_V_syntcx,
                         lif.Calibrate_V_t,
                         lif.Calibrate_I_gl]:
             do_calibration(calibration)
