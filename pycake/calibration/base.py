@@ -190,11 +190,13 @@ class BaseCalibration(BaseExperiment):
             collection = self._calib_nc
             CollectionType = pycalibtic.NeuronCalibration 
             coordinates = self.get_neurons()
+            coord_type = "neuron"
             redman = self._red_nrns
         else:
             collection = self._calib_bc
             CollectionType = pycalibtic.SharedCalibration
             coordinates = self.get_blocks()
+            coord_type = "block"
             redman = None
 
 
@@ -206,7 +208,7 @@ class BaseCalibration(BaseExperiment):
                 # TODO reset/delete calibtic function for this neuron
             else:  # store in calibtic
                 if not collection.exists(index):
-                    logger.INFO("No existing calibration data for neuron {} found, creating default dataset".format(index))
+                    logger.INFO("No existing calibration data for {} {} found, creating default dataset".format(coord_type, index))
                     cal = CollectionType()
                     collection.insert(index, cal)
                 collection.at(index).reset(parameter, result)
