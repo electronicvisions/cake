@@ -1,5 +1,6 @@
 import multiprocessing
 import time
+import traceback
 
 workers = multiprocessing.cpu_count() - 1
 
@@ -58,6 +59,7 @@ class WorkerPool(object):
                 out_list.append((ii, f(*args)))
             except Exception as e:
                 print e
+                traceback.print_exc()
                 out_list.append( (ii, e) )
             finally:
                 q_in.task_done()

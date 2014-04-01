@@ -210,8 +210,8 @@ class BaseExperiment(object):
                     # Only give this warning in first step
                     self.logger.WARN("{}: Parameter {} not calibrated.".format(coord, param.name))
                 pass
-            except Exception,e:
-                raise e
+            except Exception:
+                raise
 
         # TODO check with Dominik
         if param == neuron_parameter.E_syni and self.E_syni_dist:
