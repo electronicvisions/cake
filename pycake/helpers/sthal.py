@@ -18,6 +18,17 @@ class UpdateAnalogOutputConfigurator(pysthal.HICANNConfigurator):
         self.config_analog_readout(h, hicann)
         self.flush_fpga(fpga_handle)
 
+class UpdateCurrentStimuluConfigurator(pysthal.HICANNConfigurator):
+    """Change analog output only without writing other configuration."""
+    def config_fpga(self, *args):
+        """do not reset FPGA"""
+        pass
+
+    def config(self, fpga_handle, h, hicann):
+        """Call analog output related configuration functions."""
+        self.config_fg_stimulus(h, hicann)
+        self.flush_fpga(fpga_handle)
+
 class StHALContainer(object):
     """Contains StHAL objects for hardware access. Multiple experiments can share one container."""
     def __init__(self, coord_wafer,

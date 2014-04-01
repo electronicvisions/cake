@@ -9,7 +9,7 @@ class SignalToNoise(object):
     for regular spike input
     """
 
-    def __init__(self, control, adc_freq, bg_freq, max_len=-1):
+    def __init__(self, control, adc_freq, bg_freq, fast=True):
         """
         Args:
             control: np.array Membrane trace of the neuron without synaptic input
@@ -17,12 +17,12 @@ class SignalToNoise(object):
             bg_freq: float Frequence of spike input
         """
         self.trace_len = len(control)
-        if max_len == -1:
-            self.n = self.trace_len
-        else:
-            self.n = min(max_len, self.trace_len)
-        dt = 1.0/adc_freq
+        self.n = self.trace_len
+        if fast:
+            self.n = 2**int(np.log2(self.trace_len))
+        assert self.n <= self.trace_len
 
+        dt = 1.0/adc_freq
         freq = fftfreq(self.n, dt)
         peak = np.searchsorted(freq[:len(freq) / 2], bg_freq)
         self.window = np.array( (-2, -1, 0, 1, 2) ) + peak

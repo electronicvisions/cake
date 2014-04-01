@@ -94,8 +94,7 @@ class Calibrate_V_syntc_preperation(BaseCalibration):
 
         def __call__(self, t, v, neuron, *args):
             # FFT seems much (10-100x) faster on arrays for size n**2
-            n =  int(np.log2(len(v)))
-            sn = SignalToNoise(v, self.averager.adc_freq, 1.0/self.bg_period, n)
+            sn = SignalToNoise(v, self.averager.adc_freq, 1.0/self.bg_period)
             mean, std, n = self.averager.get_average(v, self.bg_period)
             return {
                     "signal_to_noise" : sn,
@@ -181,12 +180,10 @@ class Calibrate_V_syntc(BaseCalibration):
                     two values may be None if the fit fails
             """
             signal_to_noise = self.prerun[neuron]["signal_to_noise"](v)
-            fit = None
+            result = {'signal_to_noise' : signal_to_noise, 'fit' : None}
             if signal_to_noise > self.sn_th:
-                fit, chi2, err_estimate = self.fit_psp(t, v, neuron)
-            else:
-                fit, chi2, err_estimate = None, None, None
-            return signal_to_noise, fit, chi2, err_estimate
+                result.update(self.fit_psp(t, v, neuron))
+            return result
 
         def fit_psp(self, times, trace, neuron):
             """
@@ -201,6 +198,7 @@ class Calibrate_V_syntc(BaseCalibration):
                 (float, float) the fit parameters and the chi**2 of the fit. The
                     two values may be None if the fit fails
             """
+            result = {}
             f = self.PSPShape()
             psp, std, n = self.averager.get_average(trace, self.bg_period)
             error_estimate = self.prerun[neuron]["error_estimate"]
@@ -211,9 +209,11 @@ class Calibrate_V_syntc(BaseCalibration):
                     maximal_red_chi2=self.chi2_th,
                     jacobian=jacobian)
             if ok:
-                return dict(zip(f.parameter_names(), parameters)), chi2, err_estimate
-            else:
-                return None, None, None
+                result['fit'] = dict(zip(f.parameter_names(), parameters))
+                result['chi2'] = chi2
+                result['err_estimate'] = err_estimate
+                result['area'] = np.sum(psp - result['fit']['offset'])
+            return result
 
         def align_psp(self, psp):
             """Shift the psp that the maximum lays at a certain value
@@ -285,7 +285,6 @@ class Calibrate_V_syntci(Calibrate_V_syntc):
         assert len(psp) > 1500
         x = np.argmin(psp) - 230
         return np.roll(psp, -x)
-
 
 
 class Test_E_synx(BaseTest):

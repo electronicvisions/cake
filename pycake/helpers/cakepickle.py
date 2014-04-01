@@ -327,7 +327,8 @@ class Experiment(object):
         neuron = Coordinate.NeuronOnHICANN(Coordinate.Enum(neuron_id))
         return result[neuron.id().value()]
 
-    def pickle_load(self, folder, filename):
+    @staticmethod
+    def pickle_load(folder, filename):
         fullpath = os.path.join(folder, filename)
         if (os.path.exists(fullpath + ".bz2")):
             fullpath += ".bz2"
