@@ -1,8 +1,14 @@
 import numpy as np
-import pyfftw.interfaces
 
-fft = pyfftw.interfaces.numpy_fft.rfft
-fftfreq = pyfftw.interfaces.numpy_fft.fftfreq
+try:
+    import pyfftw.interfaces
+    fft = pyfftw.interfaces.numpy_fft.rfft
+    fftfreq = pyfftw.interfaces.numpy_fft.fftfreq
+except ImportError as exc:
+    print exc
+    print "FFT will not work!"
+    fft = None
+    fftfreq = None
 
 class SignalToNoise(object):
     """Utility class to determine the signal to noise ratio of the neuron membrane
