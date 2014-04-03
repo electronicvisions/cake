@@ -61,9 +61,6 @@ if parameters["clear"]:
     if os.path.isfile(filename_c): os.remove(filename_c)
     if os.path.isfile(filename_r): os.remove(filename_r)
 
-sthal = StHALContainer(coord_wafer, coord_hicann)
-
-
 def check_for_existing_calibration(parameter):
     path = parameters['backend_c']
     lib = pycalibtic.loadLibrary('libcalibtic_xml.so')
@@ -109,6 +106,8 @@ def check_for_existing_calibration(parameter):
 
 
 def do_calibration(Calibration):
+    sthal = StHALContainer(coord_wafer, coord_hicann)
+
     target_parameter = Calibration.target_parameter
     parameter_name = target_parameter.name
 
@@ -132,7 +131,8 @@ def do_calibration(Calibration):
     pylogging.append_to_cout(calib.progress_logger)
     # Log everything to file
     calib_logfile = os.path.join(parameters['folder'], calib.folder, 'logfile.txt')
-    pylogging.append_to_file(calib_logfile, pylogging.get_root())
+    app = pylogging.append_to_file(calib_logfile, pylogging.get_root())
+    app = pylogging.append_to_file(calib_logfile, pylogging.get("Default"))
 
     try:
         # Try several times in case experiment should fail
@@ -157,6 +157,12 @@ def do_calibration(Calibration):
         #            print e
         #            pass
         raise
+
+    # TODO delete appender!
+
+    pylogging.reset()
+    del(calib)
+    del(sthal)
 
 if parameters["calibrate"]:
     for calibration in [lif.Calibrate_V_reset,
