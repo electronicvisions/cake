@@ -6,7 +6,6 @@ measurement and processing from BaseExperiment or child classes.
 
 import numpy as np
 import pylogging
-from collections import defaultdict
 import pyhalbe
 import pycalibtic
 from pyhalbe.Coordinate import NeuronOnHICANN, FGBlockOnHICANN
@@ -14,17 +13,12 @@ from pycake.helpers.calibtic import init_backend as init_calibtic
 from pycake.helpers.redman import init_backend as init_redman
 import pyredman as redman
 from pycake.helpers.units import Current, Voltage, DAC
-from pycake.helpers.trafos import HWtoDAC, DACtoHW, HCtoDAC, DACtoHC, HWtoHC, HCtoHW
-from pycake.helpers.WorkerPool import WorkerPool
 import pycake.helpers.misc as misc
+import pycake.helpers.sthal as sthal
+from pycake.measure import Measurement
 
 # Import everything needed for saving:
-import pickle
 import time
-import os
-import bz2
-
-import copy
 
 # shorter names
 Coordinate = pyhalbe.Coordinate
@@ -32,43 +26,62 @@ Enum = Coordinate.Enum
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
 
+
 class BaseExperiment(object):
     """Base class for running experiments on individual neurons.
 
-    Defines experiment base parameters, steps varying parameters, repetitions.
+    Defines experiment base parameters, steps varying parameters.
     Defines measurement procedure and postprocessing.
 
     Provides a function to run and process an experiment.
     """
-    target_parameter = None
-    denmem_size = 1
+    def __getstate__(self):
+        """ Disable stuff from getting pickled that cannot be pickled.
+        """
+        odict = self.__dict__.copy()
+        del odict['logger']
+        del odict['progress_logger']
+        del odict['_calib_backend']
+        del odict['_calib_hc']
+        del odict['_calib_nc']
+        del odict['_calib_bc']
+        del odict['_calib_md']
+        return odict
 
-    def __init__(self, neuron_ids, sthal_container, parameters, loglevel=None):
+    def __setstate__(self, dic):
+        # TODO fix loading of pickled experiment. 
+        # Right now, calibtic stuff is not loaded, but only empty variables are set
+        dic['_calib_backend'] = None
+        dic['_calib_hc'] = None
+        dic['_calib_nc'] = None
+        dic['_calib_bc'] = None
+        dic['_calib_md'] = None
+        self.__dict__.update(dic)
+
+    def __init__(self, parameters, target_parameter, neuron_ids=range(512), loglevel=None, recording_time=1e-4):
         self.experiment_parameters = parameters
-        self.sthal = sthal_container
+        self.sthal = sthal.StHALContainer(parameters["coord_wafer"], parameters["coord_hicann"])
+        self.sthal.recording_time = recording_time
 
-        # TODO only accept NeuronOnHICANN coordinates?
+        self.target_parameter = target_parameter
+
         self.neurons = [NeuronOnHICANN(Enum(n) if isinstance(n, int) else n) for n in neuron_ids]
         self.blocks = [block for block in Coordinate.iter_all(FGBlockOnHICANN)]
-        self._repetitions = 1
 
         calibtic_backend = init_calibtic(type = 'xml', path = parameters["backend_c"])
-        redman_backend = init_redman(type = 'xml', path = parameters["backend_r"])
+        #redman_backend = init_redman(type = 'xml', path = parameters["backend_r"])
 
         self._calib_backend = calibtic_backend
         self._calib_hc = None
         self._calib_nc = None
         self._calib_bc = None
 
-        localtime = time.localtime()
-        self.folder = "exp{0:02d}{1:02d}_{2:02d}{3:02d}".format(localtime.tm_mon, localtime.tm_mday, localtime.tm_hour, localtime.tm_min)
-
-        if redman_backend:
-            self.init_redman(redman_backend)
-        else:
-            self._red_wafer = None
-            self._red_hicann = None
-            self._red_nrns = None
+        #if redman_backend:
+        #    self.init_redman(redman_backend)
+        #else:
+        #    self._red_wafer = None
+        #    self._red_hicann = None
+        #    self._red_nrns = None
 
         if calibtic_backend:
             self.init_calibration()
@@ -76,30 +89,43 @@ class BaseExperiment(object):
         self.logger = pylogging.get("pycake.experiment.{}".format(self.target_parameter.name))
         self.progress_logger = pylogging.get("pycake.experiment.{}.progress".format(self.target_parameter.name))
 
-        self.trace_folder = None
+    def get_config(self, config_key):
+        """returns a given key for experiment"""
+        config_name = self.target_parameter.name
+        key = "{}_{}".format(config_name, config_key)
+        return self.experiment_parameters[key]
+
+    def set_config(self, config_key, value):
+        """sets a given key for experiment"""
+        config_name = self.target_parameter.name
+        key = "{}_{}".format(config_name, config_key)
+        self.experiment_parameters[key] = value
+
+    def get_step_value(self, value, apply_calibration):
+        if self.target_parameter.name[0] in ['E', 'V']:
+            return Voltage(value, apply_calibration=apply_calibration)
+        else:
+            return Current(value, apply_calibration=apply_calibration)
 
     def init_experiment(self):
         """Hook for child classes. Executed by run_experiment(). These are standard parameters."""
-        self.E_syni_dist = self.experiment_parameters["E_syni_dist"]
-        self.E_synx_dist = self.experiment_parameters["E_synx_dist"]
         self.save_results = self.experiment_parameters["save_results"]
         self.save_traces = self.experiment_parameters["save_traces"]
-        self.repetitions = self.experiment_parameters["repetitions"]
         self.bigcap = True
         self.description = "Basic experiment."  # Change this for all child classes
 
-    def init_redman(self, backend):
-        """Initialize defect management for given backend."""
-        # FIXME default coordinates
-        coord_hglobal = self.sthal.hicann.index()  # grab HICANNGlobal from StHAL
-        coord_wafer = coord_hglobal.wafer()
-        coord_hicann = coord_hglobal.on_wafer()
-        wafer = redman.Wafer(backend, coord_wafer)
-        if not wafer.hicanns().has(coord_hicann):
-            raise ValueError("HICANN {} is marked as defect.".format(int(coord_hicann.id())))
-        hicann = wafer.find(coord_hicann)
-        self._red_hicann = hicann
-        self._red_nrns = hicann.neurons()
+    #def init_redman(self, backend):
+    #    """Initialize defect management for given backend."""
+    #    # FIXME default coordinates
+    #    coord_hglobal = self.sthal.hicann.index()  # grab HICANNGlobal from StHAL
+    #    coord_wafer = coord_hglobal.wafer()
+    #    coord_hicann = coord_hglobal.on_wafer()
+    #    wafer = redman.Wafer(backend, coord_wafer)
+    #    if not wafer.hicanns().has(coord_hicann):
+    #        raise ValueError("HICANN {} is marked as defect.".format(int(coord_hicann.id())))
+    #    hicann = wafer.find(coord_hicann)
+    #    self._red_hicann = hicann
+    #    self._red_nrns = hicann.neurons()
 
     def get_calibtic_name(self):
         # grab Coordinate.HICANNGlobal from StHAL
@@ -124,7 +150,7 @@ class BaseExperiment(object):
             bc.erase(bid)
 
         name = self.get_calibtic_name()
-        try:  # TODO replace by 'if backend.exists(name)' in the future, when this function is written
+        try:
             self._calib_backend.load(name, md, hc)
             # load existing calibration:
             nc = hc.atNeuronCollection()
@@ -141,17 +167,10 @@ class BaseExperiment(object):
         self._calib_bc = bc
         self._calib_md = md
 
-    def store_calibration(self, metadata=None):
-        """Write calibration data to backend"""
-        self._red_hicann.commit()
-        if not metadata:
-            metadata = self._calib_md
-        self.progress_logger.INFO("{} - Storing calibration into backend".format(time.asctime()))
-
-        name = self.get_calibtic_name()
-        self._calib_backend.store(name, metadata, self._calib_hc)
-
     def get_parameters(self, apply_calibration=False):
+        return self.get_halbe_default_parameters(apply_calibration)
+
+    def get_halbe_default_parameters(self, apply_calibration=False):
         """Return neuron parameters for this experiment. Values can be of type Current, Voltage or DAC.
 
         Returns:
@@ -213,15 +232,6 @@ class BaseExperiment(object):
             except Exception,e:
                 raise e
 
-        # TODO check with Dominik
-        if param == neuron_parameter.E_syni and self.E_syni_dist:
-            calibrated_E_l = self.get_calibrated(parameters, ncal, coord, neuron_parameter.E_l, step_id)
-            dac_value = calibrated_E_l + self.E_syni_dist * 1023/1800.
-
-        if param == neuron_parameter.E_synx and self.E_synx_dist:
-            calibrated_E_l = self.get_calibrated(parameters, ncal, coord, neuron_parameter.E_l, step_id)
-            dac_value = calibrated_E_l + self.E_synx_dist * 1023/1800.
-
         if dac_value < 0 or dac_value > 1023:
             if self.target_parameter == neuron_parameter.I_gl: # I_gl handled in another way. Maybe do this for other parameters as well.
                 msg = "Calibrated value for {} on Neuron {} has value {} out of range. Value clipped to range."
@@ -240,6 +250,16 @@ class BaseExperiment(object):
 
         return int(round(dac_value))
 
+    def get_step(self, step_id):
+        """ Transforms step as float into something that can be processed by prepare_parameters
+        """
+        step_value = self.get_steps()[step_id]
+        if self.target_parameter.name[0] == 'I':
+            step = Current(step_value)
+        else:
+            step = Voltage(step_value)
+        return {self.target_parameter: step}
+
     def prepare_parameters(self, step, step_id):
         """Prepare parameters before writing them to the hardware.
 
@@ -249,6 +269,8 @@ class BaseExperiment(object):
         Calibration can be different for each neuron, which leads to different DAC values
         for each neuron, even though the parameter value is the same.
 
+        Parameters are then written into the sthal container
+
         Args:
             step: dict, an entry of the list given back by get_steps()
         Returns:
@@ -257,18 +279,17 @@ class BaseExperiment(object):
 
         fgc = pyhalbe.HICANN.FGControl()
 
-        neurons = self.get_neurons()
         base_parameters = self.get_parameters()
 
-        for neuron in Coordinate.iter_all(NeuronOnHICANN):
+        for neuron in self.neurons:
+            neuron_id = neuron.id().value()
             parameters = base_parameters[neuron]
-            parameters.update(step[neuron])
+            if isinstance(self.target_parameter, neuron_parameter):
+                parameters.update(self.get_step(step_id))
             ncal = None
-            self.logger.TRACE("Neuron {} has: {}".format(neuron.id(), self._red_nrns.has(neuron)))
+            #self.logger.TRACE("Neuron {} has: {}".format(neuron.id(), self._red_nrns.has(neuron)))
             try:
-                ncal = self._calib_nc.at(neuron.id().value())
-                #if step_id == 0: # Only show this info in first step
-                #    self.logger.INFO("Calibration for Neuron {} found.".format(neuron.id()))
+                ncal = self._calib_nc.at(neuron_id)
             except (IndexError):
                 if step_id == 0:
                     self.logger.WARN("No calibration found for neuron {}.".format(neuron.id()))
@@ -283,7 +304,8 @@ class BaseExperiment(object):
 
         for block in Coordinate.iter_all(FGBlockOnHICANN):
             parameters = base_parameters[block]
-            parameters.update(step[block])
+            if isinstance(self.target_parameter, shared_parameter):
+                parameters.update(self.get_step(step_id))
 
             # apply calibration
             try:
@@ -306,30 +328,6 @@ class BaseExperiment(object):
                 fgc.setShared(block, param, value)
 
         self.sthal.hicann.floating_gates = fgc
-
-    def prepare_measurement(self, step_parameters, step_id, rep_id):
-        """Prepare measurement. This is done for each repetition,
-        Perform reset, write general hardware settings which were set in prepare_parameters.
-        """
-
-        if self.bigcap is True:
-            # TODO add bigcap functionality
-            pass
-
-        if self.save_results:
-            fg_folder = os.path.join(self.folder, 'floating_gates')
-            self.pickle(self.sthal.hicann.floating_gates, fg_folder, "step{}rep{}.p".format(step_id, rep_id))
-
-        self.sthal.write_config()
-
-    @property
-    def repetitions(self):
-        """How many times should each step be repeated?"""
-        return self._repetitions
-
-    @repetitions.setter
-    def repetitions(self, value):
-        self._repetitions = int(value)
 
     def get_steps(self):
         """Measurement steps for sweeping. Individual neurons may have
@@ -356,199 +354,66 @@ class BaseExperiment(object):
                ] 
         """
         # One step using default parameters (empty dict does not update the default paramters)
-        return [defaultdict(dict)]
-
-    def get_neurons(self):
-        """Which neurons should this experiment run on?
-
-        All neurons will be prepared with the same parameters (except for calibration differences)
-        and each neuron will be measured in the measure step.
-        """
-        return self.neurons  # TODO move this to a property
-
-    def get_blocks(self):
-        """ Return all blocks on this HICANN.
-        """
-
-        return self.blocks  # TODO move this to a property
+        return self.get_config('range')
 
     def run_experiment(self):
         """Run the experiment and process results."""
-        logger = self.logger
-        progress_logger = self.progress_logger
-
         self.init_experiment()
-        neurons = self.get_neurons()
 
         parameters = self.get_parameters()
 
-        self.all_results = []
         steps = self.get_steps()
         num_steps = len(steps)
 
-        # Give info about nonexisting calibrations:
-        for name, param in neuron_parameter.names.iteritems():
-            if name[0] != '_':
-                try:
-                    ncal = self._calib_nc.at(0).at(param)
-                except (RuntimeError, IndexError, AttributeError):
-                    self.logger.WARN("No calibration found for {}. Using uncalibrated values.".format(name))
-        for name, param in shared_parameter.names.iteritems():
-            if name[0] != '_':
-                try:
-                    bcal = self._calib_bc.at(0).at(param)
-                except (RuntimeError, IndexError, AttributeError):
-                    self.logger.WARN("No calibration found for {}. Using uncalibrated values.".format(name))
+        self.measurements = []
 
         # Save default and step parameters and description to files
         # Also save sthal container to extract standard sthal parameters later:
-        if self.save_results:
-            self.pickle(self.experiment_parameters, self.folder, 'parameterfile.p')
-            self.pickle(self.sthal.wafer, self.folder, 'sthalcontainer.p')
-            self.pickle(self.repetitions, self.folder, "repetitions.p")
-            open(os.path.join(self.folder,'description.txt'), 'w').write(self.description)
-            self.pickle(self.target_parameter, self.folder, 'target_parameter.p')
-                
 
-            # dump neuron parameters and steps:
-            self.pickle(parameters, self.folder, "parameters.p")
-            self.pickle(steps, self.folder, "steps.p")
-
-            # This connects implicitly to the wafer
-            if not self.trace_folder:
-                self.pickle(self.sthal.status(), self.folder, 'wafer_status.p')
-
-        progress_logger.INFO("{} - Experiment {}".format(time.asctime(), self.description))
-        progress_logger.INFO("{} - Created folders in {}".format(time.asctime(), self.folder))
-        if self.trace_folder:
-            progress_logger.INFO("{} - Reading traces from {}.".format(time.asctime(), self.trace_folder))
+        self.progress_logger.INFO("{} - Experiment {}".format(time.asctime(), self.description))
 
         for step_id, step in enumerate(steps):
-                if not self.trace_folder:
-                    step_parameters = self.prepare_parameters(step, step_id)
-                for r in range(self.repetitions):
-                    progress_logger.INFO("{} - Step {}/{} repetition {}/{}.".format(time.asctime(),step_id+1, num_steps, r+1, self.repetitions))
-                    progress_logger.INFO("{} - Preparing measurement --> setting floating gates".format(time.asctime()))
-                    if not self.trace_folder:
-                        self.prepare_measurement(step_parameters, step_id, r)
-                    progress_logger.INFO("{} - Measuring.".format(time.asctime()))
-                    self.measure(neurons, step_id, r)
+                self.progress_logger.INFO("{} - Step {}/{}".format(time.asctime(),step_id+1, num_steps))
+                self.progress_logger.INFO("{} - Preparing measurement.".format(time.asctime()))
+                step_parameters = self.prepare_parameters(step, step_id)
+                self.progress_logger.INFO("{} - Setting floating gates and measuring.".format(time.asctime()))
+                self.measure()
 
-        progress_logger.INFO("{} - Processing results".format(time.asctime()))
-        self.process_results(neurons)
-        self.store_results()
         if self.sthal._connected:
             self.sthal.disconnect()
+        
 
-    @staticmethod
-    def pickle(data, folder, filename):
-        misc.mkdir_p(folder)
-        with open(os.path.join(folder, filename), "wb") as f:
-            pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+    def measure(self):
+        """ Perform measurements for a single step on one or multiple neurons.
+            
+            Appends a measurement to the experiment's list of measurements.
+        """
+        readout_shifts = self.get_readout_shifts(self.neurons)
+        measurement = Measurement(self.sthal, self.neurons, readout_shifts)
+        measurement.run_measurement()
+        
+        self.measurements.append(measurement)
 
-    @staticmethod
-    def pickle_compressed(data, folder, filename):
-        if os.path.splitext(filename)[1] != '.bz2':
-            filename += '.bz2'
-        misc.mkdir_p(folder)
-        with bz2.BZ2File(os.path.join(folder, filename), "wb") as f:
-            pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+    def get_readout_shifts(self, neurons):
+        """ Get readout shifts (in V) for a list of neurons.
+            If no readout shift is saved, a shift of 0 is returned.
 
-    def get_trace_folder(self, step_id, rep_id):
-        return os.path.join(self.folder,"traces", "step{}rep{}".format(step_id, rep_id))
-
-    def get_plot_result_folder(self, step_id, rep_id):
-        return os.path.join(self.folder,"plot_results", "step{}rep{}".format(step_id, rep_id))
-
-    @staticmethod
-    def save_trace(folder, t, v, neuron):
-        filename = "neuron_{}.p".format(neuron.id().value())
-        BaseExperiment.pickle_compressed([t, v], folder, filename)
-
-    @staticmethod
-    def save_plot_result(folder, t, v, neuron):
-        filename = "plot_result_{}.p".format(neuron.id().value())
-        BaseExperiment.pickle_compressed([t, v], folder, filename)
-
-    def save_result(self, result, step_id, rep_id):
-        if self.save_results:
-            folder = os.path.join(self.folder, "results")
-            filename = "step{}_rep{}.p".format(step_id, rep_id)
-            self.pickle(result, folder, filename)
-
-    def load_trace(self, nid, step_id, rep_id):
-        this_step_folder = os.path.join(self.trace_folder, 'step{}rep{}/'.format(step_id, rep_id))
-        nid = nid.id().value()
-        fullpath = os.path.join(this_step_folder, 'neuron_{}.p.bz2'.format(nid))
-        with bz2.BZ2File(fullpath, 'r') as f:
-            return pickle.load(f)
-
-    def measure(self, neurons, step_id, rep_id):
-        """Perform measurements for a single step on one or multiple neurons."""
-        workers_save = WorkerPool(self.save_trace)
-        traces = []
+            Args:
+                neurons: a list of NeuronOnHICANN coordinates
+            Returns:
+                shifts: a dictionary {neuron: shift (in V)}
+        """
+        if not isinstance(neurons, list):
+            neurons = [neurons]
+        shifts = {}
         for neuron in neurons:
-            if self.trace_folder:
-                t, v = self.load_trace(neuron, step_id, rep_id)
-            else:
-                self.sthal.switch_analog_output(neuron)
-                t, v = self.sthal.read_adc()
-            traces.append((t, v, neuron, step_id, rep_id))
-            if self.save_traces:
-                workers_save.do(self.get_trace_folder(step_id, rep_id), t, v, neuron)
-        workers_save.join()
+            neuron_id = neuron.id().value()
+            try:
+                # Since readout shift is a constant, return the value for DAC = 0
+                shift = self._calib_nc.at(neuron_id).at(21).apply(0) * 1800./1023. * 1e-3 # Convert to mV
+                shifts[neuron] = shift
+            except:
+                self.logger.WARN("No readout shift calibration for neuron {} found. Using unshifted values.".format(neuron))
+                shifts[neuron] = 0
+        return shifts
 
-        process_trace = self.get_process_trace_callback()
-        if process_trace:
-            t0 = time.time()
-            workers_process = WorkerPool(process_trace)
-            for t in traces:
-                workers_process.do(*t)
-            results = workers_process.join()
-            self.logger.INFO("Waited {}s to join workers".format(time.time() - t0))
-        else:
-            results = [self.process_trace(*t) for t in traces]
-
-        results = dict(zip(neurons, results))
-        self.save_result(results, step_id, rep_id)
-        self.all_results.append(results)
-
-        #
-
-        if hasattr(self,"plot_result_in_trace"):
-            workers_save = WorkerPool(self.save_plot_result)
-            for neuron, t in zip(neurons,traces):
-
-                times, p  = self.plot_result_in_trace(*t)
-
-                workers_save.do(self.get_plot_result_folder(step_id, rep_id), times, p, neuron)
-            workers_save.join()
-
-    def get_process_trace_callback(self):
-        """Hook, if it returns a callable, this will be used vor parallel result processing"""
-        return None
-
-    def correct_for_readout_shift(self, value, neuron):
-        neuron_id = neuron.id().value()
-        try:
-            shift = self._calib_nc.at(neuron_id).at(21).apply(value * 1023/1800.) * 1800./1023.
-            return value - shift
-        except:
-            self.logger.WARN("No readout shift calibration for neuron {} found. Using unshifted values.".format(neuron))
-            return value
-
-    def process_trace(self, t, v, neuron, step_id, rep_id):
-        """Hook class for processing measured traces. Should return one value."""
-        return 0
-
-    #def plot_result_in_trace(self, t, v, neuron, step_id, rep_id):
-    #    """Function for plotting results to measured traces. Must return a pair of times and values lists."""
-    #    return None
-
-    def process_results(self, neurons):
-        """Process measured data."""
-        pass  # no processing
-
-    def store_results(self):
-        """Hook for storing results in child classes."""
-        pass
