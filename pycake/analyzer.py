@@ -13,23 +13,24 @@ import time
 class Analyzer(object):
     """ Takes a measurement and analyses it.
     """
-    def __init__(self, measurement):
-        self.measurement = measurement
-
-    def analyze(self):
+    def __call__(self, t, v, neuron):
         """ Returns a dictionary of results:
             {neuron: value}
         """
+        raise NotImplemented
 
-class E_l_Analyzer(Analyzer):
+class MeanOfTraceAnalyzer(Analyzer):
     """ Analyzes traces for E_l measurement.
     """
-    def analyze(self):
-        m = self.measurement
-        results = {}
+    def __call__(self, t, v, neuron):
+        return { "mean" : np.mean(v) }
 
-        for neuron in m.neurons:
-            t,v = m.trace[neuron]
-            results[neuron] = np.mean(v)
+        # return t, np.mean(v)
+        # m = self.measurement
+        # results = {}
 
-        return results
+        # for neuron in m.neurons:
+        #     t,v = m.trace[neuron]
+        #     results[neuron] = np.mean(v)
+
+        # return results

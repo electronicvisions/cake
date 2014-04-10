@@ -22,18 +22,25 @@ class Measurement(object):
                 Note: Every voltage value from the trace is shifted back by -shift!
                 If None is given, the shifts are set to 0.
     """
-    def __init__(self, sthal, neurons, readout_shifts=None):
+    def __init__(self, sthal, neurons, readout_shifts=None): 
+        # TODO: callable readout_shifter instead of dict
+        # readout_shifter(neuron, trace)
         self.sthal = sthal
         self.neurons = neurons
         self.recording_time = self.sthal.recording_time
         self.time = time.asctime()
         self.traces = {}
         self.spikes = {}
-        if not readout_shifts:
+
+        if readout_shifts is None:
+            # TODO use logger
             print "No readout shifts found. Continuing without readout shifts."
-            self.readout_shifts = {}
-            for neuron in self.neurons:
-                self.readout_shifts[neuron] = 0
+            self.readout_shifts = lambda neuron, v: v
+        else:
+            self.readout_shifts = lambda neuron, v: v - readout_shifts[neuron]
+
+    def done(self):
+        return len(self.traces) == len(self.neurons)
 
     def get_parameter(self, parameter, coords):
         """ Used to read out parameters that were used during this measurement.
@@ -55,19 +62,17 @@ class Measurement(object):
                 values[coord] = fgs.getShared(coord, parameter)
             else:
                 print "Invalid parameter <-> coordinate pair"
+                # TODO raise TypeError
         return values
 
-    def get_raw_traces(self):
-        """ Reverses readout shift.
+    def get_trace(self, neuron):
+        v = self.traces[neuron]
+        return self.readout_shifts(neuron, v)
 
-            Returns:
-                Dictionary {neuron: trace}
-        """
-        traces_raw = {}
-        for neuron, trace in self.traces.iteritems():
-            v = trace[1]
-            traces_raw[neuron] = [t, v + self.readout_shifts[neuron]]
-        return traces_raw
+    def iter_traces(self):
+        for neuron in self.traces:
+            yield self.get_trace(neuron)
+        return
 
     def configure(self):
         """ Write StHALContainer configuration to the hardware.
@@ -83,18 +88,18 @@ class Measurement(object):
                 self.traces = {neuron: trace}
                 self.spikes = {neuron: spikes} #TODO this is not yet implemented
         """
-
         for neuron in self.neurons:
             self.sthal.switch_analog_output(neuron)
             t, v = self.sthal.read_adc()
             t = np.array(t)
             v = np.array(v)
-            v = v - self.readout_shifts[neuron]
-            self.traces[neuron] = [t, v]
+            self.traces[neuron] = (t, v)
         
     def run_measurement(self):
         """ First configure, then measure
         """
         self.configure()
         self.measure()
+
+        self.sthal.disconnect()
 
