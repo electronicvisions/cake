@@ -8,7 +8,7 @@ from pycake.helpers.redman import init_backend as init_redman
 import pyredman as redman
 from pycake.helpers.units import Current, Voltage, DAC
 import pycake.helpers.misc as misc
-import pycake.helpers.sthal as sthal
+from pycake.helpers.sthal import StHALContainer
 from pycake.measure import Measurement
 
 # shorter names
@@ -23,29 +23,34 @@ class BaseExperimentBuilder(object):
     """
     def __init__(self, config):
         self.config = config
-        self.sthals = []
         self.neurons = [Coordinate.NeuronOnHICANN(Enum(i)) for i in range(512)] # TODO fix this
         self.blocks = [Coordinate.FGBlockOnHICANN(Enum(i)) for i in range(4)]
         self.target_parameter = self.config.target_parameter
 
-    def generate(self, config)
+    def generate(self, config):
+        measurements = []
         coord_wafer, coord_hicann = self.config.get_coordinates()
         steps = self.config.get_steps()
         parameters = self.config.get_parameters()
         target_parameter = self.target_parameter
 
         # Initialize calibtic backend
-        hc, nc, bc, md = self.load_calibration()
+        cal_path, cal_name = self.config.get_calibtic_backend()
+        hc, nc, bc, md = self.load_calibration(cal_path, cal_name)
 
         # Get readout shifts
         readout_shifts = self.get_readout_shifts(self.neurons, nc)
 
         # Create one sthal container for each step
         for step in steps:
-            sthal = sthal.StHALContainer(coord_wafer, coord_hicann)
+            sthal = StHALContainer(coord_wafer, coord_hicann)
             step_parameters = self.get_step_parameters(parameters, step, target_parameter)
+            sthal = self.prepare_parameters(sthal, step_parameters, nc, bc)
 
-        return ret
+            measurement = Measurement(sthal, self.neurons, readout_shifts)
+            measurements.append(measurement)
+
+        return measurements
 
     def load_calibration(self, path, name):
         """Initialize Calibtic backend, load existing calibration data."""
@@ -83,27 +88,61 @@ class BaseExperimentBuilder(object):
     def get_step_parameters(self, parameters, step, target_parameter):
         """ Takes a parameter dict and updates only the entry that defines the step
         """
-        if target_parameter.name[0] == "I"
+        if target_parameter.name[0] == "I":
             unit = Current
         else:
             unit = Voltage
-        parameters[target_parameter] = unit(step, apply_calibration)
+        parameters[target_parameter] = unit(step)
         return parameters
 
     def prepare_parameters(self, sthal, parameters, nc, bc):
         """ Prepares parameters on a sthal container.
             This includes calibration and transformation to DAC values.
         """
+        fgc = pyhalbe.HICANN.FGControl()
 
-    def set_fg_value(self, sthal, coord, parameter, value):
-        """ Set one fg value, returns the updated sthal container.
-        """
-        fg = sthal.floating_gates
-        if isinstance(coord, NeuronOnHICANN):
-            setval = fg.setNeuron
-        else:
-            setval = fg.setShared
-        setval(coord, parameter, value)
+        for neuron in self.neurons:
+            neuron_id = neuron.id().value()
+            for param, value in parameters.iteritems():
+                name = param.name
+                if isinstance(param, shared_parameter) or name[0] == '_':
+                    continue
+                dac_value = value.toDAC().value
+                if value.apply_calibration: 
+                    try:
+                        calibrated_dac = nc.at(neuron_id).at(param).apply(dac_value)
+                    except:
+                        # TODO proper implementation (give warning etc.)
+                        calibrated_dac = dac_value
+                else:
+                    calibrated_dac = dac_value
+                int_value = int(round(calibrated_dac))
+                fgc.setNeuron(neuron, param, int_value)
+
+        for block in self.blocks:
+            block_id = block.id().value()
+            for param, value in parameters.iteritems():
+                name = param.name
+                if isinstance(param, neuron_parameter) or name[0] == '_':
+                    continue
+                even = block_id%2
+                if even and (name == 'V_clrc' or 'V_bout'):
+                    continue
+                if not even and (name == 'V_clra' or 'V_bexp'):
+                    continue
+                dac = value.toDAC()
+                if value.apply_calibration: 
+                    try:
+                        calibrated_dac = bc.at(neuron_id).at(param).apply(dac_value)
+                    except:
+                        # TODO proper implementation (give warning etc.)
+                        calibrated_dac = dac_value
+                else:
+                    calibrated_dac = dac_value
+                int_value = int(round(calibrated_dac))
+                fgc.setShared(block, param, int_value)
+
+        sthal.hicann.floating_gates = fgc
         return sthal
 
     def get_readout_shifts(self, neurons, nc):
@@ -129,9 +168,9 @@ class BaseExperimentBuilder(object):
                 shifts[neuron] = 0
         return shifts
 
-    def get_calibrated(self, parameters, nc, bc, coord, param):
-        """ Returns calibrated DAC value from Voltage or Current value
-            If DAC value is out of range, it is clipped.
+    def get_calibrated(self, parameters, nc, bc, coord):
+        """ Takes a parameter dictonary, a calibration and a coordinate
+            to return the calibrated parameter dictionary.
 
             Args:
                 parameters: All parameters of the experiment
@@ -185,14 +224,14 @@ class BaseExperimentBuilder(object):
     #    self._red_nrns = hicann.neurons()
 
 
-class BuildVsyntcCalibration(BaseExperimentBuilder):
-    
-    def generate(self):
-
-        meassurements = []
-        # TODO make
-        analyses = [
-                AnalysePSP(threshold, ...),
-                ]
-        return meassurments, analyses
-
+#class BuildVsyntcCalibration(BaseExperimentBuilder):
+#    
+#    def generate(self):
+#
+#        meassurements = []
+#        # TODO make
+#        analyses = [
+#                AnalysePSP(threshold, ...),
+#                ]
+#        return meassurments, analyses
+#

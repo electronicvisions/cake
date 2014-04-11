@@ -54,32 +54,32 @@ class BaseExperiment(object):
 
     def __init__(self, measurements, analyzer, save_traces):
         self.measurements = measurements
-        self.analyzer = analyzer
+        self.analyzer = analyzer()
+        self.results = []
 
-        self.logger = pylogging.get("pycake.experiment.{}".format(self.target_parameter.name))
-        self.progress_logger = pylogging.get("pycake.experiment.{}.progress".format(self.target_parameter.name))
+        self.logger = pylogging.get("pycake.experiment")
+        self.progress_logger = pylogging.get("pycake.experiment.progress")
 
     def run_experiment(self):
         """Run the experiment and process results."""
-        self.init_experiment()
-
-        parameters = self.get_parameters()
-
-        steps = self.get_steps()
-        num_steps = len(steps)
-
         for measurement in self.measurements:
-            if measurement.done():
-                continue
-            else:
+            if not measurement.done():
                 measurement.run_measurement()
+                # TODO CK: parallel processing done here
+                results = {}
+                for neuron, (t,v) in measurement.traces.iteritems()
+                    results[neuron] = self.analyzer(t,v, neuron)
+                self.results.append(results)
+
+                if not self.save_traces:
+                    measurement.traces = [None] * len(measurement.neurons) # this ensures that measurement.done() is True
 
             self.save_state()
-            # TODO make analysis here
         
     def save_state(self):
         """ Pickles itself to a file.
         """
+        # TODO implement this
         pass
 
     def measure(self):

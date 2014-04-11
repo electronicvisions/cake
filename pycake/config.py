@@ -1,10 +1,13 @@
-
+import imp
 
 
 class Config(object):
     def __init__(self, target_parameter, parameters_file):
         self.target_parameter = target_parameter
         self.parameters = self.read_parameter_file(parameters_file)
+
+    def read_parameter_file(self, parameters_file):
+        return imp.load_source('parameters', parameters_file).parameters
 
     def get_config(self, config_key):
         """returns a given key for experiment"""
@@ -22,11 +25,10 @@ class Config(object):
         return self.get_config("range")
 
     def get_parameters(self):
-        """ First creates a dictionary containing all parameters with halbe defaults.
-            Then, it updates all entries specified in the parameterfile.
+        """ Returns the parameter dictionary.
         """
         params = self.parameters["base_parameters"]
-        params.update(self.get_config["parameters"])
+        params.update(self.get_config("parameters"))
         return params
 
     def get_calibtic_backend(self):
@@ -37,6 +39,7 @@ class Config(object):
         wafer_id = coord_wafer.value()
         hicann_id = coord_hicann.id().value()
         name = "w{}-h{}".format(int(wafer_id), int(hicann_id))
+        path = self.parameters["backend_c"]
         return (path, name)
 
     def get_coordinates(self):

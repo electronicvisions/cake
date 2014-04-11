@@ -23,14 +23,6 @@ class MeanOfTraceAnalyzer(Analyzer):
     """ Analyzes traces for E_l measurement.
     """
     def __call__(self, t, v, neuron):
-        return { "mean" : np.mean(v) }
+        return { "mean" : np.mean(v),
+                 "std"  : np.std(v)}
 
-        # return t, np.mean(v)
-        # m = self.measurement
-        # results = {}
-
-        # for neuron in m.neurons:
-        #     t,v = m.trace[neuron]
-        #     results[neuron] = np.mean(v)
-
-        # return results

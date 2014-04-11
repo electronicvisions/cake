@@ -31,6 +31,7 @@ class Measurement(object):
         self.time = time.asctime()
         self.traces = {}
         self.spikes = {}
+        self.done = False
 
         if readout_shifts is None:
             # TODO use logger
@@ -39,8 +40,8 @@ class Measurement(object):
         else:
             self.readout_shifts = lambda neuron, v: v - readout_shifts[neuron]
 
-    def done(self):
-        return len(self.traces) == len(self.neurons)
+    def finish(self):
+        self.done = len(self.traces) == len(self.neurons)
 
     def get_parameter(self, parameter, coords):
         """ Used to read out parameters that were used during this measurement.
@@ -62,6 +63,7 @@ class Measurement(object):
                 values[coord] = fgs.getShared(coord, parameter)
             else:
                 print "Invalid parameter <-> coordinate pair"
+                return
                 # TODO raise TypeError
         return values
 
@@ -100,6 +102,8 @@ class Measurement(object):
         """
         self.configure()
         self.measure()
+
+        self.finish()
 
         self.sthal.disconnect()
 
