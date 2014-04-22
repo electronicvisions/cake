@@ -142,14 +142,22 @@ class CalibrationRunner(object):
         """
         """
         for coord, coeff in coeffs.iteritems():
-            reversed_coeffs = coeff[::-1][:]
+            reversed_coeffs = list(coeff)[::-1]
             self.calibtic.write_calibration(parameter, coord, reversed_coeffs)
 
 
 class TestRunner(CalibrationRunner):
     def __init__(self, config_file):
-        super(CalibrationRunner, self).__init__(config_file)
+        self.config_file = config_file
+        self.config = pycake.config.Config(None, self.config_file)
+
+        # Initialize calibtic
+        name, path = self.config.get_calibtic_backend()
+        wafer, hicann = self.config.get_coordinates()
+        self.calibtic = pycake.helpers.calibtic.Calibtic(path, wafer, hicann)
+
         self.logger = pylogging.get("pycake.testrunner")
+        self.filename = "runner{0:02d}{1:02d}.p".format(time.localtime()[3], time.localtime()[4])
 
     def clear_calibration(self):
         pass

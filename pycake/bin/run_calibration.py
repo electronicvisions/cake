@@ -3,7 +3,7 @@ import pickle
 import argparse
 import os
 import pylogging
-from pycake.calibrationrunner import CalibrationRunner
+from pycake.calibrationrunner import CalibrationRunner, TestRunner
 
 def check_file(string):
     if not os.path.isfile(string):
@@ -32,7 +32,7 @@ runner.run_calibration()
 
 
 
-test_runner = CalibrationRunner(config_filename, test=True)
+test_runner = TestRunner(config_filename)
 
 pylogging.reset()
 pylogging.default_config()
