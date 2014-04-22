@@ -1,13 +1,9 @@
 import numpy as np
 import pylogging
-from collections import defaultdict
-import pyhalbe
-import pycalibtic
 from pyhalbe.Coordinate import NeuronOnHICANN, FGBlockOnHICANN
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
 
 # Import everything needed for saving:
-import pickle
 import time
 
 def no_shift(neuron, v):
@@ -39,8 +35,6 @@ class Measurement(object):
         return odict
 
     def __setstate__(self, dic):
-        # TODO fix loading of pickled experiment. 
-        # Right now, calibtic stuff is not loaded, but only empty variables are set
         dic['logger'] = pylogging.get("pycake.measurement")
         self.__dict__.update(dic)
 

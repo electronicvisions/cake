@@ -2,8 +2,6 @@ import imp
 from pycake.helpers.units import Voltage, Current, DAC
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
 
-# TODO move to parameter file
-
 class Config(object):
     def __init__(self, target_parameter, parameters_file):
         self.target_parameter = target_parameter
@@ -122,7 +120,7 @@ class Config(object):
         """
         return self.parameters["repetitions"]
 
-    def save_traces(self):
+    def get_save_traces(self):
         """ Returns wheter or not traces should be saved.
         """
         try:

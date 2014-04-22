@@ -3,14 +3,14 @@ import pylogging
 import pyhalbe
 import pycalibtic
 import time
-from pyhalbe.Coordinate import NeuronOnHICANN, FGBlockOnHICANN
-from pycake.helpers.calibtic import init_backend as init_calibtic
-from pycake.helpers.redman import init_backend as init_redman
+
 import pyredman as redman
+
+from pycake.helpers.redman import init_backend as init_redman
 from pycake.helpers.units import Current, Voltage, DAC
-import pycake.helpers.misc as misc
 from pycake.helpers.sthal import StHALContainer
 from pycake.measure import Measurement, I_gl_Measurement
+import pycake.analyzer
 
 # shorter names
 Coordinate = pyhalbe.Coordinate
@@ -38,13 +38,18 @@ class BaseExperimentBuilder(object):
 
     def __init__(self, config, test=False):
         self.config = config
+
+        name, path = self.config.get_calibtic_backend()
+        wafer, hicann = self.config.get_coordinates()
+        self.calibtic = pycake.helpers.calibtic.Calibtic(path, wafer, hicann)
+
         self.neurons = self.config.get_neurons()
         self.blocks = self.config.get_blocks()
         self.target_parameter = self.config.target_parameter
         self.test = test
         self.logger = pylogging.get("pycake.experimentbuilder")
 
-    def generate(self):
+    def generate_measurements(self):
         self.logger.INFO("{} - Building experiment for parameter {}".format(time.asctime(), self.target_parameter.name))
         config = self.config
         measurements = []
@@ -55,7 +60,7 @@ class BaseExperimentBuilder(object):
 
         # Initialize calibtic backend
         cal_path, cal_name = self.config.get_calibtic_backend()
-        hc, nc, bc, md = self.load_calibration(cal_path, cal_name)
+        hc, nc, bc, md = self.calibtic.load_calibration()
 
         # Get readout shifts
         readout_shifts = self.get_readout_shifts(self.neurons, nc)
@@ -77,35 +82,6 @@ class BaseExperimentBuilder(object):
         """
         return config.get_step_parameters(step)
 
-    def load_calibration(self, path, name):
-        """Initialize Calibtic backend, load existing calibration data."""
-        calibtic_backend = init_calibtic(type='xml', path=path)
-
-        hc = pycalibtic.HICANNCollection()
-        nc = hc.atNeuronCollection()
-        bc = hc.atBlockCollection()
-        md = pycalibtic.MetaData()
-
-        # Delete all standard entries. TODO: fix calibtic to use proper standard entries
-        for nid in range(512):
-            nc.erase(nid)
-        for bid in range(4):
-            bc.erase(bid)
-
-        try:
-            calibtic_backend.load(name, md, hc)
-            # load existing calibration:
-            nc = hc.atNeuronCollection()
-            bc = hc.atBlockCollection()
-        except RuntimeError, e:
-            if e.message != "data set not found":
-                raise RuntimeError(e)
-            else:
-                # backend does not exist
-                pass
-
-        return (hc, nc, bc, md)
-
     def make_measurement(self, sthal, neurons, readout_shifts):
         return Measurement(sthal, neurons, readout_shifts)
 
@@ -125,10 +101,10 @@ class BaseExperimentBuilder(object):
                 if isinstance(param, shared_parameter) or name[0] == '_':
                     continue
 
-                # TODO remove this --> only debug lines
-                if param == self.target_parameter:
-                    value.apply_calibration = True
-                ######################################
+                ## TODO remove this --> only debug lines
+                #if param == self.target_parameter:
+                #    value.apply_calibration = True
+                #######################################
 
                 # Do not calibrate target parameter except if this is a test measurement
                 if value.apply_calibration and ((not param == self.target_parameter) or self.test):
@@ -228,6 +204,16 @@ class BaseExperimentBuilder(object):
                 #self.logger.WARN("No readout shift calibration for neuron {} found. Using unshifted values.".format(neuron))
                 shifts[neuron] = 0
         return shifts
+
+    def get_analyzer(self, parameter): # TODO move to experimentbuilder
+        """ Get the appropriate analyzer for a specific parameter.
+        """
+        if parameter == neuron_parameter.I_gl:
+            c_w, c_h = self.config.get_coordinates()
+            return pycake.analyzer.I_gl_Analyzer(c_w, c_h)
+        else:
+            AnalyzerType = getattr(pycake.analyzer, "{}_Analyzer".format(parameter.name))
+            return AnalyzerType()
 
     # TODO implement redman
     #def init_redman(self, backend):

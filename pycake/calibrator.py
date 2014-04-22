@@ -5,27 +5,9 @@ import numpy as np
 import pylogging
 from collections import defaultdict
 import pyhalbe
-import pycalibtic
-from pyhalbe.Coordinate import NeuronOnHICANN, FGBlockOnHICANN
-from pycake.helpers.calibtic import init_backend as init_calibtic
-from pycake.helpers.redman import init_backend as init_redman
-import pyredman as redman
-from pycake.helpers.units import Current, Voltage, DAC
-from pycake.helpers.trafos import HWtoDAC, DACtoHW, HCtoDAC, DACtoHC, HWtoHC, HCtoHW
-from pycake.helpers.WorkerPool import WorkerPool
-import pycake.helpers.misc as misc
-import pycake.helpers.sthal as sthal
-from pycake.measure import Measurement
-import pycake.analyzer
 from scipy.optimize import curve_fit
 
-# Import everything needed for saving:
-import pickle
 import time
-import os
-import bz2
-import imp
-import copy
 
 # shorter names
 Coordinate = pyhalbe.Coordinate
@@ -33,7 +15,7 @@ Enum = Coordinate.Enum
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
 
-
+# TODO find better name
 class BaseCalibrator(object):
     """ Takes experiments and a target parameter and turns this into calibration data via a linear fit.
         Does NOT save any data.
@@ -44,12 +26,17 @@ class BaseCalibrator(object):
                  this is used to extract the results that were given by the analyzers of an experiment
         experiments: list containing all experiments
     """
-    def __init__(self, target_parameter, feature_key, experiments):
+    def __init__(self, target_parameter, experiments):
         self.target_parameter = target_parameter
         if not isinstance(experiments, list):
             experiments = [experiments]
         self.experiments = experiments
-        self.key = feature_key
+        self.logger = pylogging.get("pycake.calibrator")
+
+    def get_key(self):
+        """
+        """
+        return 'mean'
 
     def check_for_same_config(self, measurements):
         """ Checks if measurements have the same config.
@@ -86,7 +73,7 @@ class BaseCalibrator(object):
         for neuron, result_list in merged.iteritems(): 
             neuron_results = defaultdict(list)
             for step, result in result_list:
-                neuron_results[step].append(result[self.key])
+                neuron_results[step].append(result[self.get_key()])
             neuron_results_list = [(step, result) for step, result in neuron_results.iteritems()]
             ordered[neuron] = neuron_results_list
         return ordered
@@ -117,7 +104,7 @@ class BaseCalibrator(object):
             std[neuron] = neuron_std
         return mean, std
 
-    def calibrate(self):
+    def generate_coeffs(self):
         """ Takes averaged experiments and does the fits
         """
         average = self.average_over_experiments()[0]
@@ -168,12 +155,15 @@ class BaseCalibrator(object):
 
 
 class V_reset_Calibrator(BaseCalibrator):
+    def get_key(self):
+        return 'baseline'
+
     def get_step_parameters(self, measurement):
         """
         """
         # TODO improve
         neurons = measurement.neurons
-        blocks = [pyhalbe.Coordinate.FGBlockOnHICANN(pyhalbe.Coordinate.Enum(i)) for i in range(4)]
+        blocks = [Coordinate.FGBlockOnHICANN(Coordinate.Enum(i)) for i in range(4)]
         step_parameters = measurement.get_parameter(self.target_parameter, blocks)
         neuron_parameters = {neuron: step_parameters[neuron.neuronFGBlock()] for neuron in neurons} 
         return neuron_parameters
@@ -210,7 +200,7 @@ class V_reset_Calibrator(BaseCalibrator):
 
         return neuron_shifts
 
-    def calibrate(self):
+    def generate_coeffs(self):
         """ Takes averaged experiments and does the fits
         """
         average = self.average_over_experiments()[0]
@@ -239,7 +229,9 @@ class E_l_Calibrator(BaseCalibrator):
     pass
 
 class V_t_Calibrator(BaseCalibrator):
-    pass
+    def get_key(self):
+        return 'max'
 
 class I_gl_Calibrator(BaseCalibrator):
-    pass
+    def get_key(self):
+        return 'g_l'

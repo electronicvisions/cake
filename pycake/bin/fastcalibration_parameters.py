@@ -31,7 +31,7 @@ parameters = {
         "repetitions":  1,
         
         # Set which calibrations you want to run
-        "run_V_reset":  False,
+        "run_V_reset":  True,
         "run_E_synx":   False,
         "run_E_syni":   False,
         "run_E_l":      True,
@@ -51,19 +51,16 @@ parameters = {
         "overwrite":    False,
         "clear":        True,
 
-        # save_results will save all the measurements in a folder specified below.
-        # This has nothing to do with the calibration data which is stored anyway!
-        # You can also save all the traces for debugging purposes. Note that this takes a lot of space (100 MB per repetition)
-        "save_results": True,
-        "save_traces":  False,
+        # Set whether you want to keep traces or delete them after analysis
+        "save_traces":  True,
 
-        # If you save your measurements, each folder will have a description file. The following parameters let you specify additional info to be stored.
-        "E_synx_description":   "E_synx calibration.",
-        "E_syni_description":   "E_syni calibration",
-        "E_l_description":      "E_l calibration",
-        "V_t_description":      "V_t calibration",  
-        "V_reset_description":  "V_reset calibration",
-        "I_gl_description":     "g_l measurement",
+        ## If you save your measurements, each folder will have a description file. The following parameters let you specify additional info to be stored.
+        #"E_synx_description":   "E_synx calibration.",
+        #"E_syni_description":   "E_syni calibration",
+        #"E_l_description":      "E_l calibration",
+        #"V_t_description":      "V_t calibration",  
+        #"V_reset_description":  "V_reset calibration",
+        #"I_gl_description":     "g_l measurement",
 
         # Where do you want to save the measurements (folder) and calibration data (backend_c for calibtic, backend_r for redman)?
         # Folders will be created if they do not exist already
@@ -75,18 +72,18 @@ parameters = {
         "coord_wafer":  pyhalbe.Coordinate.Wafer(),
         "coord_hicann": pyhalbe.Coordinate.HICANNOnWafer(pyhalbe.Coordinate.Enum(280)),
 
-        # Maximum tries in case an experiment should fail
-        "max_tries":    3,
+        ## Maximum tries in case an experiment should fail
+        #"max_tries":    3,
 
 
-        # If you want to load previously measured traces instead of
-        # measuring new ones, specify the experiment folders here
-        "E_synx_traces":   None,
-        "E_syni_traces":   None,
-        "E_l_traces":      None,
-        "V_t_traces":      None,
-        "V_reset_traces":  None,
-        "I_gl_traces":     None,
+        ## If you want to load previously measured traces instead of
+        ## measuring new ones, specify the experiment folders here
+        #"E_synx_traces":   None,
+        #"E_syni_traces":   None,
+        #"E_l_traces":      None,
+        #"V_t_traces":      None,
+        #"V_reset_traces":  None,
+        #"I_gl_traces":     None,
 
 
         # Here you can set the fixed parameters for each calibration.
@@ -121,7 +118,7 @@ parameters = {
                                 shared_parameter.V_gmax3: Voltage(80),
                                 },
 
-        "E_synx_parameters":     {  neuron_parameter.I_gl: Current(0),          # I_gl and I_convi MUST be set to 0
+        "E_synx_parameters":     {  neuron_parameter.I_gl: Current(0), # I_gl and I_convi MUST be set to 0
                                     neuron_parameter.I_convx: Current(2500),
                                     neuron_parameter.I_convi: Current(0),
                                     neuron_parameter.V_syntcx: Voltage(1800),
@@ -130,7 +127,7 @@ parameters = {
                                     shared_parameter.V_reset:  Voltage(200),
                                 },
 
-        "E_syni_parameters":     {  neuron_parameter.I_gl: Current(0),
+        "E_syni_parameters":     {  neuron_parameter.I_gl: Current(0), # I_gl and I_convx MUST be set to 0
                                     neuron_parameter.I_convx: Current(0),
                                     neuron_parameter.I_convi: Current(2500),
                                     neuron_parameter.V_syntci: Voltage(1800),
@@ -160,7 +157,8 @@ parameters = {
                                     shared_parameter.V_reset:    Voltage(200),
                                 },
 
-        "parameter_order":      [   shared_parameter.V_reset, # In which order should the parameters be calibrated?
+        # In which order should the parameters be calibrated?
+        "parameter_order":      [   shared_parameter.V_reset,
                                     neuron_parameter.E_syni,
                                     neuron_parameter.E_synx,
                                     neuron_parameter.E_l,

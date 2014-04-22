@@ -26,11 +26,9 @@ pylogging.set_loglevel(pylogging.get("pycake.calibrationrunner"),   pylogging.Lo
 pylogging.set_loglevel(pylogging.get("pycake.measurement"),         pylogging.LogLevel.ALL)
 pylogging.set_loglevel(pylogging.get("pycake.experiment"),          pylogging.LogLevel.ALL)
 pylogging.set_loglevel(pylogging.get("pycake.experimentbuilder"),    pylogging.LogLevel.TRACE)
+pylogging.set_loglevel(pylogging.get("pycake.calibtic"),    pylogging.LogLevel.TRACE)
 
 runner.run_calibration()
-
-pickle.dump(runner, open('/home/np001/temp/restructure/runner.p', 'wb'))
-
 
 
 
@@ -44,6 +42,5 @@ pylogging.set_loglevel(pylogging.get("pycake.measurement"),         pylogging.Lo
 pylogging.set_loglevel(pylogging.get("pycake.experiment"),          pylogging.LogLevel.ALL)
 pylogging.set_loglevel(pylogging.get("pycake.experimentbuilder"),    pylogging.LogLevel.TRACE)
 
-pickle.dump(runner, open('/home/np001/temp/restructure/runner_test.p', 'wb'))
 
 test_runner.run_calibration()

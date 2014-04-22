@@ -31,6 +31,8 @@ class StHALContainer(object):
         coord_hicann = dic['coord_hicann']
         wafer = dic['wafer']
         dic['hicann'] = wafer[coord_hicann]
+        dic['_cfg_analog'] = UpdateAnalogOutputConfigurator()
+        dic['logger'] = pylogging.get("pycake.helper.sthal")
         self.__dict__.update(dic)
 
     def __init__(self, coord_wafer,
