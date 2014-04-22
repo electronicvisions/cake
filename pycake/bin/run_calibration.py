@@ -41,6 +41,7 @@ pylogging.set_loglevel(pylogging.get("pycake.calibrationrunner"),   pylogging.Lo
 pylogging.set_loglevel(pylogging.get("pycake.measurement"),         pylogging.LogLevel.ALL)
 pylogging.set_loglevel(pylogging.get("pycake.experiment"),          pylogging.LogLevel.ALL)
 pylogging.set_loglevel(pylogging.get("pycake.experimentbuilder"),    pylogging.LogLevel.TRACE)
+pylogging.set_loglevel(pylogging.get("pycake.calibtic"),    pylogging.LogLevel.TRACE)
 
 
 test_runner.run_calibration()
