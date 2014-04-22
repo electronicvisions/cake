@@ -260,7 +260,8 @@ class Calibrate_I_gl(BaseCalibration):
         workers_save = WorkerPool(self.save_trace)
         traces = []
         # This magic number is the temporal distance of one current pulse repetition to the next one:
-        dt = 129 * 4 * (self.pulse_length + 1) / self.sthal.hicann.pll_freq
+        PLL = self.sthal.wafer.commonFPGASettings().getPLL()
+        dt = 129 * 4 * (self.pulse_length + 1) / PLL
         for neuron in neurons:
             if self.trace_folder:
                 t, v = self.load_trace(neuron, step_id, rep_id)
@@ -449,7 +450,8 @@ class Test_I_gl(BaseTest):
         workers_save = WorkerPool(self.save_trace)
         traces = []
         # This magic number is the temporal distance of one current pulse repetition to the next one:
-        dt = 129 * 4 * (self.pulse_length + 1) / self.sthal.hicann.pll_freq
+        PLL = self.sthal.wafer.commonFPGASettings().getPLL()
+        dt = 129 * 4 * (self.pulse_length + 1) / PLL
         for neuron in neurons:
             if self.trace_folder:
                 t, v = self.load_trace(neuron, step_id, rep_id)

@@ -230,8 +230,9 @@ class Calibrate_V_syntc(BaseCalibration):
 
     def init_experiment(self):
         x = 1973.0 # Prime
-        self.bg_freq = self.sthal.hicann.pll_freq / x
-        self.bg_period = x / self.sthal.hicann.pll_freq
+        PLL = self.stahl.wafer.commonFPGASettings().getPLL()
+        self.bg_freq = PLL / x
+        self.bg_period = x / PLL
         self.sthal.recording_time = 400.0 * self.bg_period
         self.sn_threshold = float(self.get_config_with_default("sn_threshold", 1.5))
         self.chi2_threshold = float(self.get_config_with_default("chi2_threshold", 25.0))
