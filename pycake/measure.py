@@ -10,6 +10,15 @@ from pyhalbe.HICANN import neuron_parameter, shared_parameter
 import pickle
 import time
 
+def no_shift(neuron, v):
+    return v
+
+class ReadoutShift(object):
+    def __init__(self, shifts):
+        self.shifts = shifts
+    def __call__(self, neuron, v):
+        return v - self.shifts[neuron]
+
 class Measurement(object):
     """ This class takes a sthal container, writes the configuration to
         the hardware and measures traces. Also, the time of measurement is saved.
@@ -22,26 +31,53 @@ class Measurement(object):
                 Note: Every voltage value from the trace is shifted back by -shift!
                 If None is given, the shifts are set to 0.
     """
+    def __getstate__(self):
+        """ Disable stuff from getting pickled that cannot be pickled.
+        """
+        odict = self.__dict__.copy()
+        del odict['logger']
+        return odict
+
+    def __setstate__(self, dic):
+        # TODO fix loading of pickled experiment. 
+        # Right now, calibtic stuff is not loaded, but only empty variables are set
+        dic['logger'] = pylogging.get("pycake.measurement")
+        self.__dict__.update(dic)
+
     def __init__(self, sthal, neurons, readout_shifts=None): 
         # TODO: callable readout_shifter instead of dict
         # readout_shifter(neuron, trace)
         self.sthal = sthal
         self.neurons = neurons
         self.recording_time = self.sthal.recording_time
-        self.time = time.asctime()
+        self.time_created = time.asctime()
         self.traces = {}
         self.spikes = {}
         self.done = False
+        self.logger = pylogging.get("pycake.measurement")
 
         if readout_shifts is None:
-            # TODO use logger
-            print "No readout shifts found. Continuing without readout shifts."
-            self.readout_shifts = lambda neuron, v: v
+            self.logger.WARN("No readout shifts found. Shifts are set to 0")
+            self.readout_shifts = no_shift
         else:
-            self.readout_shifts = lambda neuron, v: v - readout_shifts[neuron]
+            self.readout_shifts = ReadoutShift(readout_shifts)
 
     def finish(self):
+        """ Finish the measurement.
+            This sets the 'done' flag and time_finished.
+        """
         self.done = len(self.traces) == len(self.neurons)
+        self.time_finished = time.asctime()
+
+    def clear_traces(self):
+        """ Clear all the traces. If traces are already recorded, they are set to None.
+            Else, they are set to an empty dict
+        """
+        if self.done:
+            self.traces = {neuron: None for neuron in self.neurons}
+        else:
+            self.traces = {}
+        pass
 
     def get_parameter(self, parameter, coords):
         """ Used to read out parameters that were used during this measurement.
@@ -50,7 +86,7 @@ class Measurement(object):
                 parameter: which parameter (neuron_parameter or shared_parameter)
                 coord: pyhalbe coordinate or list of coordinates (FGBlockOnHICANN or NeuronOnHICANN)
             Return:
-                DAC value of that parameter
+                DAC value(s) of that parameter
         """
         fgs = self.sthal.hicann.floating_gates
         if not isinstance(coords, list):
@@ -68,8 +104,20 @@ class Measurement(object):
         return values
 
     def get_trace(self, neuron):
-        v = self.traces[neuron]
-        return self.readout_shifts(neuron, v)
+        """ Get the voltage trace of a neuron.
+            Other than in the measurement.trace dictionary,
+            these traces are shifted by the readout shift.
+
+            Args:
+                neuron: neuron coordinate
+
+            Returns:
+                tuple (t, v)
+        """
+        t, v = self.traces[neuron]
+        t = np.array(t)
+        v = np.array(v)
+        return t, self.readout_shifts(neuron, v)
 
     def iter_traces(self):
         for neuron in self.traces:
@@ -82,6 +130,9 @@ class Measurement(object):
         """
         self.sthal.write_config()
 
+    def pre_measure(self, neuron):
+        self.sthal.switch_analog_output(neuron)
+
     def measure(self):
         """ Measure traces and correct each value for readout shift.
             Changes traces to numpy arrays
@@ -91,7 +142,7 @@ class Measurement(object):
                 self.spikes = {neuron: spikes} #TODO this is not yet implemented
         """
         for neuron in self.neurons:
-            self.sthal.switch_analog_output(neuron)
+            self.pre_measure(neuron)
             t, v = self.sthal.read_adc()
             t = np.array(t)
             v = np.array(v)
@@ -100,10 +151,18 @@ class Measurement(object):
     def run_measurement(self):
         """ First configure, then measure
         """
-        self.configure()
-        self.measure()
+        self.time_started = time.asctime()
 
+        self.logger.INFO("{} - Configuring hardware.".format(time.asctime()))
+        self.configure()
+        self.logger.INFO("{} - Measuring.".format(time.asctime()))
+        self.measure()
+        self.logger.INFO("{} - Measurement done, disconnecting from hardware.".format(time.asctime()))
         self.finish()
 
         self.sthal.disconnect()
+
+class I_gl_Measurement(Measurement):
+    def pre_measure(self, neuron):
+        self.sthal.switch_current_stimulus_and_output(neuron)
 

@@ -17,6 +17,7 @@ import pycake.helpers.misc as misc
 import pycake.helpers.sthal as sthal
 from pycake.measure import Measurement
 import pycake.analyzer
+from scipy.optimize import curve_fit
 
 # Import everything needed for saving:
 import pickle
@@ -33,83 +34,212 @@ neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
 
 
-class Calibrator(object):
-    """ Creates experiments for one target parameter, merges them and does the fits.
+class BaseCalibrator(object):
+    """ Takes experiments and a target parameter and turns this into calibration data via a linear fit.
+        Does NOT save any data.
 
     Args:
         target_parameter: neuron_parameter or shared_parameter
-        feature: string containing the feature name (e.g. "E_l" or "g_l")
+        feature: string containing the feature key (e.g. "mean" for E_l or E_syn, "g_l" for I_gl, ...)
+                 this is used to extract the results that were given by the analyzers of an experiment
         experiments: list containing all experiments
     """
-    def __init__(self, target_parameter, feature, experiments):
+    def __init__(self, target_parameter, feature_key, experiments):
         self.target_parameter = target_parameter
         if not isinstance(experiments, list):
             experiments = [experiments]
         self.experiments = experiments
-        self.feature = feature
-
-        self.analyzer = getattr(pycake.analyzer, '{}_Analyzer'.format(feature))
-
-        # check if all experiments fit to the given target parameter
-        for ex in experiments:
-            assert ex.target_parameter == self.target_parameter, 'Experiments do not fit together'
+        self.key = feature_key
 
     def check_for_same_config(self, measurements):
         """ Checks if measurements have the same config.
             Only the target parameter is allowed to be different.
         """
-        pass
+        return True # TODO implement this
+
+    def get_step_parameters(self, measurement):
+        """
+        """
+        step_parameters = measurement.get_parameter(self.target_parameter, measurement.neurons)
+        return step_parameters
 
     def merge_experiments(self):
-        """ Merges all experiments into one result dictionary
+        """ Merges all experiments into one result dictionary.
+            Returns: 
+                dictionary containing merged results
+                The structure is as follows:
+                {neuron1: [(step1, [result1, result2, ...]), (step2, [result1, result2, ...]), ...],
+                {neuron2: [(step2, [result1, result2, ...]), (step2, [result1, result2, ...]), ...],
+                 ...}
         """
-        # measured_values = {neuron1: {step1: [value1, value2], step2: [value1, value2]},
-        #                    neuron2: {step1: [value1, .....}
-        # {neuron: [(step1, value),(step2, value), (step1, value)]}
-        measured_values = defaultdict(list)
+        merged = defaultdict(list)
         for ex in self.experiments:
+            step_id = 0
             for m in ex.measurements:
-                # Create analyzer
-                analyzer = self.analyzer(m)
+                step_results = ex.results[step_id]
+                neuron_parameters = self.get_step_parameters(m)
+                for neuron, step_value in neuron_parameters.iteritems():
+                    merged[neuron].append((step_value, step_results[neuron]))
+                step_id += 1
 
-                # Get the step (x) value
-                # To do this, we need to get the value for all neurons and check if all neurons were set to the same
-                # When this is ensured, we can chose any value from the list.
-                step_values = m.get_parameter(target_parameter, m.neurons).values()
-                assert len(set(step_values)) == 1, "Neurons were not set to the same value."
-                step_value = step_values.values()[0]
+        ordered = {}
+        for neuron, result_list in merged.iteritems(): 
+            neuron_results = defaultdict(list)
+            for step, result in result_list:
+                neuron_results[step].append(result[self.key])
+            neuron_results_list = [(step, result) for step, result in neuron_results.iteritems()]
+            ordered[neuron] = neuron_results_list
+        return ordered
 
-                # Get analyzed (y) values:
-                analyzed_values = analyzer.analyze()
+    def average_over_experiments(self):
+        """ Gives average and (trial-to-trial) standard deviation over all experiments.
 
-                # Now add x and y values to the right measured_values entry
-                for neuron, analyzed_value in analyzed_values.iteritems():
-                    x_value = prepare_x(step_value)
-                    y_value = prepare_y(analyzed_value)
-                    measured_values[neuron].append((x_value, y_value))
-
-        return measured_values
+            Returns:
+                Two dictionaries that are structured as follows:
+                {neuron1: [(step1, mean1), (step2, mean2), ...],
+                 neuron2: ....}
+                and
+                {neuron1: [(step1, std1), (step2, std2), ...],
+                 neuron2: ....}
+        """
+        merged = self.merge_experiments()
+        mean = {}
+        std = {}
+        for neuron, all_results in merged.iteritems():
+            neuron_mean = []
+            neuron_std = []
+            for step, results in all_results:
+                mean_result = np.mean(results)
+                std_result = np.std(results)
+                neuron_mean.append((step, mean_result))
+                neuron_std.append((step, std_result))
+            mean[neuron] = neuron_mean
+            std[neuron] = neuron_std
+        return mean, std
 
     def calibrate(self):
-        """ Takes averaged experiments and does the fits (if it is not a test measurement)
+        """ Takes averaged experiments and does the fits
         """
-        self.average_experiments()
+        average = self.average_over_experiments()[0]
+        coeffs = {}
+        for neuron, results in average.iteritems():
+            # Need to switch y and x in order to get the right fit
+            # (y-axis: configured parameter, x-axis: measurement)
+            ys_raw, xs_raw = zip(*results) # 'unzip' results, e.g.: (100,0.1),(200,0.2) -> (100,200), (0.1,0.2)
+            xs = self.prepare_x(xs_raw)
+            ys = self.prepare_y(ys_raw)
+            coeffs[neuron] = self.do_fit(xs, ys)
+        return coeffs
+
+    def dac_to_si(self, dac, parameter):
+        """ Transforms dac value to mV or nA, depending on input parameter
+        """
+        if self.target_parameter.name[0] == 'I':
+            return dac * 2500/1023.
+        else:
+            return dac * 1800/1023.
 
     def prepare_x(self, x):
-        """ Prepares x value for fit
+        """ Prepares x values for fit
+            Usually, this is a measured membrane voltage in V
+            Per default, this function Translates from V to mV
         """
-        return x
+        xs = np.array(x)
+        return xs*1000
 
     def prepare_y(self, y):
-        """ Prepares y value for fit
+        """ Prepares y values for fit
+            Per default, these are the step values that were set.
+            Therefor, they must be translated from DAC to Voltage or Current values
         """
-        return y
+        ys = [self.dac_to_si(dac, self.target_parameter) for dac in y]
+        ys = np.array(ys)
+        return ys
 
-    def do_fit(self, x, y):
+    def do_fit(self, xs, ys):
         """ Fits a curve to results of one neuron
+            Standard behaviour is a linear fit.
         """
+        fit_coeffs = np.polyfit(xs, ys, 1)
+        return fit_coeffs
 
-    def store_calibration(self):
-        """ Stores calibration into backend.
+    def get_neurons(self):
+        return self.experiments[0].measurements[0].neurons
+
+
+class V_reset_Calibrator(BaseCalibrator):
+    def get_step_parameters(self, measurement):
         """
+        """
+        # TODO improve
+        neurons = measurement.neurons
+        blocks = [pyhalbe.Coordinate.FGBlockOnHICANN(pyhalbe.Coordinate.Enum(i)) for i in range(4)]
+        step_parameters = measurement.get_parameter(self.target_parameter, blocks)
+        neuron_parameters = {neuron: step_parameters[neuron.neuronFGBlock()] for neuron in neurons} 
+        return neuron_parameters
 
+    def iter_V_reset(self, block):
+        neuron_on_quad = Coordinate.NeuronOnQuad(block.x(), block.y())
+        for quad in Coordinate.iter_all(Coordinate.QuadOnHICANN):
+            yield Coordinate.NeuronOnHICANN(quad, neuron_on_quad)
+        return
+
+    def mean_over_blocks(self, averages):
+        block_mean = {}
+
+        for block in Coordinate.iter_all(Coordinate.FGBlockOnHICANN):
+            neurons_on_block = [n for n in self.iter_V_reset(block)]
+            values = [averages[neuron] for neuron in neurons_on_block]
+            block_mean[block] = np.mean(values, axis = 0)
+
+        return block_mean 
+
+    def get_neuron_shifts(self, averages):
+        neurons = self.get_neurons()
+        block_means = self.mean_over_blocks(averages)
+
+        neuron_shifts = {}
+
+        for neuron in neurons:
+            block = neuron.sharedFGBlock()
+            block_mean = np.array(block_means[block])
+            neuron_results = np.array(averages[neuron])
+            diffs = neuron_results - block_mean # TODO: check if this is the right way
+            mean_diff = np.mean(diffs, axis=0)[1]
+            neuron_shifts[neuron] = mean_diff
+
+        return neuron_shifts
+
+    def calibrate(self):
+        """ Takes averaged experiments and does the fits
+        """
+        average = self.average_over_experiments()[0]
+        block_means = self.mean_over_blocks(average)
+        shifts = self.get_neuron_shifts(average)
+
+        coeffs = {}
+        for neuron, shift in shifts.iteritems():
+            coeffs[neuron] = [shift]
+        for block, results in block_means.iteritems():
+            # Need to switch y and x in order to get the right fit
+            # (y-axis: configured parameter, x-axis: measurement)
+            ys_raw, xs_raw = zip(*results) # 'unzip' results, e.g.: (100,0.1),(200,0.2) -> (100,200), (0.1,0.2)
+            ys = self.prepare_y(ys_raw)
+            xs = self.prepare_x(xs_raw)
+            coeffs[block] = self.do_fit(xs, ys)
+        return coeffs
+
+class E_synx_Calibrator(BaseCalibrator):
+    pass
+
+class E_syni_Calibrator(BaseCalibrator):
+    pass
+
+class E_l_Calibrator(BaseCalibrator):
+    pass
+
+class V_t_Calibrator(BaseCalibrator):
+    pass
+
+class I_gl_Calibrator(BaseCalibrator):
+    pass

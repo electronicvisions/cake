@@ -26,7 +26,6 @@ Enum = Coordinate.Enum
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
 
-
 class BaseExperiment(object):
     """ Takes a list of measurements and analyzers.
         Then, it runs the measurements and analyzes them.
@@ -43,36 +42,49 @@ class BaseExperiment(object):
         """ Disable stuff from getting pickled that cannot be pickled.
         """
         odict = self.__dict__.copy()
-        del odict['logger']
-        del odict['progress_logger']
+
+        # remove non-pickleable keys
+        for key in ['logger']:
+            if key in odict:
+                del odict[key]
         return odict
 
     def __setstate__(self, dic):
-        # TODO fix loading of pickled experiment. 
-        # Right now, calibtic stuff is not loaded, but only empty variables are set
+        dic['logger'] = pylogging.get("pycake.experiment")
         self.__dict__.update(dic)
 
     def __init__(self, measurements, analyzer, save_traces):
         self.measurements = measurements
-        self.analyzer = analyzer()
+        self.analyzer = analyzer
         self.results = []
+        self.save_traces = save_traces
 
         self.logger = pylogging.get("pycake.experiment")
-        self.progress_logger = pylogging.get("pycake.experiment.progress")
+
+    def create_analyzer(self, analyzer):
+        return analyzer()
 
     def run_experiment(self):
         """Run the experiment and process results."""
+        i_max = len(self.measurements)
+        i=1
         for measurement in self.measurements:
-            if not measurement.done():
+            if not measurement.done:
+                self.logger.INFO("{} - Running measurement {}/{}".format(time.asctime(), i, i_max))
                 measurement.run_measurement()
                 # TODO CK: parallel processing done here
+                self.logger.INFO("{} - Analyzing measurement {}/{}".format(time.asctime(), i, i_max))
                 results = {}
-                for neuron, (t,v) in measurement.traces.iteritems()
+                for neuron in measurement.neurons:
+                    t, v = measurement.get_trace(neuron)
                     results[neuron] = self.analyzer(t,v, neuron)
                 self.results.append(results)
 
                 if not self.save_traces:
-                    measurement.traces = [None] * len(measurement.neurons) # this ensures that measurement.done() is True
+                    measurement.clear_traces()
+            else:
+                self.logger.INFO("{} - Measurement {}/{} already done. Going on with next one.".format(time.asctime(), i, i_max))
+            i+=1
 
             self.save_state()
         

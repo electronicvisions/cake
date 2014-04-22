@@ -2,6 +2,7 @@ import numpy as np
 import pylogging
 import pyhalbe
 import pycalibtic
+import time
 from pyhalbe.Coordinate import NeuronOnHICANN, FGBlockOnHICANN
 from pycake.helpers.calibtic import init_backend as init_calibtic
 from pycake.helpers.redman import init_backend as init_redman
@@ -9,7 +10,7 @@ import pyredman as redman
 from pycake.helpers.units import Current, Voltage, DAC
 import pycake.helpers.misc as misc
 from pycake.helpers.sthal import StHALContainer
-from pycake.measure import Measurement
+from pycake.measure import Measurement, I_gl_Measurement
 
 # shorter names
 Coordinate = pyhalbe.Coordinate
@@ -19,15 +20,33 @@ shared_parameter = pyhalbe.HICANN.shared_parameter
 
 class BaseExperimentBuilder(object):
     """ Builds a list of measurements from a config object.
-        This config object knows its target parameter etc.
+        
+        Args:
+            config: pycake.config.Config object
+            test:   (True|False) whether this should be a test measurement or not.
+                    If it is a test measurement, the target parameter is also calibrated.
+                    Otherwise, it stays uncalibrated even if there is calibration data for it.
     """
-    def __init__(self, config):
-        self.config = config
-        self.neurons = [Coordinate.NeuronOnHICANN(Enum(i)) for i in range(512)] # TODO fix this
-        self.blocks = [Coordinate.FGBlockOnHICANN(Enum(i)) for i in range(4)]
-        self.target_parameter = self.config.target_parameter
+    def __getstate__(self):
+        odict = self.__dict__.copy()
+        del odict['logger']
+        return odict
 
-    def generate(self, config):
+    def __setstate__(self, dic):
+        dic['logger'] = pylogging.get("pycake.experimentbuilder")
+        self.__dict__.update(dic)
+
+    def __init__(self, config, test=False):
+        self.config = config
+        self.neurons = self.config.get_neurons()
+        self.blocks = self.config.get_blocks()
+        self.target_parameter = self.config.target_parameter
+        self.test = test
+        self.logger = pylogging.get("pycake.experimentbuilder")
+
+    def generate(self):
+        self.logger.INFO("{} - Building experiment for parameter {}".format(time.asctime(), self.target_parameter.name))
+        config = self.config
         measurements = []
         coord_wafer, coord_hicann = self.config.get_coordinates()
         steps = self.config.get_steps()
@@ -44,13 +63,19 @@ class BaseExperimentBuilder(object):
         # Create one sthal container for each step
         for step in steps:
             sthal = StHALContainer(coord_wafer, coord_hicann)
-            step_parameters = self.get_step_parameters(parameters, step, target_parameter)
+            step_parameters = self.get_step_parameters(config, step)
             sthal = self.prepare_parameters(sthal, step_parameters, nc, bc)
+            sthal = self.prepare_specific_config(sthal)
 
-            measurement = Measurement(sthal, self.neurons, readout_shifts)
+            measurement = self.make_measurement(sthal, self.neurons, readout_shifts)
             measurements.append(measurement)
 
         return measurements
+
+    def get_step_parameters(self, config, step):
+        """ Get parameters for this step.
+        """
+        return config.get_step_parameters(step)
 
     def load_calibration(self, path, name):
         """Initialize Calibtic backend, load existing calibration data."""
@@ -81,42 +106,51 @@ class BaseExperimentBuilder(object):
 
         return (hc, nc, bc, md)
 
-    def get_calibrated(self, coord, value, parameter, nc, bc):
-        #TODO add calibration logic
-        return value
-
-    def get_step_parameters(self, parameters, step, target_parameter):
-        """ Takes a parameter dict and updates only the entry that defines the step
-        """
-        if target_parameter.name[0] == "I":
-            unit = Current
-        else:
-            unit = Voltage
-        parameters[target_parameter] = unit(step)
-        return parameters
+    def make_measurement(self, sthal, neurons, readout_shifts):
+        return Measurement(sthal, neurons, readout_shifts)
 
     def prepare_parameters(self, sthal, parameters, nc, bc):
-        """ Prepares parameters on a sthal container.
-            This includes calibration and transformation to DAC values.
+        """ Writes parameters into a sthal container.
+            This includes calibration and transformation from mV or nA to DAC values.
         """
         fgc = pyhalbe.HICANN.FGControl()
+        self.logger.INFO("Preparing parameters")
 
         for neuron in self.neurons:
             neuron_id = neuron.id().value()
+            if neuron_id == 1: # Only give this info for some neurons to avoid spamming cout
+                self.logger.TRACE("Preparing parameters for neuron {}".format(neuron_id))
             for param, value in parameters.iteritems():
                 name = param.name
                 if isinstance(param, shared_parameter) or name[0] == '_':
                     continue
-                dac_value = value.toDAC().value
-                if value.apply_calibration: 
+
+                # TODO remove this --> only debug lines
+                if param == self.target_parameter:
+                    value.apply_calibration = True
+                ######################################
+
+                # Do not calibrate target parameter except if this is a test measurement
+                if value.apply_calibration and ((not param == self.target_parameter) or self.test):
                     try:
-                        calibrated_dac = nc.at(neuron_id).at(param).apply(dac_value)
+                        calibrated = nc.at(neuron_id).at(param).apply(value.value)
+                        if neuron_id == 1: # Only give this info for some neurons to avoid spamming cout
+                            self.logger.TRACE("Calibrated neuron {} parameter {} to value {}".format(neuron_id, param.name, calibrated))
                     except:
                         # TODO proper implementation (give warning etc.)
-                        calibrated_dac = dac_value
+                        calibrated = value.value
+                        if neuron_id == 1: # Only give this info for some neurons to avoid spamming cout
+                            self.logger.TRACE("No calibration found for parameter {}.".format(param.name))
                 else:
-                    calibrated_dac = dac_value
-                int_value = int(round(calibrated_dac))
+                    calibrated = value.value
+                    if neuron_id == 1: # Only give this info for some neurons to avoid spamming cout
+                        self.logger.TRACE("No calibration wanted for parameter {}.".format(param.name))
+
+                calibrated = self.check_range(calibrated, param)
+                value.value = calibrated
+                int_value = int(round(value.toDAC().value))
+                if neuron_id == 1:
+                    self.logger.TRACE("Setting neuron {} parameter {} to value {}".format(neuron_id, param.name, int_value))
                 fgc.setNeuron(neuron, param, int_value)
 
         for block in self.blocks:
@@ -125,24 +159,51 @@ class BaseExperimentBuilder(object):
                 name = param.name
                 if isinstance(param, neuron_parameter) or name[0] == '_':
                     continue
+                # Check if parameter exists for this block
                 even = block_id%2
-                if even and (name == 'V_clrc' or 'V_bout'):
+                if even and name in ['V_clrc', 'V_bout']:
                     continue
-                if not even and (name == 'V_clra' or 'V_bexp'):
+                if not even and name in ['V_clra', 'V_bexp']:
                     continue
-                dac = value.toDAC()
-                if value.apply_calibration: 
+
+                # Do not calibrate target parameter except if this is a test measurement
+                if value.apply_calibration and ((not param == self.target_parameter) or self.test):
                     try:
-                        calibrated_dac = bc.at(neuron_id).at(param).apply(dac_value)
+                        calibrated = bc.at(neuron_id).at(param).apply(value.value)
+                        #self.logger.TRACE("Calibrated block {} parameter {} to value {}".format(block_id, param.name, calibrated))
                     except:
                         # TODO proper implementation (give warning etc.)
-                        calibrated_dac = dac_value
+                        calibrated = value.value
+                        #self.logger.TRACE("No calibration found for parameter {}.".format(param.name))
                 else:
-                    calibrated_dac = dac_value
-                int_value = int(round(calibrated_dac))
+                    calibrated = value.value
+                    #self.logger.TRACE("No calibration wanted for parameter {}.".format(param.name))
+                value.value = calibrated
+                int_value = int(round(value.toDAC().value))
+                if block_id == 1:
+                    self.logger.TRACE("Setting block {} parameter {} to value {}".format(block_id, param.name, int_value))
                 fgc.setShared(block, param, int_value)
 
         sthal.hicann.floating_gates = fgc
+        return sthal
+
+    def check_range(self, value, parameter):
+        if parameter.name[0] == 'I':
+            upperbound = 2500
+        else:
+            upperbound = 1800
+        if value < 0:
+            self.logger.TRACE("Value lower than 0. Clipping")
+            return 0
+        elif value > upperbound:
+            self.logger.TRACE("Value higher than 1023. Clipping")
+            return upperbound
+        else:
+            return value 
+
+    def prepare_specific_config(self, sthal):
+        """ Hook function to specify additional stuff, e.g. current injection, spike generation, ...
+        """
         return sthal
 
     def get_readout_shifts(self, neurons, nc):
@@ -161,55 +222,14 @@ class BaseExperimentBuilder(object):
             neuron_id = neuron.id().value()
             try:
                 # Since readout shift is a constant, return the value for DAC = 0
-                shift = nc.at(neuron_id).at(21).apply(0) * 1800./1023. * 1e-3 # Convert to mV
+                shift = nc.at(neuron_id).at(21).apply(0) # Convert to mV
                 shifts[neuron] = shift
             except:
-                self.logger.WARN("No readout shift calibration for neuron {} found. Using unshifted values.".format(neuron))
+                #self.logger.WARN("No readout shift calibration for neuron {} found. Using unshifted values.".format(neuron))
                 shifts[neuron] = 0
         return shifts
 
-    def get_calibrated(self, parameters, nc, bc, coord):
-        """ Takes a parameter dictonary, a calibration and a coordinate
-            to return the calibrated parameter dictionary.
-
-            Args:
-                parameters: All parameters of the experiment
-                ncal: which calibration should be used?
-                coord: neuron coordinate
-                param: parameter that should be calibrated
-            Returns:
-                Calibrated DAC value (if calibration existed)
-        """
-        value = parameters[param]
-        dac_value = value.toDAC().value #implicit range check!
-        dac_value_uncalibrated = dac_value
-        if nc and value.apply_calibration:
-            try:
-                calibration = nc.at(param)
-                dac_value = int(round(calibration.apply(dac_value)))
-            except (RuntimeError, IndexError),e:
-                pass
-            except Exception,e:
-                raise e
-
-        if dac_value < 0 or dac_value > 1023:
-            if self.target_parameter == neuron_parameter.I_gl: # I_gl handled in another way. Maybe do this for other parameters as well.
-                msg = "Calibrated value for {} on Neuron {} has value {} out of range. Value clipped to range."
-                self.logger.WARN(msg.format(param.name, coord.id(), dac_value))
-                if dac_value < 0:
-                    dac_value = 10      # I_gl of 0 gives weird results --> set to 10 DAC
-                else:
-                    dac_value = 1023
-            else:
-                msg = "Calibrated value for {} on Neuron {} has value {} out of range. Value clipped to range."
-                self.logger.WARN(msg.format(param.name, coord.id(), dac_value))
-                if dac_value < 0:
-                    dac_value = 0      # I_gl of 0 gives weird results --> set to 10 DAC
-                else:
-                    dac_value = 1023
-
-        return int(round(dac_value))
-
+    # TODO implement redman
     #def init_redman(self, backend):
     #    """Initialize defect management for given backend."""
     #    # FIXME default coordinates
@@ -224,14 +244,52 @@ class BaseExperimentBuilder(object):
     #    self._red_nrns = hicann.neurons()
 
 
-#class BuildVsyntcCalibration(BaseExperimentBuilder):
-#    
-#    def generate(self):
-#
-#        meassurements = []
-#        # TODO make
-#        analyses = [
-#                AnalysePSP(threshold, ...),
-#                ]
-#        return meassurments, analyses
-#
+class E_l_Experimentbuilder(BaseExperimentBuilder):
+    def get_step_parameters(self, config, step):
+        """ For E_l, the reversal potentials need to be set appropriately
+        """
+        parameters =  config.get_step_parameters(step)
+        dist = config.get_E_syn_dist()
+        parameters[neuron_parameter.E_syni] = Voltage(step + dist['E_syni'])
+        parameters[neuron_parameter.E_synx] = Voltage(step + dist['E_synx'])
+        return parameters
+
+class V_reset_Experimentbuilder(BaseExperimentBuilder):
+    pass
+
+class V_t_Experimentbuilder(BaseExperimentBuilder):
+    pass
+
+class E_syni_Experimentbuilder(BaseExperimentBuilder):
+    def prepare_specific_config(self, sthal):
+        sthal.stimulateNeurons(5.0e6, 4)
+        return sthal
+
+class E_synx_Experimentbuilder(E_syni_Experimentbuilder):
+    pass
+
+class I_gl_Experimentbuilder(BaseExperimentBuilder):
+    def prepare_specific_config(self, sthal):
+        """ Prepares current stimulus and increases recording time.
+        """
+        sthal.recording_time = 5e-3
+        pulse_length = 15
+        stim_current = 35
+        stim_length = 65
+
+        stimulus = pyhalbe.HICANN.FGStimulus()
+        stimulus.setPulselength(pulse_length)
+        stimulus.setContinuous(True)
+
+        stimulus[:stim_length] = [stim_current] * stim_length
+        stimulus[stim_length:] = [0] * (len(stimulus) - stim_length)
+
+        sthal.set_current_stimulus(stimulus)
+        return sthal
+
+    def make_measurement(self, sthal, neurons, readout_shifts):
+        return I_gl_Measurement(sthal, neurons, readout_shifts)
+
+class V_syntc_Experimentbuilder(BaseExperimentBuilder):
+    pass # TODO by CK
+

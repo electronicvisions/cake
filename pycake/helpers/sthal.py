@@ -24,6 +24,7 @@ class StHALContainer(object):
         odict = self.__dict__.copy()
         del odict['logger']
         del odict['hicann']
+        del odict['_cfg_analog']
         return odict
 
     def __setstate__(self, dic):
@@ -50,7 +51,7 @@ class StHALContainer(object):
         self.recording_time = recording_time
         self.coord_analog = coord_analog
         self._connected = False
-        #self._cfg_analog = UpdateAnalogOutputConfigurator()
+        self._cfg_analog = UpdateAnalogOutputConfigurator()
         self.logger = pylogging.get("pycake.helper.sthal")
 
 
@@ -241,15 +242,13 @@ class StHALContainer(object):
 
     def set_current_stimulus(self, stimulus):
         """Updates current stimulus for all neurons"""
-        if not self._connected:
-            self.connect()
         #for block in Coordinate.iter_all(Coordinate.FGBlockOnHICANN):
         for block in range(4):
             self.hicann.current_stimuli[block] = stimulus
         # TODO write to FG
 
-    def switch_current_stimulus(self, coord_neuron):
-        """ Properly switches the current stimulus to a certain neuron.
+    def switch_current_stimulus_and_output(self, coord_neuron):
+        """ Switches the current stimulus and analog output to a certain neuron.
             To avoid invalid neuron configurations (see HICANN doc page 33),
             all aouts and current stimuli are disabled before enabling them for one neuron."""
         if not self._connected:

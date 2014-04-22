@@ -1,13 +1,9 @@
 #!/usr/bin/env python
-
-import shutil
-import sys
-import os
-import imp
+import pickle
 import argparse
-
-import pycalibtic
+import os
 import pylogging
+from pycake.calibrationrunner import CalibrationRunner
 
 def check_file(string):
     if not os.path.isfile(string):
@@ -19,170 +15,35 @@ parser = argparse.ArgumentParser(description='HICANN Calibration tool. Takes a p
 parser.add_argument('parameter_file', type=check_file, help='')
 args = parser.parse_args()
 
-# Activate logger before importing other stuff that might want to log
-default_logger = pylogging.get("Default")
-logger = pylogging.get("run_calibration")
+
+config_filename = args.parameter_file
+
+runner = CalibrationRunner(config_filename)
+
 pylogging.default_config()
+pylogging.set_loglevel(pylogging.get("Default"),                    pylogging.LogLevel.ERROR)
+pylogging.set_loglevel(pylogging.get("pycake.calibrationrunner"),   pylogging.LogLevel.TRACE)
+pylogging.set_loglevel(pylogging.get("pycake.measurement"),         pylogging.LogLevel.ALL)
+pylogging.set_loglevel(pylogging.get("pycake.experiment"),          pylogging.LogLevel.ALL)
+pylogging.set_loglevel(pylogging.get("pycake.experimentbuilder"),    pylogging.LogLevel.TRACE)
 
-from pycake.helpers.calibtic import init_backend as init_calibtic
-from pycake.helpers.redman import init_backend as init_redman
-from pycake.helpers.sthal import StHALContainer
-from pyhalbe.HICANN import neuron_parameter, shared_parameter
-from pycake.calibration import base, lif, synapse
+runner.run_calibration()
+
+pickle.dump(runner, open('/home/np001/temp/restructure/runner.p', 'wb'))
 
 
-parameters = imp.load_source('parameters', args.parameter_file).parameters
 
-# Add logger from this file
+
+test_runner = CalibrationRunner(config_filename, test=True)
+
 pylogging.reset()
-pylogging.append_to_cout(logger)
+pylogging.default_config()
+pylogging.set_loglevel(pylogging.get("Default"),                    pylogging.LogLevel.ERROR)
+pylogging.set_loglevel(pylogging.get("pycake.calibrationrunner"),   pylogging.LogLevel.TRACE)
+pylogging.set_loglevel(pylogging.get("pycake.measurement"),         pylogging.LogLevel.ALL)
+pylogging.set_loglevel(pylogging.get("pycake.experiment"),          pylogging.LogLevel.ALL)
+pylogging.set_loglevel(pylogging.get("pycake.experimentbuilder"),    pylogging.LogLevel.TRACE)
 
-neurons = range(512)
+pickle.dump(runner, open('/home/np001/temp/restructure/runner_test.p', 'wb'))
 
-# Create necessary folders if the do not exist already
-if parameters['save_results']:
-    if not os.path.exists(parameters['folder']):
-        os.makedirs(parameters['folder'])
-        logger.INFO("Creating folder {}".format(parameters['folder']))
-    if not os.path.exists(parameters['backend_c']):
-        os.makedirs(parameters['backend_c'])
-        logger.INFO("Creating folder {}".format(parameters['backend_c']))
-    if not os.path.exists(parameters['backend_r']):
-        os.makedirs(parameters['backend_r'])
-        logger.INFO("Creating folder {}".format(parameters['backend_r']))
-
-coord_wafer  = parameters["coord_wafer"]
-coord_hicann = parameters["coord_hicann"]
-
-if parameters["clear"]:
-    logger.INFO("Clearing all calibration data.")
-    filename_c = os.path.join(parameters["backend_c"], '{}.xml'.format("w{}-h{}".format(int(coord_wafer.value()), int(coord_hicann.id().value()))))
-    filename_r = os.path.join(parameters["backend_r"], '{}.xml'.format("hicann-Wafer({})-Enum({})".format(int(coord_wafer.value()), int(coord_hicann.id().value()))))
-    if os.path.isfile(filename_c): os.remove(filename_c)
-    if os.path.isfile(filename_r): os.remove(filename_r)
-
-def check_for_existing_calibration(parameter):
-    path = parameters['backend_c']
-    lib = pycalibtic.loadLibrary('libcalibtic_xml.so')
-    backend = pycalibtic.loadBackend(lib)
-    backend.config('path', path)
-    backend.init()
-    md = pycalibtic.MetaData()
-    hc = pycalibtic.HICANNCollection()
-    if type(parameter) is neuron_parameter:
-        try:
-            backend.load("w{}-h{}".format(parameters['coord_wafer'].value(), parameters['coord_hicann'].id().value()), md, hc)
-            nc = hc.atNeuronCollection()
-        except RuntimeError:
-            logger.INFO('Backend not found. Creating new Backend.')
-            return False
-        for neuron in range(512):
-            try:
-                calib = nc.at(neuron).at(parameter)
-                logger.INFO('Calibration for {} existing.'.format(parameter.name))
-                return True
-            except (RuntimeError, IndexError):
-                continue
-            logger.INFO('Calibration for {} not existing.'.format(parameter.name))
-            return False
-    elif parameter is shared_parameter.V_reset:
-        try:
-            backend.load("w{}-h{}".format(parameters['coord_wafer'].value(), parameters['coord_hicann'].id().value()), md, hc)
-            nc = hc.atNeuronCollection()
-        except RuntimeError:
-            logger.INFO('Backend not found. Creating new Backend.')
-            return False
-        for neuron_id in range(512):
-            try:
-                calib = nc.at(neuron_id).at(21)
-                logger.INFO('Calibration for readout shift existing.')
-                return True
-            except (RuntimeError, IndexError):
-                continue
-            logger.INFO('Calibration for readout shift not existing.')
-            return False
-    else:
-        return False
-
-
-def do_calibration(Calibration):
-    sthal = StHALContainer(coord_wafer, coord_hicann)
-
-    target_parameter = Calibration.target_parameter
-    parameter_name = target_parameter.name
-
-    run = parameters["run_" + parameter_name]
-    overwrite = parameters['overwrite']
-    has_calibration = check_for_existing_calibration(target_parameter)
-
-    if not run:
-        return
-    if has_calibration and not overwrite and not issubclass(Calibration, base.BaseTest):
-        logger.INFO("{} already calibrated. Calibration skipped.".format(parameter_name))
-        return
-
-    if has_calibration and not issubclass(calibration, base.BaseTest):
-        logger.WARN('Overwriting calibration for {}'.format(parameter_name))
-
-    # TODO check from here (and also above ;) )
-    calib = Calibration(neurons, sthal, parameters)
-
-    # Log progress to cout
-    pylogging.append_to_cout(calib.progress_logger)
-    # Log everything to file
-    calib_logfile = os.path.join(parameters['folder'], calib.folder, 'logfile.txt')
-    app = pylogging.append_to_file(calib_logfile, pylogging.get_root())
-    app = pylogging.append_to_file(calib_logfile, pylogging.get("Default"))
-
-    try:
-        # Try several times in case experiment should fail
-        for attempt in range(parameters["max_tries"]):
-            try:
-                calib.run_experiment()
-                return
-            except RuntimeError, e:
-                logger.ERROR(e)
-                logger.WARN("Restarting experiment. Try no. {}/{}".format(attempt+1, parameters["max_tries"]))
-        raise
-
-    # If all attemps failed:
-    except Exception,e:
-        #folder = getattr(calib, "folder", None)
-        #if folder and os.path.exists(calib.folder):
-        #    delete = raw_input("Delete folder {}? (yes / no)".format(folder))
-        #    if delete in ("yes","Yes","y","Y"):
-        #        try:
-        #            shutil.rmtree(folder)
-        #        except OSError as e: # Folder missing, TODO log something
-        #            print e
-        #            pass
-        raise
-
-    # TODO delete appender!
-
-    pylogging.reset()
-    del(calib)
-    del(sthal)
-
-if parameters["calibrate"]:
-    for calibration in [lif.Calibrate_V_reset,
-                        synapse.Calibrate_E_synx,
-                        synapse.Calibrate_E_syni,
-                        lif.Calibrate_E_l,
-                        synapse.Calibrate_V_syntcx,
-                        lif.Calibrate_V_t,
-                        lif.Calibrate_I_gl]:
-            do_calibration(calibration)
-
-
-if parameters["measure"]:
-    for calibration in [lif.Test_V_reset,
-                        synapse.Test_E_synx,
-                        synapse.Test_E_syni,
-                        lif.Test_E_l,
-                        lif.Test_V_t,
-                        lif.Test_I_gl]:
-            do_calibration(calibration)
-
-quit()
-
+test_runner.run_calibration()
