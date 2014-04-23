@@ -125,10 +125,16 @@ class Config(object):
         """
         try:
             return self.get_config("save_traces")
-        except KeyError:
+        except KeyError, AttributeError:
             return self.parameters["save_traces"]
 
     def get_clear(self):
         """ Returns if calibration should be cleared.
         """
         return self.parameters['clear']
+
+    def get_run_calibration(self):
+        return self.parameters["calibrate"]
+
+    def get_run_test(self):
+        return self.parameters["measure"]

@@ -3,9 +3,20 @@ import pywrapstdvector
 import pylogging
 import os
 import time
+import sys
 
 import pyhalbe.Coordinate as Coordinate
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
+
+
+def create_pycalibtic_polynomial(coefficients):
+    """Create a pycalibtic.Polynomial from a list of coefficients.
+
+    Order: [c0, c1, c2, ...] resulting in c0*x^0 + c1*x^1 + c2*x^2 + ..."""
+    coefficients = list(coefficients) # Make standard python list to have the right order
+    data = pywrapstdvector.Vector_Double(coefficients)
+    return pycalibtic.Polynomial(data)
+
 
 class Calibtic(object):
     def __getstate__(self):
@@ -14,6 +25,10 @@ class Calibtic(object):
         odict = self.__dict__.copy()
         del odict['logger']
         del odict['backend']
+        del odict['hc']
+        del odict['nc']
+        del odict['bc']
+        del odict['md']
         return odict
 
     def __setstate__(self, dic):
@@ -29,6 +44,7 @@ class Calibtic(object):
         self.backend = self.init_backend()
         self.wafer = wafer
         self.hicann = hicann
+        self.load_calibration()
 
     def init_backend(self, type='xml'):
         if type == 'xml':
@@ -55,13 +71,6 @@ class Calibtic(object):
         if os.path.isfile(fullpath):
             self.logger.INFO("{} - Clearing calibration data by removing file {}".format(time.asctime(), fullpath))
             os.remove(fullpath)
-
-    def create_pycalibtic_polynomial(self, coefficients):
-        """Create a pycalibtic.Polynomial from a list of coefficients.
-
-        Order: [c0, c1, c2, ...] resulting in c0*x^0 + c1*x^1 + c2*x^2 + ..."""
-        data = pywrapstdvector.Vector_Double(coefficients)
-        return pycalibtic.Polynomial(data)
 
     def get_calibtic_name(self):
         wafer_id = self.wafer.value()
@@ -97,6 +106,10 @@ class Calibtic(object):
                 # backend does not exist
                 pass
 
+        self.hc = hc
+        self.nc = nc
+        self.bc = bc
+        self.md = md
         return (hc, nc, bc, md)
 
     def write_calibration(self, parameter, coord, coeffs):
@@ -105,33 +118,39 @@ class Calibtic(object):
             [a, b, c] ==> a*x^0 + b*x^1 + c*x^2 + ...
         """
         name = self.get_calibtic_name()
-        hc, nc, bc, md = self.load_calibration()
+        #hc, nc, bc, md = self.load_calibration()
 
         if isinstance(parameter, shared_parameter) and isinstance(coord, Coordinate.FGBlockOnHICANN):
-            collection = bc
+            collection = self.bc
             cal = pycalibtic.SharedCalibration()
         else:
-            collection = nc
+            collection = self.nc
             cal = pycalibtic.NeuronCalibration()
         
-        self.logger.TRACE("Writing {} calibration to backend.".format(parameter.name))
         index = coord.id().value()
-        self.logger.TRACE("Creating polynomial with coefficients {}".format(coeffs))
-        polynomial = self.create_pycalibtic_polynomial(coeffs)
+        polynomial = create_pycalibtic_polynomial(coeffs)
         if not collection.exists(index):
             collection.insert(index, cal)
         collection.at(index).reset(parameter, polynomial)
-        self.logger.TRACE("Resetting parameter {} to polynomial {}".format(parameter.name, polynomial))
+        self.logger.TRACE("Resetting coordinate {} parameter {} to {}".format(coord, parameter.name, polynomial))
 
-        self.backend.store(name, md, hc)
+        self.backend.store(name, self.md, self.hc)
 
-    def get_calibration(self, coord):
-        """ Returns calibration for a specific coordinate
+    def get_calibrations(self, coords):
+        """ Returns one calibration for a specific coordinate
             Equivalent to calling e.g. nc.at(coordinate_id)
         """
-        hc, nc, bc, md = self.load_calibration()
-        c_id = coord.id().value()
-        if isinstance(coord, Coordinate.FGBlockOnHICANN):
-            return bc.at(c_id)
-        else:
-            return nc.at(c_id)
+        #hc, nc, bc, md = self.load_calibration()
+
+        calibs = {}
+
+        if not isinstance(coords, list):
+            coords = [coords]
+
+        for coord in coords:
+            c_id = coord.id().value()
+            if isinstance(coord, Coordinate.FGBlockOnHICANN):
+                calibs[coord] = self.bc.at(c_id)
+            else:
+                calibs[coord] = self.nc.at(c_id)
+        return calibs

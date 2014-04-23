@@ -44,10 +44,10 @@ class Reader(object):
             results = [r[neuron][key] for r in ex.results]
         return results
 
-    def plot_hist(self, parameter, key, step, repetition=0, histrange = 20):
+    def plot_hist(self, parameter, key, step, repetition=0, histrange = 20, **kwargs):
         results = self.get_results(parameter, self.get_neurons(), key, repetition)
         results_list = np.array(results.values())[:,step]
-        return plt.hist(results_list, bins=histrange)
+        return plt.hist(results_list, bins=histrange, **kwargs)
 
 
 

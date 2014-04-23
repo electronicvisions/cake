@@ -3,6 +3,8 @@ import pylogging
 import pyhalbe
 import pycalibtic
 import time
+import sys
+import copy
 
 import pyredman as redman
 
@@ -39,7 +41,7 @@ class BaseExperimentBuilder(object):
     def __init__(self, config, test=False):
         self.config = config
 
-        name, path = self.config.get_calibtic_backend()
+        path, name = self.config.get_calibtic_backend()
         wafer, hicann = self.config.get_coordinates()
         self.calibtic = pycake.helpers.calibtic.Calibtic(path, wafer, hicann)
 
@@ -51,25 +53,20 @@ class BaseExperimentBuilder(object):
 
     def generate_measurements(self):
         self.logger.INFO("{} - Building experiment for parameter {}".format(time.asctime(), self.target_parameter.name))
-        config = self.config
         measurements = []
         coord_wafer, coord_hicann = self.config.get_coordinates()
         steps = self.config.get_steps()
         parameters = self.config.get_parameters()
-        target_parameter = self.target_parameter
-
-        # Initialize calibtic backend
-        cal_path, cal_name = self.config.get_calibtic_backend()
-        hc, nc, bc, md = self.calibtic.load_calibration()
 
         # Get readout shifts
-        readout_shifts = self.get_readout_shifts(self.neurons, nc)
+        readout_shifts = self.get_readout_shifts(self.neurons)
 
         # Create one sthal container for each step
         for step in steps:
+            self.logger.TRACE("{} - Building step {}".format(time.asctime(), step))
             sthal = StHALContainer(coord_wafer, coord_hicann)
-            step_parameters = self.get_step_parameters(config, step)
-            sthal = self.prepare_parameters(sthal, step_parameters, nc, bc)
+            step_parameters = self.get_step_parameters(step)
+            sthal = self.prepare_parameters(sthal, step_parameters)
             sthal = self.prepare_specific_config(sthal)
 
             measurement = self.make_measurement(sthal, self.neurons, readout_shifts)
@@ -77,56 +74,65 @@ class BaseExperimentBuilder(object):
 
         return measurements
 
-    def get_step_parameters(self, config, step):
+    def get_step_parameters(self, step):
         """ Get parameters for this step.
         """
-        return config.get_step_parameters(step)
+        return self.config.get_step_parameters(step)
 
     def make_measurement(self, sthal, neurons, readout_shifts):
         return Measurement(sthal, neurons, readout_shifts)
 
-    def prepare_parameters(self, sthal, parameters, nc, bc):
+    def prepare_parameters(self, sthal, parameters):
         """ Writes parameters into a sthal container.
             This includes calibration and transformation from mV or nA to DAC values.
         """
         fgc = pyhalbe.HICANN.FGControl()
-        self.logger.INFO("Preparing parameters")
+
+        try:
+            neuron_calibrations = self.calibtic.get_calibrations(self.neurons)
+            block_calibrations = self.calibtic.get_calibrations(self.blocks)
+        except:
+            self.logger.INFO("{} - No calibrations found. Continuing without calibration.".format(time.asctime()))
 
         for neuron in self.neurons:
+            neuron_params = copy.deepcopy(parameters)
             neuron_id = neuron.id().value()
             if neuron_id == 1: # Only give this info for some neurons to avoid spamming cout
                 self.logger.TRACE("Preparing parameters for neuron {}".format(neuron_id))
-            for param, value in parameters.iteritems():
+            for param, value in neuron_params.iteritems():
                 name = param.name
                 if isinstance(param, shared_parameter) or name[0] == '_':
                     continue
 
-                ## TODO remove this --> only debug lines
-                #if param == self.target_parameter:
-                #    value.apply_calibration = True
-                #######################################
+                # TODO remove this --> only debug lines
+                if self.test and param == self.target_parameter:
+                    if neuron_id in range(1) and param == neuron_parameter.E_l:
+                        self.logger.TRACE("Setting calibration for parameter {} to ON".format(param.name))
+                    value.apply_calibration = True
+                ######################################
 
                 # Do not calibrate target parameter except if this is a test measurement
-                if value.apply_calibration and ((not param == self.target_parameter) or self.test):
+                if value.apply_calibration:
                     try:
-                        calibrated = nc.at(neuron_id).at(param).apply(value.value)
-                        if neuron_id == 1: # Only give this info for some neurons to avoid spamming cout
-                            self.logger.TRACE("Calibrated neuron {} parameter {} to value {}".format(neuron_id, param.name, calibrated))
+                        nc = neuron_calibrations[neuron]
+                        calibrated = nc.at(param).apply(value.value)
+                        if neuron_id in range(10) and param == neuron_parameter.E_l:
+                            self.logger.TRACE("Calibrated neuron {} parameter {} from value {} to value {}".format(neuron_id, param.name, value.value, calibrated))
                     except:
                         # TODO proper implementation (give warning etc.)
                         calibrated = value.value
-                        if neuron_id == 1: # Only give this info for some neurons to avoid spamming cout
+                        if neuron_id in range(1) and param == neuron_parameter.E_l:
                             self.logger.TRACE("No calibration found for parameter {}.".format(param.name))
+                            self.logger.TRACE(sys.exc_info()[1])
                 else:
                     calibrated = value.value
-                    if neuron_id == 1: # Only give this info for some neurons to avoid spamming cout
+                    if neuron_id in range(1) and param == neuron_parameter.E_l:
                         self.logger.TRACE("No calibration wanted for parameter {}.".format(param.name))
 
                 calibrated = self.check_range(calibrated, param)
+                self.logger.TRACE
                 value.value = calibrated
                 int_value = int(round(value.toDAC().value))
-                if neuron_id == 1:
-                    self.logger.TRACE("Setting neuron {} parameter {} to value {}".format(neuron_id, param.name, int_value))
                 fgc.setNeuron(neuron, param, int_value)
 
         for block in self.blocks:
@@ -145,7 +151,8 @@ class BaseExperimentBuilder(object):
                 # Do not calibrate target parameter except if this is a test measurement
                 if value.apply_calibration and ((not param == self.target_parameter) or self.test):
                     try:
-                        calibrated = bc.at(neuron_id).at(param).apply(value.value)
+                        bc = block_calibrations[block]
+                        calibrated = bc.at(param).apply(value.value)
                         #self.logger.TRACE("Calibrated block {} parameter {} to value {}".format(block_id, param.name, calibrated))
                     except:
                         # TODO proper implementation (give warning etc.)
@@ -169,10 +176,10 @@ class BaseExperimentBuilder(object):
         else:
             upperbound = 1800
         if value < 0:
-            self.logger.TRACE("Value lower than 0. Clipping")
+            #self.logger.TRACE("Value lower than 0. Clipping")
             return 0
         elif value > upperbound:
-            self.logger.TRACE("Value higher than 1023. Clipping")
+            #self.logger.TRACE("Value higher than 1023. Clipping")
             return upperbound
         else:
             return value 
@@ -182,7 +189,7 @@ class BaseExperimentBuilder(object):
         """
         return sthal
 
-    def get_readout_shifts(self, neurons, nc):
+    def get_readout_shifts(self, neurons):
         """ Get readout shifts (in V) for a list of neurons.
             If no readout shift is saved, a shift of 0 is returned.
 
@@ -198,7 +205,8 @@ class BaseExperimentBuilder(object):
             neuron_id = neuron.id().value()
             try:
                 # Since readout shift is a constant, return the value for DAC = 0
-                shift = nc.at(neuron_id).at(21).apply(0) # Convert to mV
+                nc = self.calibtic.get_calibration(neuron)
+                shift = nc.at(21).apply(0) # Convert to mV
                 shifts[neuron] = shift
             except:
                 #self.logger.WARN("No readout shift calibration for neuron {} found. Using unshifted values.".format(neuron))
@@ -231,11 +239,11 @@ class BaseExperimentBuilder(object):
 
 
 class E_l_Experimentbuilder(BaseExperimentBuilder):
-    def get_step_parameters(self, config, step):
+    def get_step_parameters(self, step):
         """ For E_l, the reversal potentials need to be set appropriately
         """
-        parameters =  config.get_step_parameters(step)
-        dist = config.get_E_syn_dist()
+        parameters =  self.config.get_step_parameters(step)
+        dist = self.config.get_E_syn_dist()
         parameters[neuron_parameter.E_syni] = Voltage(step + dist['E_syni'])
         parameters[neuron_parameter.E_synx] = Voltage(step + dist['E_synx'])
         return parameters

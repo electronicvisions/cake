@@ -2,8 +2,10 @@
 import pickle
 import argparse
 import os
+import sys
 import pylogging
 from pycake.calibrationrunner import CalibrationRunner, TestRunner
+
 
 def check_file(string):
     if not os.path.isfile(string):
@@ -16,19 +18,21 @@ parser.add_argument('parameter_file', type=check_file, help='')
 args = parser.parse_args()
 
 
+
 config_filename = args.parameter_file
 
 runner = CalibrationRunner(config_filename)
 
 pylogging.default_config()
 pylogging.set_loglevel(pylogging.get("Default"),                    pylogging.LogLevel.ERROR)
-pylogging.set_loglevel(pylogging.get("pycake.calibrationrunner"),   pylogging.LogLevel.TRACE)
-pylogging.set_loglevel(pylogging.get("pycake.measurement"),         pylogging.LogLevel.ALL)
-pylogging.set_loglevel(pylogging.get("pycake.experiment"),          pylogging.LogLevel.ALL)
-pylogging.set_loglevel(pylogging.get("pycake.experimentbuilder"),    pylogging.LogLevel.TRACE)
-pylogging.set_loglevel(pylogging.get("pycake.calibtic"),    pylogging.LogLevel.TRACE)
+pylogging.set_loglevel(pylogging.get("pycake.calibrationrunner"),   pylogging.LogLevel.INFO )
+pylogging.set_loglevel(pylogging.get("pycake.measurement"),         pylogging.LogLevel.INFO )
+pylogging.set_loglevel(pylogging.get("pycake.experiment"),          pylogging.LogLevel.INFO )
+pylogging.set_loglevel(pylogging.get("pycake.experimentbuilder"),   pylogging.LogLevel.INFO )
+pylogging.set_loglevel(pylogging.get("pycake.calibtic"),            pylogging.LogLevel.INFO )
 
-runner.run_calibration()
+if runner.config.get_run_calibration():
+    runner.run_calibration()
 
 
 
@@ -37,11 +41,11 @@ test_runner = TestRunner(config_filename)
 pylogging.reset()
 pylogging.default_config()
 pylogging.set_loglevel(pylogging.get("Default"),                    pylogging.LogLevel.ERROR)
-pylogging.set_loglevel(pylogging.get("pycake.calibrationrunner"),   pylogging.LogLevel.TRACE)
-pylogging.set_loglevel(pylogging.get("pycake.measurement"),         pylogging.LogLevel.ALL)
-pylogging.set_loglevel(pylogging.get("pycake.experiment"),          pylogging.LogLevel.ALL)
-pylogging.set_loglevel(pylogging.get("pycake.experimentbuilder"),    pylogging.LogLevel.TRACE)
-pylogging.set_loglevel(pylogging.get("pycake.calibtic"),    pylogging.LogLevel.TRACE)
+pylogging.set_loglevel(pylogging.get("pycake.testrunner"),          pylogging.LogLevel.INFO )
+pylogging.set_loglevel(pylogging.get("pycake.measurement"),         pylogging.LogLevel.INFO )
+pylogging.set_loglevel(pylogging.get("pycake.experiment"),          pylogging.LogLevel.INFO )
+pylogging.set_loglevel(pylogging.get("pycake.experimentbuilder"),   pylogging.LogLevel.INFO )
+pylogging.set_loglevel(pylogging.get("pycake.calibtic"),            pylogging.LogLevel.INFO )
 
-
-test_runner.run_calibration()
+if test_runner.config.get_run_test():
+    test_runner.run_calibration()

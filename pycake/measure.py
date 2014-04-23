@@ -147,7 +147,7 @@ class Measurement(object):
         """
         self.time_started = time.asctime()
 
-        self.logger.INFO("{} - Configuring hardware.".format(time.asctime()))
+        self.logger.INFO("{} - Connecting to hardware and configuring.".format(time.asctime()))
         self.configure()
         self.logger.INFO("{} - Measuring.".format(time.asctime()))
         self.measure()
