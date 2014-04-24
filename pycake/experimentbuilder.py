@@ -220,8 +220,8 @@ class BaseExperimentBuilder(object):
                 except IndexError:
                     self.logger.WARN("No readout shift for neuron {} found.".format(neuron_id))
                     shifts[neuron] = 0
-        except:
-            self.logger.WARN("No readout shifts found. Continuing with 0 shift: {}".format(sys.exc_info()[0]))
+        except IndexError:
+            self.logger.WARN("{}: No readout shifts found. Continuing with 0 shift.".format(sys.exc_info()[0]))
             for neuron in neurons:
                 shifts[neuron] = 0
         return shifts

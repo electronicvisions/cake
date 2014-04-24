@@ -110,13 +110,13 @@ class Calibtic(object):
         self.nc = nc
         self.bc = bc
         self.md = md
-        return (hc, nc, bc, md)
 
     def write_calibration(self, parameter, coord, coeffs):
         """ Writes calibration data
             Coefficients are ordered like this:
             [a, b, c] ==> a*x^0 + b*x^1 + c*x^2 + ...
         """
+        # TODO check if loaded, if not: load
         name = self.get_calibtic_name()
         #hc, nc, bc, md = self.load_calibration()
 

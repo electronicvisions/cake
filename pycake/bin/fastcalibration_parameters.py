@@ -1,8 +1,6 @@
 import pyhalbe
 from pyhalbe.Coordinate import NeuronOnHICANN, FGBlockOnHICANN, Enum
-from pycake.experiment import Voltage, Current
-import copy
-import sys
+from pycake.helpers.units import Voltage, Current
 import os
 
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
@@ -16,12 +14,12 @@ parameters = {
         "blocks":  [FGBlockOnHICANN(Enum(i)) for i in range(4)],
 
         # Set the ranges within which you want to calibrate
-        "E_synx_range": range(650,950,100),    # 3 steps
+        "V_reset_range":range(400,700,100),      # 3 steps
         "E_syni_range": range(350,650,100),    # 3 steps
+        "E_synx_range": range(650,950,100),    # 3 steps
         "E_l_range":    range(500,800,100),      # 3 steps
         "V_t_range":    range(600,900,100),      # 3 steps
-        "V_reset_range":range(400,700,100),      # 3 steps
-        "I_gl_range":   range(250,300,100),     # 4 steps -> 19 steps
+        "I_gl_range":   range(250,300,50),     # 4 steps -> 19 steps
 
         # How far should the E_syn values be set around E_l
         "E_syni_dist":  -100,
@@ -34,7 +32,7 @@ parameters = {
         "run_V_reset":  True,
         "run_E_synx":   False,
         "run_E_syni":   False,
-        "run_E_l":      True,
+        "run_E_l":      False,
         "run_V_t":      False,
         "run_I_gl":     False, # TODO g_l calibration is not yet implemented!
         "run_V_syntcx": False,
@@ -52,7 +50,8 @@ parameters = {
         "clear":        True,
 
         # Set whether you want to keep traces or delete them after analysis
-        "save_traces":  True,
+        "save_traces":  False,
+        "V_reset_save_traces": True,
 
         ## If you save your measurements, each folder will have a description file. The following parameters let you specify additional info to be stored.
         #"E_synx_description":   "E_synx calibration.",
@@ -147,9 +146,9 @@ parameters = {
                                 },
 
         "V_reset_parameters":   {   neuron_parameter.E_l:    Voltage(1100),
-                                    neuron_parameter.V_t:    Voltage(800),
-                                    neuron_parameter.I_gl:   Current(1000),
-                                    neuron_parameter.I_pl:  Current(50),
+                                    neuron_parameter.V_t:    Voltage(900),
+                                    neuron_parameter.I_gl:   Current(1200),
+                                    neuron_parameter.I_pl:  Current(500),
                                 },
 
         "I_gl_parameters":       {   neuron_parameter.E_l:        Voltage(600),
