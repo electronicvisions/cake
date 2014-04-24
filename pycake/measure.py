@@ -27,16 +27,8 @@ class Measurement(object):
                 Note: Every voltage value from the trace is shifted back by -shift!
                 If None is given, the shifts are set to 0.
     """
-    def __getstate__(self):
-        """ Disable stuff from getting pickled that cannot be pickled.
-        """
-        odict = self.__dict__.copy()
-        del odict['logger']
-        return odict
 
-    def __setstate__(self, dic):
-        dic['logger'] = pylogging.get("pycake.measurement")
-        self.__dict__.update(dic)
+    logger = pylogging.get("pycake.measurement")
 
     def __init__(self, sthal, neurons, readout_shifts=None): 
         # TODO: callable readout_shifter instead of dict
@@ -48,7 +40,6 @@ class Measurement(object):
         self.traces = {}
         self.spikes = {}
         self.done = False
-        self.logger = pylogging.get("pycake.measurement")
 
         if readout_shifts is None:
             self.logger.WARN("No readout shifts found. Shifts are set to 0")
