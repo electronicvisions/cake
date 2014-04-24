@@ -50,8 +50,9 @@ class CalibrationRunner(object):
             self.logger.INFO("{} - Creating analyzers and experiments for parameter {}".format(time.asctime(), parameter.name))
             builder = self.get_builder(parameter, config)
             analyzer = builder.get_analyzer(parameter)
-            measurements = builder.generate_measurements()
-            experiments = [self.get_experiment(measurements, analyzer, save_traces) for r in range(repetitions)]
+            experiments = [
+                    self.get_experiment(builder.generate_measurements(), analyzer, save_traces)
+                    for r in range(repetitions)]
             self.experiments[parameter] = experiments
 
             for i, ex in enumerate(self.experiments[parameter]):
