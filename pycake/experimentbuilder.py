@@ -258,7 +258,8 @@ class E_l_Experimentbuilder(BaseExperimentBuilder):
         return parameters
 
 class V_reset_Experimentbuilder(BaseExperimentBuilder):
-    pass
+    def get_readout_shifts(self, neurons):
+        return dict(((n, 0) for n in neurons))
 
 class V_t_Experimentbuilder(BaseExperimentBuilder):
     pass

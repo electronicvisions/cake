@@ -115,7 +115,8 @@ class Measurement(object):
 
     def iter_traces(self):
         for neuron in self.traces:
-            yield self.get_trace(neuron)
+            t, v = self.get_trace(neuron)
+            yield t, v, neuron
         return
 
     def configure(self):
@@ -127,7 +128,7 @@ class Measurement(object):
     def pre_measure(self, neuron):
         self.sthal.switch_analog_output(neuron)
 
-    def measure(self):
+    def measure(self, analyzer):
         """ Measure traces and correct each value for readout shift.
             Changes traces to numpy arrays
 
@@ -135,14 +136,20 @@ class Measurement(object):
                 self.traces = {neuron: trace}
                 self.spikes = {neuron: spikes} #TODO this is not yet implemented
         """
+        result = {}
         for neuron in self.neurons:
             self.pre_measure(neuron)
             t, v = self.sthal.read_adc()
             t = np.array(t)
             v = np.array(v)
             self.traces[neuron] = (t, v)
-        
-    def run_measurement(self):
+
+            # TODO CK: parallel processing done here
+            t, v = self.get_trace(neuron) # apply readout shift
+            result[neuron] = analyzer(t, v, neuron)
+        return result
+
+    def run_measurement(self, analyzer):
         """ First configure, then measure
         """
         self.time_started = time.asctime()
@@ -150,11 +157,11 @@ class Measurement(object):
         self.logger.INFO("{} - Connecting to hardware and configuring.".format(time.asctime()))
         self.configure()
         self.logger.INFO("{} - Measuring.".format(time.asctime()))
-        self.measure()
+        result = self.measure(analyzer)
         self.logger.INFO("{} - Measurement done, disconnecting from hardware.".format(time.asctime()))
         self.finish()
-
         self.sthal.disconnect()
+        return result
 
 class I_gl_Measurement(Measurement):
     def pre_measure(self, neuron):

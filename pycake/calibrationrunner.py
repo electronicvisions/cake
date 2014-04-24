@@ -21,17 +21,7 @@ import copy
 class CalibrationRunner(object):
     """
     """
-    def __getstate__(self):
-        """ Disable stuff from getting pickled that cannot be pickled.
-        """
-        odict = self.__dict__.copy()
-        del odict['logger']
-        return odict
-
-    def __setstate__(self, dic):
-        # Initialize logger and calibtic backend when unpickling
-        dic['logger'] = pylogging.get("pycake.calibrationrunner")
-        self.__dict__.update(dic)
+    logger = pylogging.get("pycake.calibrationrunner")
 
     def __init__(self, config_file):
         self.config_file = config_file
@@ -42,7 +32,6 @@ class CalibrationRunner(object):
         wafer, hicann = self.config.get_coordinates()
         self.calibtic = pycake.helpers.calibtic.Calibtic(path, wafer, hicann)
 
-        self.logger = pylogging.get("pycake.calibrationrunner")
         self.filename = "runner{0:02d}{1:02d}_{2:02d}{3:02d}.p".format(time.localtime()[1], time.localtime()[2], time.localtime()[3], time.localtime()[4])
         # TODO redman!!
 
@@ -147,8 +136,9 @@ class CalibrationRunner(object):
 
 
 class TestRunner(CalibrationRunner):
+    logger = pylogging.get("pycake.testrunner")
+
     def __init__(self, config_file):
-        self.logger = pylogging.get("pycake.testrunner")
         self.config_file = config_file
         self.config = pycake.config.Config(None, self.config_file)
 
