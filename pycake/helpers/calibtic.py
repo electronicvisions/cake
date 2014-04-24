@@ -126,12 +126,17 @@ class Calibtic(object):
         else:
             collection = self.nc
             cal = pycalibtic.NeuronCalibration()
+
+        if parameter is shared_parameter.V_reset and isinstance(coord, Coordinate.NeuronOnHICANN):
+            param_id = 21
+        else:
+            param_id = parameter
         
         index = coord.id().value()
         polynomial = create_pycalibtic_polynomial(coeffs)
         if not collection.exists(index):
             collection.insert(index, cal)
-        collection.at(index).reset(parameter, polynomial)
+        collection.at(index).reset(param_id, polynomial)
         self.logger.TRACE("Resetting coordinate {} parameter {} to {}".format(coord, parameter.name, polynomial))
 
         self.backend.store(name, self.md, self.hc)

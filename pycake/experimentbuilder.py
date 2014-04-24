@@ -104,7 +104,7 @@ class BaseExperimentBuilder(object):
                 if isinstance(param, shared_parameter) or name[0] == '_':
                     continue
 
-                # TODO remove this --> only debug lines
+                # TODO maybe find better solution
                 if self.test and param == self.target_parameter:
                     if neuron_id in range(1) and param == neuron_parameter.E_l:
                         self.logger.TRACE("Setting calibration for parameter {} to ON".format(param.name))
@@ -118,7 +118,7 @@ class BaseExperimentBuilder(object):
                         calibrated = nc.at(param).apply(value.value)
                         if neuron_id in range(10) and param == neuron_parameter.E_l:
                             self.logger.TRACE("Calibrated neuron {} parameter {} from value {} to value {}".format(neuron_id, param.name, value.value, calibrated))
-                    except:
+                    except IndexError:
                         # TODO proper implementation (give warning etc.)
                         calibrated = value.value
                         if neuron_id in range(1) and param == neuron_parameter.E_l:
@@ -130,14 +130,14 @@ class BaseExperimentBuilder(object):
                         self.logger.TRACE("No calibration wanted for parameter {}.".format(param.name))
 
                 calibrated = self.check_range(calibrated, param)
-                self.logger.TRACE
                 value.value = calibrated
                 int_value = int(round(value.toDAC().value))
                 fgc.setNeuron(neuron, param, int_value)
 
         for block in self.blocks:
+            block_parameters = copy.deepcopy(parameters)
             block_id = block.id().value()
-            for param, value in parameters.iteritems():
+            for param, value in block_parameters.iteritems():
                 name = param.name
                 if isinstance(param, neuron_parameter) or name[0] == '_':
                     continue
@@ -148,19 +148,27 @@ class BaseExperimentBuilder(object):
                 if not even and name in ['V_clra', 'V_bexp']:
                     continue
 
+                if self.test and param == self.target_parameter:
+                    if block_id in range(1) and param == neuron_parameter.E_l:
+                        self.logger.TRACE("Setting calibration for parameter {} to ON".format(param.name))
+                    value.apply_calibration = True
+
                 # Do not calibrate target parameter except if this is a test measurement
-                if value.apply_calibration and ((not param == self.target_parameter) or self.test):
+                if value.apply_calibration:
                     try:
                         bc = block_calibrations[block]
                         calibrated = bc.at(param).apply(value.value)
-                        #self.logger.TRACE("Calibrated block {} parameter {} to value {}".format(block_id, param.name, calibrated))
-                    except:
+                        if param == shared_parameter.V_reset:
+                            self.logger.TRACE("Calibrated block {} parameter {} from {} to {}".format(block_id, param.name, value.value, calibrated))
+                    except IndexError:
                         # TODO proper implementation (give warning etc.)
                         calibrated = value.value
                         #self.logger.TRACE("No calibration found for parameter {}.".format(param.name))
                 else:
                     calibrated = value.value
                     #self.logger.TRACE("No calibration wanted for parameter {}.".format(param.name))
+
+                calibrated = self.check_range(calibrated, param)
                 value.value = calibrated
                 int_value = int(round(value.toDAC().value))
                 if block_id == 1:
@@ -201,27 +209,28 @@ class BaseExperimentBuilder(object):
         if not isinstance(neurons, list):
             neurons = [neurons]
         shifts = {}
-        for neuron in neurons:
-            neuron_id = neuron.id().value()
-            try:
-                # Since readout shift is a constant, return the value for DAC = 0
-                nc = self.calibtic.get_calibration(neuron)
-                shift = nc.at(21).apply(0) # Convert to mV
-                shifts[neuron] = shift
-            except:
-                #self.logger.WARN("No readout shift calibration for neuron {} found. Using unshifted values.".format(neuron))
+        try:
+            calibrations = self.calibtic.get_calibrations(neurons)
+            for neuron, calib in calibrations.iteritems():
+                neuron_id = neuron.id().value()
+                try:
+                    # Since readout shift is a constant, return the value for DAC = 0
+                    shift = calib.at(21).apply(0) # Convert to mV
+                    shifts[neuron] = shift
+                except IndexError:
+                    self.logger.WARN("No readout shift for neuron {} found.".format(neuron_id))
+                    shifts[neuron] = 0
+        except:
+            self.logger.WARN("No readout shifts found. Continuing with 0 shift: {}".format(sys.exc_info()[0]))
+            for neuron in neurons:
                 shifts[neuron] = 0
         return shifts
 
     def get_analyzer(self, parameter): # TODO move to experimentbuilder
         """ Get the appropriate analyzer for a specific parameter.
         """
-        if parameter == neuron_parameter.I_gl:
-            c_w, c_h = self.config.get_coordinates()
-            return pycake.analyzer.I_gl_Analyzer(c_w, c_h)
-        else:
-            AnalyzerType = getattr(pycake.analyzer, "{}_Analyzer".format(parameter.name))
-            return AnalyzerType()
+        AnalyzerType = getattr(pycake.analyzer, "{}_Analyzer".format(parameter.name))
+        return AnalyzerType()
 
     # TODO implement redman
     #def init_redman(self, backend):
@@ -283,6 +292,11 @@ class I_gl_Experimentbuilder(BaseExperimentBuilder):
 
     def make_measurement(self, sthal, neurons, readout_shifts):
         return I_gl_Measurement(sthal, neurons, readout_shifts)
+
+    def get_analyzer(self, parameter): # TODO move to experimentbuilder
+        """ Get the appropriate analyzer for a specific parameter.
+        """
+        return pycake.analyzer.I_gl_Analyzer(c_w, c_h)
 
 class V_syntc_Experimentbuilder(BaseExperimentBuilder):
     pass # TODO by CK
