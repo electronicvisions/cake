@@ -3,6 +3,8 @@ import pylogging
 from pyhalbe.Coordinate import NeuronOnHICANN, FGBlockOnHICANN
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
 
+from helpers.WorkerPool import WorkerPool
+
 # Import everything needed for saving:
 import time
 
@@ -127,29 +129,27 @@ class Measurement(object):
                 self.traces = {neuron: trace}
                 self.spikes = {neuron: spikes} #TODO this is not yet implemented
         """
-        result = {}
+        self.logger.INFO("Measuring.")
+        worker = WorkerPool(analyzer)
         for neuron in self.neurons:
             self.pre_measure(neuron)
             t, v = self.sthal.read_adc()
             t = np.array(t)
             v = np.array(v)
             self.traces[neuron] = (t, v)
-
-            # TODO CK: parallel processing done here
-            t, v = self.get_trace(neuron) # apply readout shift
-            result[neuron] = analyzer(t, v, neuron)
-        return result
+            # apply readout shift
+            t, v = self.get_trace(neuron)
+            worker.do(neuron, t, v, neuron)
+        self.logger.INFO("Wait for analysis to complete.")
+        return worker.join()
 
     def run_measurement(self, analyzer):
         """ First configure, then measure
         """
-        self.time_started = time.asctime()
-
-        self.logger.INFO("{} - Connecting to hardware and configuring.".format(time.asctime()))
+        self.logger.INFO("Connecting to hardware and configuring.")
         self.configure()
-        self.logger.INFO("{} - Measuring.".format(time.asctime()))
         result = self.measure(analyzer)
-        self.logger.INFO("{} - Measurement done, disconnecting from hardware.".format(time.asctime()))
+        self.logger.INFO("Measurement done, disconnecting from hardware.")
         self.finish()
         self.sthal.disconnect()
         return result
