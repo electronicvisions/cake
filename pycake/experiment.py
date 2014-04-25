@@ -33,7 +33,6 @@ class BaseExperiment(object):
                 self.logger.INFO("{} - Running measurement {}/{}".format(time.asctime(), i, i_max-1))
                 results = measurement.run_measurement(self.analyzer)
                 self.results.append(results)
-                self.logger.INFO("{} - Analyzing measurement {}/{}".format(time.asctime(), i, i_max-1))
 
                 if not self.save_traces:
                     measurement.clear_traces()

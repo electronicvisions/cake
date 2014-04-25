@@ -19,11 +19,12 @@ def create_pycalibtic_polynomial(coefficients):
 
 
 class Calibtic(object):
+    logger = pylogging.get("pycake.calibtic")
+
     def __getstate__(self):
         """ Disable stuff from getting pickled that cannot be pickled.
         """
         odict = self.__dict__.copy()
-        del odict['logger']
         del odict['backend']
         del odict['hc']
         del odict['nc']
@@ -34,12 +35,10 @@ class Calibtic(object):
     def __setstate__(self, dic):
         # Initialize logger and calibtic backend when unpickling
         self.path = dic['path']
-        dic['logger'] = pylogging.get("pycake.calibrationrunner")
         dic['backend'] = self.init_backend()
         self.__dict__.update(dic)
 
     def __init__(self, path, wafer, hicann):
-        self.logger = pylogging.get("pycake.calibtic")
         self.path = self.make_path(path)
         self.backend = self.init_backend()
         self.wafer = wafer

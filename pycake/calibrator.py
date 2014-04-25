@@ -26,12 +26,13 @@ class BaseCalibrator(object):
                  this is used to extract the results that were given by the analyzers of an experiment
         experiments: list containing all experiments
     """
+    logger = pylogging.get("pycake.calibrator")
+
     def __init__(self, target_parameter, experiments):
         self.target_parameter = target_parameter
         if not isinstance(experiments, list):
             experiments = [experiments]
         self.experiments = experiments
-        self.logger = pylogging.get("pycake.calibrator")
 
     def get_key(self):
         """

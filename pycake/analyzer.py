@@ -11,20 +11,7 @@ from pycake.helpers.TraceAverager import createTraceAverager
 class Analyzer(object):
     """ Takes a measurement and analyses it.
     """
-    def __getstate__(self):
-        """ Disable stuff from getting pickled that cannot be pickled.
-        """
-        odict = self.__dict__.copy()
-        del odict['logger']
-        return odict
-
-    def __setstate__(self, dic):
-        # Initialize logger and calibtic backend when unpickling
-        dic['logger'] = pylogging.get("pycake.analyzer")
-        self.__dict__.update(dic)
-
-    def __init__(self):
-        self.logger = pylogging.get("pycake.analyzer")
+    logger = pylogging.get("pycake.analyzer")
 
     def __call__(self, t, v, neuron):
         """ Returns a dictionary of results:
@@ -109,6 +96,7 @@ class V_reset_Analyzer(Analyzer):
 
 class I_gl_Analyzer(Analyzer):
     def __init__(self, coord_wafer, coord_hicann):
+        super(I_gl_Analyzer, self).__init__()
         pll_freq = 100e6
         self.logger.INFO("Initializing I_gl_analyzer by measuring ADC sampling frequency.")
         self.trace_averager = createTraceAverager(coord_wafer, coord_hicann)

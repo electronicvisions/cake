@@ -29,14 +29,7 @@ class BaseExperimentBuilder(object):
                     If it is a test measurement, the target parameter is also calibrated.
                     Otherwise, it stays uncalibrated even if there is calibration data for it.
     """
-    def __getstate__(self):
-        odict = self.__dict__.copy()
-        del odict['logger']
-        return odict
-
-    def __setstate__(self, dic):
-        dic['logger'] = pylogging.get("pycake.experimentbuilder")
-        self.__dict__.update(dic)
+    logger = pylogging.get("pycake.experimentbuilder")
 
     def __init__(self, config, test=False):
         self.config = config
@@ -49,7 +42,6 @@ class BaseExperimentBuilder(object):
         self.blocks = self.config.get_blocks()
         self.target_parameter = self.config.target_parameter
         self.test = test
-        self.logger = pylogging.get("pycake.experimentbuilder")
 
     def generate_measurements(self):
         self.logger.INFO("{} - Building experiment for parameter {}".format(time.asctime(), self.target_parameter.name))

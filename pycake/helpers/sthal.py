@@ -22,18 +22,16 @@ class StHALContainer(object):
     """Contains StHAL objects for hardware access. Multiple experiments can share one container."""
     def __getstate__(self):
         odict = self.__dict__.copy()
-        del odict['logger']
         del odict['hicann']
-        del odict['_cfg_analog']
         return odict
 
     def __setstate__(self, dic):
         coord_hicann = dic['coord_hicann']
         wafer = dic['wafer']
         dic['hicann'] = wafer[coord_hicann]
-        dic['_cfg_analog'] = UpdateAnalogOutputConfigurator()
-        dic['logger'] = pylogging.get("pycake.helper.sthal")
         self.__dict__.update(dic)
+
+    logger = pylogging.get("pycake.helper.sthal")
 
     def __init__(self, coord_wafer,
                  coord_hicann,
@@ -53,9 +51,6 @@ class StHALContainer(object):
         self.recording_time = recording_time
         self.coord_analog = coord_analog
         self._connected = False
-        self._cfg_analog = UpdateAnalogOutputConfigurator()
-        self.logger = pylogging.get("pycake.helper.sthal")
-
 
     def connect(self):
         """Connect to the hardware."""
@@ -259,5 +254,5 @@ class StHALContainer(object):
         self.hicann.disable_current_stimulus()
         self.hicann.enable_current_stimulus(coord_neuron)
         self.hicann.enable_aout(coord_neuron, Coordinate.AnalogOnHICANN(0))
-        self.wafer.configure(self._cfg_analog)
+        self.wafer.configure(UpdateAnalogOutputConfigurator())
 
