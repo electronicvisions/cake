@@ -17,6 +17,14 @@ class Config(object):
         key = "{}_{}".format(config_name, config_key)
         return self.parameters[key]
 
+    def get_config_with_default(self, config_key, default):
+        """ Returns a given key for experiment or default value if not found
+        """
+        try:
+            return self.get_config(config_key)
+        except KeyError:
+            return default
+
     def set_config(self, config_key, value):
         """ Sets a given key for experiment
         """

@@ -33,10 +33,12 @@ class Calibtic(object):
         return odict
 
     def __setstate__(self, dic):
+        # TODO fix for hc, nc, bc, md
         # Initialize logger and calibtic backend when unpickling
         self.path = dic['path']
         dic['backend'] = self.init_backend()
         self.__dict__.update(dic)
+        self.load_calibration()
 
     def __init__(self, path, wafer, hicann):
         self.path = self.make_path(path)

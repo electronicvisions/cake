@@ -37,8 +37,7 @@ class Measurement(object):
         # readout_shifter(neuron, trace)
         self.sthal = sthal
         self.neurons = neurons
-        self.recording_time = self.sthal.recording_time
-        self.time_created = time.asctime()
+        self.time_created = time.time()
         self.traces = {}
         self.spikes = {}
         self.done = False
@@ -121,7 +120,7 @@ class Measurement(object):
     def pre_measure(self, neuron):
         self.sthal.switch_analog_output(neuron)
 
-    def measure(self, analyzer):
+    def _measure(self, analyzer):
         """ Measure traces and correct each value for readout shift.
             Changes traces to numpy arrays
 
@@ -148,7 +147,7 @@ class Measurement(object):
         """
         self.logger.INFO("Connecting to hardware and configuring.")
         self.configure()
-        result = self.measure(analyzer)
+        result = self._measure(analyzer)
         self.logger.INFO("Measurement done, disconnecting from hardware.")
         self.finish()
         self.sthal.disconnect()

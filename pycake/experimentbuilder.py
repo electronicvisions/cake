@@ -84,7 +84,8 @@ class BaseExperimentBuilder(object):
             neuron_calibrations = self.calibtic.get_calibrations(self.neurons)
             block_calibrations = self.calibtic.get_calibrations(self.blocks)
         except:
-            self.logger.INFO("{} - No calibrations found. Continuing without calibration.".format(time.asctime()))
+            self.logger.WARN("{} - No calibrations found. Continuing without calibration.".format(time.asctime()))
+            # TODO neuron_calibrations, block_calibrations is not defined 
 
         for neuron in self.neurons:
             neuron_params = copy.deepcopy(parameters)
@@ -108,14 +109,12 @@ class BaseExperimentBuilder(object):
                     try:
                         nc = neuron_calibrations[neuron]
                         calibrated = nc.at(param).apply(value.value)
-                        if neuron_id in range(10) and param == neuron_parameter.E_l:
-                            self.logger.TRACE("Calibrated neuron {} parameter {} from value {} to value {}".format(neuron_id, param.name, value.value, calibrated))
-                    except IndexError:
+                        self.logger.TRACE("Calibrated neuron {} parameter {} from value {} to value {}".format(neuron_id, param.name, value.value, calibrated))
+                    except (IndexError, RuntimeError):
                         # TODO proper implementation (give warning etc.)
                         calibrated = value.value
-                        if neuron_id in range(1) and param == neuron_parameter.E_l:
-                            self.logger.TRACE("No calibration found for parameter {}.".format(param.name))
-                            self.logger.TRACE(sys.exc_info()[1])
+                        self.logger.warn("No calibration found for {} for parameter {}.".format(neuron, param.name))
+                        self.logger.trace(sys.exc_info()[1])
                 else:
                     calibrated = value.value
                     if neuron_id in range(1) and param == neuron_parameter.E_l:
@@ -198,8 +197,6 @@ class BaseExperimentBuilder(object):
             Returns:
                 shifts: a dictionary {neuron: shift (in V)}
         """
-        if not isinstance(neurons, list):
-            neurons = [neurons]
         shifts = {}
         try:
             calibrations = self.calibtic.get_calibrations(neurons)
@@ -251,7 +248,11 @@ class E_l_Experimentbuilder(BaseExperimentBuilder):
 
 class V_reset_Experimentbuilder(BaseExperimentBuilder):
     def get_readout_shifts(self, neurons):
-        return dict(((n, 0) for n in neurons))
+        if test:
+            return super(V_reset_Experimentbuilder, self).get_readout_shifts(
+                    neurons)
+        else:
+           return dict(((n, 0) for n in neurons))
 
 class V_t_Experimentbuilder(BaseExperimentBuilder):
     pass

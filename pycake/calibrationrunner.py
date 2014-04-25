@@ -22,6 +22,7 @@ class CalibrationRunner(object):
     """
     """
     logger = pylogging.get("pycake.calibrationrunner")
+    pickle_file_pattern = "runner_{}.p"
 
     def __init__(self, config_file):
         self.config_file = config_file
@@ -32,14 +33,15 @@ class CalibrationRunner(object):
         wafer, hicann = self.config.get_coordinates()
         self.calibtic = pycake.helpers.calibtic.Calibtic(path, wafer, hicann)
 
-        self.filename = "runner{0:02d}{1:02d}_{2:02d}{3:02d}.p".format(time.localtime()[1], time.localtime()[2], time.localtime()[3], time.localtime()[4])
+        self.filename = self.pickle_file_pattern.format(
+                time.strftime('%m%d_%H%M'))
         # TODO redman!!
 
     def run_calibration(self):
         self.clear_calibration() # Clears calibration if this is wanted
         self.experiments = {}
         self.coeffs = {}
-        self.logger.INFO("{} - Start calibration".format(time.asctime()))
+        self.logger.INFO("Start calibration")
         config = self.config
 
         for parameter in self.config.get_enabled_calibrations():
@@ -47,7 +49,7 @@ class CalibrationRunner(object):
             save_traces = config.get_save_traces()
             repetitions = config.get_repetitions()
 
-            self.logger.INFO("{} - Creating analyzers and experiments for parameter {}".format(time.asctime(), parameter.name))
+            self.logger.INFO("Creating analyzers and experiments for parameter {}".format(parameter.name))
             builder = self.get_builder(parameter, config)
             analyzer = builder.get_analyzer(parameter)
             experiments = [
@@ -56,17 +58,17 @@ class CalibrationRunner(object):
             self.experiments[parameter] = experiments
 
             for i, ex in enumerate(self.experiments[parameter]):
-                self.logger.INFO("{} - Running experiment no. {}/{} for parameter {}".format(time.asctime(), i, repetitions-1, parameter.name))
+                self.logger.INFO("Running experiment no. {}/{} for parameter {}".format(i, repetitions-1, parameter.name))
                 for measured in ex.iter_measurements():
                     if measured:
                         self.save_state()
 
-            self.logger.INFO("{} - Fitting result data for parameter {}".format(time.asctime(), parameter.name))
+            self.logger.INFO("Fitting result data for parameter {}".format(parameter.name))
             calibrator = self.get_calibrator(parameter, self.experiments)
             coeffs = calibrator.generate_coeffs()
             self.coeffs[parameter] = coeffs
 
-            self.logger.INFO("{} - Writing calibration data for parameter {}".format(time.asctime(), parameter.name))
+            self.logger.INFO("Writing calibration data for parameter {}".format(parameter.name))
             self.write_calibration(parameter, coeffs)
 
     def clear_calibration(self):
@@ -76,7 +78,7 @@ class CalibrationRunner(object):
             self.calibtic.clear_calibration()
 
     def continue_calibration(self):
-        self.logger.INFO("{} - Continue calibration".format(time.asctime()))
+        self.logger.INFO("Continue calibration")
         config = self.config
         save_traces = config.get_save_traces()
         repetitions = config.get_repetitions()
@@ -84,17 +86,18 @@ class CalibrationRunner(object):
         for parameter in self.config.get_enabled_calibrations():
             config.set_target(parameter)
             for i, ex in enumerate(self.experiments[parameter]):
-                self.logger.INFO("{} - Running experiment no. {}/{} for parameter {}".format(time.asctime(), i, repetitions-1, parameter.name))
+                self.logger.INFO("Running experiment no. {}/{} for parameter {}".format(i, repetitions-1, parameter.name))
                 for measured in ex.iter_measurements():
                     if measured:
                         self.save_state()
 
-            self.logger.INFO("{} - Fitting result data for parameter {}".format(time.asctime(), parameter.name))
+            self.logger.INFO("Fitting result data for parameter {}".format(parameter.name))
             calibrator = self.get_calibrator(parameter, self.experiments)
-            coeffs = calibrator.calibrate()
+            coeffs = calibrator.generate_coeffs()
             self.coeffs[parameter] = coeffs
 
-            self.logger.INFO("{} - Writing calibration data for parameter {}".format(time.asctime(), parameter.name))
+            self.logger.INFO("Writing calibration data for parameter {}".format(parameter.name))
+            print "WRITE CALIBRATION"
             self.write_calibration(parameter, coeffs)
 
     def save_state(self):
@@ -138,17 +141,7 @@ class CalibrationRunner(object):
 
 class TestRunner(CalibrationRunner):
     logger = pylogging.get("pycake.testrunner")
-
-    def __init__(self, config_file):
-        self.config_file = config_file
-        self.config = pycake.config.Config(None, self.config_file)
-
-        # Initialize calibtic
-        path, name = self.config.get_calibtic_backend()
-        wafer, hicann = self.config.get_coordinates()
-        self.calibtic = pycake.helpers.calibtic.Calibtic(path, wafer, hicann)
-
-        self.filename = "runner{0:02d}{1:02d}_{2:02d}{3:02d}.p".format(time.localtime()[1], time.localtime()[2], time.localtime()[3], time.localtime()[4])
+    pickle_file_pattern = "testrunner_{}.p"
 
     def clear_calibration(self):
         self.logger.TRACE("Not clearing calibration since this is test measurement")

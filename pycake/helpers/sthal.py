@@ -115,6 +115,9 @@ class StHALContainer(object):
             self.connect()
         return self.wafer.status()
 
+    def getPLL(self):
+        return self.wafer.commonFPGASettings().getPLL()
+
     def stimulateNeurons(self, rate, no_generators):
         """Stimulate neurons via background generators
 
@@ -126,7 +129,7 @@ class StHALContainer(object):
         assert(rate <= 5.0e6)
 
         l1address = pyhalbe.HICANN.L1Address(0)
-        bg_period = int(math.floor(self.hicann.pll_freq/rate) - 1)
+        bg_period = int(math.floor(self.getPLL()/rate) - 1)
 
         for bg in Coordinate.iter_all(Coordinate.BackgroundGeneratorOnHICANN):
             generator = self.hicann.layer1[bg]

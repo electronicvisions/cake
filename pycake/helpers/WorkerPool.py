@@ -54,6 +54,8 @@ class WorkerPool(object):
             try:
                 out_list[key] = f(*args)
             except Exception as e:
+                import traceback
+                traceback.print_exc()
                 print e
                 out_list[key] = e
             finally:
