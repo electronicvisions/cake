@@ -1,4 +1,5 @@
 import imp
+import os
 from pycake.helpers.units import Voltage, Current, DAC
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
 
@@ -80,7 +81,8 @@ class Config(object):
         return self.get_config("range")
 
     def get_folder(self):
-        return self.parameters['folder']
+        folder = os.path.expanduser(self.parameters['folder'])
+        return folder
 
     def get_parameters(self):
         """ Returns the parameter dictionary.

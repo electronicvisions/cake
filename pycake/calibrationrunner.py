@@ -10,6 +10,7 @@ import pycake.config
 import pycake.measure
 import pycake.calibrator
 import pycake.helpers.calibtic
+import pycake.helpers.misc
 
 # Import everything needed for saving:
 import pickle
@@ -105,6 +106,7 @@ class CalibrationRunner(object):
         """
         # TODO zip
         folder = self.config.get_folder()
+        pycake.helpers.misc.mkdir_p(folder)
         fullpath = os.path.join(folder, self.filename)
         self.logger.INFO("Pickling current state to {}.".format(fullpath))
         pickle.dump(self, open(fullpath, 'wb'))
