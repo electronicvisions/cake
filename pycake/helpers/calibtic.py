@@ -35,7 +35,7 @@ class Calibtic(object):
     def __setstate__(self, dic):
         # TODO fix for hc, nc, bc, md
         # Initialize logger and calibtic backend when unpickling
-        self.path = dic['path']
+        self.path = os.path.expanduser(dic['path'])
         dic['backend'] = self.init_backend()
         self.__dict__.update(dic)
         self.load_calibration()
