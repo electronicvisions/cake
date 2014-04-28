@@ -108,7 +108,7 @@ class CalibrationRunner(object):
         folder = self.config.get_folder()
         pycake.helpers.misc.mkdir_p(folder)
         fullpath = os.path.join(folder, self.filename)
-        self.logger.INFO("Pickling current state to {}.".format(fullpath))
+        self.logger.INFO("Pickling current state to {}".format(fullpath))
         pickle.dump(self, open(fullpath, 'wb'))
 
     def make_path(self, path):
