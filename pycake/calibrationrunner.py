@@ -106,7 +106,7 @@ class CalibrationRunner(object):
         # TODO zip
         folder = self.config.get_folder()
         fullpath = os.path.join(folder, self.filename)
-        self.logger.INFO("{} - Pickling current state to {}.".format(time.asctime(), fullpath))
+        self.logger.INFO("Pickling current state to {}.".format(fullpath))
         pickle.dump(self, open(fullpath, 'wb'))
 
     def make_path(self, path):
