@@ -44,7 +44,7 @@ class BaseExperimentBuilder(object):
         self.test = test
 
     def generate_measurements(self):
-        self.logger.INFO("{} - Building experiment for parameter {}".format(time.asctime(), self.target_parameter.name))
+        self.logger.INFO("Building experiment for parameter {}".format(self.target_parameter.name))
         measurements = []
         coord_wafer, coord_hicann = self.config.get_coordinates()
         steps = self.config.get_steps()
@@ -55,7 +55,7 @@ class BaseExperimentBuilder(object):
 
         # Create one sthal container for each step
         for step in steps:
-            self.logger.TRACE("{} - Building step {}".format(time.asctime(), step))
+            self.logger.TRACE("Building step {}".format(step))
             sthal = StHALContainer(coord_wafer, coord_hicann)
             step_parameters = self.get_step_parameters(step)
             sthal = self.prepare_parameters(sthal, step_parameters)
@@ -84,7 +84,7 @@ class BaseExperimentBuilder(object):
             neuron_calibrations = self.calibtic.get_calibrations(self.neurons)
             block_calibrations = self.calibtic.get_calibrations(self.blocks)
         except:
-            self.logger.WARN("{} - No calibrations found. Continuing without calibration.".format(time.asctime()))
+            self.logger.WARN("No calibrations found. Continuing without calibration.")
             # TODO neuron_calibrations, block_calibrations is not defined 
 
         for neuron in self.neurons:

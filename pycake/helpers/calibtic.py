@@ -70,7 +70,7 @@ class Calibtic(object):
         fullname = name+".xml"
         fullpath = os.path.join(self.path, fullname)
         if os.path.isfile(fullpath):
-            self.logger.INFO("{} - Clearing calibration data by removing file {}".format(time.asctime(), fullpath))
+            self.logger.INFO("Clearing calibration data by removing file {}".format(fullpath))
             os.remove(fullpath)
 
     def get_calibtic_name(self):
