@@ -290,6 +290,9 @@ class I_gl_Experimentbuilder(BaseExperimentBuilder):
     def get_analyzer(self, parameter):
         """ Get the appropriate analyzer for a specific parameter.
         """
+
+        c_w, c_h = self.config.get_coordinates()
+
         return pycake.analyzer.I_gl_Analyzer(c_w, c_h)
 
 class V_syntc_Experimentbuilder(BaseExperimentBuilder):
