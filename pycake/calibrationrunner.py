@@ -58,7 +58,7 @@ class CalibrationRunner(object):
             self.experiments[parameter] = experiments
 
             for i, ex in enumerate(self.experiments[parameter]):
-                self.logger.INFO("Running experiment no. {}/{} for parameter {}".format(i, repetitions-1, parameter.name))
+                self.logger.INFO("Running experiment no. {}/{} for parameter {}".format(i+1, repetitions, parameter.name))
                 for measured in ex.iter_measurements():
                     if measured:
                         self.save_state()
@@ -86,7 +86,7 @@ class CalibrationRunner(object):
         for parameter in self.config.get_enabled_calibrations():
             config.set_target(parameter)
             for i, ex in enumerate(self.experiments[parameter]):
-                self.logger.INFO("Running experiment no. {}/{} for parameter {}".format(i, repetitions-1, parameter.name))
+                self.logger.INFO("Running experiment no. {}/{} for parameter {}".format(i+1, repetitions, parameter.name))
                 for measured in ex.iter_measurements():
                     if measured:
                         self.save_state()

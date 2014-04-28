@@ -30,7 +30,7 @@ class BaseExperiment(object):
         i_max = len(self.measurements)
         for i, measurement in enumerate(self.measurements):
             if not measurement.done:
-                self.logger.INFO("{} - Running measurement {}/{}".format(time.asctime(), i, i_max-1))
+                self.logger.INFO("{} - Running measurement {}/{}".format(time.asctime(), i+1, i_max))
                 results = measurement.run_measurement(self.analyzer)
                 self.results.append(results)
 
@@ -38,6 +38,6 @@ class BaseExperiment(object):
                     measurement.clear_traces()
                 yield True # Used to save state of runner 
             else:
-                self.logger.INFO("{} - Measurement {}/{} already done. Going on with next one.".format(time.asctime(), i, i_max-1))
+                self.logger.INFO("{} - Measurement {}/{} already done. Going on with next one.".format(time.asctime(), i+1, i_max))
                 yield False
         return
