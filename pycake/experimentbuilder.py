@@ -287,7 +287,7 @@ class I_gl_Experimentbuilder(BaseExperimentBuilder):
     def make_measurement(self, sthal, neurons, readout_shifts):
         return I_gl_Measurement(sthal, neurons, readout_shifts)
 
-    def get_analyzer(self, parameter): # TODO move to experimentbuilder
+    def get_analyzer(self, parameter):
         """ Get the appropriate analyzer for a specific parameter.
         """
         return pycake.analyzer.I_gl_Analyzer(c_w, c_h)

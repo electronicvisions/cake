@@ -7,7 +7,7 @@ import sys
 
 import pyhalbe.Coordinate as Coordinate
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
-
+import pycake.helpers.misc
 
 def create_pycalibtic_polynomial(coefficients):
     """Create a pycalibtic.Polynomial from a list of coefficients.
