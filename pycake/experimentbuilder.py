@@ -248,7 +248,7 @@ class E_l_Experimentbuilder(BaseExperimentBuilder):
 
 class V_reset_Experimentbuilder(BaseExperimentBuilder):
     def get_readout_shifts(self, neurons):
-        if test:
+        if self.test:
             return super(V_reset_Experimentbuilder, self).get_readout_shifts(
                     neurons)
         else:
