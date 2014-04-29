@@ -20,6 +20,7 @@ parameters = {
         "E_l_range":    range(500,800,100),      # 3 steps
         "V_t_range":    range(600,900,100),      # 3 steps
         "I_gl_range":   range(250,300,50),     # 4 steps -> 19 steps
+        "V_syntcx_range": range(1320, 1500, 40), # 4 Steps
 
         # How far should the E_syn values be set around E_l
         "E_syni_dist":  -100,
@@ -154,6 +155,17 @@ parameters = {
         "I_gl_parameters":       {   neuron_parameter.E_l:        Voltage(600),
                                     neuron_parameter.V_t:        Voltage(1200),
                                     shared_parameter.V_reset:    Voltage(200),
+                                },
+
+        "V_syntcx_parameters":  {   neuron_parameter.E_l: Voltage(600, apply_calibration=True),
+                                    neuron_parameter.E_syni: Voltage(500, apply_calibration=True),
+                                    neuron_parameter.E_synx: Voltage(700, apply_calibration=True),
+                                    neuron_parameter.I_gl: Current(180, apply_calibration=True), # lower would proably be better
+                                    shared_parameter.V_gmax0: Voltage(25),
+                                    shared_parameter.V_gmax1: Voltage(25),
+                                    shared_parameter.V_gmax2: Voltage(25),
+                                    shared_parameter.V_gmax3: Voltage(25),
+                                    shared_parameter.V_reset: Voltage(400),
                                 },
 
         # In which order should the parameters be calibrated?

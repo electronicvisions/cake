@@ -295,6 +295,6 @@ class I_gl_Experimentbuilder(BaseExperimentBuilder):
 
         return pycake.analyzer.I_gl_Analyzer(c_w, c_h)
 
-class V_syntc_Experimentbuilder(BaseExperimentBuilder):
-    pass # TODO by CK
+from calibration.vsyntc import V_syntci_Experimentbuilder
+from calibration.vsyntc import V_syntcx_Experimentbuilder
 
