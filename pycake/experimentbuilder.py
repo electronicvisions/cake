@@ -89,10 +89,10 @@ class BaseExperimentBuilder(object):
         fgc = pyhalbe.HICANN.FGControl()
 
         try:
-            neuron_calibrations = self.calibtic.get_calibrations(self.neurons)
-            block_calibrations = self.calibtic.get_calibrations(self.blocks)
-        except:
-            self.logger.INFO("{} - No calibrations found. Continuing without calibration.".format(time.asctime()))
+            neuron_collection = self.calibtic.get_neuron_collection()
+            block_collection = self.calibtic.get_block_collection()
+        except (IndexError):
+            self.logger.INFO("{} - No calibrations found ({}) Continuing without calibration.".format(time.asctime(), sys.exc_info()[0]))
 
         for neuron in self.neurons:
             neuron_params = copy.deepcopy(parameters)
@@ -114,11 +114,10 @@ class BaseExperimentBuilder(object):
                 # Do not calibrate target parameter except if this is a test measurement
                 if value.apply_calibration:
                     try:
-                        nc = neuron_calibrations[neuron]
-                        calibrated = nc.at(param).apply(value.value)
+                        calibrated = neuron_collection.at(neuron_id).at(param).apply(value.value)
                         if neuron_id in range(10) and param == neuron_parameter.E_l:
                             self.logger.TRACE("Calibrated neuron {} parameter {} from value {} to value {}".format(neuron_id, param.name, value.value, calibrated))
-                    except IndexError:
+                    except (IndexError, UnboundLocalError):
                         # TODO proper implementation (give warning etc.)
                         calibrated = value.value
                         if neuron_id in range(1) and param == neuron_parameter.E_l:
@@ -156,11 +155,10 @@ class BaseExperimentBuilder(object):
                 # Do not calibrate target parameter except if this is a test measurement
                 if value.apply_calibration:
                     try:
-                        bc = block_calibrations[block]
-                        calibrated = bc.at(param).apply(value.value)
+                        calibrated = block_collection.at(block_id).at(param).apply(value.value)
                         if param == shared_parameter.V_reset:
                             self.logger.TRACE("Calibrated block {} parameter {} from {} to {}".format(block_id, param.name, value.value, calibrated))
-                    except IndexError:
+                    except (IndexError, UnboundLocalError):
                         # TODO proper implementation (give warning etc.)
                         calibrated = value.value
                         #self.logger.TRACE("No calibration found for parameter {}.".format(param.name))
@@ -184,10 +182,10 @@ class BaseExperimentBuilder(object):
         else:
             upperbound = 1800
         if value < 0:
-            #self.logger.TRACE("Value lower than 0. Clipping")
+            self.logger.TRACE("Value for {} below 0. Clipping".format(parameter.name))
             return 0
         elif value > upperbound:
-            #self.logger.TRACE("Value higher than 1023. Clipping")
+            self.logger.TRACE("Value for {} above 1023. Clipping".format(parameter.name))
             return upperbound
         else:
             return value 
@@ -210,15 +208,15 @@ class BaseExperimentBuilder(object):
             neurons = [neurons]
         shifts = {}
         try:
-            calibrations = self.calibtic.get_calibrations(neurons)
-            for neuron, calib in calibrations.iteritems():
+            neuron_collection = self.calibtic.get_neuron_collection()
+            for neuron in neurons:
                 neuron_id = neuron.id().value()
                 try:
                     # Since readout shift is a constant, return the value for DAC = 0
-                    shift = calib.at(21).apply(0) # Convert to mV
+                    shift = neuron_collection.at(neuron_id).at(21).apply(0) # Convert to mV
                     shifts[neuron] = shift
-                except IndexError:
-                    self.logger.WARN("No readout shift for neuron {} found.".format(neuron_id))
+                except (IndexError, RuntimeError):
+                    self.logger.TRACE("No readout shift for neuron {} found.".format(neuron_id))
                     shifts[neuron] = 0
         except IndexError:
             self.logger.WARN("{}: No readout shifts found. Continuing with 0 shift.".format(sys.exc_info()[0]))
@@ -226,7 +224,7 @@ class BaseExperimentBuilder(object):
                 shifts[neuron] = 0
         return shifts
 
-    def get_analyzer(self, parameter): # TODO move to experimentbuilder
+    def get_analyzer(self, parameter):
         """ Get the appropriate analyzer for a specific parameter.
         """
         AnalyzerType = getattr(pycake.analyzer, "{}_Analyzer".format(parameter.name))

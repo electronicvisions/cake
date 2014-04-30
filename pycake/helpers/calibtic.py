@@ -110,12 +110,15 @@ class Calibtic(object):
         self.nc = nc
         self.bc = bc
         self.md = md
+        self.loaded = True
 
     def write_calibration(self, parameter, coord, coeffs):
         """ Writes calibration data
             Coefficients are ordered like this:
             [a, b, c] ==> a*x^0 + b*x^1 + c*x^2 + ...
         """
+        if not self.loaded:
+            self.load_calibration()
         # TODO check if loaded, if not: load
         name = self.get_calibtic_name()
         #hc, nc, bc, md = self.load_calibration()
@@ -141,11 +144,19 @@ class Calibtic(object):
 
         self.backend.store(name, self.md, self.hc)
 
+    def get_neuron_collection(self):
+        return self.nc
+
+    def get_block_collection(self):
+        return self.bc
+
     def get_calibrations(self, coords):
         """ Returns one calibration for a specific coordinate
             Equivalent to calling e.g. nc.at(coordinate_id)
         """
         #hc, nc, bc, md = self.load_calibration()
+        if not self.loaded:
+            self.load_calibration()
 
         calibs = {}
 
