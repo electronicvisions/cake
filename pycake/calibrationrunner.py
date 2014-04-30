@@ -92,13 +92,14 @@ class CalibrationRunner(object):
                     if measured:
                         self.save_state()
 
-            self.logger.INFO("Fitting result data for parameter {}".format(parameter.name))
+            self.logger.INFO("Fitting result data for parameter {}".format(
+                parameter.name))
             calibrator = self.get_calibrator(parameter, self.experiments)
             coeffs = calibrator.generate_coeffs()
             self.coeffs[parameter] = coeffs
 
-            self.logger.INFO("Writing calibration data for parameter {}".format(parameter.name))
-            print "WRITE CALIBRATION"
+            self.logger.INFO("Writing calibration data for parameter {}".format(
+                parameter.name))
             self.write_calibration(parameter, coeffs)
 
     def save_state(self):
@@ -133,12 +134,11 @@ class CalibrationRunner(object):
         exes = experiments[parameter]
         return calibrator_type(parameter, exes)
         
-    def write_calibration(self, parameter, coeffs):
+    def write_calibration(self, parameter, data):
         """
         """
-        for coord, coeff in coeffs.iteritems():
-            reversed_coeffs = coeff[::-1]
-            self.calibtic.write_calibration(parameter, coord, reversed_coeffs)
+        data = dict((coord, coeff[::-1]) for coord, coeff in data.iteritems())
+        self.calibtic.write_calibration(parameter, data)
 
 
 class TestRunner(CalibrationRunner):

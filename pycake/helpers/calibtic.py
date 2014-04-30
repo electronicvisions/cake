@@ -2,18 +2,16 @@ import pycalibtic
 import pywrapstdvector
 import pylogging
 import os
-import time
-import sys
 
-import pyhalbe.Coordinate as Coordinate
+import Coordinate
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
-import pycake.helpers.misc
 
 def create_pycalibtic_polynomial(coefficients):
     """Create a pycalibtic.Polynomial from a list of coefficients.
 
     Order: [c0, c1, c2, ...] resulting in c0*x^0 + c1*x^1 + c2*x^2 + ..."""
-    coefficients = list(coefficients) # Make standard python list to have the right order
+    # Make standard python list to have the right order
+    coefficients = list(coefficients)
     data = pywrapstdvector.Vector_Double(coefficients)
     return pycalibtic.Polynomial(data)
 
@@ -70,7 +68,8 @@ class Calibtic(object):
         fullname = name+".xml"
         fullpath = os.path.join(self.path, fullname)
         if os.path.isfile(fullpath):
-            self.logger.INFO("Clearing calibration data by removing file {}".format(fullpath))
+            msg = "Clearing calibration data by removing file {}"
+            self.logger.INFO(msg.format(fullpath))
             os.remove(fullpath)
 
     def get_calibtic_name(self):
@@ -89,7 +88,8 @@ class Calibtic(object):
 
         name = self.get_calibtic_name()
 
-        # Delete all standard entries. TODO: fix calibtic to use proper standard entries
+        # Delete all standard entries. 
+        #TODO: fix calibtic to use proper standard entries
         for nid in range(512):
             nc.erase(nid)
         for bid in range(4):
@@ -112,34 +112,37 @@ class Calibtic(object):
         self.bc = bc
         self.md = md
 
-    def write_calibration(self, parameter, coord, coeffs):
+    def write_calibration(self, parameter, data):
         """ Writes calibration data
             Coefficients are ordered like this:
             [a, b, c] ==> a*x^0 + b*x^1 + c*x^2 + ...
+
+            Args:
+                parameter: which neuron or hicann parameter
+                data: dict { coord : coefficients }
         """
         # TODO check if loaded, if not: load
         name = self.get_calibtic_name()
-        #hc, nc, bc, md = self.load_calibration()
 
-        if isinstance(parameter, shared_parameter) and isinstance(coord, Coordinate.FGBlockOnHICANN):
-            collection = self.bc
-            cal = pycalibtic.SharedCalibration()
-        else:
-            collection = self.nc
-            cal = pycalibtic.NeuronCalibration()
+        for coord, coeffs in data.iteritems():
+            if isinstance(parameter, shared_parameter) and isinstance(coord, Coordinate.FGBlockOnHICANN):
+                collection = self.bc
+                cal = pycalibtic.SharedCalibration()
+            else:
+                collection = self.nc
+                cal = pycalibtic.NeuronCalibration()
 
-        if parameter is shared_parameter.V_reset and isinstance(coord, Coordinate.NeuronOnHICANN):
-            param_id = 21
-        else:
-            param_id = parameter
-        
-        index = coord.id().value()
-        polynomial = create_pycalibtic_polynomial(coeffs)
-        if not collection.exists(index):
-            collection.insert(index, cal)
-        collection.at(index).reset(param_id, polynomial)
-        self.logger.TRACE("Resetting coordinate {} parameter {} to {}".format(coord, parameter.name, polynomial))
+            if parameter is shared_parameter.V_reset and isinstance(coord, Coordinate.NeuronOnHICANN):
+                param_id = 21
+            else:
+                param_id = parameter
 
+            index = coord.id().value()
+            polynomial = create_pycalibtic_polynomial(coeffs)
+            if not collection.exists(index):
+                collection.insert(index, cal)
+            collection.at(index).reset(param_id, polynomial)
+            self.logger.TRACE("Resetting coordinate {} parameter {} to {}".format(coord, parameter.name, polynomial))
         self.backend.store(name, self.md, self.hc)
 
     def get_calibrations(self, coords):
