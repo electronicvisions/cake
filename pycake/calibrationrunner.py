@@ -43,7 +43,8 @@ class CalibrationRunner(object):
         self.calibtic = pycake.helpers.calibtic.Calibtic(path, wafer, hicann)
 
         self.logger = pylogging.get("pycake.calibrationrunner")
-        self.filename = "runner{0:02d}{1:02d}_{2:02d}{3:02d}.p".format(time.localtime()[1], time.localtime()[2], time.localtime()[3], time.localtime()[4])
+        prefix = self.config.get_filename_prefix()
+        self.filename = "{0}runner{1:02d}{2:02d}_{3:02d}{4:02d}.p".format(prefix, time.localtime()[1], time.localtime()[2], time.localtime()[3], time.localtime()[4])
         # TODO redman!!
 
     def run_calibration(self):
@@ -157,7 +158,8 @@ class TestRunner(CalibrationRunner):
         wafer, hicann = self.config.get_coordinates()
         self.calibtic = pycake.helpers.calibtic.Calibtic(path, wafer, hicann)
 
-        self.filename = "runner{0:02d}{1:02d}_{2:02d}{3:02d}.p".format(time.localtime()[1], time.localtime()[2], time.localtime()[3], time.localtime()[4])
+        prefix = self.config.get_filename_prefix()
+        self.filename = "{0}runner{1:02d}{2:02d}_{3:02d}{4:02d}.p".format(prefix, time.localtime()[1], time.localtime()[2], time.localtime()[3], time.localtime()[4])
 
     def clear_calibration(self):
         self.logger.TRACE("Not clearing calibration since this is test measurement")

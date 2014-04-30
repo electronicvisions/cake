@@ -81,6 +81,9 @@ class Config(object):
         params.update(self.get_config("parameters"))
         return params
 
+    def get_filename_prefix(self):
+        return self.parameters["filename_prefix"]
+
     def get_step_parameters(self, stepvalue):
         """ Returns parameter dict that is updated for a step value.
 
