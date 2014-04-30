@@ -68,6 +68,7 @@ class CalibrationRunner(object):
             calibrator = self.get_calibrator(parameter, self.experiments)
             coeffs = calibrator.generate_coeffs()
             self.coeffs[parameter] = coeffs
+            self.save_state()
 
             self.logger.INFO("Writing calibration data for parameter {}".format(parameter.name))
             self.write_calibration(parameter, coeffs)
@@ -97,6 +98,7 @@ class CalibrationRunner(object):
             calibrator = self.get_calibrator(parameter, self.experiments)
             coeffs = calibrator.generate_coeffs()
             self.coeffs[parameter] = coeffs
+            self.save_state()
 
             self.logger.INFO("Writing calibration data for parameter {}".format(
                 parameter.name))
