@@ -104,7 +104,7 @@ class Config(object):
         elif target_name.startswith('V'):
             unit = Voltage
         else:
-            raise RuntimeError("Cannot deduce unit of target parameter: {}".format(target_name)
+            raise RuntimeError("Cannot deduce unit of target parameter: {}".format(target_name))
         parameters = self.get_parameters()
         parameters[self.target_parameter] = unit(stepvalue)
         return parameters
