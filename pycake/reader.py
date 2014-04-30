@@ -1,4 +1,4 @@
-import pickle
+import cPickle
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -10,7 +10,7 @@ class Reader(object):
         if isinstance(runner, pycake.calibrationrunner.CalibrationRunner):
             self.runner = runner
         elif os.path.isfile(runner):
-            self.runner = pickle.load(open(runner))
+            self.runner = cPickle.load(open(runner))
         else:
             print "Not a valid file or runner"
 

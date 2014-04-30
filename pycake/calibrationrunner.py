@@ -13,7 +13,7 @@ import pycake.helpers.calibtic
 import pycake.helpers.misc
 
 # Import everything needed for saving:
-import pickle
+import cPickle
 import time
 import os
 import bz2
@@ -109,7 +109,7 @@ class CalibrationRunner(object):
         pycake.helpers.misc.mkdir_p(folder)
         fullpath = os.path.join(folder, self.filename)
         self.logger.INFO("Pickling current state to {}".format(fullpath))
-        pickle.dump(self, open(fullpath, 'wb'))
+        cPickle.dump(self, open(fullpath, 'wb'), protocol=2)
 
     def make_path(self, path):
         if not os.path.isdir(path):
