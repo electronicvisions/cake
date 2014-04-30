@@ -101,7 +101,7 @@ class Config(object):
         target_name = self.target_parameter.name
         if target_name.startswith('I'):
             unit = Current
-        elif target_name.startswith('V'):
+        elif target_name.startswith('V') or target_name.startswith('E'):
             unit = Voltage
         else:
             raise RuntimeError("Cannot deduce unit of target parameter: {}".format(target_name))
