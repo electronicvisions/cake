@@ -92,17 +92,19 @@ class Config(object):
         return params
 
     def get_step_parameters(self, stepvalue):
-        """ Returns parameter dict that is updated for a step value.
+        """ Returns parameter dict where the target parameter
+            is updated with the given stepvalue.
 
             Args:
-                stepvalue:  mV or nA value. How should the step be set?
-                            This affects the target parameter
+                stepvalue:  mV or nA value without unit
         """
         target_name = self.target_parameter.name
-        if target_name == 'I':
+        if target_name.startswith('I'):
             unit = Current
-        else:
+        elif target_name.startswith('V'):
             unit = Voltage
+        else:
+            raise RuntimeError("Cannot deduce unit of target parameter: {}".format(target_name)
         parameters = self.get_parameters()
         parameters[self.target_parameter] = unit(stepvalue)
         return parameters
