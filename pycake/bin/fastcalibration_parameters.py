@@ -149,7 +149,7 @@ parameters = {
         "V_reset_parameters":   {   neuron_parameter.E_l:    Voltage(1100),
                                     neuron_parameter.V_t:    Voltage(900),
                                     neuron_parameter.I_gl:   Current(1200),
-                                    neuron_parameter.I_pl:  Current(500),
+                                    neuron_parameter.I_pl:  Current(20),
                                 },
 
         "I_gl_parameters":       {   neuron_parameter.E_l:        Voltage(600),
