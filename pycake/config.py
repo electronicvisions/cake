@@ -1,4 +1,5 @@
 import imp
+import os
 from pycake.helpers.units import Voltage, Current, DAC
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
 
@@ -16,6 +17,14 @@ class Config(object):
         config_name = self.target_parameter.name
         key = "{}_{}".format(config_name, config_key)
         return self.parameters[key]
+
+    def get_config_with_default(self, config_key, default):
+        """ Returns a given key for experiment or default value if not found
+        """
+        try:
+            return self.get_config(config_key)
+        except KeyError:
+            return default
 
     def set_config(self, config_key, value):
         """ Sets a given key for experiment
@@ -72,7 +81,8 @@ class Config(object):
         return self.get_config("range")
 
     def get_folder(self):
-        return self.parameters['folder']
+        folder = os.path.expanduser(self.parameters['folder'])
+        return folder
 
     def get_parameters(self):
         """ Returns the parameter dictionary.
@@ -85,17 +95,19 @@ class Config(object):
         return self.parameters["filename_prefix"]
 
     def get_step_parameters(self, stepvalue):
-        """ Returns parameter dict that is updated for a step value.
+        """ Returns parameter dict where the target parameter
+            is updated with the given stepvalue.
 
             Args:
-                stepvalue:  mV or nA value. How should the step be set?
-                            This affects the target parameter
+                stepvalue:  mV or nA value without unit
         """
         target_name = self.target_parameter.name
-        if target_name == 'I':
+        if target_name.startswith('I'):
             unit = Current
-        else:
+        elif target_name.startswith('V') or target_name.startswith('E'):
             unit = Voltage
+        else:
+            raise RuntimeError("Cannot deduce unit of target parameter: {}".format(target_name))
         parameters = self.get_parameters()
         parameters[self.target_parameter] = unit(stepvalue)
         return parameters

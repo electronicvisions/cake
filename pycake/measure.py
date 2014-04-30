@@ -3,6 +3,8 @@ import pylogging
 from pyhalbe.Coordinate import NeuronOnHICANN, FGBlockOnHICANN
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
 
+from helpers.WorkerPool import WorkerPool
+
 # Import everything needed for saving:
 import time
 
@@ -27,28 +29,18 @@ class Measurement(object):
                 Note: Every voltage value from the trace is shifted back by -shift!
                 If None is given, the shifts are set to 0.
     """
-    def __getstate__(self):
-        """ Disable stuff from getting pickled that cannot be pickled.
-        """
-        odict = self.__dict__.copy()
-        del odict['logger']
-        return odict
 
-    def __setstate__(self, dic):
-        dic['logger'] = pylogging.get("pycake.measurement")
-        self.__dict__.update(dic)
+    logger = pylogging.get("pycake.measurement")
 
     def __init__(self, sthal, neurons, readout_shifts=None): 
         # TODO: callable readout_shifter instead of dict
         # readout_shifter(neuron, trace)
         self.sthal = sthal
         self.neurons = neurons
-        self.recording_time = self.sthal.recording_time
-        self.time_created = time.asctime()
+        self.time_created = time.time()
         self.traces = {}
         self.spikes = {}
         self.done = False
-        self.logger = pylogging.get("pycake.measurement")
 
         if readout_shifts is None:
             self.logger.WARN("No readout shifts found. Shifts are set to 0")
@@ -115,7 +107,8 @@ class Measurement(object):
 
     def iter_traces(self):
         for neuron in self.traces:
-            yield self.get_trace(neuron)
+            t, v = self.get_trace(neuron)
+            yield t, v, neuron
         return
 
     def configure(self):
@@ -127,7 +120,7 @@ class Measurement(object):
     def pre_measure(self, neuron):
         self.sthal.switch_analog_output(neuron)
 
-    def measure(self):
+    def _measure(self, analyzer):
         """ Measure traces and correct each value for readout shift.
             Changes traces to numpy arrays
 
@@ -135,26 +128,30 @@ class Measurement(object):
                 self.traces = {neuron: trace}
                 self.spikes = {neuron: spikes} #TODO this is not yet implemented
         """
+        self.logger.INFO("Measuring.")
+        worker = WorkerPool(analyzer)
         for neuron in self.neurons:
             self.pre_measure(neuron)
             t, v = self.sthal.read_adc()
             t = np.array(t)
             v = np.array(v)
             self.traces[neuron] = (t, v)
-        
-    def run_measurement(self):
+            # apply readout shift
+            t, v = self.get_trace(neuron)
+            worker.do(neuron, t, v, neuron)
+        self.logger.INFO("Wait for analysis to complete.")
+        return worker.join()
+
+    def run_measurement(self, analyzer):
         """ First configure, then measure
         """
-        self.time_started = time.asctime()
-
-        self.logger.INFO("{} - Connecting to hardware and configuring.".format(time.asctime()))
+        self.logger.INFO("Connecting to hardware and configuring.")
         self.configure()
-        self.logger.INFO("{} - Measuring.".format(time.asctime()))
-        self.measure()
-        self.logger.INFO("{} - Measurement done, disconnecting from hardware.".format(time.asctime()))
+        result = self._measure(analyzer)
+        self.logger.INFO("Measurement done, disconnecting from hardware.")
         self.finish()
-
         self.sthal.disconnect()
+        return result
 
 class I_gl_Measurement(Measurement):
     def pre_measure(self, neuron):

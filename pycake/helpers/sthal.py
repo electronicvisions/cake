@@ -22,18 +22,16 @@ class StHALContainer(object):
     """Contains StHAL objects for hardware access. Multiple experiments can share one container."""
     def __getstate__(self):
         odict = self.__dict__.copy()
-        del odict['logger']
         del odict['hicann']
-        del odict['_cfg_analog']
         return odict
 
     def __setstate__(self, dic):
         coord_hicann = dic['coord_hicann']
         wafer = dic['wafer']
         dic['hicann'] = wafer[coord_hicann]
-        dic['_cfg_analog'] = UpdateAnalogOutputConfigurator()
-        dic['logger'] = pylogging.get("pycake.helper.sthal")
         self.__dict__.update(dic)
+
+    logger = pylogging.get("pycake.helper.sthal")
 
     def __init__(self, coord_wafer,
                  coord_hicann,
@@ -53,9 +51,6 @@ class StHALContainer(object):
         self.recording_time = recording_time
         self.coord_analog = coord_analog
         self._connected = False
-        self._cfg_analog = UpdateAnalogOutputConfigurator()
-        self.logger = pylogging.get("pycake.helper.sthal")
-
 
     def connect(self):
         """Connect to the hardware."""
@@ -120,7 +115,10 @@ class StHALContainer(object):
             self.connect()
         return self.wafer.status()
 
-    def stimulateNeurons(self, rate, no_generators):
+    def getPLL(self):
+        return self.wafer.commonFPGASettings().getPLL()
+
+    def stimulateNeurons(self, rate, no_generators, excitatory=True):
         """Stimulate neurons via background generators
 
         Args:
@@ -131,7 +129,9 @@ class StHALContainer(object):
         assert(rate <= 5.0e6)
 
         l1address = pyhalbe.HICANN.L1Address(0)
-        bg_period = int(math.floor(self.hicann.pll_freq/rate) - 1)
+        bg_period = int(math.floor(self.getPLL()/rate) - 1)
+        self.logger.info("Stimulating neurons from {} background generators"
+                " with isi {}".format(no_generators, bg_period))
 
         for bg in Coordinate.iter_all(Coordinate.BackgroundGeneratorOnHICANN):
             generator = self.hicann.layer1[bg]
@@ -152,14 +152,14 @@ class StHALContainer(object):
             if ii < no_generators:
                 self.route(bg_top, drv_top)
                 self.route(bg_bottom, drv_bottom)
-                self.enable_synapse_line(drv_top, l1address)
-                self.enable_synapse_line(drv_bottom, l1address)
+                self.enable_synapse_line(drv_top, l1address, excitatory)
+                self.enable_synapse_line(drv_bottom, l1address, excitatory)
             else:
                 self.disable_synapse_line(drv_top)
                 self.disable_synapse_line(drv_bottom)
 
 
-    def enable_synapse_line(self, driver_c, l1address, exitatory=True):
+    def enable_synapse_line(self, driver_c, l1address, excitatory=True):
         """
         """
 
@@ -170,7 +170,7 @@ class StHALContainer(object):
 
         driver = self.hicann.synapses[driver_c]
         driver_decoder = l1address.getDriverDecoderMask()
-        driver.set_l1();
+        driver.set_l1()
         driver[top].set_decoder(top, driver_decoder)
         driver[top].set_decoder(bottom, driver_decoder)
         driver[top].set_gmax_div(left, 1)
@@ -182,7 +182,7 @@ class StHALContainer(object):
         driver[bottom].set_syn_in(left, 0)
         driver[bottom].set_syn_in(right, 1)
 
-        if exitatory:
+        if excitatory:
             w_top = [pyhalbe.HICANN.SynapseWeight(15)] * 256
             w_bottom = [pyhalbe.HICANN.SynapseWeight(0)] * 256
         else:
@@ -197,7 +197,8 @@ class StHALContainer(object):
         synapse_decoder = [l1address.getSynapseDecoderMask()] * 256
         self.hicann.synapses[synapse_line_top].decoders[:] = synapse_decoder
         self.hicann.synapses[synapse_line_bottom].decoders[:] = synapse_decoder
-        self.logger.DEBUG("enabled {!s} listing to {!s}".format(driver_c, l1address))
+        self.logger.DEBUG("enabled {!s} listing to {!s}".format(
+            driver_c, l1address))
 
     def disable_synapse_line(self, driver_c):
         """
@@ -207,7 +208,7 @@ class StHALContainer(object):
         bottom = Coordinate.bottom
 
         driver = self.hicann.synapses[driver_c]
-        driver.disable();
+        driver.disable()
         synapse_line_top    = Coordinate.SynapseRowOnHICANN(driver_c, top)
         synapse_line_bottom = Coordinate.SynapseRowOnHICANN(driver_c, bottom)
         weights = [pyhalbe.HICANN.SynapseWeight(0)] * 256
@@ -252,12 +253,13 @@ class StHALContainer(object):
     def switch_current_stimulus_and_output(self, coord_neuron):
         """ Switches the current stimulus and analog output to a certain neuron.
             To avoid invalid neuron configurations (see HICANN doc page 33),
-            all aouts and current stimuli are disabled before enabling them for one neuron."""
+            all aouts and current stimuli are disabled before enabling them for
+            one neuron."""
         if not self._connected:
             self.connect()
         self.hicann.disable_aout()
         self.hicann.disable_current_stimulus()
         self.hicann.enable_current_stimulus(coord_neuron)
         self.hicann.enable_aout(coord_neuron, Coordinate.AnalogOnHICANN(0))
-        self.wafer.configure(self._cfg_analog)
+        self.wafer.configure(UpdateAnalogOutputConfigurator())
 

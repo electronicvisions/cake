@@ -29,14 +29,7 @@ class BaseExperimentBuilder(object):
                     If it is a test measurement, the target parameter is also calibrated.
                     Otherwise, it stays uncalibrated even if there is calibration data for it.
     """
-    def __getstate__(self):
-        odict = self.__dict__.copy()
-        del odict['logger']
-        return odict
-
-    def __setstate__(self, dic):
-        dic['logger'] = pylogging.get("pycake.experimentbuilder")
-        self.__dict__.update(dic)
+    logger = pylogging.get("pycake.experimentbuilder")
 
     def __init__(self, config, test=False):
         self.config = config
@@ -49,10 +42,9 @@ class BaseExperimentBuilder(object):
         self.blocks = self.config.get_blocks()
         self.target_parameter = self.config.target_parameter
         self.test = test
-        self.logger = pylogging.get("pycake.experimentbuilder")
 
     def generate_measurements(self):
-        self.logger.INFO("{} - Building experiment for parameter {}".format(time.asctime(), self.target_parameter.name))
+        self.logger.INFO("Building experiment for parameter {}".format(self.target_parameter.name))
         measurements = []
         coord_wafer, coord_hicann = self.config.get_coordinates()
         steps = self.config.get_steps()
@@ -63,7 +55,7 @@ class BaseExperimentBuilder(object):
 
         # Create one sthal container for each step
         for step in steps:
-            self.logger.TRACE("{} - Building step {}".format(time.asctime(), step))
+            self.logger.TRACE("Building step {}".format(step))
             sthal = StHALContainer(coord_wafer, coord_hicann)
             step_parameters = self.get_step_parameters(step)
             sthal = self.prepare_parameters(sthal, step_parameters)
@@ -89,10 +81,11 @@ class BaseExperimentBuilder(object):
         fgc = pyhalbe.HICANN.FGControl()
 
         try:
-            neuron_collection = self.calibtic.get_neuron_collection()
-            block_collection = self.calibtic.get_block_collection()
-        except (IndexError):
-            self.logger.INFO("{} - No calibrations found ({}) Continuing without calibration.".format(time.asctime(), sys.exc_info()[0]))
+            neuron_calibrations = self.calibtic.get_calibrations(self.neurons)
+            block_calibrations = self.calibtic.get_calibrations(self.blocks)
+        except:
+            self.logger.WARN("No calibrations found. Continuing without calibration.")
+            # TODO neuron_calibrations, block_calibrations is not defined 
 
         for neuron in self.neurons:
             neuron_params = copy.deepcopy(parameters)
@@ -114,15 +107,14 @@ class BaseExperimentBuilder(object):
                 # Do not calibrate target parameter except if this is a test measurement
                 if value.apply_calibration:
                     try:
-                        calibrated = neuron_collection.at(neuron_id).at(param).apply(value.value)
-                        if neuron_id in range(10) and param == neuron_parameter.E_l:
-                            self.logger.TRACE("Calibrated neuron {} parameter {} from value {} to value {}".format(neuron_id, param.name, value.value, calibrated))
-                    except (IndexError, UnboundLocalError):
+                        nc = neuron_calibrations[neuron]
+                        calibrated = nc.at(param).apply(value.value)
+                        self.logger.TRACE("Calibrated neuron {} parameter {} from value {} to value {}".format(neuron_id, param.name, value.value, calibrated))
+                    except (IndexError, RuntimeError):
                         # TODO proper implementation (give warning etc.)
                         calibrated = value.value
-                        if neuron_id in range(1) and param == neuron_parameter.E_l:
-                            self.logger.TRACE("No calibration found for parameter {}.".format(param.name))
-                            self.logger.TRACE(sys.exc_info()[1])
+                        self.logger.warn("No calibration found for {} for parameter {}.".format(neuron, param.name))
+                        self.logger.trace(sys.exc_info()[1])
                 else:
                     calibrated = value.value
                     if neuron_id in range(1) and param == neuron_parameter.E_l:
@@ -204,8 +196,6 @@ class BaseExperimentBuilder(object):
             Returns:
                 shifts: a dictionary {neuron: shift (in V)}
         """
-        if not isinstance(neurons, list):
-            neurons = [neurons]
         shifts = {}
         try:
             neuron_collection = self.calibtic.get_neuron_collection()
@@ -256,18 +246,25 @@ class E_l_Experimentbuilder(BaseExperimentBuilder):
         return parameters
 
 class V_reset_Experimentbuilder(BaseExperimentBuilder):
-    pass
+    def get_readout_shifts(self, neurons):
+        if self.test:
+            return super(V_reset_Experimentbuilder, self).get_readout_shifts(
+                    neurons)
+        else:
+           return dict(((n, 0) for n in neurons))
 
 class V_t_Experimentbuilder(BaseExperimentBuilder):
     pass
 
 class E_syni_Experimentbuilder(BaseExperimentBuilder):
     def prepare_specific_config(self, sthal):
-        sthal.stimulateNeurons(5.0e6, 4)
+        sthal.stimulateNeurons(5.0e6, 1, excitatory=False)
         return sthal
 
-class E_synx_Experimentbuilder(E_syni_Experimentbuilder):
-    pass
+class E_synx_Experimentbuilder(BaseExperimentBuilder):
+    def prepare_specific_config(self, sthal):
+        sthal.stimulateNeurons(5.0e6, 1, excitatory=True)
+        return sthal
 
 class I_gl_Experimentbuilder(BaseExperimentBuilder):
     def prepare_specific_config(self, sthal):
@@ -291,11 +288,12 @@ class I_gl_Experimentbuilder(BaseExperimentBuilder):
     def make_measurement(self, sthal, neurons, readout_shifts):
         return I_gl_Measurement(sthal, neurons, readout_shifts)
 
-    def get_analyzer(self, parameter): # TODO move to experimentbuilder
+    def get_analyzer(self, parameter):
         """ Get the appropriate analyzer for a specific parameter.
         """
+        c_w, c_h = self.config.get_coordinates()
         return pycake.analyzer.I_gl_Analyzer(c_w, c_h)
 
-class V_syntc_Experimentbuilder(BaseExperimentBuilder):
-    pass # TODO by CK
+from calibration.vsyntc import V_syntci_Experimentbuilder
+from calibration.vsyntc import V_syntcx_Experimentbuilder
 

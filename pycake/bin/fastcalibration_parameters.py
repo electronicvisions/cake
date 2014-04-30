@@ -6,7 +6,7 @@ import os
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
 
-folder = "/home/np001/temp/restructure/"
+folder = "/home/koke/test_calib"
 
 parameters = {
 # Which neurons and blocks do you want to calibrate?
@@ -15,26 +15,28 @@ parameters = {
         "blocks":  [FGBlockOnHICANN(Enum(i)) for i in range(4)],
 
         # Set the ranges within which you want to calibrate
-        "V_reset_range":range(400,700,100),      # 3 steps
-        "E_syni_range": range(350,650,100),    # 3 steps
-        "E_synx_range": range(650,950,100),    # 3 steps
-        "E_l_range":    range(500,800,100),      # 3 steps
-        "V_t_range":    range(600,900,100),      # 3 steps
-        "I_gl_range":   range(250,300,50),     # 4 steps -> 19 steps
+        "V_reset_range":  range(400, 700, 100),      # 3 steps
+        "E_syni_range":   range(350, 650, 100),    # 3 steps
+        "E_synx_range":   range(650, 950, 100),    # 3 steps
+        "E_l_range":      range(500, 800, 100),      # 3 steps
+        "V_t_range":      range(600, 900, 100),      # 3 steps
+        "I_gl_range":     range(250, 300, 50),     # 4 steps -> 19 steps
+        "V_syntcx_range": range(1320, 1500, 40), # 4 Steps
 
         # How far should the E_syn values be set around E_l
         "E_syni_dist":  -100,
         "E_synx_dist":  100,
 
-        # How many repetitions? Each repetition will take about 1 minute per step!
+        # How many repetitions?
+        # Each repetition will take about 1 minute per step!
         "repetitions":  1,
-        
+
         # Set which calibrations you want to run
         "run_V_reset":  True,
-        "run_E_synx":   False,
-        "run_E_syni":   False,
-        "run_E_l":      False,
-        "run_V_t":      False,
+        "run_E_synx":   True,
+        "run_E_syni":   True,
+        "run_E_l":      True,
+        "run_V_t":      True,
         "run_I_gl":     False, # TODO g_l calibration is not yet implemented!
         "run_V_syntcx": False,
         "run_V_syntci": False,
@@ -53,6 +55,7 @@ parameters = {
         # Set whether you want to keep traces or delete them after analysis
         "save_traces":  False,
         "V_reset_save_traces": True,
+        "V_t_save_traces": True,
 
         ## If you save your measurements, each folder will have a description file. The following parameters let you specify additional info to be stored.
         #"E_synx_description":   "E_synx calibration.",
@@ -116,13 +119,14 @@ parameters = {
                                 shared_parameter.V_gmax1: Voltage(80),
                                 shared_parameter.V_gmax2: Voltage(80),
                                 shared_parameter.V_gmax3: Voltage(80),
+                                shared_parameter.V_reset: Voltage(550),
                                 },
 
         "E_synx_parameters":     {  neuron_parameter.I_gl: Current(0), # I_gl and I_convi MUST be set to 0
                                     neuron_parameter.I_convx: Current(2500),
                                     neuron_parameter.I_convi: Current(0),
-                                    neuron_parameter.V_syntcx: Voltage(1800),
-                                    neuron_parameter.V_syntci: Voltage(1800),
+                                    neuron_parameter.V_syntcx: Voltage(1420),
+                                    neuron_parameter.V_syntci: Voltage(1420),
                                     neuron_parameter.V_t: Voltage(1200),
                                     shared_parameter.V_reset:  Voltage(200),
                                 },
@@ -130,8 +134,8 @@ parameters = {
         "E_syni_parameters":     {  neuron_parameter.I_gl: Current(0), # I_gl and I_convx MUST be set to 0
                                     neuron_parameter.I_convx: Current(0),
                                     neuron_parameter.I_convi: Current(2500),
-                                    neuron_parameter.V_syntci: Voltage(1800),
-                                    neuron_parameter.V_syntcx: Voltage(1800),
+                                    neuron_parameter.V_syntci: Voltage(1420),
+                                    neuron_parameter.V_syntcx: Voltage(1420),
                                     neuron_parameter.V_t: Voltage(1200),
                                     shared_parameter.V_reset:  Voltage(200),
                                 },
@@ -142,19 +146,33 @@ parameters = {
                                 },
 
         "V_t_parameters":       {   neuron_parameter.E_l:        Voltage(1000),
-                                    neuron_parameter.I_gl:       Current(1000),
+                                    neuron_parameter.I_gl:       Current(1200),
+                                    neuron_parameter.I_pl:  Current(100),
                                     shared_parameter.V_reset:    Voltage(400),
                                 },
 
-        "V_reset_parameters":   {   neuron_parameter.E_l:    Voltage(1100),
+        "V_reset_parameters":   {   neuron_parameter.E_l:    Voltage(1300),
+                                    neuron_parameter.I_convx: Current(0),
+                                    neuron_parameter.I_convi: Current(0),
                                     neuron_parameter.V_t:    Voltage(900),
-                                    neuron_parameter.I_gl:   Current(1200),
-                                    neuron_parameter.I_pl:  Current(500),
+                                    neuron_parameter.I_gl:   Current(1100),
+                                    neuron_parameter.I_pl:  Current(20),
                                 },
 
         "I_gl_parameters":       {   neuron_parameter.E_l:        Voltage(600),
                                     neuron_parameter.V_t:        Voltage(1200),
                                     shared_parameter.V_reset:    Voltage(200),
+                                },
+
+        "V_syntcx_parameters":  {   neuron_parameter.E_l: Voltage(600, apply_calibration=True),
+                                    neuron_parameter.E_syni: Voltage(500, apply_calibration=True),
+                                    neuron_parameter.E_synx: Voltage(700, apply_calibration=True),
+                                    neuron_parameter.I_gl: Current(180, apply_calibration=True), # lower would proably be better
+                                    shared_parameter.V_gmax0: Voltage(25),
+                                    shared_parameter.V_gmax1: Voltage(25),
+                                    shared_parameter.V_gmax2: Voltage(25),
+                                    shared_parameter.V_gmax3: Voltage(25),
+                                    shared_parameter.V_reset: Voltage(400),
                                 },
 
         # In which order should the parameters be calibrated?

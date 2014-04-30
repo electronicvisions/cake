@@ -139,10 +139,10 @@ def HCtoDAC(value, parameter, rounded = True):
         return DAC
     else:
         if DAC > 1023:
-            print "DAC-Value {} for parameter {} too high. Setting to 1023.".format(DAC,parameter.name)
+            #print "DAC-Value {} for parameter {} too high. Setting to 1023.".format(DAC,parameter.name)
             return 1023
         if DAC < 0:
-            print "DAC-Value {} for parameter {} too low. Setting to 0.".format(DAC,parameter.name)
+            #print "DAC-Value {} for parameter {} too low. Setting to 0.".format(DAC,parameter.name)
             return 0
         #raise ValueError("DAC-Value {} for parameter {} out of range".format(DAC,parameter.name))
 
