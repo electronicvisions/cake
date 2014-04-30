@@ -259,11 +259,13 @@ class V_t_Experimentbuilder(BaseExperimentBuilder):
 
 class E_syni_Experimentbuilder(BaseExperimentBuilder):
     def prepare_specific_config(self, sthal):
-        sthal.stimulateNeurons(5.0e6, 4)
+        sthal.stimulateNeurons(5.0e6, 1, excitatory=False)
         return sthal
 
-class E_synx_Experimentbuilder(E_syni_Experimentbuilder):
-    pass
+class E_synx_Experimentbuilder(BaseExperimentBuilder):
+    def prepare_specific_config(self, sthal):
+        sthal.stimulateNeurons(5.0e6, 1, excitatory=True)
+        return sthal
 
 class I_gl_Experimentbuilder(BaseExperimentBuilder):
     def prepare_specific_config(self, sthal):
