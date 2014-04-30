@@ -18,30 +18,43 @@ class Reader(object):
         return self.runner.config.get_neurons()
 
 
+    def get_result(self, parameter, neuron, key, repetition = 0):
+        """ Get measurement results for one neuron.
+
+            Args:
+                parameter: which parameter?
+                neurons: neuron coordinate or id
+                key: which key? (e.g. 'mean', 'std', 'baseline', ...)
+                repetition: single repetition or mean over all? (mean not yet implemented)
+
+            Returns:
+                list of all results
+        """
+        ex = self.runner.experiments[parameter][repetition]
+
+        if isinstance(neurons, int):
+            neuron = C.NeuronOnHICANN(C.Enum(neurons))
+        return [r[neuron][key] for r in ex.results]
+
     def get_results(self, parameter, neurons, key, repetition = 0):
         """ Get measurement results for one neuron.
 
             Args:
                 parameter: which parameter?
-                neurons: neuron coordinate (list) or ids
+                neurons: list of neuron coordinates or ids
                 key: which key? (e.g. 'mean', 'std', 'baseline', ...)
                 repetition: single repetition or mean over all? (mean not yet implemented)
 
             Returns:
-                {neuron: [results]} if neurons is a list, only [results] if only a single neuron is entered
+                {neuron: [results]} if neurons
         """
         ex = self.runner.experiments[parameter][repetition]
 
-        if isinstance(neurons, list):
-            results = {}
-            for neuron in neurons:
-                if isinstance(neuron, int):
-                    neuron = C.NeuronOnHICANN(C.Enum(neuron))
-                results[neuron] = [r[neuron][key] for r in ex.results]
-        else:
-            if isinstance(neurons, int):
-                neuron = C.NeuronOnHICANN(C.Enum(neurons))
-            results = [r[neuron][key] for r in ex.results]
+        results = {}
+        for neuron in neurons:
+            if isinstance(neuron, int):
+                neuron = C.NeuronOnHICANN(C.Enum(neuron))
+            results[neuron] = [r[neuron][key] for r in ex.results]
         return results
 
     def plot_hist(self, parameter, key, step, repetition=0, histrange = 20, **kwargs):
