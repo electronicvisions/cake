@@ -28,8 +28,7 @@ class BaseCalibrator(object):
     """
     logger = pylogging.get("pycake.calibrator")
 
-    def __init__(self, target_parameter, experiments):
-        self.target_parameter = target_parameter
+    def __init__(self, experiments):
         if not isinstance(experiments, list):
             experiments = [experiments]
         self.experiments = experiments
@@ -156,6 +155,8 @@ class BaseCalibrator(object):
 
 
 class V_reset_Calibrator(BaseCalibrator):
+    target_parameter = shared_parameter.V_reset
+
     def get_key(self):
         return 'baseline'
 
@@ -221,18 +222,28 @@ class V_reset_Calibrator(BaseCalibrator):
         return coeffs
 
 class E_synx_Calibrator(BaseCalibrator):
+    target_parameter = neuron_parameter.E_synx
     pass
 
 class E_syni_Calibrator(BaseCalibrator):
+    target_parameter = neuron_parameter.E_syni
     pass
 
 class E_l_Calibrator(BaseCalibrator):
+    target_parameter = neuron_parameter.E_l
     pass
 
 class V_t_Calibrator(BaseCalibrator):
+    target_parameter = neuron_parameter.V_t
     def get_key(self):
         return 'max'
 
 class I_gl_Calibrator(BaseCalibrator):
+    target_parameter = neuron_parameter.I_gl
+    def prepare_x(self, x):
+        xs = [HWtoDAC(val, self.target_parameter) for val in x]
+        xs = np.array(xs)
+        return xs
+
     def get_key(self):
         return 'g_l'
