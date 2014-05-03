@@ -72,6 +72,23 @@ class Calibtic(object):
             self.logger.INFO(msg.format(fullpath))
             os.remove(fullpath)
 
+    def clear_one_calibration(self, parameter):
+        """ Only clears the calibration for one parameter.
+        """
+        if not self.loaded:
+            self.load_calibration()
+
+        if isinstance(parameter, shared_parameter):
+            collection = self.bc
+            ids = range(4)
+        else:
+            collection = self.nc
+            ids = range(512)
+
+        for i in ids:
+            self.logger.TRACE("Resetting calibration for parameter {} for id {}".format(parameter.name, i))
+            collection.at(i).reset(parameter, None)
+
     def get_calibtic_name(self):
         wafer_id = self.wafer.value()
         hicann_id = self.hicann.id().value()
