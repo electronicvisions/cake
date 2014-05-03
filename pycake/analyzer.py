@@ -106,8 +106,9 @@ class I_gl_Analyzer(Analyzer):
     def __call__(self, t, v, neuron):
         mean_trace, std_trace, n_mean = self.trace_averager.get_average(v, self.dt)
         mean_trace = np.array(mean_trace)
+        # TODO take std of an independent measurement (see CKs method)
         std_trace = np.array(std_trace)
-        std_trace /= np.sqrt(np.floor(len(v)/len(mean_trace)))
+        std_trace /= np.sqrt(n_mean)
         tau_m, red_chi2 = self.fit_exponential(mean_trace, std_trace)
         g_l = self.C / tau_m
 
@@ -154,8 +155,8 @@ class I_gl_Analyzer(Analyzer):
             fittime,
             trace_cut,
             [.5, 100., 0.1],
+            sigma=std_trace[fittime],
             full_output=True)
-            #sigma=std_trace[fittime],
     
         tau = expf[0] / self.trace_averager.adc_freq 
 
