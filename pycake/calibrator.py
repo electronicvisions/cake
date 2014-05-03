@@ -168,7 +168,7 @@ class V_reset_Calibrator(BaseCalibrator):
         neurons = measurement.neurons
         blocks = [Coordinate.FGBlockOnHICANN(Coordinate.Enum(i)) for i in range(4)]
         step_parameters = measurement.get_parameter(self.target_parameter, blocks)
-        neuron_parameters = {neuron: step_parameters[neuron.neuronFGBlock()] for neuron in neurons} 
+        neuron_parameters = {neuron: step_parameters[neuron.sharedFGBlock()] for neuron in neurons}
         return neuron_parameters
 
     def iter_V_reset(self, block):
