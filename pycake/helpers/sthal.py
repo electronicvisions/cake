@@ -250,7 +250,7 @@ class StHALContainer(object):
             self.hicann.current_stimuli[block] = stimulus
         # TODO write to FG
 
-    def switch_current_stimulus_and_output(self, coord_neuron):
+    def switch_current_stimulus_and_output(self, coord_neuron, l1address=0):
         """ Switches the current stimulus and analog output to a certain neuron.
             To avoid invalid neuron configurations (see HICANN doc page 33),
             all aouts and current stimuli are disabled before enabling them for
@@ -260,6 +260,7 @@ class StHALContainer(object):
         self.hicann.disable_aout()
         self.hicann.disable_current_stimulus()
         self.hicann.enable_current_stimulus(coord_neuron)
+        self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(l1address))
         self.hicann.enable_aout(coord_neuron, Coordinate.AnalogOnHICANN(0))
         self.wafer.configure(UpdateAnalogOutputConfigurator())
 
