@@ -7,6 +7,8 @@ from collections import defaultdict
 import pyhalbe
 from scipy.optimize import curve_fit
 
+from pycake.helpers.trafos import HWtoDAC
+
 import time
 
 # shorter names
@@ -129,18 +131,17 @@ class BaseCalibrator(object):
     def prepare_x(self, x):
         """ Prepares x values for fit
             Usually, this is a measured membrane voltage in V
-            Per default, this function Translates from V to mV
+            Per default, this function Translates from V or A to DAC
         """
-        xs = np.array(x)
-        return xs*1000
+        xs = [HWtoDAC(val*1000, self.target_parameter) for val in x]
+        xs = np.array(xs)
+        return xs
 
     def prepare_y(self, y):
         """ Prepares y values for fit
-            Per default, these are the step values that were set.
-            Therefor, they must be translated from DAC to Voltage or Current values
+            Per default, these are the step (DAC) values that were set.
         """
-        ys = [self.dac_to_si(dac, self.target_parameter) for dac in y]
-        ys = np.array(ys)
+        ys = np.array(y)
         return ys
 
     def do_fit(self, xs, ys):
