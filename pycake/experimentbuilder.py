@@ -48,7 +48,6 @@ class BaseExperimentBuilder(object):
         measurements = []
         coord_wafer, coord_hicann = self.config.get_coordinates()
         steps = self.config.get_steps()
-        parameters = self.config.get_parameters()
 
         # Get readout shifts
         readout_shifts = self.get_readout_shifts(self.neurons)
@@ -185,8 +184,8 @@ class E_l_Experimentbuilder(BaseExperimentBuilder):
         """
         parameters =  self.config.get_step_parameters(step)
         dist = self.config.get_E_syn_dist()
-        parameters[neuron_parameter.E_syni] = Voltage(step + dist['E_syni'])
-        parameters[neuron_parameter.E_synx] = Voltage(step + dist['E_synx'])
+        parameters[neuron_parameter.E_syni] = Voltage(step + dist['E_syni'], apply_calibration=True)
+        parameters[neuron_parameter.E_synx] = Voltage(step + dist['E_synx'], apply_calibration=True)
         return parameters
 
 class V_reset_Experimentbuilder(BaseExperimentBuilder):

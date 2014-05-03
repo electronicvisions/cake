@@ -35,8 +35,8 @@ class CalibrationRunner(object):
         self.calibtic = pycake.helpers.calibtic.Calibtic(path, wafer, hicann)
 
         prefix = self.config.get_filename_prefix()
-        self.filename = os.path.join(prefix, self.pickle_file_pattern.format(
-                time.strftime('%m%d_%H%M')))
+        self.filename = self.pickle_file_pattern.format(
+                time.strftime('%m%d_%H%M'))
         # TODO redman!!
 
     def run_calibration(self):
@@ -136,7 +136,7 @@ class CalibrationRunner(object):
         """
         calibrator_type = getattr(pycake.calibrator, "{}_Calibrator".format(parameter.name))
         exes = experiments[parameter]
-        return calibrator_type(parameter, exes)
+        return calibrator_type(exes)
         
     def write_calibration(self, parameter, data):
         """
@@ -159,8 +159,8 @@ class TestRunner(CalibrationRunner):
         self.calibtic = pycake.helpers.calibtic.Calibtic(path, wafer, hicann)
 
         prefix = self.config.get_filename_prefix()
-        self.filename = os.path.join(prefix, self.pickle_file_pattern.format(
-                time.strftime('%m%d_%H%M')))
+        self.filename = self.pickle_file_pattern.format(
+                time.strftime('%m%d_%H%M'))
 
     def clear_calibration(self):
         self.logger.TRACE("Not clearing calibration since this is test measurement")
