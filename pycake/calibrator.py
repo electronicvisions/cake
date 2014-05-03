@@ -107,7 +107,7 @@ class BaseCalibrator(object):
     def generate_coeffs(self):
         """ Takes averaged experiments and does the fits
         """
-        average = self.average_over_experiments()[0]
+        average, std = self.average_over_experiments()
         coeffs = {}
         for neuron, results in average.iteritems():
             # Need to switch y and x in order to get the right fit
@@ -205,7 +205,7 @@ class V_reset_Calibrator(BaseCalibrator):
     def generate_coeffs(self):
         """ Takes averaged experiments and does the fits
         """
-        average = self.average_over_experiments()[0]
+        average, std = self.average_over_experiments()
         block_means = self.mean_over_blocks(average)
         shifts = self.get_neuron_shifts(average)
 
