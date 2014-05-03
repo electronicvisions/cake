@@ -101,6 +101,7 @@ class I_gl_Analyzer(Analyzer):
         self.logger.INFO("Initializing I_gl_analyzer by measuring ADC sampling frequency.")
         self.trace_averager = createTraceAverager(coord_wafer, coord_hicann)
         self.dt = 129 * 4 * 16 / pll_freq
+        # TODO implement different capacitors
         self.C = 2.16456e-12 # Capacitance when bigcap is turned on
 
     def __call__(self, t, v, neuron):
