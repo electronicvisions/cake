@@ -80,107 +80,51 @@ class BaseExperimentBuilder(object):
         """
         fgc = pyhalbe.HICANN.FGControl()
 
-        try:
-            neuron_calibrations = self.calibtic.get_calibrations(self.neurons)
-            block_calibrations = self.calibtic.get_calibrations(self.blocks)
-        except:
-            self.logger.WARN("No calibrations found. Continuing without calibration.")
-            # TODO neuron_calibrations, block_calibrations is not defined 
-
         for neuron in self.neurons:
             neuron_params = copy.deepcopy(parameters)
-            neuron_id = neuron.id().value()
-            if neuron_id == 1: # Only give this info for some neurons to avoid spamming cout
-                self.logger.TRACE("Preparing parameters for neuron {}".format(neuron_id))
             for param, value in neuron_params.iteritems():
-                name = param.name
-                if isinstance(param, shared_parameter) or name[0] == '_':
+                if isinstance(param, shared_parameter) or param.name[0] == '_':
                     continue
 
                 # TODO maybe find better solution
                 if self.test and param == self.target_parameter:
-                    if neuron_id in range(1) and param == neuron_parameter.E_l:
-                        self.logger.TRACE("Setting calibration for parameter {} to ON".format(param.name))
                     value.apply_calibration = True
-                ######################################
 
-                # Do not calibrate target parameter except if this is a test measurement
+                value_dac = value.toDAC()
+
                 if value.apply_calibration:
-                    try:
-                        nc = neuron_calibrations[neuron]
-                        calibrated = nc.at(param).apply(value.value)
-                        self.logger.TRACE("Calibrated neuron {} parameter {} from value {} to value {}".format(neuron_id, param.name, value.value, calibrated))
-                    except (IndexError, RuntimeError):
-                        # TODO proper implementation (give warning etc.)
-                        calibrated = value.value
-                        self.logger.warn("No calibration found for {} for parameter {}.".format(neuron, param.name))
-                        self.logger.trace(sys.exc_info()[1])
-                else:
-                    calibrated = value.value
-                    if neuron_id in range(1) and param == neuron_parameter.E_l:
-                        self.logger.TRACE("No calibration wanted for parameter {}.".format(param.name))
+                    self.logger.TRACE("Applying calibration to coord {} value {}".format(neuron, value_dac))
+                    value_dac.value = self.calibtic.apply_calibration(value_dac.value, param, neuron)
 
-                calibrated = self.check_range(calibrated, param)
-                value.value = calibrated
-                int_value = int(round(value.toDAC().value))
-                fgc.setNeuron(neuron, param, int_value)
+                self.logger.TRACE("Setting FGValue of {} parameter {} to {}.".format(neuron, param, value_dac))
+                sthal.hicann.floating_gates.setNeuron(neuron, param, value_dac.value)
 
         for block in self.blocks:
             block_parameters = copy.deepcopy(parameters)
-            block_id = block.id().value()
             for param, value in block_parameters.iteritems():
-                name = param.name
-                if isinstance(param, neuron_parameter) or name[0] == '_':
+                if isinstance(param, neuron_parameter) or param.name[0] == '_':
                     continue
                 # Check if parameter exists for this block
-                even = block_id%2
-                if even and name in ['V_clrc', 'V_bout']:
+                even = block.id().value()%2
+                if even and param.name in ['V_clrc', 'V_bout']:
                     continue
-                if not even and name in ['V_clra', 'V_bexp']:
+                if not even and param.name in ['V_clra', 'V_bexp']:
                     continue
 
                 if self.test and param == self.target_parameter:
-                    if block_id in range(1) and param == neuron_parameter.E_l:
-                        self.logger.TRACE("Setting calibration for parameter {} to ON".format(param.name))
                     value.apply_calibration = True
+
+                value_dac = value.toDAC()
 
                 # Do not calibrate target parameter except if this is a test measurement
                 if value.apply_calibration:
-                    try:
-                        calibrated = block_collection.at(block_id).at(param).apply(value.value)
-                        if param == shared_parameter.V_reset:
-                            self.logger.TRACE("Calibrated block {} parameter {} from {} to {}".format(block_id, param.name, value.value, calibrated))
-                    except (IndexError, UnboundLocalError):
-                        # TODO proper implementation (give warning etc.)
-                        calibrated = value.value
-                        #self.logger.TRACE("No calibration found for parameter {}.".format(param.name))
-                else:
-                    calibrated = value.value
-                    #self.logger.TRACE("No calibration wanted for parameter {}.".format(param.name))
+                    self.logger.TRACE("Applying calibration to coord {} value {}".format(block, value_dac))
+                    value_dac.value = self.calibtic.apply_calibration(value_dac.value, param, block)
 
-                calibrated = self.check_range(calibrated, param)
-                value.value = calibrated
-                int_value = int(round(value.toDAC().value))
-                if block_id == 1:
-                    self.logger.TRACE("Setting block {} parameter {} to value {}".format(block_id, param.name, int_value))
-                fgc.setShared(block, param, int_value)
+                self.logger.TRACE("Setting FGValue of {} parameter {} to {}.".format(block, param, value_dac))
+                sthal.hicann.floating_gates.setShared(block, param, value_dac.value)
 
-        sthal.hicann.floating_gates = fgc
         return sthal
-
-    def check_range(self, value, parameter):
-        if parameter.name[0] == 'I':
-            upperbound = 2500
-        else:
-            upperbound = 1800
-        if value < 0:
-            self.logger.TRACE("Value for {} below 0. Clipping".format(parameter.name))
-            return 0
-        elif value > upperbound:
-            self.logger.TRACE("Value for {} above 1023. Clipping".format(parameter.name))
-            return upperbound
-        else:
-            return value 
 
     def prepare_specific_config(self, sthal):
         """ Hook function to specify additional stuff, e.g. current injection, spike generation, ...

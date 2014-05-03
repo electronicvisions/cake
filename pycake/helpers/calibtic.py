@@ -152,6 +152,8 @@ class Calibtic(object):
                 collection = self.nc
                 cal = pycalibtic.NeuronCalibration()
 
+            # If parameter is V_reset, BUT coordinate is not a block, it is assumed that you want to store readout shifts
+            # Readout shifts are stored as 21st parameter
             if parameter is shared_parameter.V_reset and isinstance(coord, Coordinate.NeuronOnHICANN):
                 param_id = 21
             else:
@@ -165,29 +167,65 @@ class Calibtic(object):
             self.logger.TRACE("Resetting coordinate {} parameter {} to {}".format(coord, parameter.name, polynomial))
         self.backend.store(name, self.md, self.hc)
 
+    def get_hicann_collection(self):
+        return self.hc
+
     def get_neuron_collection(self):
         return self.nc
 
     def get_block_collection(self):
         return self.bc
 
-    def get_calibrations(self, coords):
-        """ Returns one calibration for a specific coordinate
-            Equivalent to calling e.g. nc.at(coordinate_id)
+    def get_calibration(self, coord):
         """
-        #hc, nc, bc, md = self.load_calibration()
+        """
+        if not self.loaded:
+            self.load_calibration()
+        c_id = coord.id().value()
+
+        if isinstance(coord, Coordinate.FGBlockOnHICANN):
+            collection = self.bc
+        else:
+            collection = self.nc
+
+        if collection.exists(c_id):
+            return collection.at(c_id)
+        else:
+            self.logger.WARN("No calibration dataset found for {}.".format(coord))
+            return None
+
+    def apply_calibration(self, dac_value, parameter, coord):
+        """ Apply calibration to one value.
+
+            Args:
+                dac_value
+                parameter
+                coord
+            Returns:
+                Calibrated value if calibration exists. Otherwise,
+                the value itself is returned and a warning is given.
+
+                If the calibrated value exceeds the boundaries, it is clipped.
+        """
         if not self.loaded:
             self.load_calibration()
 
-        calibs = {}
+        calib = self.get_calibration(coord)
+        if not calib:
+            return int(round(dac_value))
 
-        if not isinstance(coords, list):
-            coords = [coords]
+        if calib.exists(parameter):
+            calib_dac_value = calib.at(parameter).apply(dac_value)
+            self.logger.TRACE("Calibrated {} parameter {}: {} --> {} DAC".format(coord, parameter.name, dac_value, calib_dac_value))
+        else:
+            self.logger.WARN("Applying calibration failed: Nothing found for {} parameter {}.".format(coord, parameter.name))
+            calib_dac_value = dac_value
 
-        for coord in coords:
-            c_id = coord.id().value()
-            if isinstance(coord, Coordinate.FGBlockOnHICANN):
-                calibs[coord] = self.bc.at(c_id)
-            else:
-                calibs[coord] = self.nc.at(c_id)
-        return calibs
+        if calib_dac_value < 0:
+            self.logger.WARN("Coord {} Parameter {} DAC-Value {} Calibrated to {} is lower than 0. Clipping.".format(coord, parameter, dac_value, calib_dac_value))
+            calib_dac_value = 0
+        if calib_dac_value > 1023:
+            self.logger.WARN("Coord {} Parameter {} DAC-Value {} Calibrated to {} is larger than 1023. Clipping.".format(coord, parameter, dac_value, calib_dac_value))
+            calib_dac_value = 1023
+
+        return int(round(calib_dac_value))
