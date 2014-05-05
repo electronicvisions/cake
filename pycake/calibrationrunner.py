@@ -34,7 +34,6 @@ class CalibrationRunner(object):
         wafer, hicann = self.config.get_coordinates()
         self.calibtic = pycake.helpers.calibtic.Calibtic(path, wafer, hicann)
 
-        self.logger = pylogging.get("pycake.calibrationrunner")
         prefix = self.config.get_filename_prefix()
         self.filename = os.path.join(prefix, self.pickle_file_pattern.format(
                 time.strftime('%m%d_%H%M')))
