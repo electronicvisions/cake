@@ -108,12 +108,13 @@ class I_gl_Analyzer(Analyzer):
         mean_trace = np.array(mean_trace)
         std_trace = np.array(std_trace)
         std_trace /= np.sqrt(np.floor(len(v)/len(mean_trace)))
-        tau_m, red_chi2 = self.fit_exponential(mean_trace, std_trace)
+        tau_m, red_chi2, offset = self.fit_exponential(mean_trace, std_trace)
         g_l = self.C / tau_m
 
         return { "tau_m" : tau_m,
                  "g_l"  : g_l,
-                 "reduced_chi2": red_chi2}
+                 "reduced_chi2": red_chi2,
+                 "offset" : offset}
 
     def get_decay_fit_range(self, trace):
         """Cuts the trace for the exponential fit. This is done by calculating the second derivative."""
@@ -162,7 +163,7 @@ class I_gl_Analyzer(Analyzer):
         DOF = len(fittime) - len(expf)
         red_chisquare = sum(infodict["fvec"] ** 2) / (DOF)
     
-        return tau, red_chisquare
+        return tau, red_chisquare, expf[1]
 
 class E_l_Analyzer(MeanOfTraceAnalyzer):
     pass
