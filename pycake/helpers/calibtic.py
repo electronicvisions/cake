@@ -214,11 +214,11 @@ class Calibtic(object):
         if not calib:
             return int(round(dac_value))
 
-        try:
+        if calib.exists(parameter):
             calib_dac_value = calib.at(parameter).apply(dac_value)
             self.logger.TRACE("Calibrated {} parameter {}: {} --> {} DAC".format(coord, parameter.name, dac_value, calib_dac_value))
-        except Exception as e:
-            self.logger.WARN("Applying calibration failed \"{}\": Nothing found for {} parameter {}.".format(e, coord, parameter.name))
+        else:
+            self.logger.WARN("Applying calibration failed: Nothing found for {} parameter {}.".format(coord, parameter.name))
             calib_dac_value = dac_value
 
         if calib_dac_value < 0:
