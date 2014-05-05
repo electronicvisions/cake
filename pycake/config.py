@@ -2,6 +2,7 @@ import imp
 import os
 from pycake.helpers.units import Voltage, Current, DAC
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
+import copy
 
 class Config(object):
     def __init__(self, target_parameter, parameters_file):
