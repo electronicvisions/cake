@@ -88,7 +88,7 @@ class Config(object):
     def get_parameters(self):
         """ Returns the parameter dictionary.
         """
-        params = self.parameters["base_parameters"]
+        params = copy.deepcopy(self.parameters["base_parameters"])
         params.update(self.get_config("parameters"))
         return params
 
