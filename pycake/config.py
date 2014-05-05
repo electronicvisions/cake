@@ -92,7 +92,10 @@ class Config(object):
         return params
 
     def get_filename_prefix(self):
-        return self.parameters["filename_prefix"]
+        try:
+            return self.parameters["filename_prefix"]
+        except KeyError:
+            return ""
 
     def get_step_parameters(self, stepvalue):
         """ Returns parameter dict where the target parameter
