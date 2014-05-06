@@ -4,13 +4,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pycake.calibrationrunner
 import Coordinate as C
+from bz2 import BZ2File
 
 class Reader(object):
     def __init__(self, runner):
         if isinstance(runner, pycake.calibrationrunner.CalibrationRunner):
             self.runner = runner
         elif os.path.isfile(runner):
-            self.runner = cPickle.load(open(runner))
+            f_open = open
+            if runner.endswith('.bz2'):
+                f_open = BZ2File
+            with f_open(runner, 'rb') as infile:
+                self.runner = cPickle.load(infile)
         else:
             print "Not a valid file or runner"
 
