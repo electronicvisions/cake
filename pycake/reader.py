@@ -37,8 +37,8 @@ class Reader(object):
         """
         ex = self.runner.experiments[parameter][repetition]
 
-        if isinstance(neurons, int):
-            neuron = C.NeuronOnHICANN(C.Enum(neurons))
+        if isinstance(neuron, int):
+            neuron = C.NeuronOnHICANN(C.Enum(neuron))
         return [r[neuron][key] for r in ex.results]
 
     def get_results(self, parameter, neurons, key, repetition = 0):
