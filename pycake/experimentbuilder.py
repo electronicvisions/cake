@@ -140,21 +140,9 @@ class BaseExperimentBuilder(object):
                 shifts: a dictionary {neuron: shift (in V)}
         """
         shifts = {}
-        try:
-            neuron_collection = self.calibtic.get_neuron_collection()
-            for neuron in neurons:
-                neuron_id = neuron.id().value()
-                try:
-                    # Since readout shift is a constant, return the value for DAC = 0
-                    shift = neuron_collection.at(neuron_id).at(21).apply(0) # Convert to mV
-                    shifts[neuron] = shift
-                except (IndexError, RuntimeError):
-                    self.logger.TRACE("No readout shift for neuron {} found.".format(neuron_id))
-                    shifts[neuron] = 0
-        except IndexError:
-            self.logger.WARN("{}: No readout shifts found. Continuing with 0 shift.".format(sys.exc_info()[0]))
-            for neuron in neurons:
-                shifts[neuron] = 0
+        for neuron in neurons:
+            shift = self.calibtic.get_readout_shift(neuron)
+            shifts[neuron] = shift
         return shifts
 
     def get_analyzer(self, parameter):

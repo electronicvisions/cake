@@ -184,6 +184,25 @@ class Calibtic(object):
             self.logger.WARN("No calibration dataset found for {}.".format(coord))
             return None
 
+    def get_readout_shift(self, neuron):
+        """
+        """
+        if not self._loaded:
+            self._load_calibration()
+
+        calib = self.get_calibration(neuron)
+        if not calib:
+            return 0.0
+
+        if calib.exists(21):
+            shift = calib.at(21).apply(0.0)
+            self.logger.TRACE("Readout shift for neuron {0}:{1:.2f}".format(neuron, shift))
+        else:
+            shift = 0.0
+            self.logger.WARN("No readout shift found for neuron {}.".format(neuron))
+
+        return shift
+
     def apply_calibration(self, dac_value, parameter, coord):
         """ Apply calibration to one value.
 
