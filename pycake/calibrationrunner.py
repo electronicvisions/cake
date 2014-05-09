@@ -62,9 +62,10 @@ class CalibrationRunner(object):
 
             for i, ex in enumerate(self.experiments[parameter]):
                 self.logger.INFO("Running experiment no. {}/{} for parameter {}".format(i+1, repetitions, parameter.name))
-                for measured in ex.iter_measurements():
+                for measurement_id, measured in enumerate(ex.iter_measurements()):
                     if measured:
-                        # TODO Save traces to separate file and clear memory
+                        if save_traces:
+                            self.save_measurement(i, measurement_id, ex, parameter)
                         self.save_state()
 
             self.logger.INFO("Fitting result data for parameter {}".format(parameter.name))
@@ -75,6 +76,26 @@ class CalibrationRunner(object):
 
             self.logger.INFO("Writing calibration data for parameter {}".format(parameter.name))
             self.write_calibration(parameter, coeffs)
+
+    def save_measurement(self, experiment_id, measurement_id, experiment, parameter):
+        """ Save measurement i of experiment to a file and clear the traces from
+            that measurement.
+        """
+        param_name = parameter.name
+        measurement = experiment.get_measurement(measurement_id)
+        top_folder = self.config.get_folder()
+        runner_folder = "{}.measurements/".format(self.filename)                    # e.g. runner_0705_1246_measurements/
+        experiment_folder = "experiment_{}_{}/".format(param_name, experiment_id) # e.g. experiment_E_l/
+        measurement_filename = "measurement_{}.p".format(measurement_id)
+
+        folder = os.path.join(top_folder, runner_folder, experiment_folder)
+        pycake.helpers.misc.mkdir_p(folder)
+
+        fullpath = os.path.join(folder, measurement_filename)
+        self.logger.INFO("Pickling measurement {} of experiment {}({}) to {}".format(measurement_id, param_name, experiment_id, fullpath))
+        cPickle.dump(measurement, open(fullpath, 'wb'), protocol=2)
+        self.logger.INFO("Clearing traces of measurement {} of experiment {}({}) from memory.".format(measurement_id, param_name, experiment_id, fullpath))
+        measurement.clear_traces()
 
     def clear_calibration(self):
         """ Clears calibration if this is set in the config

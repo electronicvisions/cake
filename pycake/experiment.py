@@ -41,3 +41,9 @@ class BaseExperiment(object):
                 self.logger.INFO("Measurement {}/{} already done. Going on with next one.".format(i+1, i_max))
                 yield False
         return
+
+    def get_measurement(self, i):
+        try:
+            return self.measurements[i]
+        except IndexError:
+            return None
