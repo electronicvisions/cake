@@ -11,71 +11,60 @@ import pycake.measure
 import pycake.calibrator
 import pycake.helpers.calibtic
 import pycake.helpers.misc
+from pycake.helpers.StorageProcess import StorageProcess
 
 # Import everything needed for saving:
-import cPickle
 import time
 import os
-import bz2
 import copy
 
 class CalibrationRunner(object):
     """
     """
     logger = pylogging.get("pycake.calibrationrunner")
-    pickle_file_pattern = "{}runner_{}.p"
+    pickle_file_pattern = "runner_{}.p.bz2"
 
     def __init__(self, config_file):
         self.config_file = config_file
         self.config = pycake.config.Config(None, self.config_file)
+        self.experiments = {}
+        self.coeffs = {}
 
         # Initialize calibtic
-        path, name = self.config.get_calibtic_backend()
+        path, _ = self.config.get_calibtic_backend()
         wafer, hicann = self.config.get_coordinates()
         self.calibtic = pycake.helpers.calibtic.Calibtic(path, wafer, hicann)
 
         prefix = self.config.get_filename_prefix()
         self.filename = self.pickle_file_pattern.format(
                 prefix, time.strftime('%m%d_%H%M'))
-
+        self.storage = StorageProcess(compresslevel=4)
         # TODO redman!!
 
     def run_calibration(self):
+        """entry method for regular calibrations
+        to resume a calibrations see: continue_calibration"""
         self.clear_calibration() # Clears calibration if this is wanted
-        self.experiments = {}
-        self.coeffs = {}
         self.logger.INFO("Start calibration")
         config = self.config
+        self.experiments.clear()
+        self.coeffs.clear()
 
         for parameter in self.config.get_enabled_calibrations():
             config.set_target(parameter)
             save_traces = config.get_save_traces()
             repetitions = config.get_repetitions()
 
-            self.logger.INFO("Creating analyzers and experiments for parameter {}".format(parameter.name))
+            self.logger.INFO("Creating analyzers and experiments for "
+                    "parameter {}".format(parameter.name))
             builder = self.get_builder(parameter, config)
             analyzer = builder.get_analyzer(parameter)
             experiments = [
-                    self.get_experiment(builder.generate_measurements(), analyzer, save_traces)
-                    for r in range(repetitions)]
+                    self.get_experiment(
+                        builder.generate_measurements(), analyzer, save_traces)
+                    for _ in range(repetitions)]
             self.experiments[parameter] = experiments
-
-            for i, ex in enumerate(self.experiments[parameter]):
-                self.logger.INFO("Running experiment no. {}/{} for parameter {}".format(i+1, repetitions, parameter.name))
-                for measurement_id, measured in enumerate(ex.iter_measurements()):
-                    if measured:
-                        if save_traces:
-                            self.save_measurement(i, measurement_id, ex, parameter)
-                        self.save_state()
-
-            self.logger.INFO("Fitting result data for parameter {}".format(parameter.name))
-            calibrator = self.get_calibrator(parameter, self.experiments)
-            coeffs = calibrator.generate_coeffs()
-            self.coeffs[parameter] = coeffs
-            self.save_state()
-
-            self.logger.INFO("Writing calibration data for parameter {}".format(parameter.name))
-            self.write_calibration(parameter, coeffs)
+        self._run_measurements()
 
     def save_measurement(self, experiment_id, measurement_id, experiment, parameter):
         """ Save measurement i of experiment to a file and clear the traces from
@@ -98,23 +87,34 @@ class CalibrationRunner(object):
         measurement.clear_traces()
 
     def clear_calibration(self):
-        """ Clears calibration if this is set in the config
+        """ Clears calibration if this is set in the configuration
         """
         if self.config.get_clear():
             self.calibtic.clear_calibration()
 
     def continue_calibration(self):
-        self.logger.INFO("Continue calibration")
-        config = self.config
-        save_traces = config.get_save_traces()
-        repetitions = config.get_repetitions()
+        """resumes an calibration run
 
+        This method will first complete unfinished measurements.
+        Afterwards the calibrator will be run. This can overwrite the results
+        loaded from an previous run."""
+
+        self.logger.INFO("Continue calibration")
+        self._run_measurements()
+
+    def _run_measurements(self):
+        """execute the measurement loop"""
+        config = self.config
         for parameter in self.config.get_enabled_calibrations():
             config.set_target(parameter)
+            repetitions = config.get_repetitions()
+            msg = "Running experiment no. {}/{} for parameter {}"
             for i, ex in enumerate(self.experiments[parameter]):
-                self.logger.INFO("Running experiment no. {}/{} for parameter {}".format(i+1, repetitions, parameter.name))
+                self.logger.INFO(msg.format(i+1, repetitions, parameter.name))
                 for measured in ex.iter_measurements():
                     if measured:
+                        if save_traces:
+                            self.save_measurement(i, measurement_id, ex, parameter)
                         self.save_state()
 
             self.logger.INFO("Fitting result data for parameter {}".format(
@@ -128,6 +128,7 @@ class CalibrationRunner(object):
                 parameter.name))
             self.write_calibration(parameter, coeffs)
 
+
     def save_state(self):
         """ Saves itself to a file in the given path.
         """
@@ -136,7 +137,7 @@ class CalibrationRunner(object):
         pycake.helpers.misc.mkdir_p(folder)
         fullpath = os.path.join(folder, self.filename)
         self.logger.INFO("Pickling current state to {}".format(fullpath))
-        cPickle.dump(self, open(fullpath, 'wb'), protocol=2)
+        self.storage.save_object(fullpath, self)
 
     def make_path(self, path):
         if not os.path.isdir(path):
@@ -169,7 +170,7 @@ class CalibrationRunner(object):
 
 class TestRunner(CalibrationRunner):
     logger = pylogging.get("pycake.testrunner")
-    pickle_file_pattern = "testrunner_{}.p"
+    pickle_file_pattern = "testrunner_{}.p.bz2"
 
     def __init__(self, config_file):
         self.config_file = config_file

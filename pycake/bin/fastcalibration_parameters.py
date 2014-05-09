@@ -108,8 +108,8 @@ parameters = {
                                 neuron_parameter.I_spikeamp: Current(2000),#
                                 neuron_parameter.V_exp: Voltage(1800),      # exponential term
                                 neuron_parameter.V_syni: Voltage(1000),    # inhibitory synaptic reversal potential
-                                neuron_parameter.V_syntci: Voltage(1375),   # inhibitory synapse time constant
-                                neuron_parameter.V_syntcx: Voltage(1375),   # excitatory synapse time constant
+                                neuron_parameter.V_syntci: Voltage(1420),   # inhibitory synapse time constant
+                                neuron_parameter.V_syntcx: Voltage(1420),   # excitatory synapse time constant
                                 neuron_parameter.V_synx: Voltage(1000),    # excitatory synaptic reversal potential
                                 neuron_parameter.V_t: Voltage(1000),       # recommended threshold, maximum is 1100
 
@@ -125,8 +125,6 @@ parameters = {
         "E_synx_parameters":     {  neuron_parameter.I_gl: Current(0), # I_gl and I_convi MUST be set to 0
                                     neuron_parameter.I_convx: Current(2500),
                                     neuron_parameter.I_convi: Current(0),
-                                    neuron_parameter.V_syntcx: Voltage(1420),
-                                    neuron_parameter.V_syntci: Voltage(1420),
                                     neuron_parameter.V_t: Voltage(1200),
                                     shared_parameter.V_reset:  Voltage(200),
                                 },
@@ -134,8 +132,6 @@ parameters = {
         "E_syni_parameters":     {  neuron_parameter.I_gl: Current(0), # I_gl and I_convx MUST be set to 0
                                     neuron_parameter.I_convx: Current(0),
                                     neuron_parameter.I_convi: Current(2500),
-                                    neuron_parameter.V_syntci: Voltage(1420),
-                                    neuron_parameter.V_syntcx: Voltage(1420),
                                     neuron_parameter.V_t: Voltage(1200),
                                     shared_parameter.V_reset:  Voltage(200),
                                 },

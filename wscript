@@ -39,7 +39,8 @@ def build(bld):
         target='pycake',
         source=bld.path.ant_glob('pycake/**/*.py'),
         features='post_task',
-        post_task=['pycalibtic', '_pysthal', 'pylogging', 'pyredman', 'redman_xml', 'redman_mongo'],
+        post_task=['pycalibtic', 'pysthal', 'pylogging', 'pyredman',
+            'redman_xml', 'redman_mongo'],
         install_from='.',
         install_path='lib',
     )
