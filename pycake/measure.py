@@ -103,10 +103,15 @@ class Measurement(object):
             Returns:
                 tuple (t, v)
         """
+        if self.traces[neuron] is None:
+            return None
         t, v = self.traces[neuron]
         t = np.array(t)
         v = np.array(v)
-        return t, self.readout_shifts(neuron, v)
+        if apply_readout_shift:
+            return t, self.readout_shifts(neuron, v)
+        else:
+            return t,v
 
     def iter_traces(self):
         for neuron in self.traces:
