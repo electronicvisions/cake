@@ -23,7 +23,7 @@ class CalibrationRunner(object):
     """
     """
     logger = pylogging.get("pycake.calibrationrunner")
-    pickle_file_pattern = "runner_{}.p"
+    pickle_file_pattern = "{}runner_{}.p"
 
     def __init__(self, config_file):
         self.config_file = config_file
@@ -36,7 +36,8 @@ class CalibrationRunner(object):
 
         prefix = self.config.get_filename_prefix()
         self.filename = self.pickle_file_pattern.format(
-                time.strftime('%m%d_%H%M'))
+                prefix, time.strftime('%m%d_%H%M'))
+
         # TODO redman!!
 
     def run_calibration(self):
