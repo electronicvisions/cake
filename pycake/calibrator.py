@@ -68,7 +68,8 @@ class BaseCalibrator(object):
                 step_results = ex.results[step_id]
                 neuron_parameters = self.get_step_parameters(m)
                 for neuron, step_value in neuron_parameters.iteritems():
-                    merged[neuron].append((step_value, step_results[neuron]))
+                    if step_results[neuron] is not None:
+                        merged[neuron].append((step_value, step_results[neuron]))
                 step_id += 1
 
         ordered = {}
@@ -98,6 +99,10 @@ class BaseCalibrator(object):
             neuron_mean = []
             neuron_std = []
             for step, results in all_results:
+                if len(results) == 0: # If no result at all is found, None should be returned
+                    neuron_mean.append((step, None))
+                    neuron_std.append((step, None))
+                    continue
                 mean_result = np.mean(results)
                 std_result = np.std(results)
                 neuron_mean.append((step, mean_result))

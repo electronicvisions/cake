@@ -111,7 +111,10 @@ class I_gl_Analyzer(Analyzer):
         std_trace = np.array(std_trace)
         std_trace /= np.sqrt(np.floor(len(v)/len(mean_trace)))
         tau_m, red_chi2, offset = self.fit_exponential(mean_trace, std_trace)
-        g_l = self.C / tau_m
+        if tau_m is not None:
+            g_l = self.C / tau_m
+        else:
+            return None
 
         return { "tau_m" : tau_m,
                  "g_l"  : g_l,
@@ -151,14 +154,18 @@ class I_gl_Analyzer(Analyzer):
             return a * np.exp(-(x - x[0]) / tau) + offset
     
         trace_cut, fittime = self.get_decay_fit_range(mean_trace)
-    
-        expf, pcov, infodict, errmsg, ier = curve_fit(
-            func,
-            fittime,
-            trace_cut,
-            [.5, 100., 0.1],
-            sigma=std_trace[fittime],
-            full_output=True)
+
+        try:
+            expf, pcov, infodict, errmsg, ier = curve_fit(
+                func,
+                fittime,
+                trace_cut,
+                [.5, 100., 0.1],
+                sigma=std_trace[fittime],
+                full_output=True)
+        except ValueError as e:
+            self.logger.WARN("Fit failed: {}".format(e))
+            return None, None, None
     
         tau = expf[0] / self.trace_averager.adc_freq 
 
