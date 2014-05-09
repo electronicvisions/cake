@@ -36,14 +36,14 @@ class Calibtic(object):
         self.path = dic['path']
         dic['backend'] = self.init_backend()
         self.__dict__.update(dic)
-        self.load_calibration()
+        self._load_calibration()
 
     def __init__(self, path, wafer, hicann):
-        self.path = self.make_path(os.path.expanduser(path))
+        self.path = self._make_path(os.path.expanduser(path))
         self.backend = self.init_backend()
         self.wafer = wafer
         self.hicann = hicann
-        self.load_calibration()
+        self._load_calibration()
 
     def init_backend(self, type='xml'):
         if type == 'xml':
@@ -55,7 +55,7 @@ class Calibtic(object):
         else:
             raise ValueError("unknown backend type")
 
-    def make_path(self, path):
+    def _make_path(self, path):
         if not os.path.isdir(path):
             self.logger.INFO("Creating backend path {}".format(path))
             os.makedirs(path)
@@ -75,8 +75,8 @@ class Calibtic(object):
     def clear_one_calibration(self, parameter):
         """ Only clears the calibration for one parameter.
         """
-        if not self.loaded:
-            self.load_calibration()
+        if not self._loaded:
+            self._load_calibration()
 
         if isinstance(parameter, shared_parameter):
             collection = self.bc
@@ -95,7 +95,7 @@ class Calibtic(object):
         name = "w{}-h{}".format(int(wafer_id), int(hicann_id))
         return name
 
-    def load_calibration(self):
+    def _load_calibration(self):
         """ Load existing calibration data from backend.
         """
         hc = pycalibtic.HICANNCollection()
@@ -128,7 +128,7 @@ class Calibtic(object):
         self.nc = nc
         self.bc = bc
         self.md = md
-        self.loaded = True
+        self._loaded = True
 
     def write_calibration(self, parameter, data):
         """ Writes calibration data
@@ -139,9 +139,8 @@ class Calibtic(object):
                 parameter: which neuron or hicann parameter
                 data: dict { coord : coefficients }
         """
-        if not self.loaded:
-            self.load_calibration()
-        # TODO check if loaded, if not: load
+        if not self._loaded:
+            self._load_calibration()
         name = self.get_calibtic_name()
 
         for coord, coeffs in data.iteritems():
@@ -167,20 +166,11 @@ class Calibtic(object):
             self.logger.TRACE("Resetting coordinate {} parameter {} to {}".format(coord, parameter.name, polynomial))
         self.backend.store(name, self.md, self.hc)
 
-    def get_hicann_collection(self):
-        return self.hc
-
-    def get_neuron_collection(self):
-        return self.nc
-
-    def get_block_collection(self):
-        return self.bc
-
     def get_calibration(self, coord):
         """
         """
-        if not self.loaded:
-            self.load_calibration()
+        if not self._loaded:
+            self._load_calibration()
         c_id = coord.id().value()
 
         if isinstance(coord, Coordinate.FGBlockOnHICANN):
@@ -207,8 +197,8 @@ class Calibtic(object):
 
                 If the calibrated value exceeds the boundaries, it is clipped.
         """
-        if not self.loaded:
-            self.load_calibration()
+        if not self._loaded:
+            self._load_calibration()
 
         calib = self.get_calibration(coord)
         if not calib:
