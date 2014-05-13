@@ -22,7 +22,7 @@ class CalibrationRunner(object):
     """
     """
     logger = pylogging.get("pycake.calibrationrunner")
-    pickle_file_pattern = "runner_{}.p.bz2"
+    pickle_file_pattern = "runner_{}_{}.p.bz2"
 
     def __init__(self, config_file):
         self.config_file = config_file
@@ -108,12 +108,13 @@ class CalibrationRunner(object):
         for parameter in self.config.get_enabled_calibrations():
             config.set_target(parameter)
             repetitions = config.get_repetitions()
+            self.save_state()
             msg = "Running experiment no. {}/{} for parameter {}"
             for i, ex in enumerate(self.experiments[parameter]):
                 self.logger.INFO(msg.format(i+1, repetitions, parameter.name))
                 for measured in ex.iter_measurements():
                     if measured:
-                        if save_traces:
+                        if config.get_save_traces():
                             self.save_measurement(i, measurement_id, ex, parameter)
                         self.save_state()
 
