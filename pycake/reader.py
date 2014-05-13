@@ -39,7 +39,7 @@ class Reader(object):
 
         if isinstance(neuron, int):
             neuron = C.NeuronOnHICANN(C.Enum(neuron))
-        return [r[neuron][key] for r in ex.results]
+        return [r[neuron].get(key, None) for r in ex.results]
 
     def get_results(self, parameter, neurons, key, repetition = 0):
         """ Get measurement results for one neuron.
@@ -59,7 +59,7 @@ class Reader(object):
         for neuron in neurons:
             if isinstance(neuron, int):
                 neuron = C.NeuronOnHICANN(C.Enum(neuron))
-            results[neuron] = [r[neuron][key] for r in ex.results]
+            results[neuron] = [r[neuron].get(key, None) for r in ex.results]
         return results
 
     def plot_hist(self, parameter, key, step, repetition=0, **kwargs):
