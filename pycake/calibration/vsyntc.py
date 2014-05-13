@@ -34,7 +34,8 @@ class PSPAnalyzer(object):
     The class decides by the signal to noise ratio and the chi**2 of the
     fit if it is good enough.
     """
-    def __init__(self, averager, bg_period, sn_th, chi2_th, PSPShape, prerun):
+    def __init__(self, averager, bg_period, sn_th, chi2_th, PSPShape,
+            prerun, save_mean):
         """
         Args:
             averager: TraceAverager class that can perform the averaging of the
@@ -51,6 +52,7 @@ class PSPAnalyzer(object):
         self.chi2_th = chi2_th
         self.PSPShape = PSPShape
         self.prerun = prerun
+        self.save_mean = save_mean
 
     def __call__(self, t, v, neuron, *args):
         """
@@ -101,6 +103,8 @@ class PSPAnalyzer(object):
             result['chi2'] = chi2
             result['err_estimate'] = err_estimate
             result['area'] = np.sum(psp - result['fit']['offset'])
+        if self.save_mean:
+            result['mean'] = psp
         return result
 
     def align_psp(self, psp):
@@ -161,12 +165,10 @@ class V_syntc_Experimentbuilder(BaseExperimentBuilder):
         pre_result = pre_measurement.run_measurement(
                 V_syntc_PrerunAnalyzer(averager, self.get_bg_period(sthal)))
 
-        import pprint
-        pprint.pprint(pre_result)
-
+        save_traces = self.config.get_save_traces()
         return PSPAnalyzer(averager, self.get_bg_period(sthal),
                 self.sn_threshold, self.chi2_threshold,
-                DoubleExponentialPSP, pre_result)
+                DoubleExponentialPSP, pre_result, save_traces)
 
 class V_syntci_Experimentbuilder(V_syntc_Experimentbuilder):
     pass

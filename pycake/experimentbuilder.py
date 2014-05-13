@@ -13,16 +13,16 @@ from pycake.helpers.units import Current, Voltage, DAC
 from pycake.helpers.sthal import StHALContainer
 from pycake.measure import Measurement, I_gl_Measurement
 import pycake.analyzer
+import Coordinate
 
 # shorter names
-Coordinate = pyhalbe.Coordinate
 Enum = Coordinate.Enum
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
 
 class BaseExperimentBuilder(object):
     """ Builds a list of measurements from a config object.
-        
+
         Args:
             config: pycake.config.Config object
             test:   (True|False) whether this should be a test measurement or not.
@@ -198,6 +198,9 @@ class E_synx_Experimentbuilder(BaseExperimentBuilder):
         return sthal
 
 class I_gl_Experimentbuilder(BaseExperimentBuilder):
+    def __init__(self, *args, **kwargs):
+        super(I_gl_Experimentbuilder, self).__init__(*args, **kwargs)
+
     def prepare_specific_config(self, sthal):
         """ Prepares current stimulus and increases recording time.
         """
@@ -223,7 +226,8 @@ class I_gl_Experimentbuilder(BaseExperimentBuilder):
         """ Get the appropriate analyzer for a specific parameter.
         """
         c_w, c_h = self.config.get_coordinates()
-        return pycake.analyzer.I_gl_Analyzer(c_w, c_h)
+        save_traces = self.config.get_save_traces()
+        return pycake.analyzer.I_gl_Analyzer(c_w, c_h, save_traces)
 
 from calibration.vsyntc import V_syntci_Experimentbuilder
 from calibration.vsyntc import V_syntcx_Experimentbuilder

@@ -95,7 +95,7 @@ class V_reset_Analyzer(Analyzer):
             return baseline, delta_t
 
 class I_gl_Analyzer(Analyzer):
-    def __init__(self, coord_wafer, coord_hicann):
+    def __init__(self, coord_wafer, coord_hicann, save_mean):
         super(I_gl_Analyzer, self).__init__()
         pll_freq = 100e6
         self.logger.INFO("Initializing I_gl_analyzer by measuring ADC sampling frequency.")
@@ -103,6 +103,7 @@ class I_gl_Analyzer(Analyzer):
         self.dt = 129 * 4 * 16 / pll_freq
         # TODO implement different capacitors
         self.C = 2.16456e-12 # Capacitance when bigcap is turned on
+        self.save_mean = save_mean
 
     def __call__(self, t, v, neuron):
         mean_trace, std_trace, n_mean = self.trace_averager.get_average(v, self.dt)
@@ -116,10 +117,13 @@ class I_gl_Analyzer(Analyzer):
         else:
             return None
 
-        return { "tau_m" : tau_m,
+        result = { "tau_m" : tau_m,
                  "g_l"  : g_l,
                  "reduced_chi2": red_chi2,
                  "offset" : offset}
+        if self.save_mean:
+            result["mean"] = mean_trace
+        return result
 
     def get_decay_fit_range(self, trace):
         """Cuts the trace for the exponential fit. This is done by calculating the second derivative."""
