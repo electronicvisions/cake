@@ -89,7 +89,10 @@ class Measurement(object):
                 # TODO raise TypeError
         return values
 
-    def get_trace(self, neuron):
+    def get_neurons(self):
+        return self.neurons
+
+    def get_trace(self, neuron, apply_readout_shift = True):
         """ Get the voltage trace of a neuron.
             Other than in the measurement.trace dictionary,
             these traces are shifted by the readout shift.
@@ -100,10 +103,15 @@ class Measurement(object):
             Returns:
                 tuple (t, v)
         """
+        if self.traces[neuron] is None:
+            return None
         t, v = self.traces[neuron]
         t = np.array(t)
         v = np.array(v)
-        return t, self.readout_shifts(neuron, v)
+        if apply_readout_shift:
+            return t, self.readout_shifts(neuron, v)
+        else:
+            return t,v
 
     def iter_traces(self):
         for neuron in self.traces:

@@ -37,7 +37,7 @@ class CalibrationRunner(object):
 
         prefix = self.config.get_filename_prefix()
         self.filename = self.pickle_file_pattern.format(
-                time.strftime('%m%d_%H%M'))
+                prefix, time.strftime('%m%d_%H%M'))
         self.storage = StorageProcess(compresslevel=4)
         # TODO redman!!
 
@@ -64,9 +64,27 @@ class CalibrationRunner(object):
                         builder.generate_measurements(), analyzer, save_traces)
                     for _ in range(repetitions)]
             self.experiments[parameter] = experiments
-
         self._run_measurements()
-                        # TODO Save traces to separate file and clear memory
+
+    def save_measurement(self, experiment_id, measurement_id, experiment, parameter):
+        """ Save measurement i of experiment to a file and clear the traces from
+            that measurement.
+        """
+        param_name = parameter.name
+        measurement = experiment.get_measurement(measurement_id)
+        top_folder = self.config.get_folder()
+        runner_folder = "{}.measurements/".format(self.filename)                    # e.g. runner_0705_1246_measurements/
+        experiment_folder = "experiment_{}_{}/".format(param_name, experiment_id) # e.g. experiment_E_l/
+        measurement_filename = "measurement_{}.p".format(measurement_id)
+
+        folder = os.path.join(top_folder, runner_folder, experiment_folder)
+        pycake.helpers.misc.mkdir_p(folder)
+
+        fullpath = os.path.join(folder, measurement_filename)
+        self.logger.INFO("Pickling measurement {} of experiment {}({}) to {}".format(measurement_id, param_name, experiment_id, fullpath))
+        cPickle.dump(measurement, open(fullpath, 'wb'), protocol=2)
+        self.logger.INFO("Clearing traces of measurement {} of experiment {}({}) from memory.".format(measurement_id, param_name, experiment_id, fullpath))
+        measurement.clear_traces()
 
     def clear_calibration(self):
         """ Clears calibration if this is set in the configuration
@@ -95,6 +113,8 @@ class CalibrationRunner(object):
                 self.logger.INFO(msg.format(i+1, repetitions, parameter.name))
                 for measured in ex.iter_measurements():
                     if measured:
+                        if save_traces:
+                            self.save_measurement(i, measurement_id, ex, parameter)
                         self.save_state()
 
             self.logger.INFO("Fitting result data for parameter {}".format(

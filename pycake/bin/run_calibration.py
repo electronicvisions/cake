@@ -14,10 +14,12 @@ def check_file(string):
     return string
 
 parser = argparse.ArgumentParser(description='HICANN Calibration tool. Takes a parameter file as input. See pycake/bin/parameters.py to see an example.')
-parser.add_argument('parameter_file', type=check_file, help='')
+parser.add_argument('parameter_file', type=check_file, help='parameterfile containing the parameters of this calibration')
+parser.add_argument('--logfile', default=None,
+                        help="Specify a logfile where all the logger output will be stored (any LogLevel!)")
 args = parser.parse_args()
 
-
+logfile = args.logfile
 
 config_filename = args.parameter_file
 
@@ -31,10 +33,11 @@ pylogging.set_loglevel(pylogging.get("pycake.experiment"),          pylogging.Lo
 pylogging.set_loglevel(pylogging.get("pycake.experimentbuilder"),   pylogging.LogLevel.INFO )
 pylogging.set_loglevel(pylogging.get("pycake.calibtic"),            pylogging.LogLevel.INFO )
 
+if logfile is not None:
+    pylogging.log_to_file(logfile, pylogging.LogLevel.ALL)
+
 if runner.config.get_run_calibration():
     runner.run_calibration()
-
-
 
 test_runner = TestRunner(config_filename)
 
@@ -46,6 +49,9 @@ pylogging.set_loglevel(pylogging.get("pycake.measurement"),         pylogging.Lo
 pylogging.set_loglevel(pylogging.get("pycake.experiment"),          pylogging.LogLevel.INFO )
 pylogging.set_loglevel(pylogging.get("pycake.experimentbuilder"),   pylogging.LogLevel.INFO )
 pylogging.set_loglevel(pylogging.get("pycake.calibtic"),            pylogging.LogLevel.INFO )
+
+if logfile is not None:
+    pylogging.log_to_file(logfile, pylogging.LogLevel.ALL)
 
 if test_runner.config.get_run_test():
     test_runner.run_calibration()
