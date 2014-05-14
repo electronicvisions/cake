@@ -1,10 +1,11 @@
 "TracesOnDiskDict module, contains TracesOnDiskDict class"""
 import tables
 import os
+import collections
 
 import numpy as np
 
-class TracesOnDiskDict(object):
+class TracesOnDiskDict(collections.MutableMapping):
     """A dictonary that stores traces on disc"""
     def __init__(self, directory, filename):
         assert os.path.isdir(directory)
@@ -14,6 +15,9 @@ class TracesOnDiskDict(object):
                 'complib' : 'blosc', 'complevel' : 9}
         self.reverse_keys = {}
         self.__h5file = None
+
+    def __del__(self):
+        self.close()
 
     @property
     def fullpath(self):
@@ -26,14 +30,26 @@ class TracesOnDiskDict(object):
         if self.__h5file is None:
             filters = tables.Filters(**self.h5file_filter_args)
             self.__h5file = tables.openFile(
-                    self.fullpath, mode="w", title="TracesOnDisk",
+                    self.fullpath, mode="a", title="TracesOnDisk",
                     filters=filters)
         return self.__h5file
+
+    def close(self):
+        """closes the underlying file object"""
+        if self.__h5file:
+            self.__h5file.close()
+        self.__h5file = None
 
     @property
     def root(self):
         """root of the hdf5 file"""
         return self.h5file.root
+
+    def update_directory(self, directory):
+        """Updates storage path, useful after unpickling"""
+        assert os.path.isdir(directory)
+        self.close()
+        self.directory = directory
 
     def get_key(self, key):
         """Generates a uniqeu key from a coordinate"""
@@ -41,13 +57,18 @@ class TracesOnDiskDict(object):
         self.reverse_keys[new_key] = key
         return new_key
 
+    def __getstate__(self):
+        odict = self.__dict__.copy()
+        odict['_TracesOnDiskDict__h5file'] = None
+        return odict
+
     def __len__(self):
         return self.root._v_nchildren
 
     def __delitem__(self, key):
-        key = self.get_key(key)
-        if getattr(self.root, key, None):
-            self.h5file.removeNode(getattr(self.root, key))
+        _key = self.get_key(key)
+        if getattr(self.root, _key, None):
+            self.h5file.removeNode(getattr(self.root, _key))
         del self.reverse_keys[key]
 
     def __getitem__(self, key):
@@ -70,25 +91,6 @@ class TracesOnDiskDict(object):
         for value in self.reverse_keys.itervalues():
             yield value
 
-    def itervalues(self):
-        """mimics itervalues from dict"""
-        for dataset in self.root:
-            yield self.reverse_keys[dataset.name], np.array(dataset)
+    def __len__(self):
+        return self.root._v_nchildren
 
-    def iterkeys(self):
-        """mimics iterkeys from dict"""
-        for value in self.reverse_keys.itervalues():
-            yield value
-
-    def iteritems(self):
-        """mimics iteritems from dict"""
-        for dataset in self.root:
-            yield self.reverse_keys[dataset.name], np.array(dataset)
-
-    def keys(self):
-        """mimics keys from dict"""
-        return [k for k in self]
-
-    def values(self):
-        """mimics values from dict"""
-        return [v for v in self.itervalues()]

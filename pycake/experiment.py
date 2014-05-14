@@ -33,9 +33,6 @@ class BaseExperiment(object):
                 self.logger.INFO("Running measurement {}/{}".format(i+1, i_max))
                 results = measurement.run_measurement(self.analyzer)
                 self.results.append(results)
-
-                if not self.save_traces:
-                    measurement.clear_traces()
                 yield True # Used to save state of runner 
             else:
                 self.logger.INFO("Measurement {}/{} already done. Going on with next one.".format(i+1, i_max))
