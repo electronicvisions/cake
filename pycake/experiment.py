@@ -22,7 +22,7 @@ class BaseExperiment(object):
         self.results = []
         self.save_traces = save_traces
 
-    def run_experiments(self):
+    def run(self):
         """Run the experiment and process results."""
         return list(self.iter_measurements())
 
