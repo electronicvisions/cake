@@ -41,17 +41,6 @@ class TracesOnDiskDict(object):
         self.reverse_keys[new_key] = key
         return new_key
 
-    def __getstate__(self):
-        odict = self.__dict__.copy()
-        del odict['hicann']
-        return odict
-
-    def __setstate__(self, dic):
-        coord_hicann = dic['coord_hicann']
-        wafer = dic['wafer']
-        dic['hicann'] = wafer[coord_hicann]
-        self.__dict__.update(dic)
-
     def __len__(self):
         return self.root._v_nchildren
 
