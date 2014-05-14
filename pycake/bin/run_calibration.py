@@ -23,9 +23,7 @@ logfile = args.logfile
 
 config_filename = args.parameter_file
 
-runner = CalibrationRunner(config_filename)
-
-pylogging.default_config()
+pylogging.default_config(date_format='absolute')
 pylogging.set_loglevel(pylogging.get("Default"),                    pylogging.LogLevel.ERROR)
 pylogging.set_loglevel(pylogging.get("pycake.calibrationrunner"),   pylogging.LogLevel.INFO )
 pylogging.set_loglevel(pylogging.get("pycake.measurement"),         pylogging.LogLevel.INFO )
@@ -36,6 +34,7 @@ pylogging.set_loglevel(pylogging.get("pycake.calibtic"),            pylogging.Lo
 if logfile is not None:
     pylogging.log_to_file(logfile, pylogging.LogLevel.ALL)
 
+runner = CalibrationRunner(config_filename)
 if runner.config.get_run_calibration():
     runner.run_calibration()
 

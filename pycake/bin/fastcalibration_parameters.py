@@ -2,26 +2,40 @@ import pyhalbe
 from pyhalbe.Coordinate import NeuronOnHICANN, FGBlockOnHICANN, Enum
 from pycake.helpers.units import Voltage, Current
 import os
+import numpy
 
-neuron_parameter = pyhalbe.HICANN.neuron_parameter
-shared_parameter = pyhalbe.HICANN.shared_parameter
+np = neuron_parameter = pyhalbe.HICANN.neuron_parameter
+sp = shared_parameter = pyhalbe.HICANN.shared_parameter
 
 folder = "/home/koke/test_calib"
 
+def plinspaceV(parameter, start, stop, steps):
+    return [{parameter: Voltage(v)} for v in numpy.linspace(start, stop, steps)]
+
+def plinspace_E_l(start, stop, steps):
+    return [{np.E_l: Voltage(v),
+             np.E_syni : Voltage(v - 100, True),
+             np.E_synx : Voltage(v + 100, True)
+             } for v in numpy.linspace(start, stop, steps)]
+
+def plinspaceC(parameter, start, stop, steps):
+    return [{parameter: Current(v)} for v in numpy.linspace(start, stop, steps)]
+
+
 parameters = {
 # Which neurons and blocks do you want to calibrate?
-        "filename_prefix":  "E_l_",
+        "filename_prefix":  "",
         "neurons": [NeuronOnHICANN(Enum(i)) for i in range(512)],
         "blocks":  [FGBlockOnHICANN(Enum(i)) for i in range(4)],
 
         # Set the ranges within which you want to calibrate
-        "V_reset_range":  range(400, 700, 100),      # 3 steps
-        "E_syni_range":   range(350, 650, 100),    # 3 steps
-        "E_synx_range":   range(650, 950, 100),    # 3 steps
-        "E_l_range":      range(500, 800, 100),      # 3 steps
-        "V_t_range":      range(600, 900, 100),      # 3 steps
-        "I_gl_range":     range(250, 300, 50),     # 4 steps -> 19 steps
-        "V_syntcx_range": range(1320, 1500, 40), # 4 Steps
+        "V_reset_range":  plinspaceV(sp.V_reset, 400, 700, 5),
+        "E_syni_range":   plinspaceV(np.E_syni, 350, 650, 4),
+        "E_synx_range":   plinspaceV(np.E_synx, 650, 950, 4),
+        "E_l_range":      plinspace_E_l(500, 900, 5),
+        "V_t_range":      plinspaceV(np.V_t, 600, 900, 4),
+        "I_gl_range":     plinspaceC(np.I_gl, 100, 800, 8),
+        "V_syntcx_range": plinspaceV(np.V_syntcx, 1200, 1660, 20),
 
         # How far should the E_syn values be set around E_l
         "E_syni_dist":  -100,
@@ -172,14 +186,14 @@ parameters = {
                                 },
 
         # In which order should the parameters be calibrated?
-        "parameter_order":      [   shared_parameter.V_reset,
-                                    neuron_parameter.E_syni,
-                                    neuron_parameter.E_synx,
-                                    neuron_parameter.E_l,
-                                    neuron_parameter.V_t,
-                                    neuron_parameter.I_gl,
-                                    neuron_parameter.V_syntcx,
-                                    neuron_parameter.V_syntci
+        "parameter_order":      [   shared_parameter.V_reset.name,
+                                    neuron_parameter.E_syni.name,
+                                    neuron_parameter.E_synx.name,
+                                    neuron_parameter.E_l.name,
+                                    neuron_parameter.V_t.name,
+                                    neuron_parameter.I_gl.name,
+                                    neuron_parameter.V_syntcx.name,
+                                    neuron_parameter.V_syntci.name,
                                 ],
 }
 

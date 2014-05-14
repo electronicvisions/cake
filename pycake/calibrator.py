@@ -5,14 +5,13 @@ import numpy as np
 import pylogging
 from collections import defaultdict
 import pyhalbe
+import Coordinate
 from scipy.optimize import curve_fit
-
 from pycake.helpers.trafos import HWtoDAC
 
 import time
 
 # shorter names
-Coordinate = pyhalbe.Coordinate
 Enum = Coordinate.Enum
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
@@ -123,7 +122,7 @@ class BaseCalibrator(object):
             xs = self.prepare_x(xs_raw)
             ys = self.prepare_y(ys_raw)
             coeffs[neuron] = self.do_fit(xs, ys)
-        return coeffs
+        return [(self.target_parameter, coeffs)]
 
     def dac_to_si(self, dac, parameter):
         """ Transforms dac value to mV or nA, depending on input parameter
@@ -225,7 +224,7 @@ class V_reset_Calibrator(BaseCalibrator):
             ys = self.prepare_y(ys_raw)
             xs = self.prepare_x(xs_raw)
             coeffs[block] = self.do_fit(xs, ys)
-        return coeffs
+        return [(self.target_parameter, coeffs)]
 
 class E_synx_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.E_synx

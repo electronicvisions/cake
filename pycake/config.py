@@ -5,8 +5,8 @@ from pyhalbe.HICANN import neuron_parameter, shared_parameter
 import copy
 
 class Config(object):
-    def __init__(self, target_parameter, parameters_file):
-        self.target_parameter = target_parameter
+    def __init__(self, name, parameters_file):
+        self.config_name = name
         self.parameters = self.read_parameter_file(parameters_file)
 
     def read_parameter_file(self, parameters_file):
@@ -18,8 +18,7 @@ class Config(object):
     def get_config(self, config_key):
         """ Returns a given key for experiment
         """
-        config_name = self.target_parameter.name
-        key = "{}_{}".format(config_name, config_key)
+        key = "{}_{}".format(self.config_name, config_key)
         return self.parameters[key]
 
     def get_config_with_default(self, config_key, default):
@@ -33,20 +32,19 @@ class Config(object):
     def set_config(self, config_key, value):
         """ Sets a given key for experiment
         """
-        config_name = self.target_parameter.name
-        key = "{}_{}".format(config_name, config_key)
+        key = "{}_{}".format(self.config_name, config_key)
         self.parameters[key] = value
 
     def get_target(self):
         """ Returns the target parameter.
         """
-        return self.target_parameter
+        return self.config_name
 
     def set_target(self, parameter):
         """ Sets the target parameter.
             This affects how most functions read out the parameter file.
         """
-        self.target_parameter = parameter
+        self.config_name = parameter
 
     def get_E_syn_dist(self):
         """ Returns the distances of E_syni and E_synx to E_l in mV
@@ -60,11 +58,10 @@ class Config(object):
         """ Returns a list of parameters which have their "run" setting to True
         """
         run = []
-        for parameter in self.parameters['parameter_order']:
-            paramname = parameter.name
+        for config_name in self.parameters['parameter_order']:
             try:
-                if self.parameters["run_{}".format(paramname)]:
-                    run.append(parameter)
+                if self.parameters["run_{}".format(config_name)]:
+                    run.append(config_name)
             except KeyError:
                 continue
         return run
@@ -108,15 +105,8 @@ class Config(object):
             Args:
                 stepvalue:  mV or nA value without unit
         """
-        target_name = self.target_parameter.name
-        if target_name.startswith('I'):
-            unit = Current
-        elif target_name.startswith('V') or target_name.startswith('E'):
-            unit = Voltage
-        else:
-            raise RuntimeError("Cannot deduce unit of target parameter: {}".format(target_name))
         parameters = self.get_parameters()
-        parameters[self.target_parameter] = unit(stepvalue)
+        parameters.update(stepvalue)
         return parameters
 
     def get_calibtic_backend(self):

@@ -40,11 +40,10 @@ class BaseExperimentBuilder(object):
 
         self.neurons = self.config.get_neurons()
         self.blocks = self.config.get_blocks()
-        self.target_parameter = self.config.target_parameter
         self.test = test
 
     def generate_measurements(self):
-        self.logger.INFO("Building experiment for parameter {}".format(self.target_parameter.name))
+        self.logger.INFO("Building experiment {}".format(self.config.get_target()))
         measurements = []
         coord_wafer, coord_hicann = self.config.get_coordinates()
         steps = self.config.get_steps()
@@ -56,6 +55,12 @@ class BaseExperimentBuilder(object):
         for step in steps:
             self.logger.TRACE("Building step {}".format(step))
             sthal = StHALContainer(coord_wafer, coord_hicann)
+            # TODO maybe find better solution
+            if self.test:
+                step = step.copy()
+                for value in step:
+                    value.apply_calibration = True
+
             step_parameters = self.get_step_parameters(step)
             sthal = self.prepare_parameters(sthal, step_parameters)
             sthal = self.prepare_specific_config(sthal)
@@ -84,10 +89,6 @@ class BaseExperimentBuilder(object):
             for param, value in neuron_params.iteritems():
                 if isinstance(param, shared_parameter) or param.name[0] == '_':
                     continue
-
-                # TODO maybe find better solution
-                if self.test and param == self.target_parameter:
-                    value.apply_calibration = True
 
                 value_dac = value.toDAC()
 
@@ -145,10 +146,10 @@ class BaseExperimentBuilder(object):
             shifts[neuron] = shift
         return shifts
 
-    def get_analyzer(self, parameter):
+    def get_analyzer(self, config_name):
         """ Get the appropriate analyzer for a specific parameter.
         """
-        AnalyzerType = getattr(pycake.analyzer, "{}_Analyzer".format(parameter.name))
+        AnalyzerType = getattr(pycake.analyzer, "{}_Analyzer".format(config_name))
         return AnalyzerType()
 
     # TODO implement redman
@@ -167,14 +168,7 @@ class BaseExperimentBuilder(object):
 
 
 class E_l_Experimentbuilder(BaseExperimentBuilder):
-    def get_step_parameters(self, step):
-        """ For E_l, the reversal potentials need to be set appropriately
-        """
-        parameters =  self.config.get_step_parameters(step)
-        dist = self.config.get_E_syn_dist()
-        parameters[neuron_parameter.E_syni] = Voltage(step + dist['E_syni'], apply_calibration=True)
-        parameters[neuron_parameter.E_synx] = Voltage(step + dist['E_synx'], apply_calibration=True)
-        return parameters
+    pass
 
 class V_reset_Experimentbuilder(BaseExperimentBuilder):
     def get_readout_shifts(self, neurons):

@@ -54,15 +54,15 @@ class CalibrationRunner(object):
         self.experiments.clear()
         self.coeffs.clear()
 
-        for parameter in self.config.get_enabled_calibrations():
-            config.set_target(parameter)
+        for config_name in self.config.get_enabled_calibrations():
+            config.set_target(config_name)
             save_traces = config.get_save_traces()
             repetitions = config.get_repetitions()
 
             self.logger.INFO("Creating analyzers and experiments for "
-                    "parameter {}".format(parameter.name))
-            builder = self.get_builder(parameter, config)
-            analyzer = builder.get_analyzer(parameter)
+                    "parameter {}".format(config_name))
+            builder = self.get_builder(config_name, config)
+            analyzer = builder.get_analyzer(config_name)
             experiments = [
                     self.get_experiment(
                         builder.generate_measurements(), analyzer, save_traces)
@@ -73,20 +73,20 @@ class CalibrationRunner(object):
                     for m_id, measurement in enumerate(exp.measurements):
                         measurement.save_traces(
                                 self.get_measurement_storage_path(
-                                    exp_id, m_id, parameter))
+                                    exp_id, m_id, config_name))
 
-            self.experiments[parameter] = experiments
+            self.experiments[config_name] = experiments
         self._run_measurements()
 
     def get_measurement_storage_path(self, experiment_id, measurement_id,
-            parameter):
+            config_name):
         """ Save measurement i of experiment to a file and clear the traces from
             that measurement.
         """
         folder = os.path.join(
                 self.config.get_folder(),
                 self.measurements_folder,
-                "experiment_{}_{}/".format(parameter.name, experiment_id))
+                "experiment_{}_{}/".format(config_name, experiment_id))
         pycake.helpers.misc.mkdir_p(folder)
         filename = "{}.hdf5".format(measurement_id)
         return os.path.join(folder, filename)
@@ -110,27 +110,27 @@ class CalibrationRunner(object):
     def _run_measurements(self):
         """execute the measurement loop"""
         config = self.config
-        for parameter in self.config.get_enabled_calibrations():
-            config.set_target(parameter)
+        for config_name in self.config.get_enabled_calibrations():
+            config.set_target(config_name)
             repetitions = config.get_repetitions()
             self.save_state()
-            msg = "Running experiment no. {}/{} for parameter {}"
-            for i, ex in enumerate(self.experiments[parameter]):
-                self.logger.INFO(msg.format(i+1, repetitions, parameter.name))
+            msg = "Running experiment no. {}/{} for {}"
+            experiments = self.experiments[config_name]
+            for i, ex in enumerate(experiments):
+                self.logger.INFO(msg.format(i+1, repetitions, config_name))
                 for measured in ex.iter_measurements():
                     if measured:
                         self.save_state()
 
-            self.logger.INFO("Fitting result data for parameter {}".format(
-                parameter.name))
-            calibrator = self.get_calibrator(parameter, self.experiments)
+            self.logger.INFO("Fitting result data for {}".format(config_name))
+            calibrator = self.get_calibrator(config_name, experiments)
             coeffs = calibrator.generate_coeffs()
-            self.coeffs[parameter] = coeffs
-            self.save_state()
+            self.logger.INFO("Writing calibration data for {}".format(
+                config_name))
+            self.write_calibration(coeffs)
+            #self.coeffs[config_name] = coeffs
+            #self.save_state()
 
-            self.logger.INFO("Writing calibration data for parameter {}".format(
-                parameter.name))
-            self.write_calibration(parameter, coeffs)
 
 
     def save_state(self):
@@ -147,10 +147,11 @@ class CalibrationRunner(object):
         if not os.path.isdir(path):
             os.makedirs(path)
 
-    def get_builder(self, parameter, config):
+    def get_builder(self, config_name, config):
         """ Get the right experiment builder.
         """
-        builder_type = getattr(pycake.experimentbuilder, "{}_Experimentbuilder".format(parameter.name))
+        builder_type = getattr(pycake.experimentbuilder,
+                "{}_Experimentbuilder".format(config_name))
         return builder_type(config)
 
     def get_experiment(self, measurements, analyzer, save_traces):
@@ -158,18 +159,19 @@ class CalibrationRunner(object):
         """
         return pycake.experiment.BaseExperiment(measurements, analyzer, save_traces)
 
-    def get_calibrator(self, parameter, experiments):
+    def get_calibrator(self, config_name, experiments):
         """
         """
-        calibrator_type = getattr(pycake.calibrator, "{}_Calibrator".format(parameter.name))
-        exes = experiments[parameter]
-        return calibrator_type(exes)
+        calibrator_type = getattr(pycake.calibrator,
+                "{}_Calibrator".format(config_name))
+        return calibrator_type(experiments)
         
-    def write_calibration(self, parameter, data):
+    def write_calibration(self, coeffs):
         """
         """
-        data = dict((coord, coeff[::-1]) for coord, coeff in data.iteritems())
-        self.calibtic.write_calibration(parameter, data)
+        for parameter, data in coeffs:
+            data = dict((coord, coeff[::-1]) for coord, coeff in data.iteritems())
+            self.calibtic.write_calibration(parameter, data)
 
 
 class TestRunner(CalibrationRunner):
