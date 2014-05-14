@@ -10,7 +10,10 @@ class Config(object):
         self.parameters = self.read_parameter_file(parameters_file)
 
     def read_parameter_file(self, parameters_file):
-        return imp.load_source('parameters', parameters_file).parameters
+        if not isinstance(parameters_file, dict):
+            return imp.load_source('parameters', parameters_file).parameters
+        else:
+            return parameters_file
 
     def get_config(self, config_key):
         """ Returns a given key for experiment
