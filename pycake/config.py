@@ -46,14 +46,6 @@ class Config(object):
         """
         self.config_name = parameter
 
-    def get_E_syn_dist(self):
-        """ Returns the distances of E_syni and E_synx to E_l in mV
-        """
-        i = self.parameters["E_syni_dist"]
-        x = self.parameters["E_synx_dist"]
-        return {"E_syni": i,
-                "E_synx": x}
-
     def get_enabled_calibrations(self):
         """ Returns a list of parameters which have their "run" setting to True
         """

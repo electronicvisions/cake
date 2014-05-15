@@ -37,10 +37,6 @@ parameters = {
         "I_gl_range":     plinspaceC(np.I_gl, 100, 800, 8),
         "V_syntcx_range": plinspaceV(np.V_syntcx, 1200, 1660, 20),
 
-        # How far should the E_syn values be set around E_l
-        "E_syni_dist":  -100,
-        "E_synx_dist":  100,
-
         # How many repetitions?
         # Each repetition will take about 1 minute per step!
         "repetitions":  1,
