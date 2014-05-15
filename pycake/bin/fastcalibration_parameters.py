@@ -1,26 +1,20 @@
 import pyhalbe
-from pyhalbe.Coordinate import NeuronOnHICANN, FGBlockOnHICANN, Enum
+from Coordinate import NeuronOnHICANN, FGBlockOnHICANN, Enum
 from pycake.helpers.units import Voltage, Current
+from pycake.helpers.units import linspace_voltage, linspace_current
 import os
 import numpy
 
 np = neuron_parameter = pyhalbe.HICANN.neuron_parameter
 sp = shared_parameter = pyhalbe.HICANN.shared_parameter
 
-folder = "/home/koke/test_calib"
+folder = "/tmp"
 
-def plinspaceV(parameter, start, stop, steps):
-    return [{parameter: Voltage(v)} for v in numpy.linspace(start, stop, steps)]
-
-def plinspace_E_l(start, stop, steps):
+def make_E_l_parameters(start, stop, steps):
     return [{np.E_l: Voltage(v),
              np.E_syni : Voltage(v - 100, True),
              np.E_synx : Voltage(v + 100, True)
              } for v in numpy.linspace(start, stop, steps)]
-
-def plinspaceC(parameter, start, stop, steps):
-    return [{parameter: Current(v)} for v in numpy.linspace(start, stop, steps)]
-
 
 parameters = {
 # Which neurons and blocks do you want to calibrate?
@@ -29,24 +23,24 @@ parameters = {
         "blocks":  [FGBlockOnHICANN(Enum(i)) for i in range(4)],
 
         # Set the ranges within which you want to calibrate
-        "V_reset_range":  plinspaceV(sp.V_reset, 400, 700, 5),
-        "E_syni_range":   plinspaceV(np.E_syni, 350, 650, 4),
-        "E_synx_range":   plinspaceV(np.E_synx, 650, 950, 4),
-        "E_l_range":      plinspace_E_l(500, 900, 5),
-        "V_t_range":      plinspaceV(np.V_t, 600, 900, 4),
-        "I_gl_range":     plinspaceC(np.I_gl, 100, 800, 8),
-        "V_syntcx_range": plinspaceV(np.V_syntcx, 1200, 1660, 20),
+        "V_reset_range":  {sp.V_reset : linspace_voltage(400, 700, 5)},
+        "E_syni_range":   {np.E_syni : linspace_voltage(350, 650, 4)},
+        "E_synx_range":   {np.E_synx : linspace_voltage(650, 950, 4)},
+        "E_l_range":      make_E_l_parameters(500, 900, 5),
+        "V_t_range":      {np.V_t : linspace_voltage(600, 900, 4)},
+        "I_gl_range":     {np.I_gl : linspace_current(100, 800, 8)},
+        "V_syntcx_range": {np.V_syntcx : linspace_voltage(1200, 1660, 20)},
 
         # How many repetitions?
         # Each repetition will take about 1 minute per step!
         "repetitions":  1,
 
         # Set which calibrations you want to run
-        "run_V_reset":  True,
-        "run_E_synx":   True,
-        "run_E_syni":   True,
-        "run_E_l":      True,
-        "run_V_t":      True,
+        "run_V_reset":  False,
+        "run_E_synx":   False,
+        "run_E_syni":   False,
+        "run_E_l":      False,
+        "run_V_t":      False,
         "run_I_gl":     False, # TODO g_l calibration is not yet implemented!
         "run_V_syntcx": False,
         "run_V_syntci": False,
