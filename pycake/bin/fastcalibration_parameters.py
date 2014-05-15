@@ -49,12 +49,12 @@ parameters = {
         # Measurement runs twice by default: first to generate calibration data, and a second time to measure the success of calibration
         # Here you can turn either of these runs on or off
         "calibrate":    True,
-        "measure":      True,
+        "measure":      False,
 
         # Overwrite old calibration data? This will not reset defect neurons!
         # Or even clear ALL calibration data before starting?
-        "overwrite":    False,
-        "clear":        True,
+        "overwrite":    True,
+        "clear":        False,
 
         # Set whether you want to keep traces or delete them after analysis
         "save_traces":  False,
@@ -77,7 +77,7 @@ parameters = {
         
         # Wafer and HICANN coordinates
         "coord_wafer":  pyhalbe.Coordinate.Wafer(),
-        "coord_hicann": pyhalbe.Coordinate.HICANNOnWafer(pyhalbe.Coordinate.Enum(280)),
+        "coord_hicann": pyhalbe.Coordinate.HICANNOnWafer(pyhalbe.Coordinate.Enum(276)),
 
         ## Maximum tries in case an experiment should fail
         #"max_tries":    3,
@@ -141,8 +141,13 @@ parameters = {
                                 },
 
         "E_l_parameters":       {   neuron_parameter.V_t:        Voltage(1200),
-                                    neuron_parameter.I_gl:       Current(1500),
-                                    shared_parameter.V_reset:    Voltage(300, apply_calibration = True),
+                                    neuron_parameter.E_syni:     Voltage(600,
+                                        apply_calibration=True),
+                                    neuron_parameter.E_synx:     Voltage(800,
+                                        apply_calibration=True),
+                                    neuron_parameter.I_gl:       Current(20),
+                                    shared_parameter.V_reset:    Voltage(500,
+                                        apply_calibration=True),
                                 },
 
         "V_t_parameters":       {   neuron_parameter.E_l:        Voltage(1000),
@@ -159,15 +164,26 @@ parameters = {
                                     neuron_parameter.I_pl:  Current(20),
                                 },
 
-        "I_gl_parameters":       {   neuron_parameter.E_l:        Voltage(600),
+        "I_gl_parameters":       {
+                                    neuron_parameter.E_l:        Voltage(700,
+                                        apply_calibration=True),
                                     neuron_parameter.V_t:        Voltage(1200),
-                                    shared_parameter.V_reset:    Voltage(200),
+                                    neuron_parameter.E_syni:     Voltage(600,
+                                        apply_calibration=True),
+                                    neuron_parameter.E_synx:     Voltage(800,
+                                        apply_calibration=True),
+                                    shared_parameter.V_reset:    Voltage(200,
+                                        apply_calibration=True),
                                 },
 
-        "V_syntcx_parameters":  {   neuron_parameter.E_l: Voltage(600, apply_calibration=True),
-                                    neuron_parameter.E_syni: Voltage(500, apply_calibration=True),
-                                    neuron_parameter.E_synx: Voltage(700, apply_calibration=True),
-                                    neuron_parameter.I_gl: Current(180, apply_calibration=True), # lower would proably be better
+        "V_syntcx_parameters":  {
+                                    neuron_parameter.E_l:     Voltage(700,
+                                        apply_calibration=True),
+                                    neuron_parameter.E_syni:  Voltage(600,
+                                        apply_calibration=True),
+                                    neuron_parameter.I_gl:    Current(1000),
+                                    neuron_parameter.E_synx:  Voltage(800,
+                                        apply_calibration=True),
                                     shared_parameter.V_gmax0: Voltage(25),
                                     shared_parameter.V_gmax1: Voltage(25),
                                     shared_parameter.V_gmax2: Voltage(25),

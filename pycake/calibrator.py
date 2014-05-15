@@ -252,3 +252,5 @@ class I_gl_Calibrator(BaseCalibrator):
 
     def get_key(self):
         return 'g_l'
+
+from pycake.calibration.E_l_I_gl_fixed import E_l_I_gl_fixed_Calibrator

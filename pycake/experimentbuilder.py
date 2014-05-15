@@ -220,6 +220,12 @@ class I_gl_Experimentbuilder(BaseExperimentBuilder):
         save_traces = self.config.get_save_traces()
         return pycake.analyzer.I_gl_Analyzer(c_w, c_h, save_traces)
 
+class E_l_I_gl_fixed_Experimentbuilder(E_l_Experimentbuilder):
+    def get_analyzer(self, config_name):
+        """ Get the appropriate analyzer for a specific parameter.
+        """
+        return pycake.analyzer.MeanOfTraceAnalyzer()
+
 from calibration.vsyntc import V_syntci_Experimentbuilder
 from calibration.vsyntc import V_syntcx_Experimentbuilder
 
