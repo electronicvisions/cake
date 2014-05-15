@@ -131,8 +131,6 @@ class CalibrationRunner(object):
             #self.coeffs[config_name] = coeffs
             #self.save_state()
 
-
-
     def save_state(self):
         """ Saves itself to a file in the given path.
         """
@@ -177,29 +175,18 @@ class CalibrationRunner(object):
 class TestRunner(CalibrationRunner):
     logger = pylogging.get("pycake.testrunner")
     pickle_file_pattern = "testrunner_{}.p.bz2"
-
-    def __init__(self, config_file):
-        self.config_file = config_file
-        self.config = pycake.config.Config(None, self.config_file)
-
-        # Initialize calibtic
-        path, name = self.config.get_calibtic_backend()
-        wafer, hicann = self.config.get_coordinates()
-        self.calibtic = pycake.helpers.calibtic.Calibtic(path, wafer, hicann)
-
-        prefix = self.config.get_filename_prefix()
-        self.filename = self.pickle_file_pattern.format(
-                time.strftime('%m%d_%H%M'))
+    pickel_measurements_folder = "testrunner_{}_{}_measurements"
 
     def clear_calibration(self):
         self.logger.TRACE("Not clearing calibration since this is test measurement")
         pass
 
-    def write_calibration(self, parameter, coeffs):
+    def write_calibration(self, _):
         self.logger.INFO("Writing no calibration since this is test measurement")
 
-    def get_builder(self, parameter, config):
+    def get_builder(self, config_name, config):
         """ Get the right experiment builder.
         """
-        builder_type = getattr(pycake.experimentbuilder, "{}_Experimentbuilder".format(parameter.name))
+        builder_type = getattr(pycake.experimentbuilder,
+                "{}_Experimentbuilder".format(config_name))
         return builder_type(config, test = True)

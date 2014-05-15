@@ -58,7 +58,7 @@ class BaseExperimentBuilder(object):
             # TODO maybe find better solution
             if self.test:
                 step = step.copy()
-                for value in step:
+                for value in step.itervalues():
                     value.apply_calibration = True
 
             step_parameters = self.get_step_parameters(step)
@@ -110,9 +110,6 @@ class BaseExperimentBuilder(object):
                     continue
                 if not even and param.name in ['V_clra', 'V_bexp']:
                     continue
-
-                if self.test and param == self.target_parameter:
-                    value.apply_calibration = True
 
                 value_dac = value.toDAC()
 
