@@ -1,6 +1,6 @@
 import numpy as np
 import pylogging
-from Coordinate import NeuronOnHICANN, FGBlockOnHICANN
+from Coordinate import NeuronOnHICANN, FGBlockOnHICANN, iter_all
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
 
 from helpers.WorkerPool import WorkerPool
@@ -95,6 +95,27 @@ class Measurement(object):
                 print "Invalid parameter <-> coordinate pair"
                 return
                 # TODO raise TypeError
+        return values
+
+    def get_parameters(self, neuron, parameters):
+        """ Read out parameters for the given neuron. Shared parameters are
+        read from the corresponding FGBlock.
+
+            Args:
+                neuron: parameters matching this neuron
+                parameter: [list] parameters to read (neuron_parameter or
+                           shared_parameter)
+            Return:
+                list: containing parameters in the requested order
+        """
+        fgs = self.sthal.hicann.floating_gates
+        values = []
+        for parameter in parameters:
+            if isinstance(parameter, neuron_parameter):
+                values.append(fgs.getNeuron(neuron, parameter))
+            elif isinstance(parameter, shared_parameter):
+                block = neuron.sharedFGBlock()
+                values.append(fgs.getShared(block, parameter))
         return values
 
     def get_neurons(self):

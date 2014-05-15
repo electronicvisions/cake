@@ -1,5 +1,6 @@
 import pylogging
 import time
+import numpy
 
 class BaseExperiment(object):
     """ Takes a list of measurements and analyzers.
@@ -16,6 +17,8 @@ class BaseExperiment(object):
 
     logger = pylogging.get("pycake.experiment")
 
+    #TODO remove save_traces
+    #TODO hold neurons
     def __init__(self, measurements, analyzer, save_traces):
         self.measurements = measurements
         self.analyzer = analyzer
@@ -44,3 +47,24 @@ class BaseExperiment(object):
             return self.measurements[i]
         except IndexError:
             return None
+
+    def get_parameters_and_results(self, neuron, parameters, result_keys):
+        """ Read out parameters and result for the given neuron.
+        Shared parameters are read from the corresponding FGBlock.
+
+            Args:
+                neuron: parameters matching this neuron
+                parameter: [list] parameters to read (neuron_parameter or
+                           shared_parameter)
+                result_keys: [list] result keys to append
+            Return:
+                2D numpy array: each row contains the containing parameters
+                    in the requested order, followed by the requested keys
+        """
+        values =[]
+        for measurement, result in zip(self.measurements, self.results):
+            value = measurement.get_parameters(neuron, parameters)
+            for key in result_keys:
+                value.append(result[neuron][key])
+            values.append(value)
+        return numpy.array(values)
