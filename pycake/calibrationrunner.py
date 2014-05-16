@@ -29,7 +29,7 @@ class CalibrationRunner(object):
     def __init__(self, config_file):
         self.config_file = config_file
         self.config = pycake.config.Config(None, self.config_file)
-        self.experiments = OrderedDict()
+        self.experiments = {}
         self.coeffs = {}
         self.configurations = self.config.get_enabled_calibrations()
 
@@ -52,7 +52,6 @@ class CalibrationRunner(object):
         to resume a calibrations see: continue_calibration"""
         self.clear_calibration() # Clears calibration if this is wanted
         self.logger.INFO("Start calibration")
-        config = self.config
         self.experiments.clear()
         self.coeffs.clear()
         for config_name in self.configurations:
@@ -62,8 +61,6 @@ class CalibrationRunner(object):
     def get_experiment(self, config_name):
         """Returns the experiment for a givin config step"""
         config = self.config.copy(config_name)
-        save_traces = config.get_save_traces()
-        repetitions = config.get_repetitions()
 
         self.logger.INFO("Creating analyzers and experiments for "
                 "parameter {}".format(config_name))
@@ -72,7 +69,7 @@ class CalibrationRunner(object):
 
         if self.config.get_save_traces():
             for mid, measurement in enumerate(experiment.measurements):
-                 measurement.save_traces(self.get_measurement_storage_path(
+                measurement.save_traces(self.get_measurement_storage_path(
                                 mid, config_name))
 
         return experiment
@@ -111,7 +108,8 @@ class CalibrationRunner(object):
         if not self.experiments:
             self.logger.WARN("No experiments configured.")
 
-        for config_name, experiment in self.experiments.iteritems():
+        for config_name in self.configurations:
+            experiment = self.experiments[config_name]
             # Create experiments lazy to apply calibration from previous runs
             # correctly
             if experiment is None:

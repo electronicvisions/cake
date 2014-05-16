@@ -5,20 +5,18 @@ from pyhalbe.HICANN import neuron_parameter, shared_parameter
 import copy
 
 class Config(object):
-    def __init__(self, name, parameters_file):
+    def __init__(self, name, parameters):
         self.config_name = name
-        self.parameters = self.read_parameter_file(parameters_file)
+        if isinstance(parameters, dict):
+            self.parameters = copy.deepcopy(parameters)
+        else:
+            self.parameters = self.read_parameter_file(parameters)
 
     def copy(self, config_name):
-        config = copy.deepcopy(self)
-        config.set_target(config_name)
-        return config
+        return Config(config_name, self.parameters)
 
     def read_parameter_file(self, parameters_file):
-        if not isinstance(parameters_file, dict):
-            return imp.load_source('parameters', parameters_file).parameters
-        else:
-            return parameters_file
+        return imp.load_source('parameters', parameters_file).parameters
 
     def get_config(self, config_key):
         """ Returns a given key for experiment
