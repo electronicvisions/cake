@@ -48,7 +48,8 @@ class BaseCalibrator(object):
     def get_step_parameters(self, measurement):
         """
         """
-        step_parameters = measurement.get_parameter(self.target_parameter, measurement.neurons)
+        step_parameters = measurement.get_parameter(
+                self.target_parameter, measurement.neurons)
         return step_parameters
 
     def merge_experiments(self):

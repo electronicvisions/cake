@@ -9,6 +9,11 @@ class Config(object):
         self.config_name = name
         self.parameters = self.read_parameter_file(parameters_file)
 
+    def copy(self, config_name):
+        config = copy.deepcopy(self)
+        config.set_target(config_name)
+        return config
+
     def read_parameter_file(self, parameters_file):
         if not isinstance(parameters_file, dict):
             return imp.load_source('parameters', parameters_file).parameters

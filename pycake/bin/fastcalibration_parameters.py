@@ -23,13 +23,13 @@ parameters = {
         "blocks":  [FGBlockOnHICANN(Enum(i)) for i in range(4)],
 
         # Set the ranges within which you want to calibrate
-        "V_reset_range":  {sp.V_reset : linspace_voltage(400, 700, 5)},
-        "E_syni_range":   {np.E_syni : linspace_voltage(350, 650, 4)},
-        "E_synx_range":   {np.E_synx : linspace_voltage(650, 950, 4)},
+        "V_reset_range":  [{sp.V_reset : v} for v in linspace_voltage(400, 700, 5)],
+        "E_syni_range":   [{np.E_syni : v} for v in linspace_voltage(350, 650, 4)],
+        "E_synx_range":   [{np.E_synx : v} for v in linspace_voltage(650, 950, 4)],
         "E_l_range":      make_E_l_parameters(500, 900, 5),
-        "V_t_range":      {np.V_t : linspace_voltage(600, 900, 4)},
-        "I_gl_range":     {np.I_gl : linspace_current(100, 800, 8)},
-        "V_syntcx_range": {np.V_syntcx : linspace_voltage(1200, 1660, 20)},
+        "V_t_range":      [{np.V_t : v} for v in linspace_voltage(600, 900, 4)],
+        "I_gl_range":     [{np.I_gl : v} for v in linspace_current(100, 800, 8)],
+        "V_syntcx_range": [{np.V_syntcx : v} for v in linspace_voltage(1200, 1660, 20)],
 
         # How many repetitions?
         # Each repetition will take about 1 minute per step!
@@ -41,7 +41,7 @@ parameters = {
         "run_E_syni":   False,
         "run_E_l":      False,
         "run_V_t":      False,
-        "run_I_gl":     False, # TODO g_l calibration is not yet implemented!
+        "run_I_gl":     False,
         "run_V_syntcx": False,
         "run_V_syntci": False,
 
