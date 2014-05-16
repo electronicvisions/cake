@@ -90,7 +90,7 @@ class V_reset_Analyzer(Analyzer):
             else:
                 baseline = np.min(v)
 
-            #----------------------------------------------------------------------
+            #-------------------------------------------------------------------
 
             return baseline, delta_t
 
@@ -170,22 +170,13 @@ class I_gl_Analyzer(Analyzer):
         except ValueError as e:
             self.logger.WARN("Fit failed: {}".format(e))
             return None, None, None
-    
-        tau = expf[0] / self.trace_averager.adc_freq 
+
+        tau = expf[0] / self.trace_averager.adc_freq
 
         DOF = len(fittime) - len(expf)
         red_chisquare = sum(infodict["fvec"] ** 2) / (DOF)
-    
+
         return tau, red_chisquare, expf[1]
-
-class E_l_Analyzer(MeanOfTraceAnalyzer):
-    pass
-
-class E_synx_Analyzer(MeanOfTraceAnalyzer):
-    pass
-
-class E_syni_Analyzer(MeanOfTraceAnalyzer):
-    pass
 
 class V_t_Analyzer(Analyzer):
     def __call__(self, t, v, neuron):
