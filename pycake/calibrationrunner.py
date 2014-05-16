@@ -107,6 +107,10 @@ class CalibrationRunner(object):
 
     def _run_measurements(self):
         """execute the measurement loop"""
+
+        if not self.experiments:
+            self.logger.WARN("No experiments configured.")
+
         for config_name, experiment in self.experiments.iteritems():
             # Create experiments lazy to apply calibration from previous runs
             # correctly
