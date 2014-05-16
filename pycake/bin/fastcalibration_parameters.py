@@ -8,7 +8,7 @@ import numpy
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
 
-folder = "~/.calibration-restructure"
+folder = "/tmp"
 
 def make_E_l_parameters(start, stop, steps):
     return [{neuron_parameter.E_l: Voltage(v),
@@ -17,10 +17,8 @@ def make_E_l_parameters(start, stop, steps):
              } for v in numpy.linspace(start, stop, steps)]
 
 parameters = {
-
+# Which neurons and blocks do you want to calibrate?
         "filename_prefix":  "",
-
-        # Which neurons and blocks do you want to calibrate?
         "neurons": [NeuronOnHICANN(Enum(i)) for i in range(512)],
         "blocks":  [FGBlockOnHICANN(Enum(i)) for i in range(4)],
 
@@ -38,15 +36,12 @@ parameters = {
         "repetitions":  1,
 
         # Set which calibrations you want to run
-
-        "run_V_reset":  True,
+        "run_V_reset":  False,
         "run_E_synx":   False,
         "run_E_syni":   False,
         "run_E_l":      False,
         "run_V_t":      False,
-
         "run_I_gl":     False,
-
         "run_V_syntcx": False,
         "run_V_syntci": False,
 
@@ -54,7 +49,7 @@ parameters = {
         # Measurement runs twice by default: first to generate calibration data, and a second time to measure the success of calibration
         # Here you can turn either of these runs on or off
         "calibrate":    True,
-        "measure":      True,
+        "measure":      False,
 
         # Overwrite old calibration data? This will not reset defect neurons!
         # Or even clear ALL calibration data before starting?
@@ -65,9 +60,6 @@ parameters = {
         "save_traces":  False,
         "V_reset_save_traces": True,
         "V_t_save_traces": True,
-        "E_syni_save_traces": True,
-        "E_synx_save_traces": True,
-        "E_l_save_traces": True,
 
         ## If you save your measurements, each folder will have a description file. The following parameters let you specify additional info to be stored.
         #"E_synx_description":   "E_synx calibration.",
@@ -85,7 +77,7 @@ parameters = {
         
         # Wafer and HICANN coordinates
         "coord_wafer":  pyhalbe.Coordinate.Wafer(),
-        "coord_hicann": pyhalbe.Coordinate.HICANNOnWafer(pyhalbe.Coordinate.Enum(84)),
+        "coord_hicann": pyhalbe.Coordinate.HICANNOnWafer(pyhalbe.Coordinate.Enum(276)),
 
         ## Maximum tries in case an experiment should fail
         #"max_tries":    3,
@@ -102,9 +94,9 @@ parameters = {
 
 
         # Here you can set the fixed parameters for each calibration.
-        # base_parameters are set for all calibrations
+        # base_parameters are set for all calibrations 
         "base_parameters":   {  neuron_parameter.E_l: Voltage(700),
-                                neuron_parameter.E_syni: Voltage(600),    # synapse
+                                neuron_parameter.E_syni: Voltage(600),     # synapse
                                 neuron_parameter.E_synx: Voltage(800),    # synapse
                                 neuron_parameter.I_bexp: Current(2500),       # turn off exp by setting this to 2500 and see I_rexp and V_bexp
                                 neuron_parameter.I_convi: Current(2500),   # bias current for synaptic input
@@ -182,7 +174,6 @@ parameters = {
                                         apply_calibration=True),
                                     shared_parameter.V_reset:    Voltage(200,
                                         apply_calibration=True),
-
                                 },
 
         "V_syntcx_parameters":  {
