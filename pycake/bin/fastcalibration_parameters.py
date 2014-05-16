@@ -5,43 +5,48 @@ from pycake.helpers.units import linspace_voltage, linspace_current
 import os
 import numpy
 
-np = neuron_parameter = pyhalbe.HICANN.neuron_parameter
-sp = shared_parameter = pyhalbe.HICANN.shared_parameter
+neuron_parameter = pyhalbe.HICANN.neuron_parameter
+shared_parameter = pyhalbe.HICANN.shared_parameter
 
-folder = "/tmp"
+folder = "~/.calibration-restructure"
 
 def make_E_l_parameters(start, stop, steps):
-    return [{np.E_l: Voltage(v),
-             np.E_syni : Voltage(v - 100, True),
-             np.E_synx : Voltage(v + 100, True)
+    return [{neuron_parameter.E_l: Voltage(v),
+             neuron_parameter.E_syni : Voltage(v - 100, True),
+             neuron_parameter.E_synx : Voltage(v + 100, True)
              } for v in numpy.linspace(start, stop, steps)]
 
 parameters = {
-# Which neurons and blocks do you want to calibrate?
+
         "filename_prefix":  "",
+
+        # Which neurons and blocks do you want to calibrate?
         "neurons": [NeuronOnHICANN(Enum(i)) for i in range(512)],
         "blocks":  [FGBlockOnHICANN(Enum(i)) for i in range(4)],
 
         # Set the ranges within which you want to calibrate
-        "V_reset_range":  [{sp.V_reset : v} for v in linspace_voltage(400, 700, 5)],
-        "E_syni_range":   [{np.E_syni : v} for v in linspace_voltage(350, 650, 4)],
-        "E_synx_range":   [{np.E_synx : v} for v in linspace_voltage(650, 950, 4)],
+        "V_reset_range":  [{shared_parameter.V_reset : v} for v in linspace_voltage(400, 700, 5)],
+        "E_syni_range":   [{neuron_parameter.E_syni : v} for v in linspace_voltage(350, 650, 4)],
+        "E_synx_range":   [{neuron_parameter.E_synx : v} for v in linspace_voltage(650, 950, 4)],
         "E_l_range":      make_E_l_parameters(500, 900, 5),
-        "V_t_range":      [{np.V_t : v} for v in linspace_voltage(600, 900, 4)],
-        "I_gl_range":     [{np.I_gl : v} for v in linspace_current(100, 800, 8)],
-        "V_syntcx_range": [{np.V_syntcx : v} for v in linspace_voltage(1200, 1660, 20)],
+        "V_t_range":      [{neuron_parameter.V_t : v} for v in linspace_voltage(600, 900, 4)],
+        "I_gl_range":     [{neuron_parameter.I_gl : v} for v in linspace_current(100, 800, 8)],
+        "V_syntcx_range": [{neuron_parameter.V_syntcx : v} for v in linspace_voltage(1200, 1660, 20)],
 
         # How many repetitions?
         # Each repetition will take about 1 minute per step!
         "repetitions":  1,
 
         # Set which calibrations you want to run
-        "run_V_reset":  False,
+
+        "run_V_reset":  True,
         "run_E_synx":   False,
         "run_E_syni":   False,
         "run_E_l":      False,
         "run_V_t":      False,
+
         "run_I_gl":     False,
+
         "run_V_syntcx": False,
         "run_V_syntci": False,
 
@@ -49,7 +54,7 @@ parameters = {
         # Measurement runs twice by default: first to generate calibration data, and a second time to measure the success of calibration
         # Here you can turn either of these runs on or off
         "calibrate":    True,
-        "measure":      False,
+        "measure":      True,
 
         # Overwrite old calibration data? This will not reset defect neurons!
         # Or even clear ALL calibration data before starting?
@@ -60,6 +65,9 @@ parameters = {
         "save_traces":  False,
         "V_reset_save_traces": True,
         "V_t_save_traces": True,
+        "E_syni_save_traces": True,
+        "E_synx_save_traces": True,
+        "E_l_save_traces": True,
 
         ## If you save your measurements, each folder will have a description file. The following parameters let you specify additional info to be stored.
         #"E_synx_description":   "E_synx calibration.",
@@ -77,7 +85,7 @@ parameters = {
         
         # Wafer and HICANN coordinates
         "coord_wafer":  pyhalbe.Coordinate.Wafer(),
-        "coord_hicann": pyhalbe.Coordinate.HICANNOnWafer(pyhalbe.Coordinate.Enum(276)),
+        "coord_hicann": pyhalbe.Coordinate.HICANNOnWafer(pyhalbe.Coordinate.Enum(84)),
 
         ## Maximum tries in case an experiment should fail
         #"max_tries":    3,
@@ -94,9 +102,9 @@ parameters = {
 
 
         # Here you can set the fixed parameters for each calibration.
-        # base_parameters are set for all calibrations 
+        # base_parameters are set for all calibrations
         "base_parameters":   {  neuron_parameter.E_l: Voltage(700),
-                                neuron_parameter.E_syni: Voltage(600),     # synapse
+                                neuron_parameter.E_syni: Voltage(600),    # synapse
                                 neuron_parameter.E_synx: Voltage(800),    # synapse
                                 neuron_parameter.I_bexp: Current(2500),       # turn off exp by setting this to 2500 and see I_rexp and V_bexp
                                 neuron_parameter.I_convi: Current(2500),   # bias current for synaptic input
@@ -174,6 +182,7 @@ parameters = {
                                         apply_calibration=True),
                                     shared_parameter.V_reset:    Voltage(200,
                                         apply_calibration=True),
+
                                 },
 
         "V_syntcx_parameters":  {
