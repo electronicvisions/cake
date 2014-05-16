@@ -95,9 +95,9 @@ parameters = {
 
         # Here you can set the fixed parameters for each calibration.
         # base_parameters are set for all calibrations 
-        "base_parameters":   {  neuron_parameter.E_l: Voltage(600),
-                                neuron_parameter.E_syni: Voltage(500),     # synapse
-                                neuron_parameter.E_synx: Voltage(700),    # synapse
+        "base_parameters":   {  neuron_parameter.E_l: Voltage(700),
+                                neuron_parameter.E_syni: Voltage(600),     # synapse
+                                neuron_parameter.E_synx: Voltage(800),    # synapse
                                 neuron_parameter.I_bexp: Current(2500),       # turn off exp by setting this to 2500 and see I_rexp and V_bexp
                                 neuron_parameter.I_convi: Current(2500),   # bias current for synaptic input
                                 neuron_parameter.I_convx: Current(2500),   # bias current for synaptic input
@@ -123,7 +123,7 @@ parameters = {
                                 shared_parameter.V_gmax1: Voltage(80),
                                 shared_parameter.V_gmax2: Voltage(80),
                                 shared_parameter.V_gmax3: Voltage(80),
-                                shared_parameter.V_reset: Voltage(550),
+                                shared_parameter.V_reset: Voltage(500),
                                 },
 
         "E_synx_parameters":     {  neuron_parameter.I_gl: Current(0), # I_gl and I_convi MUST be set to 0
