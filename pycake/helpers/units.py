@@ -61,7 +61,7 @@ class DAC(Unit):
         super(DAC, self).__init__(int(round(value)), apply_calibration)
 
     @staticmethod
-    def _check(self, value):
+    def _check(value):
         if not isinstance(value, int):
             raise TypeError("DAC value is no integer")
         if value < 0 or value > 1023:
