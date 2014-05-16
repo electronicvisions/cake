@@ -17,6 +17,7 @@ from pycake.helpers.StorageProcess import StorageProcess
 import time
 import os
 import copy
+from collections import OrderedDict
 
 class CalibrationRunner(object):
     """
@@ -28,8 +29,9 @@ class CalibrationRunner(object):
     def __init__(self, config_file):
         self.config_file = config_file
         self.config = pycake.config.Config(None, self.config_file)
-        self.experiments = {}
+        self.experiments = OrderedDict()
         self.coeffs = {}
+        self.configurations = self.config.get_enabled_calibrations()
 
         # Initialize calibtic
         path, _ = self.config.get_calibtic_backend()
@@ -53,40 +55,36 @@ class CalibrationRunner(object):
         config = self.config
         self.experiments.clear()
         self.coeffs.clear()
-
-        for config_name in self.config.get_enabled_calibrations():
-            config.set_target(config_name)
-            save_traces = config.get_save_traces()
-            repetitions = config.get_repetitions()
-
-            self.logger.INFO("Creating analyzers and experiments for "
-                    "parameter {}".format(config_name))
-            builder = self.get_builder(config_name, config)
-            analyzer = builder.get_analyzer(config_name)
-            experiments = [
-                    self.get_experiment(
-                        builder.generate_measurements(), analyzer, save_traces)
-                    for _ in range(repetitions)]
-
-            if self.config.get_save_traces():
-                for exp_id, exp in enumerate(experiments):
-                    for m_id, measurement in enumerate(exp.measurements):
-                        measurement.save_traces(
-                                self.get_measurement_storage_path(
-                                    exp_id, m_id, config_name))
-
-            self.experiments[config_name] = experiments
+        for config_name in self.configurations:
+            self.experiments[config_name] = None
         self._run_measurements()
 
-    def get_measurement_storage_path(self, experiment_id, measurement_id,
-            config_name):
+    def get_experiment(self, config_name):
+        """Returns the experiment for a givin config step"""
+        config = self.config.copy(config_name)
+        save_traces = config.get_save_traces()
+        repetitions = config.get_repetitions()
+
+        self.logger.INFO("Creating analyzers and experiments for "
+                "parameter {}".format(config_name))
+        builder = self.get_builder(config_name, config)
+        experiment = builder.get_experiment()
+
+        if self.config.get_save_traces():
+            for mid, measurement in enumerate(experiment.measurements):
+                 measurement.save_traces(self.get_measurement_storage_path(
+                                mid, config_name))
+
+        return experiment
+
+    def get_measurement_storage_path(self, measurement_id, config_name):
         """ Save measurement i of experiment to a file and clear the traces from
             that measurement.
         """
         folder = os.path.join(
                 self.config.get_folder(),
                 self.measurements_folder,
-                "experiment_{}_{}/".format(config_name, experiment_id))
+                config_name)
         pycake.helpers.misc.mkdir_p(folder)
         filename = "{}.hdf5".format(measurement_id)
         return os.path.join(folder, filename)
@@ -109,21 +107,21 @@ class CalibrationRunner(object):
 
     def _run_measurements(self):
         """execute the measurement loop"""
-        config = self.config
-        for config_name in self.config.get_enabled_calibrations():
-            config.set_target(config_name)
-            repetitions = config.get_repetitions()
-            self.save_state()
-            msg = "Running experiment no. {}/{} for {}"
-            experiments = self.experiments[config_name]
-            for i, ex in enumerate(experiments):
-                self.logger.INFO(msg.format(i+1, repetitions, config_name))
-                for measured in ex.iter_measurements():
-                    if measured:
-                        self.save_state()
+        for config_name, experiment in self.experiments.iteritems():
+            # Create experiments lazy to apply calibration from previous runs
+            # correctly
+            if experiment is None:
+                experiment = self.get_experiment(config_name)
+                self.experiments[config_name] = experiment
+                self.save_state()
+
+            self.logger.INFO("Running measurements for {}".format(config_name))
+            for measured in experiment.iter_measurements():
+                if measured:
+                    self.save_state()
 
             self.logger.INFO("Fitting result data for {}".format(config_name))
-            calibrator = self.get_calibrator(config_name, experiments)
+            calibrator = self.get_calibrator(config_name, experiment)
             coeffs = calibrator.generate_coeffs()
             self.logger.INFO("Writing calibration data for {}".format(
                 config_name))
@@ -151,11 +149,6 @@ class CalibrationRunner(object):
         builder_type = getattr(pycake.experimentbuilder,
                 "{}_Experimentbuilder".format(config_name))
         return builder_type(config)
-
-    def get_experiment(self, measurements, analyzer, save_traces):
-        """
-        """
-        return pycake.experiment.BaseExperiment(measurements, analyzer, save_traces)
 
     def get_calibrator(self, config_name, experiments):
         """

@@ -1,10 +1,9 @@
 import numpy as np
 import pylogging
+import Coordinate
 import pyhalbe
-import pycalibtic
-import time
-import sys
 import copy
+from itertools import product
 
 import pyredman as redman
 
@@ -12,8 +11,8 @@ from pycake.helpers.redman import init_backend as init_redman
 from pycake.helpers.units import Current, Voltage, DAC
 from pycake.helpers.sthal import StHALContainer
 from pycake.measure import Measurement, I_gl_Measurement
+from pycake.experiment import BaseExperiment
 import pycake.analyzer
-import Coordinate
 
 # shorter names
 Enum = Coordinate.Enum
@@ -47,12 +46,14 @@ class BaseExperimentBuilder(object):
         measurements = []
         coord_wafer, coord_hicann = self.config.get_coordinates()
         steps = self.config.get_steps()
+        repetions = self.config.get_repetitions()
 
         # Get readout shifts
         readout_shifts = self.get_readout_shifts(self.neurons)
 
         # Create one sthal container for each step
-        for step in steps:
+        # order is step 1, step 2, step 3, ..., step 1, step 2, step 3, ...
+        for rep, step in product(range(repetions), steps):
             self.logger.TRACE("Building step {}".format(step))
             sthal = StHALContainer(coord_wafer, coord_hicann)
             # TODO maybe find better solution
@@ -68,15 +69,12 @@ class BaseExperimentBuilder(object):
             measurement = self.make_measurement(sthal, self.neurons, readout_shifts)
             measurements.append(measurement)
 
-        return measurements
+        return measurements, repetions
 
     def get_step_parameters(self, step):
         """ Get parameters for this step.
         """
         return self.config.get_step_parameters(step)
-
-    def make_measurement(self, sthal, neurons, readout_shifts):
-        return Measurement(sthal, neurons, readout_shifts)
 
     def prepare_parameters(self, sthal, parameters):
         """ Writes parameters into a sthal container.
@@ -143,13 +141,28 @@ class BaseExperimentBuilder(object):
             shifts[neuron] = shift
         return shifts
 
-    def get_analyzer(self, config_name):
-        """ Get the appropriate analyzer for a specific parameter.
+    def get_experiment(self):
         """
-        AnalyzerType = getattr(pycake.analyzer, "{}_Analyzer".format(config_name))
-        return AnalyzerType()
+        """
+        analyzer = self.get_analyzer()
+        measurements, repetions = self.generate_measurements()
+        return BaseExperiment(measurements, analyzer, repetions)
 
-    # TODO implement redman
+    def get_analyzer(self):
+        """
+        Get the appropriate analyzer for a specific parameter.
+        Overwritte in subclass, when required.
+        """
+        return pycake.analyzer.MeanOfTraceAnalyzer()
+
+    def make_measurement(self, sthal, neurons, readout_shifts):
+        """
+        Create a measurement object.
+        Overwrite in subclass, when required.
+        """
+        return Measurement(sthal, neurons, readout_shifts)
+
+    # TODO implement redman, but not here I think
     #def init_redman(self, backend):
     #    """Initialize defect management for given backend."""
     #    # FIXME default coordinates
@@ -163,7 +176,6 @@ class BaseExperimentBuilder(object):
     #    self._red_hicann = hicann
     #    self._red_nrns = hicann.neurons()
 
-
 class E_l_Experimentbuilder(BaseExperimentBuilder):
     pass
 
@@ -175,8 +187,14 @@ class V_reset_Experimentbuilder(BaseExperimentBuilder):
         else:
            return dict(((n, 0) for n in neurons))
 
+    def get_analyzer(self):
+        "get analyzer"
+        return pycake.analyzer.V_reset_Analyzer()
+
 class V_t_Experimentbuilder(BaseExperimentBuilder):
-    pass
+    def get_analyzer(self):
+        "get analyzer"
+        return pycake.analyzer.V_t_Analyzer()
 
 class E_syni_Experimentbuilder(BaseExperimentBuilder):
     def prepare_specific_config(self, sthal):
@@ -213,7 +231,7 @@ class I_gl_Experimentbuilder(BaseExperimentBuilder):
     def make_measurement(self, sthal, neurons, readout_shifts):
         return I_gl_Measurement(sthal, neurons, readout_shifts)
 
-    def get_analyzer(self, parameter):
+    def get_analyzer(self):
         """ Get the appropriate analyzer for a specific parameter.
         """
         c_w, c_h = self.config.get_coordinates()
@@ -221,7 +239,7 @@ class I_gl_Experimentbuilder(BaseExperimentBuilder):
         return pycake.analyzer.I_gl_Analyzer(c_w, c_h, save_traces)
 
 class E_l_I_gl_fixed_Experimentbuilder(E_l_Experimentbuilder):
-    def get_analyzer(self, config_name):
+    def get_analyzer(self):
         """ Get the appropriate analyzer for a specific parameter.
         """
         return pycake.analyzer.MeanOfTraceAnalyzer()
