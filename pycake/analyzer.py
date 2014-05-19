@@ -139,7 +139,14 @@ class I_gl_Analyzer(Analyzer):
         kernel = pylab.roll(kernel, int(len(trace) / 2))
         diff2_smooth = pylab.real(pylab.ifft(pylab.fft(kernel) * pylab.fft(diff2)))
 
-        fitstart = np.argmin(diff2_smooth)
+        # For fit start, check if first derivative is really negative.
+        # This should make the fit more robust
+        diff2_with_negative_diff = np.zeros(len(diff2_smooth))
+        for i, j in enumerate(diff<0):
+            if j:
+                diff2_with_negative_diff[i] = diff2_smooth[i]
+
+        fitstart = np.argmin(diff2_with_negative_diff)
         fitstop = np.argmax(diff2_smooth)
 
         if fitstart > fitstop:
