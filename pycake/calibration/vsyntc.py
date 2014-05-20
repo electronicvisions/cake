@@ -145,7 +145,7 @@ class V_syntc_Experimentbuilder(BaseExperimentBuilder):
         self.set_recording_time(sthal)
         return sthal
 
-    def get_analyzer(self, parameter):
+    def get_analyzer(self):
         """Creates the analyzer for PSP measurements.
         This makes to preparatory measurements.
         1) Initializing the Trace Average
