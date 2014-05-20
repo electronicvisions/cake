@@ -22,8 +22,10 @@ class Reader(object):
     def get_neurons(self):
         return self.runner.config.get_neurons()
 
+    def get_parameters(self):
+        return self.runner.experiments.keys()
 
-    def get_result(self, parameter, neuron, key, repetition = 0):
+    def get_result(self, parameter, neuron, key):
         """ Get measurement results for one neuron.
 
             Args:
@@ -35,13 +37,13 @@ class Reader(object):
             Returns:
                 list of all results
         """
-        ex = self.runner.experiments[parameter][repetition]
+        ex = self.runner.experiments[parameter]
 
         if isinstance(neuron, int):
             neuron = C.NeuronOnHICANN(C.Enum(neuron))
         return [r[neuron].get(key, None) for r in ex.results]
 
-    def get_results(self, parameter, neurons, key, repetition = 0):
+    def get_results(self, parameter, neurons, key):
         """ Get measurement results for one neuron.
 
             Args:
@@ -53,7 +55,7 @@ class Reader(object):
             Returns:
                 {neuron: [results]} if neurons
         """
-        ex = self.runner.experiments[parameter][repetition]
+        ex = self.runner.experiments[parameter]
 
         results = {}
         for neuron in neurons:
@@ -62,10 +64,19 @@ class Reader(object):
             results[neuron] = [r[neuron].get(key, None) for r in ex.results]
         return results
 
-    def plot_hist(self, parameter, key, step, repetition=0, **kwargs):
-        results = self.get_results(parameter, self.get_neurons(), key, repetition)
+    def plot_hist(self, parameter, key, step, **kwargs):
+        results = self.get_results(parameter, self.get_neurons(), key)
         results_list = np.array(results.values())[:,step]
-        return plt.hist(results_list, **kwargs)
+        hist = plt.hist(results_list, **kwargs)
+        config = self.runner.config.copy(parameter)
+        step_valus = config.get_steps()[step]
+        target_value = config.get_steps()[step]
+        if len(target_value) == 1:
+            target_value = target_value.values()[0].value / 1000.0
+            plt.axvline(target_value, linestyle='dashed', color='k', linewidth=1)
+        return hist
+
+
 
 
 
