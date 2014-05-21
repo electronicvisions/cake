@@ -23,8 +23,8 @@ class CalibrationRunner(object):
     """
     """
     logger = pylogging.get("pycake.calibrationrunner")
-    pickle_file_pattern = "runner_{}_{}.p.bz2"
-    pickel_measurements_folder = "runner_{}_{}_measurements"
+    pickle_file_pattern = "runner_{}.p.bz2"
+    pickel_measurements_folder = "runner_{}_measurements"
 
     def __init__(self, config_file):
         self.config_file = config_file
@@ -39,10 +39,9 @@ class CalibrationRunner(object):
         self.calibtic = pycake.helpers.calibtic.Calibtic(path, wafer, hicann)
 
         prefix = self.config.get_filename_prefix()
-        self.filename = self.pickle_file_pattern.format(
-                prefix, time.strftime('%m%d_%H%M'))
-        self.measurements_folder = self.pickel_measurements_folder.format(
-                prefix, time.strftime('%m%d_%H%M'))
+        name_details = "_".join([s for s in [prefix, time.strftime('%m%d_%H%M')] if s])
+        self.filename = self.pickle_file_pattern.format(name_details)
+        self.measurements_folder = self.pickel_measurements_folder.format(name_details)
 
         self.storage = StorageProcess(compresslevel=9)
         # TODO redman!!
