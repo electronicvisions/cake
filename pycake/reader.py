@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pycake.calibrationrunner
 import Coordinate as C
+import pyhalbe
 from bz2 import BZ2File
 
 class Reader(object):
@@ -94,7 +95,12 @@ class Reader(object):
 
         return fig, hists
 
+    def plot_std(self, parameter, hicann_parameter, key, step, **kwargs):
 
+        e = self.runner.experiments[parameter]
 
+        hist = plt.hist([e.get_mean_results(n,hicann_parameter,[key])[0][step][-1] for n in self.get_neurons()], **kwargs)
+
+        return hist
 
 
