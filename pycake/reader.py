@@ -82,6 +82,18 @@ class Reader(object):
             plt.axvline(target_value, linestyle='dashed', color='k', linewidth=1)
         return hist
 
+    def plot_hists(self, parameter, key, repetition=0, **kwargs):
+        """ Returns figure and histograms for all steps
+        """
+
+        nsteps = len(self.runner.config.copy(parameter).get_steps())
+
+        fig = plt.figure()
+
+        hists = [self.plot_hist(parameter, key, step, repetition, **kwargs) for step in xrange(nsteps)]
+
+        return fig, hists
+
 
 
 
