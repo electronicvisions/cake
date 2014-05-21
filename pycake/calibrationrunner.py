@@ -168,8 +168,8 @@ class CalibrationRunner(object):
 
 class TestRunner(CalibrationRunner):
     logger = pylogging.get("pycake.testrunner")
-    pickle_file_pattern = "testrunner_{}_{}.p.bz2"
-    pickel_measurements_folder = "testrunner_{}_{}_measurements"
+    pickle_file_pattern = "testrunner_{}.p.bz2"
+    pickel_measurements_folder = "testrunner_{}_measurements"
 
     def clear_calibration(self):
         self.logger.TRACE("Not clearing calibration since this is test measurement")
