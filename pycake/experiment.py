@@ -73,7 +73,8 @@ class BaseExperiment(object):
 
             Args:
                 neuron: parameters matching this neuron
-                parameter: parameter to read
+                parameter: parameter to read (neuron_parameter or
+                           shared_parameter)
                 result_keys: [list] result keys to append
             Return:
                 [2D numpy array]:
