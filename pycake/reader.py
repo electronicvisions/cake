@@ -68,6 +68,8 @@ class Reader(object):
 
             if repetition != None:
                 results[neuron] = list(np.array(results[neuron])[:,[nsteps*repetition + step for step in range(nsteps)]])
+                #                                                   ^^^^^^^^^^^^^^^^^^^^^^^^
+                # FIXME: the indexing above is wrong for multi-dimensional parameter scans
 
         return results
 
