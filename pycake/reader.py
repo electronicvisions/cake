@@ -76,7 +76,7 @@ class Reader(object):
     def plot_hist(self, parameter, key, step, repetition=0, **kwargs):
         results = self.get_results(parameter, self.get_neurons(), key, repetition)
         results_list = np.array(results.values())[:,step]
-        hist = plt.hist(results_list, **kwargs)
+        hist = plt.hist(results_list, label="{:.2f} +- {:.2f}".format(np.mean(results_list)*1000, np.std(results_list)*1000), **kwargs)
         config = self.runner.config.copy(parameter)
         step_valus = config.get_steps()[step]
         target_value = config.get_steps()[step]
@@ -85,7 +85,7 @@ class Reader(object):
             plt.axvline(target_value, linestyle='dashed', color='k', linewidth=1)
         return hist
 
-    def plot_hists(self, parameter, key, repetition=0, **kwargs):
+    def plot_hists(self, parameter, key, repetition=0, show_legend=False, **kwargs):
         """ Returns figure and histograms for all steps
         """
 
@@ -94,6 +94,9 @@ class Reader(object):
         fig = plt.figure()
 
         hists = [self.plot_hist(parameter, key, step, repetition, **kwargs) for step in xrange(nsteps)]
+
+        if show_legend:
+            plt.legend()
 
         return fig, hists
 
