@@ -125,6 +125,7 @@ class I_gl_Analyzer(Analyzer):
                  "offset" : offset}
         if self.save_mean:
             result["mean"] = mean_trace
+            result["std"] = std_trace
         return result
 
     def get_decay_fit_range(self, trace):
