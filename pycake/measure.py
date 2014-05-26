@@ -2,6 +2,7 @@ import numpy as np
 import pylogging
 from Coordinate import NeuronOnHICANN, FGBlockOnHICANN, iter_all
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
+import pyhalbe
 
 from helpers.WorkerPool import WorkerPool
 from helpers.TracesOnDiskDict import TracesOnDiskDict
@@ -188,6 +189,58 @@ class Measurement(object):
         return result
 
 class I_gl_Measurement(Measurement):
-    def pre_measure(self, neuron):
-        self.sthal.switch_current_stimulus_and_output(neuron)
+    def __init__(self, sthal, neurons, readout_shifts=None, current=35):
+        super(I_gl_Measurement, self).__init__(sthal, neurons, readout_shifts)
+        self.currents = current
 
+    def set_current(self, current):
+        """ Change current.
+
+            Args:
+                current: value in nA
+        """
+        stim_current = current
+        pulse_length = 15
+        stim_length = 65
+
+        pll_freq = self.sthal.getPLL()
+        self.stimulus_length = (pulse_length+1) * stim_length * 129 / pll_freq
+
+        stimulus = pyhalbe.HICANN.FGStimulus()
+        stimulus.setPulselength(pulse_length)
+        stimulus.setContinuous(True)
+
+        stimulus[:stim_length] = [stim_current] * stim_length
+        stimulus[stim_length:] = [0] * (len(stimulus) - stim_length)
+
+        self.sthal.set_current_stimulus(stimulus)
+
+    def measure_V_rest(self, neuron):
+        self.pre_measure(neuron, current=0)
+        times, trace = self.sthal.read_adc()
+        V_rest = np.mean(trace)
+        self.logger.TRACE("Measured V_rest of neuron {0}: {1:.3f} V".format(neuron, V_rest))
+        return V_rest
+
+    def _measure(self, analyzer):
+        """ Measure traces and correct each value for readout shift.
+            Also applies analyzer to measurement
+        """
+        self.logger.INFO("Measuring.")
+        worker = WorkerPool(analyzer)
+        for neuron in self.neurons:
+            V_rest = self.measure_V_rest(neuron)
+            if not self.traces is None:
+                self.traces[neuron] = []
+            self.logger.TRACE("Measuring neuron {} with current {}".format(neuron, current))
+            self.pre_measure(neuron, current=self.current)
+            times, trace = self.sthal.read_adc()
+            worker.do(neuron, times, self.readout_shifts(neuron, trace), neuron, V_rest)
+            if not self.traces is None:
+                self.traces[neuron].append((current, np.array([times, trace])))
+        self.logger.INFO("Wait for analysis to complete.")
+        return worker.join()
+
+    def pre_measure(self, neuron, current):
+        self.set_current(int(current))
+        self.sthal.switch_current_stimulus_and_output(neuron)
