@@ -10,6 +10,7 @@ import pyredman as redman
 from pycake.helpers.redman import init_backend as init_redman
 from pycake.helpers.units import Current, Voltage, DAC
 from pycake.helpers.sthal import StHALContainer
+from pycake.helpers.calibtic import Calibtic
 from pycake.measure import Measurement, I_gl_Measurement
 from pycake.experiment import BaseExperiment
 import pycake.analyzer
@@ -35,7 +36,7 @@ class BaseExperimentBuilder(object):
 
         path, name = self.config.get_calibtic_backend()
         wafer, hicann = self.config.get_coordinates()
-        self.calibtic = pycake.helpers.calibtic.Calibtic(path, wafer, hicann)
+        self.calibtic = Calibtic(path, wafer, hicann)
 
         self.neurons = self.config.get_neurons()
         self.blocks = self.config.get_blocks()
