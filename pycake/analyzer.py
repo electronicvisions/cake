@@ -107,86 +107,113 @@ class I_gl_Analyzer(Analyzer):
         self.C = 2.16456e-12 # Capacitance when bigcap is turned on
         self.save_mean = save_mean
 
-    def __call__(self, t, v, neuron):
+    def __call__(self, t, v, neuron, V_rest=None):
         mean_trace, std_trace, n_mean = self.trace_averager.get_average(v, self.dt)
         mean_trace = np.array(mean_trace)
         # TODO take std of an independent measurement (see CKs method)
         std_trace = np.array(std_trace)
         std_trace /= np.sqrt(np.floor(len(v)/len(mean_trace)))
-        tau_m, red_chi2, offset = self.fit_exponential(mean_trace, std_trace)
+        tau_m, V_rest, height, red_chi2 = self.fit_exponential(mean_trace, std_trace, V_rest)
         if tau_m is not None:
             g_l = self.C / tau_m
         else:
             return None
 
-        result = { "tau_m" : tau_m,
-                 "g_l"  : g_l,
-                 "reduced_chi2": red_chi2,
-                 "offset" : offset}
+        result = {"tau_m" : tau_m,
+                  "g_l"  : g_l,
+                  "reduced_chi2": red_chi2,
+                  "V_rest" : V_rest,
+                  "height" : height}
         if self.save_mean:
             result["mean"] = mean_trace
             result["std"] = std_trace
         return result
 
-    def get_decay_fit_range(self, trace):
-        """Cuts the trace for the exponential fit. This is done by calculating the second derivative."""
+    def get_decay_fit_range(self, trace, std, stim_length=65):
+        """Cuts the trace for the exponential fit. This is done by calculating the second derivative.
+        Returns:
+            trace_cut, std_cut, fittimes"""
         filter_width = 250e-9 # Magic number that was carefully tuned to give best results
         dt = 1/self.trace_averager.adc_freq
-    
-        diff = pylab.roll(trace, 1) - trace
-        diff2 = diff - pylab.roll(diff, -1)
-        diff2 /= (dt ** 2)
-    
+
+        stim_steps = int(stim_length * 4 * 16 * self.trace_averager.adc_freq/100e6)
+        stim_time = stim_steps * dt
+
         kernel = scipy.signal.gaussian(len(trace), filter_width / dt)
         kernel /= pylab.sum(kernel)
         kernel = pylab.roll(kernel, int(len(trace) / 2))
-        diff2_smooth = pylab.real(pylab.ifft(pylab.fft(kernel) * pylab.fft(diff2)))
+
+        diff  = pylab.roll(trace, -1) - trace
+        diff_smooth = pylab.real(pylab.ifft(pylab.fft(kernel) * pylab.fft(diff)))
+
+        diff2_smooth = pylab.roll(diff_smooth, -1) - diff_smooth
+        diff2_smooth /= (dt ** 2)
 
         # For fit start, check if first derivative is really negative.
         # This should make the fit more robust
         diff2_with_negative_diff = np.zeros(len(diff2_smooth))
-        for i, j in enumerate(diff<0):
+        for i, j in enumerate(diff_smooth<0):
             if j:
                 diff2_with_negative_diff[i] = diff2_smooth[i]
 
         fitstart = np.argmin(diff2_with_negative_diff)
-        fitstop = np.argmax(diff2_smooth)
+        fitstop  = np.argmax(diff2_smooth)
 
-        if fitstart > fitstop:
-            trace = pylab.roll(trace, -fitstart)
-            trace_cut = trace[:fitstop-fitstart+len(trace)]
-            fittime = np.arange(0, fitstop-fitstart+len(trace))
-        else:
-            trace_cut = trace[fitstart:fitstop]
-            fittime = np.arange(fitstart, fitstop)
+        trace = pylab.roll(trace, -fitstart)
+        std   = pylab.roll(  std, -fitstart)
 
-        return trace_cut, fittime
+        fitstop = fitstop - fitstart
+        if fitstop<0:
+            fitstop += len(trace)
+
+        fitstart = 0
+
+        trace_cut = trace[fitstart:fitstop]
+        std_cut   =   std[fitstart:fitstop]
+        fittimes = np.arange(fitstart, fitstop)*dt
+
+        self.logger.TRACE("Cut trace from length {} to length {}.".format(len(trace), len(trace_cut)))
+
+        return trace_cut, std_cut, fittimes
     
-    def fit_exponential(self, mean_trace, std_trace, stim_length = 65):
+    def fit_exponential(self, mean_trace, std_trace, V_rest, stim_length = 65):
         """ Fit an exponential function to the mean trace. """
-        def func(x, tau, offset, a):
-            return a * np.exp(-(x - x[0]) / tau) + offset
+        if V_rest is None:
+            def func(x, tau, offset, a):
+                return a * np.exp(-(x - x[0]) / tau) + offset
+            x0 = [1e-6, 0.7, 0.1]
+        else:
+            def func(x, tau, a):
+                return a * np.exp(-(x - x[0]) / tau) + V_rest
+            x0 = [1e-6, 0.7]
     
-        trace_cut, fittime = self.get_decay_fit_range(mean_trace)
+        trace_cut, std_cut, fittimes = self.get_decay_fit_range(mean_trace, std_trace, stim_length)
 
         try:
             expf, pcov, infodict, errmsg, ier = curve_fit(
                 func,
-                fittime,
+                fittimes,
                 trace_cut,
-                [.5, 100., 0.1],
-                sigma=std_trace[fittime],
+                x0,
+                sigma=std_cut,
                 full_output=True)
         except ValueError as e:
             self.logger.WARN("Fit failed: {}".format(e))
-            return None, None, None
+            return None, None, None, None
 
-        tau = expf[0] / self.trace_averager.adc_freq
+        tau = expf[0]
+        if V_rest == None:
+            V_rest = expf[1]
+            height = expf[2]
+        else:
+            height = expf[1]
 
-        DOF = len(fittime) - len(expf)
+        DOF = len(fittimes) - len(expf)
         red_chisquare = sum(infodict["fvec"] ** 2) / (DOF)
 
-        return tau, red_chisquare, expf[1]
+        self.logger.TRACE("Successful fit: tau={0:.2e} s, V_rest={1:.2f} V, height={2:.2f} V, red_chi2={3:.2f}".format(tau, V_rest, height, red_chisquare))
+
+        return tau, V_rest, height, red_chisquare
 
 class V_t_Analyzer(Analyzer):
     def __call__(self, t, v, neuron):
