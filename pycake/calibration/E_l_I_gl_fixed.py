@@ -60,8 +60,4 @@ class E_l_I_gl_fixed_Calibrator(object):
                 I_gl_fits[neuron] = [I_gl]
         x = [(neuron_parameter.E_l, E_l_fits),
                 (neuron_parameter.I_gl, I_gl_fits)]
-        import pprint
-        pprint.pprint(x[0])
-        pprint.pprint(x[1])
-        print len(x[0][1])
         return x

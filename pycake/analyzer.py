@@ -4,6 +4,7 @@ import pylogging
 import scipy.signal
 from scipy.optimize import curve_fit
 from pycake.helpers.TraceAverager import createTraceAverager
+from pycake.helpers.peakdetect import peakdet
 
 # Import everything needed for saving:
 
@@ -188,4 +189,13 @@ class I_gl_Analyzer(Analyzer):
 
 class V_t_Analyzer(Analyzer):
     def __call__(self, t, v, neuron):
-        return {'max': np.max(v)}
+
+        delta = np.std(v)
+
+        try:
+            maxtab, mintab = peakdet(v, delta)
+            V_t = np.mean(maxtab[:,1])
+        except IndexError as e:
+            V_t = np.max(v)
+
+        return {"max" : V_t, "old_max" : np.max(v)}

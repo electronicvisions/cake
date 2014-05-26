@@ -117,6 +117,8 @@ class Measurement(object):
             elif isinstance(parameter, shared_parameter):
                 block = neuron.sharedFGBlock()
                 values.append(fgs.getShared(block, parameter))
+            else:
+                raise TypeError("invalid parameter type {}".format(type(parameter)))
         return values
 
     def get_neurons(self):

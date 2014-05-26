@@ -163,68 +163,55 @@ class BaseCalibrator(object):
 class V_reset_Calibrator(BaseCalibrator):
     target_parameter = shared_parameter.V_reset
 
+    def __init__(self, experiment):
+        self.experiment = experiment
+
     def get_key(self):
         return 'baseline'
 
-    def get_step_parameters(self, measurement):
-        """
-        """
-        # TODO improve
-        neurons = measurement.neurons
-        blocks = [Coordinate.FGBlockOnHICANN(Coordinate.Enum(i)) for i in range(4)]
-        step_parameters = measurement.get_parameter(self.target_parameter, blocks)
-        neuron_parameters = {neuron: step_parameters[neuron.sharedFGBlock()] for neuron in neurons}
-        return neuron_parameters
+    def iter_neuron_results(self):
+        key = self.get_key()
+        for neuron in self.get_neurons():
+            baseline, = self.experiment.get_mean_results(
+                    neuron, self.target_parameter, (key, ))
+            yield neuron, baseline
 
-    def iter_V_reset(self, block):
-        neuron_on_quad = Coordinate.NeuronOnQuad(block.x(), block.y())
-        for quad in Coordinate.iter_all(Coordinate.QuadOnHICANN):
-            yield Coordinate.NeuronOnHICANN(quad, neuron_on_quad)
-        return
+    def mean_over_blocks(self, neuron_results):
+        blocks = defaultdict(list)
+        for neuron, value in neuron_results.iteritems():
+            blocks[neuron.sharedFGBlock()].append(value)
+        return dict((k, np.mean(v, axis=0)) for k, v in blocks.iteritems())
 
-    def mean_over_blocks(self, averages):
-        block_mean = {}
+    def get_neurons(self):
+        return self.experiment.measurements[0].neurons
 
-        for block in Coordinate.iter_all(Coordinate.FGBlockOnHICANN):
-            neurons_on_block = [n for n in self.iter_V_reset(block)]
-            values = [averages[neuron] for neuron in neurons_on_block]
-            block_mean[block] = np.mean(values, axis = 0)
+    def do_fit(self, raw_x, raw_y):
+        print raw_x, raw_y
+        xs = self.prepare_x(raw_x)
+        ys = self.prepare_y(raw_y)
+        return np.polyfit(xs, ys, 1)
 
-        return block_mean 
-
-    def get_neuron_shifts(self, averages):
-        neurons = self.get_neurons()
-        block_means = self.mean_over_blocks(averages)
+    def get_neuron_shifts(self, neuron_results, block_means):
+        block_means = self.mean_over_blocks(neuron_results)
 
         neuron_shifts = {}
-
-        for neuron in neurons:
-            block = neuron.sharedFGBlock()
-            block_mean = np.array(block_means[block])
-            neuron_results = np.array(averages[neuron])
-            diffs = neuron_results - block_mean # TODO: check if this is the right way
-            mean_diff = np.mean(diffs, axis=0)[1]
-            neuron_shifts[neuron] = mean_diff
-
+        for neuron, value in neuron_results.iteritems():
+            diffs = value[:,2] - block_means[neuron.sharedFGBlock()][:,2]
+            neuron_shifts[neuron] = [np.mean(diffs)]
         return neuron_shifts
 
     def generate_coeffs(self):
         """ Takes averaged experiments and does the fits
         """
-        average, std = self.average_over_experiments()
-        block_means = self.mean_over_blocks(average)
-        shifts = self.get_neuron_shifts(average)
+        neuron_results = dict(x for x in self.iter_neuron_results())
+        block_means = self.mean_over_blocks(neuron_results)
 
         coeffs = {}
-        for neuron, shift in shifts.iteritems():
-            coeffs[neuron] = [shift]
-        for block, results in block_means.iteritems():
-            # Need to switch y and x in order to get the right fit
-            # (y-axis: configured parameter, x-axis: measurement)
-            ys_raw, xs_raw = zip(*results) # 'unzip' results, e.g.: (100,0.1),(200,0.2) -> (100,200), (0.1,0.2)
-            ys = self.prepare_y(ys_raw)
-            xs = self.prepare_x(xs_raw)
-            coeffs[block] = self.do_fit(xs, ys)
+        for coord, mean in block_means.iteritems():
+            print mean
+            coeffs[coord] = self.do_fit(mean[:,2], mean[:,0])
+
+        coeffs.update(self.get_neuron_shifts(neuron_results, block_means))
         return [(self.target_parameter, coeffs)]
 
 class E_synx_Calibrator(BaseCalibrator):
