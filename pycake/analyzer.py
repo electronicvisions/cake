@@ -191,3 +191,6 @@ class V_t_Analyzer(Analyzer):
             V_t = np.max(v)
 
         return {"max" : V_t, "old_max" : np.max(v)}
+
+V_syntci_psp_max_Analyzer = MeanOfTraceAnalyzer
+V_syntcx_psp_max_Analyzer = MeanOfTraceAnalyzer

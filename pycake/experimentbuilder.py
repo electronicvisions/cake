@@ -247,3 +247,12 @@ class E_l_I_gl_fixed_Experimentbuilder(E_l_Experimentbuilder):
 from calibration.vsyntc import V_syntci_Experimentbuilder
 from calibration.vsyntc import V_syntcx_Experimentbuilder
 
+class V_syntci_psp_max_Experimentbuilder(BaseExperimentBuilder):
+    def prepare_specific_config(self, sthal):
+        sthal.stimulateNeurons(0.1e6, 1, excitatory=False)
+        return sthal
+
+class V_syntcx_psp_max_Experimentbuilder(BaseExperimentBuilder):
+    def prepare_specific_config(self, sthal):
+        sthal.stimulateNeurons(0.1e6, 1, excitatory=True)
+        return sthal
