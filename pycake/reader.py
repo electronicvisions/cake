@@ -108,4 +108,20 @@ class Reader(object):
 
         return hist
 
+    def plot_result(self, parameter, key, **kwargs):
 
+        results = self.get_results(parameter, self.get_neurons(), key, repetition=0)
+
+        config = self.runner.config.copy(parameter)
+
+        xs = []
+        ys = []
+
+        for step, step_value in enumerate(config.get_steps()):
+
+            xs.append(step_value.values()[0].value)
+            ys.append(np.array(results.values())[:,step])
+
+        plot = plt.plot(xs, ys, **kwargs)
+
+        return plot
