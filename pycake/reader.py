@@ -125,10 +125,3 @@ class Reader(object):
         plot = plt.plot(xs, ys, **kwargs)
 
         return plot
-
-    def outliers(self, parameter, key, min_value, max_value, neurons=range(512)):
-
-        n_above_max = sum([v[0] > max_value for v in self.get_results(parameter, neurons, key).values()])
-        n_below_min = sum([v[0] < min_value for v in self.get_results(parameter, neurons, key).values()])
-
-        return n_above_max, n_below_min
