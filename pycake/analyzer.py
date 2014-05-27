@@ -175,19 +175,32 @@ class I_gl_Analyzer(Analyzer):
         self.logger.TRACE("Cut trace from length {} to length {}.".format(len(trace), len(trace_cut)))
 
         return trace_cut, std_cut, fittimes
+
+    def get_initial_parameters(self, times, trace, V_rest):
+        height = trace[0] - V_rest
+        try:
+            # get first element where trace is below 1/e of initial value
+            # This does not always work
+            tau = times[trace-V_rest < ((trace[0]-V_rest) / np.exp(1))][0]
+        except IndexError: # If trace never goes below 1/e, use some high value
+            tau = 1e-5
+        return [height, tau]
     
     def fit_exponential(self, mean_trace, std_trace, V_rest, stim_length = 65):
         """ Fit an exponential function to the mean trace. """
         if V_rest is None:
-            def func(x, tau, offset, a):
-                return a * np.exp(-(x - x[0]) / tau) + offset
-            x0 = [1e-6, 0.7, 0.1]
+            def func(t, tau, offset, a):
+                return a * np.exp(-t / tau) + offset
         else:
-            def func(x, tau, a):
-                return a * np.exp(-(x - x[0]) / tau) + V_rest
-            x0 = [1e-6, 0.7]
+            def func(t, tau, a):
+                return a * np.exp(-t / tau) + V_rest
+
     
         trace_cut, std_cut, fittimes = self.get_decay_fit_range(mean_trace, std_trace, stim_length)
+        x0 = self.get_initial_parameters(fittimes, trace_cut, V_rest)
+
+        if V_rest is None:
+            x0.append(0.7) # If no V_rest is specified, this should be the initial value
 
         try:
             expf, pcov, infodict, errmsg, ier = curve_fit(
