@@ -42,6 +42,9 @@ class Measurement(object):
         self.spikes = {}
         self.done = False
         self.traces = None
+        # Debug for repeated ADC traces
+        self.last_trace = None
+        self.adc_status = []
 
         if readout_shifts is None:
             self.logger.WARN("No readout shifts found. Shifts are set to 0")
@@ -167,6 +170,8 @@ class Measurement(object):
                 self.traces = {neuron: trace}
                 self.spikes = {neuron: spikes} #TODO this is not yet implemented
         """
+        self.last_trace = np.array([])
+        self.adc_status = []
         self.logger.INFO("Measuring.")
         worker = WorkerPool(analyzer)
         for neuron in self.neurons:
@@ -175,6 +180,18 @@ class Measurement(object):
             worker.do(neuron, times, self.readout_shifts(neuron, trace), neuron)
             if not self.traces is None:
                 self.traces[neuron] = np.array([times, trace])
+            # DEBUG stuff
+            self.adc_status.append(self.sthal.read_status())
+            if np.array_equal(trace, self.last_trace):
+                self.logger.ERROR("ADC trace didn't change from the last "
+                        "readout, printing status information of all ADC "
+                        "previous readouts:\n" + "\n".join(self.adc_status))
+                raise RuntimeError("Broken ADC readout abort measurement "
+                        "(details see log messages)")
+            self.last_trace = trace
+            # DEBUG stuff end
+        self.last_trace = None
+
         self.logger.INFO("Wait for analysis to complete.")
         return worker.join()
 

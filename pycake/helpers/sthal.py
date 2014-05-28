@@ -88,12 +88,12 @@ class StHALContainer(object):
             self.connect()
         self.wafer.configure(pysthal.HICANNConfigurator())
 
-    def switch_analog_output(self, coord_neuron, l1address=0, analog=0):
+    def switch_analog_output(self, coord_neuron, l1address=0):
         """Write analog output configuration (only)."""
         if not self._connected:
             self.connect()
         self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(l1address))
-        self.hicann.enable_aout(coord_neuron, Coordinate.AnalogOnHICANN(analog))
+        self.hicann.enable_aout(coord_neuron, self.coord_analog)
         self.wafer.configure(UpdateAnalogOutputConfigurator())
 
     def read_adc(self):
@@ -110,6 +110,10 @@ class StHALContainer(object):
                 self.connect_adc()
         raise RuntimeError("Aborting ADC readout, maximum number of retries exceded")
 
+    def read_status(self):
+        if not self._connected:
+            self.connect()
+        return self.adc.status()
     def status(self):
         if not self._connected:
             self.connect()
