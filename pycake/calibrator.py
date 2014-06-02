@@ -242,3 +242,68 @@ class I_gl_Calibrator(BaseCalibrator):
         return 'g_l'
 
 from pycake.calibration.E_l_I_gl_fixed import E_l_I_gl_fixed_Calibrator
+
+class V_syntc_psp_max_BaseCalibrator(BaseCalibrator):
+
+    # to be set in derived class
+    target_parameter = None
+
+    def __init__(self, experiments):
+
+        from pycake.experiment import BaseExperiment
+
+        if not isinstance(experiments, list):
+            experiments = [experiments]
+
+        self.experiment = BaseExperiment(sum(
+            [exp.measurements for exp in experiments], []),
+            experiments[0].analyzer, None)
+        self.experiment.results = sum(
+            [exp.results for exp in experiments], [])
+        self.neurons = self.experiment.measurements[0].neurons
+
+    def get_key(self):
+        return 'std'
+
+    def fit_neuron(self, neuron):
+        data = self.experiment.get_parameters_and_results(neuron,
+                                                          [self.target_parameter],
+                                                          ["std"])
+        index_V_syntc = 0
+        index_std = 1
+
+        V_syntc_steps = np.unique(data[:,index_V_syntc])
+
+        V_syntc_psp_max = 0
+        max_std = 0
+
+        for step in V_syntc_steps:
+            selected = data[data[:,index_V_syntc] == step]
+            V_syntc, std = selected[:,(index_V_syntc, index_std)].T
+
+            #V_syntc = V_syntc[0]
+            #std = std[0]
+
+            if std > max_std:
+                V_syntc_psp_max = V_syntc[0]
+                max_std = std[0]
+
+        return V_syntc_psp_max
+
+    def generate_coeffs(self):
+
+        coeffs = {}
+
+        for neuron in self.neurons:
+            V_syntc_psp_max = self.fit_neuron(neuron)
+            coeffs[neuron] = [V_syntc_psp_max]
+
+        print coeffs
+
+        return [(self.target_parameter, coeffs)]
+
+class V_syntci_psp_max_Calibrator(V_syntc_psp_max_BaseCalibrator):
+    target_parameter = neuron_parameter.V_syntci
+
+class V_syntcx_psp_max_Calibrator(V_syntc_psp_max_BaseCalibrator):
+    target_parameter = neuron_parameter.V_syntcx

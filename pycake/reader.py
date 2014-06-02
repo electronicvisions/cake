@@ -73,14 +73,14 @@ class Reader(object):
 
         return results
 
-    def plot_hist(self, parameter, key, step, repetition=0, **kwargs):
+    def plot_hist(self, parameter, key, step, repetition=0, draw_target_line=True, **kwargs):
         results = self.get_results(parameter, self.get_neurons(), key, repetition)
         results_list = np.array(results.values())[:,step]
         hist = plt.hist(results_list, label="{:.2f} +- {:.2f}".format(np.mean(results_list)*1000, np.std(results_list)*1000), **kwargs)
         config = self.runner.config.copy(parameter)
         step_valus = config.get_steps()[step]
         target_value = config.get_steps()[step]
-        if len(target_value) == 1:
+        if draw_target_line and len(target_value) == 1:
             target_value = target_value.values()[0].value / 1000.0
             plt.axvline(target_value, linestyle='dashed', color='k', linewidth=1)
         return hist
@@ -108,4 +108,20 @@ class Reader(object):
 
         return hist
 
+    def plot_result(self, parameter, key, **kwargs):
 
+        results = self.get_results(parameter, self.get_neurons(), key, repetition=0)
+
+        config = self.runner.config.copy(parameter)
+
+        xs = []
+        ys = []
+
+        for step, step_value in enumerate(config.get_steps()):
+
+            xs.append(step_value.values()[0].value)
+            ys.append(np.array(results.values())[:,step])
+
+        plot = plt.plot(xs, ys, **kwargs)
+
+        return plot

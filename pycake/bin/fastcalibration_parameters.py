@@ -30,6 +30,8 @@ parameters = {
         "V_t_range":      [{neuron_parameter.V_t : v} for v in linspace_voltage(600, 900, 4)],
         "I_gl_range":     [{neuron_parameter.I_gl : v} for v in linspace_current(100, 800, 8)],
         "V_syntcx_range": [{neuron_parameter.V_syntcx : v} for v in linspace_voltage(1200, 1660, 20)],
+        "V_syntcx_psp_max_range": [{neuron_parameter.V_syntcx : v} for v in linspace_voltage(1350, 1700, 7)],
+        "V_syntci_psp_max_range": [{neuron_parameter.V_syntci : v} for v in linspace_voltage(1350, 1700, 7)],
 
         # How many repetitions?
         # Each repetition will take about 1 minute per step!
@@ -44,6 +46,8 @@ parameters = {
         "run_I_gl":     False,
         "run_V_syntcx": False,
         "run_V_syntci": False,
+        "run_V_syntcx_psp_max": False,
+        "run_V_syntci_psp_max": False,
 
 
         # Measurement runs twice by default: first to generate calibration data, and a second time to measure the success of calibration
@@ -150,6 +154,20 @@ parameters = {
                                         apply_calibration=True),
                                 },
 
+        "V_syntcx_psp_max_parameters":       {   neuron_parameter.V_t:        Voltage(1200),
+                                                 neuron_parameter.E_syni:     Voltage(600, apply_calibration=True),
+                                                 neuron_parameter.E_l:        Voltage(700, apply_calibration=True),
+                                                 neuron_parameter.E_synx:     Voltage(800, apply_calibration=True),
+                                                 shared_parameter.V_reset:    Voltage(500, apply_calibration=True),
+                                             },
+
+        "V_syntci_psp_max_parameters":       {   neuron_parameter.V_t:        Voltage(1200),
+                                                 neuron_parameter.E_syni:     Voltage(600, apply_calibration=True),
+                                                 neuron_parameter.E_l:        Voltage(700, apply_calibration=True),
+                                                 neuron_parameter.E_synx:     Voltage(800, apply_calibration=True),
+                                                 shared_parameter.V_reset:    Voltage(500, apply_calibration=True),
+                                             },
+
         "V_t_parameters":       {   neuron_parameter.E_l:        Voltage(1000),
                                     neuron_parameter.I_gl:       Current(1200),
                                     neuron_parameter.I_pl:  Current(100),
@@ -200,6 +218,8 @@ parameters = {
                                     neuron_parameter.I_gl.name,
                                     neuron_parameter.V_syntcx.name,
                                     neuron_parameter.V_syntci.name,
+                                    "V_syntcx_psp_max",
+                                    "V_syntci_psp_max",
                                 ],
 }
 
