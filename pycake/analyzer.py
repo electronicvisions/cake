@@ -107,29 +107,32 @@ class I_gl_Analyzer(Analyzer):
         self.C = 2.16456e-12 # Capacitance when bigcap is turned on
         self.save_mean = save_mean
 
-    def __call__(self, t, v, neuron, V_rest=None):
-        mean_trace, std_trace, n_mean = self.trace_averager.get_average(v, self.dt)
+    def __call__(self, t, v, neuron, std, V_rest=None):
+        mean_trace, std_trace, n_chunks = self.trace_averager.get_average(v, self.dt)
+        t,v = None, None
         mean_trace = np.array(mean_trace)
         # TODO take std of an independent measurement (see CKs method)
-        std_trace = np.array(std_trace)
-        std_trace /= np.sqrt(np.floor(len(v)/len(mean_trace)))
-        tau_m, V_rest, height, red_chi2 = self.fit_exponential(mean_trace, std_trace, V_rest)
+        trace_cut, fittimes = self.get_decay_fit_range(mean_trace)
+        tau_m, V_rest, height, red_chi2, pcov, infodict = self.fit_exponential(trace_cut, fittimes, std, V_rest, n_chunks)
         if tau_m is not None:
             g_l = self.C / tau_m
         else:
-            return None
+            g_l = None
 
         result = {"tau_m" : tau_m,
                   "g_l"  : g_l,
                   "reduced_chi2": red_chi2,
                   "V_rest" : V_rest,
-                  "height" : height}
+                  "height" : height,
+                  "pcov"   : pcov,
+                  "infodict": infodict,
+                  "std" : std,
+                  "n_chunks": n_chunks,}
         if self.save_mean:
             result["mean"] = mean_trace
-            result["std"] = std_trace
         return result
 
-    def get_decay_fit_range(self, trace, std, stim_length=65):
+    def get_decay_fit_range(self, trace, stim_length=65):
         """Cuts the trace for the exponential fit. This is done by calculating the second derivative.
         Returns:
             trace_cut, std_cut, fittimes"""
@@ -160,7 +163,6 @@ class I_gl_Analyzer(Analyzer):
         fitstop  = np.argmax(diff2_smooth)
 
         trace = pylab.roll(trace, -fitstart)
-        std   = pylab.roll(  std, -fitstart)
 
         fitstop = fitstop - fitstart
         if fitstop<0:
@@ -169,12 +171,11 @@ class I_gl_Analyzer(Analyzer):
         fitstart = 0
 
         trace_cut = trace[fitstart:fitstop]
-        std_cut   =   std[fitstart:fitstop]
         fittimes = np.arange(fitstart, fitstop)*dt
 
         self.logger.TRACE("Cut trace from length {} to length {}.".format(len(trace), len(trace_cut)))
 
-        return trace_cut, std_cut, fittimes
+        return trace_cut,fittimes
 
     def get_initial_parameters(self, times, trace, V_rest):
         height = trace[0] - V_rest
@@ -184,20 +185,19 @@ class I_gl_Analyzer(Analyzer):
             tau = times[trace-V_rest < ((trace[0]-V_rest) / np.exp(1))][0]
         except IndexError: # If trace never goes below 1/e, use some high value
             tau = 1e-5
-        return [height, tau]
+        return [tau, height]
     
-    def fit_exponential(self, mean_trace, std_trace, V_rest, stim_length = 65):
+    def fit_exponential(self, trace_cut, fittimes, std, V_rest, n_chunks, stim_length = 65):
         """ Fit an exponential function to the mean trace. """
         if V_rest is None:
             def func(t, tau, offset, a):
-                return a * np.exp(-t / tau) + offset
+                return a * np.exp(-(t - t[0]) / tau) + offset
         else:
             def func(t, tau, a):
-                return a * np.exp(-t / tau) + V_rest
+                return a * np.exp(-(t - t[0]) / tau) + V_rest
 
-    
-        trace_cut, std_cut, fittimes = self.get_decay_fit_range(mean_trace, std_trace, stim_length)
         x0 = self.get_initial_parameters(fittimes, trace_cut, V_rest)
+        std = std / np.sqrt(n_chunks-1)
 
         if V_rest is None:
             x0.append(0.7) # If no V_rest is specified, this should be the initial value
@@ -208,11 +208,11 @@ class I_gl_Analyzer(Analyzer):
                 fittimes,
                 trace_cut,
                 x0,
-                sigma=std_cut,
+                sigma=std,
                 full_output=True)
         except ValueError as e:
             self.logger.WARN("Fit failed: {}".format(e))
-            return None, None, None, None
+            return None, V_rest, None, None, None, None
 
         tau = expf[0]
         if V_rest == None:
@@ -222,11 +222,11 @@ class I_gl_Analyzer(Analyzer):
             height = expf[1]
 
         DOF = len(fittimes) - len(expf)
-        red_chisquare = sum(infodict["fvec"] ** 2) / (DOF)
+        red_chisquare= sum(infodict["fvec"] ** 2) / (DOF)
 
         self.logger.TRACE("Successful fit: tau={0:.2e} s, V_rest={1:.2f} V, height={2:.2f} V, red_chi2={3:.2f}".format(tau, V_rest, height, red_chisquare))
 
-        return tau, V_rest, height, red_chisquare
+        return tau, V_rest, height, red_chisquare, pcov, infodict
 
 class V_t_Analyzer(Analyzer):
     def __call__(self, t, v, neuron):

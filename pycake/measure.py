@@ -221,8 +221,9 @@ class I_gl_Measurement(Measurement):
         self.pre_measure(neuron, current=0)
         times, trace = self.sthal.read_adc()
         V_rest = np.mean(trace)
+        std    = np.std(trace)
         self.logger.TRACE("Measured V_rest of neuron {0}: {1:.3f} V".format(neuron, V_rest))
-        return V_rest
+        return V_rest, std
 
     def _measure(self, analyzer):
         """ Measure traces and correct each value for readout shift.
@@ -231,11 +232,11 @@ class I_gl_Measurement(Measurement):
         self.logger.INFO("Measuring.")
         worker = WorkerPool(analyzer)
         for neuron in self.neurons:
-            V_rest = self.measure_V_rest(neuron)
+            V_rest, std = self.measure_V_rest(neuron)
             self.logger.TRACE("Measuring neuron {} with current {}".format(neuron, self.current))
             self.pre_measure(neuron, current=self.current)
             times, trace = self.sthal.read_adc()
-            worker.do(neuron, times, self.readout_shifts(neuron, trace), neuron, V_rest)
+            worker.do(neuron, times, self.readout_shifts(neuron, trace), neuron, std, V_rest)
             if not self.traces is None:
                 self.traces[neuron] = np.array([times, trace])
         self.logger.INFO("Wait for analysis to complete.")
@@ -257,14 +258,16 @@ class I_gl_Measurement_multiple_currents(I_gl_Measurement):
         self.logger.INFO("Measuring.")
         worker = WorkerPool(analyzer)
         for neuron in self.neurons:
-            V_rest = self.measure_V_rest(neuron)
+            V_rest, std = self.measure_V_rest(neuron)
+            self.logger.INFO("Measuring neuron {0} with currents {1}. V_rest = {2:.2f}+-{3:.2f}".format(neuron,
+                                                                                    self.currents, V_rest, std))
             if not self.traces is None:
                 self.traces[neuron] = []
             for current in self.currents:
                 self.logger.TRACE("Measuring neuron {} with current {}".format(neuron, current))
                 self.pre_measure(neuron, current)
                 times, trace = self.sthal.read_adc()
-                worker.do((neuron, current), times, self.readout_shifts(neuron, trace), neuron, V_rest)
+                worker.do((neuron, current), times, self.readout_shifts(neuron, trace), neuron, std, V_rest)
                 if not self.traces is None:
                     self.traces[neuron].append((current, np.array([times, trace])))
         self.logger.INFO("Wait for analysis to complete.")
