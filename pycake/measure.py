@@ -212,15 +212,16 @@ class I_gl_Measurement(Measurement):
         super(I_gl_Measurement, self).__init__(sthal, neurons, readout_shifts)
         self.current = current
 
-    def set_current(self, current):
+    def set_current(self, current, stim_length):
         """ Change current.
 
             Args:
                 current: value in nA
+                stim_length: int value. how long should the current be?
+                    max. duration is a whole cycle: 129
         """
         stim_current = current
         pulse_length = 15
-        stim_length = 65
 
         pll_freq = self.sthal.getPLL()
         self.stimulus_length = (pulse_length+1) * stim_length * 129 / pll_freq
@@ -259,8 +260,8 @@ class I_gl_Measurement(Measurement):
         self.logger.INFO("Wait for analysis to complete.")
         return worker.join()
 
-    def pre_measure(self, neuron, current):
-        self.set_current(int(current))
+    def pre_measure(self, neuron, current, stim_length=65):
+        self.set_current(int(current), stim_length)
         self.sthal.switch_current_stimulus_and_output(neuron)
 
 class I_gl_Measurement_multiple_currents(I_gl_Measurement):
