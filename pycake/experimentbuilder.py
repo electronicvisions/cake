@@ -212,21 +212,7 @@ class I_gl_Experimentbuilder(BaseExperimentBuilder):
         super(I_gl_Experimentbuilder, self).__init__(*args, **kwargs)
 
     def prepare_specific_config(self, sthal):
-        """ Prepares current stimulus and increases recording time.
-        """
         sthal.recording_time = 5e-3
-        pulse_length = 15
-        stim_current = 35
-        stim_length = 65
-
-        stimulus = pyhalbe.HICANN.FGStimulus()
-        stimulus.setPulselength(pulse_length)
-        stimulus.setContinuous(True)
-
-        stimulus[:stim_length] = [stim_current] * stim_length
-        stimulus[stim_length:] = [0] * (len(stimulus) - stim_length)
-
-        sthal.set_current_stimulus(stimulus)
         return sthal
 
     def make_measurement(self, sthal, neurons, readout_shifts):
