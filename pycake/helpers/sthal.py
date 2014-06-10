@@ -7,7 +7,12 @@ import pylogging
 from pyhalbe import Coordinate
 
 class UpdateAnalogOutputConfigurator(pysthal.HICANNConfigurator):
-    """Change analog output only without writing other configuration."""
+    """ Configures the following things from sthal container:
+        - neuron quad configuration
+        - analog readout
+        - analog current input
+        - current stimulus strength/duration etc.
+    """
     def config_fpga(self, *args):
         """do not reset FPGA"""
         pass
@@ -16,6 +21,7 @@ class UpdateAnalogOutputConfigurator(pysthal.HICANNConfigurator):
         """Call analog output related configuration functions."""
         self.config_neuron_quads(h, hicann)
         self.config_analog_readout(h, hicann)
+        self.config_fg_stimulus(h, hicann)
         self.flush_fpga(fpga_handle)
 
 class StHALContainer(object):
@@ -89,10 +95,14 @@ class StHALContainer(object):
         self.wafer.configure(pysthal.HICANNConfigurator())
 
     def switch_analog_output(self, coord_neuron, l1address=0):
-        """Write analog output configuration (only)."""
+        """Write analog output configuration (only).
+           If l1address is None, firing is disabled."""
         if not self._connected:
             self.connect()
-        self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(l1address))
+        self.hicann.disable_aout()
+        self.hicann.disable_current_stimulus()
+        if l1address is not None:
+            self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(l1address))
         self.hicann.enable_aout(coord_neuron, self.coord_analog)
         self.wafer.configure(UpdateAnalogOutputConfigurator())
 
@@ -266,6 +276,6 @@ class StHALContainer(object):
         self.hicann.enable_current_stimulus(coord_neuron)
         if not l1address is None:
             self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(l1address))
-        self.hicann.enable_aout(coord_neuron, Coordinate.AnalogOnHICANN(0))
+        self.hicann.enable_aout(coord_neuron, self.coord_analog)
         self.wafer.configure(UpdateAnalogOutputConfigurator())
 
