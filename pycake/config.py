@@ -140,6 +140,11 @@ class Config(object):
         """
         return self.parameters['clear']
 
+    def get_clear_defects(self):
+        """ Returns if calibration should be cleared.
+        """
+        return self.parameters.get('clear_defects',False)
+
     def get_run_calibration(self):
         return self.parameters["calibrate"]
 

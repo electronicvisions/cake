@@ -1,6 +1,5 @@
 import pylogging
 
-from pycake.helpers.redman import init_backend as init_redman
 import pyredman as redman
 
 import pycake.experimentbuilder
@@ -10,6 +9,7 @@ import pycake.config
 import pycake.measure
 import pycake.calibrator
 import pycake.helpers.calibtic
+import pycake.helpers.redman
 import pycake.helpers.misc
 from pycake.helpers.StorageProcess import StorageProcess
 
@@ -18,6 +18,8 @@ import time
 import os
 import copy
 from collections import OrderedDict
+
+from pyhalbe import Coordinate
 
 class CalibrationRunner(object):
     """
@@ -37,6 +39,7 @@ class CalibrationRunner(object):
         path, _ = self.config.get_calibtic_backend()
         wafer, hicann = self.config.get_coordinates()
         self.calibtic = pycake.helpers.calibtic.Calibtic(path, wafer, hicann)
+        self.redman =   pycake.helpers.redman.Redman(path, Coordinate.HICANNGlobal(hicann,wafer))
 
         prefix = self.config.get_filename_prefix()
         name_details = "_".join([s for s in [prefix, time.strftime('%m%d_%H%M')] if s])
@@ -44,12 +47,12 @@ class CalibrationRunner(object):
         self.measurements_folder = self.pickel_measurements_folder.format(name_details)
 
         self.storage = StorageProcess(compresslevel=9)
-        # TODO redman!!
 
     def run_calibration(self):
         """entry method for regular calibrations
         to resume a calibrations see: continue_calibration"""
         self.clear_calibration() # Clears calibration if this is wanted
+        self.clear_defects()
         self.logger.INFO("Start calibration")
         self.experiments.clear()
         self.coeffs.clear()
@@ -91,6 +94,13 @@ class CalibrationRunner(object):
         if self.config.get_clear():
             self.calibtic.clear_calibration()
 
+    def clear_defects(self):
+        """ Clears defects if this is set in the configuration
+        """
+
+        if self.config.get_clear_defects():
+            self.redman.clear_defects()
+
     def continue_calibration(self):
         """resumes an calibration run
 
@@ -127,6 +137,7 @@ class CalibrationRunner(object):
             self.logger.INFO("Writing calibration data for {}".format(
                 config_name))
             self.write_calibration(coeffs)
+            self.write_defects(coeffs)
             #self.coeffs[config_name] = coeffs
             #self.save_state()
 
@@ -162,9 +173,15 @@ class CalibrationRunner(object):
         """
         """
         for parameter, data in coeffs:
-            data = dict((coord, coeff[::-1]) for coord, coeff in data.iteritems())
+            data = dict((coord, coeff[::-1]) for coord, coeff in data.iteritems() if coeff != None)
             self.calibtic.write_calibration(parameter, data)
 
+    def write_defects(self, coeffs):
+        """
+        """
+        for parameter, data in coeffs:
+            defects = [coord for coord, coeff in data.iteritems() if coeff == None]
+            self.redman.write_defects(defects)
 
 class TestRunner(CalibrationRunner):
     logger = pylogging.get("pycake.testrunner")

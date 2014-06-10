@@ -11,6 +11,7 @@ pylogging.set_loglevel(pylogging.get("pycake.measurement"),         pylogging.Lo
 pylogging.set_loglevel(pylogging.get("pycake.experiment"),          pylogging.LogLevel.DEBUG )
 pylogging.set_loglevel(pylogging.get("pycake.experimentbuilder"),   pylogging.LogLevel.DEBUG )
 pylogging.set_loglevel(pylogging.get("pycake.calibtic"),            pylogging.LogLevel.DEBUG )
+pylogging.set_loglevel(pylogging.get("pycake.redman"),              pylogging.LogLevel.DEBUG )
 pylogging.set_loglevel(pylogging.get("sthal"),                      pylogging.LogLevel.INFO )
 pylogging.set_loglevel(pylogging.get("sthal.AnalogRecorder"),       pylogging.LogLevel.WARN)
 
