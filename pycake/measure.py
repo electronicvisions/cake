@@ -208,9 +208,17 @@ class Measurement(object):
         return result
 
 class I_gl_Measurement(Measurement):
-    def __init__(self, sthal, neurons, readout_shifts=None, current=35):
+    """ This measurement is done in three steps:
+
+        1) Measure V_rest without injecting current
+        2) Vary input current from 1 to 30 nA to determine best value for fit
+        3) Measure longer trace that is used for the fit
+
+        This takes a lot of time!
+    """
+    def __init__(self, sthal, neurons, readout_shifts=None, currents=range(30)):
         super(I_gl_Measurement, self).__init__(sthal, neurons, readout_shifts)
-        self.current = current
+        self.currents = currents
 
     def set_current(self, current, stim_length):
         """ Change current.
@@ -224,7 +232,7 @@ class I_gl_Measurement(Measurement):
         pulse_length = 15
 
         pll_freq = self.sthal.getPLL()
-        self.stimulus_length = (pulse_length+1) * stim_length * 129 / pll_freq
+        self.stimulus_length = (pulse_length+1) * stim_length * 129 * 4 / pll_freq
 
         stimulus = pyhalbe.HICANN.FGStimulus()
         stimulus.setPulselength(pulse_length)
@@ -236,12 +244,50 @@ class I_gl_Measurement(Measurement):
         self.sthal.set_current_stimulus(stimulus)
 
     def measure_V_rest(self, neuron):
-        self.pre_measure(neuron, current=0)
+        """ Measure V_rest and independend std by injecting 0 current into the membrane.
+            Only measures short traces to reduce time needed
+        """
+        self.pre_measure(neuron, current=None)
+        old_recording_time = self.sthal.recording_time
+        self.sthal.adc.setRecordingTime(1e-4)
         times, trace = self.sthal.read_adc()
+        trace = self.readout_shifts(neuron, trace)
         V_rest = np.mean(trace)
         std    = np.std(trace)
         self.logger.TRACE("Measured V_rest of neuron {0}: {1:.3f} V".format(neuron, V_rest))
+        self.sthal.adc.setRecordingTime(old_recording_time)
         return V_rest, std
+
+    def find_best_current(self, neuron, V_rest, currents, threshold=0.15, recording_time_divider=20.):
+        """ Sweep over a range of currents and find the best current for fit.
+
+            Args:
+                neuron: coordinate
+                V_rest: float. where is V_rest?
+                currents: currents to sweep
+                threshold: how far should the trace go above V_rest?
+                recording_time_divider: how much smaller should the recorded traces be? \
+                        Divider 1 means ~60 cycles (5e-3 s), standard divider of 20 means 3 cycles (2.5e-4 s)
+        """
+        old_recording_time = self.sthal.recording_time
+        self.sthal.adc.setRecordingTime(old_recording_time/recording_time_divider)
+        self.logger.TRACE("Finding best current for neuron {}".format(neuron))
+        best_current = None
+        highest_trace_max = None
+        for current in currents:
+            self.pre_measure(neuron, current=current)
+            times, trace = self.sthal.read_adc()
+            trace = self.readout_shifts(neuron, trace)
+            trace_max = np.max(trace)
+            if (trace_max - V_rest) < threshold: # Don't go higher than 150 mV above V_rest
+                highest_trace_max = trace_max
+                best_current = current
+        self.sthal.adc.setRecordingTime(old_recording_time)
+        if best_current is None and highest_trace_max is None:
+            self.logger.WARN("No best current found for neuron {}. Using 1 nA".format(neuron))
+            return 1
+        else:
+            return best_current
 
     def _measure(self, analyzer):
         """ Measure traces and correct each value for readout shift.
@@ -251,18 +297,23 @@ class I_gl_Measurement(Measurement):
         worker = WorkerPool(analyzer)
         for neuron in self.neurons:
             V_rest, std = self.measure_V_rest(neuron)
-            self.logger.TRACE("Measuring neuron {} with current {}".format(neuron, self.current))
-            self.pre_measure(neuron, current=self.current)
+            current = self.find_best_current(neuron, V_rest, currents=self.currents)
+            self.logger.TRACE("Measuring neuron {} with current {}".format(neuron, current))
+            self.pre_measure(neuron, current=current)
             times, trace = self.sthal.read_adc()
-            worker.do(neuron, times, self.readout_shifts(neuron, trace), neuron, std, V_rest)
+            worker.do(neuron, times, self.readout_shifts(neuron, trace), neuron, std, V_rest, current)
             if not self.traces is None:
                 self.traces[neuron] = np.array([times, trace])
         self.logger.INFO("Wait for analysis to complete.")
         return worker.join()
 
     def pre_measure(self, neuron, current, stim_length=65):
-        self.set_current(int(current), stim_length)
-        self.sthal.switch_current_stimulus_and_output(neuron)
+        if current is None:
+            self.sthal.switch_analog_output(neuron, l1address=None) # No firing activated
+        else:
+            self.set_current(int(current), stim_length)
+            self.sthal.switch_current_stimulus_and_output(neuron)
+
 
 class I_gl_Measurement_multiple_currents(I_gl_Measurement):
     def __init__(self, sthal, neurons, readout_shifts=None, currents=[10,35,70]):
