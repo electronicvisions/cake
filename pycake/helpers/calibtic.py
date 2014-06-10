@@ -144,6 +144,10 @@ class Calibtic(object):
         name = self.get_calibtic_name()
 
         for coord, coeffs in data.iteritems():
+
+            if coeffs == None:
+                continue
+
             if isinstance(parameter, shared_parameter) and isinstance(coord, Coordinate.FGBlockOnHICANN):
                 collection = self.bc
                 cal = pycalibtic.SharedCalibration()

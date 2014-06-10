@@ -123,6 +123,8 @@ class BaseCalibrator(object):
             xs = self.prepare_x(xs_raw)
             ys = self.prepare_y(ys_raw)
             coeffs[neuron] = self.do_fit(xs, ys)
+            if self.is_defect(coeffs[neuron]):
+                coeffs[neuron] = None
         return [(self.target_parameter, coeffs)]
 
     def dac_to_si(self, dac, parameter):
@@ -155,6 +157,9 @@ class BaseCalibrator(object):
         """
         fit_coeffs = np.polyfit(xs, ys, 1)
         return fit_coeffs
+
+    def is_defect(self, coeffs):
+        return False 
 
     def get_neurons(self):
         return self.experiments[0].measurements[0].neurons
@@ -216,7 +221,10 @@ class V_reset_Calibrator(BaseCalibrator):
 
 class E_synx_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.E_synx
-    pass
+    
+    def is_defect(self, coeffs):
+        defect = abs(coeffs[0] - 1) > 0.4 # Broken if slope of the fit is too high or too small
+        return defect
 
 class E_syni_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.E_syni
