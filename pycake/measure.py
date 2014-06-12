@@ -270,8 +270,12 @@ class I_gl_Measurement(Measurement):
                         Divider 1 means ~60 cycles (5e-3 s), standard divider of 20 means 3 cycles (2.5e-4 s)
         """
         old_recording_time = self.sthal.recording_time
+        I_gl = self.get_parameter(neuron_parameter.I_gl, neuron).values()[0]*2500/1023.
         self.sthal.adc.setRecordingTime(old_recording_time/recording_time_divider)
         self.logger.TRACE("Finding best current for neuron {}".format(neuron))
+        if I_gl > 700: # Experience shows that for a large enough I_gl, a current of 30 nA is good
+            self.logger.TRACE("I_gl of {0:.1f} large enough. Setting current to 30 nA".format(I_gl))
+            return 30
         best_current = None
         highest_trace_max = None
         for current in currents:
@@ -282,6 +286,8 @@ class I_gl_Measurement(Measurement):
             if (trace_max - V_rest) < threshold: # Don't go higher than 150 mV above V_rest
                 highest_trace_max = trace_max
                 best_current = current
+            else:
+                break
         self.sthal.adc.setRecordingTime(old_recording_time)
         if best_current is None and highest_trace_max is None:
             self.logger.WARN("No best current found for neuron {}. Using 1 nA".format(neuron))
