@@ -195,6 +195,9 @@ class TestRunner(CalibrationRunner):
     def write_calibration(self, _):
         self.logger.INFO("Writing no calibration since this is test measurement")
 
+    def write_defects(self, _):
+        self.logger.INFO("Writing no defects since this is test measurement")
+
     def get_builder(self, config_name, config):
         """ Get the right experiment builder.
         """
