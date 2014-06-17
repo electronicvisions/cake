@@ -215,10 +215,14 @@ class I_gl_Measurement(Measurement):
         3) Measure longer trace that is used for the fit
 
         This takes a lot of time!
+
+        skip_I_gl can be used to skip step 2) above a certain I_gl (default 700 nA,
+        adjust this for other SpeedUp factors!)
     """
-    def __init__(self, sthal, neurons, readout_shifts=None, currents=range(30)):
+    def __init__(self, sthal, neurons, readout_shifts=None, currents=range(30), skip_I_gl=700):
         super(I_gl_Measurement, self).__init__(sthal, neurons, readout_shifts)
         self.currents = currents
+        self.skip_I_gl = skip_I_gl
 
     def set_current(self, current, stim_length):
         """ Change current.
@@ -258,7 +262,7 @@ class I_gl_Measurement(Measurement):
         self.sthal.adc.setRecordingTime(old_recording_time)
         return V_rest, std
 
-    def find_best_current(self, neuron, V_rest, currents, threshold=0.15, recording_time_divider=20.):
+    def find_best_current(self, neuron, V_rest, currents, threshold=0.15, recording_time_divider=20., skip_I_gl=700):
         """ Sweep over a range of currents and find the best current for fit.
 
             Args:
@@ -268,12 +272,13 @@ class I_gl_Measurement(Measurement):
                 threshold: how far should the trace go above V_rest?
                 recording_time_divider: how much smaller should the recorded traces be? \
                         Divider 1 means ~60 cycles (5e-3 s), standard divider of 20 means 3 cycles (2.5e-4 s)
+                skip_I_gl: Skip the measurement above a certain I_gl and just use 30 nA.
         """
         old_recording_time = self.sthal.recording_time
         I_gl = self.get_parameter(neuron_parameter.I_gl, neuron).values()[0]*2500/1023.
         self.sthal.adc.setRecordingTime(old_recording_time/recording_time_divider)
         self.logger.TRACE("Finding best current for neuron {}".format(neuron))
-        if I_gl > 700: # Experience shows that for a large enough I_gl, a current of 30 nA is good
+        if I_gl > skip_I_gl: # Experience shows that for a large enough I_gl, a current of 30 nA is good
             self.logger.TRACE("I_gl of {0:.1f} large enough. Setting current to 30 nA".format(I_gl))
             return 30
         best_current = None
@@ -303,7 +308,7 @@ class I_gl_Measurement(Measurement):
         worker = WorkerPool(analyzer)
         for neuron in self.neurons:
             V_rest, std = self.measure_V_rest(neuron)
-            current = self.find_best_current(neuron, V_rest, currents=self.currents)
+            current = self.find_best_current(neuron, V_rest, currents=self.currents, skip_I_gl=self.skip_I_gl)
             self.logger.TRACE("Measuring neuron {} with current {}".format(neuron, current))
             self.pre_measure(neuron, current=current)
             times, trace = self.sthal.read_adc()
