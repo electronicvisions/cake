@@ -8,7 +8,11 @@ import pyhalbe
 from bz2 import BZ2File
 
 class Reader(object):
-    def __init__(self, runner):
+    def __init__(self, runner, include_defects = True):
+        """
+        @param include_defects, if true, include neurons classified as defect
+        """
+
         if isinstance(runner, pycake.calibrationrunner.CalibrationRunner):
             self.runner = runner
         elif os.path.isfile(runner):
@@ -20,8 +24,13 @@ class Reader(object):
         else:
             print "Not a valid file or runner"
 
+        self.include_defects = include_defects
+
     def get_neurons(self):
-        return self.runner.config.get_neurons()
+        return [nrn for nrn in self.runner.config.get_neurons()
+                if (self.include_defects == True or
+                    self.runner.redman.hicann_with_backend.neurons().has(nrn))
+               ]
 
     def get_parameters(self):
         return self.runner.experiments.keys()
@@ -74,9 +83,10 @@ class Reader(object):
         return results
 
     def plot_hist(self, parameter, key, step, repetition=0, draw_target_line=True, **kwargs):
+        neurons = self.get_neurons()
         results = self.get_results(parameter, self.get_neurons(), key, repetition)
         results_list = np.array(results.values())[:,step]
-        hist = plt.hist(results_list, label="{:.2f} +- {:.2f}".format(np.mean(results_list)*1000, np.std(results_list)*1000), **kwargs)
+        hist = plt.hist(results_list, label="{:.2f} +- {:.2f}, {}".format(np.mean(results_list)*1000, np.std(results_list)*1000, len(neurons)), **kwargs)
         config = self.runner.config.copy(parameter)
         step_valus = config.get_steps()[step]
         target_value = config.get_steps()[step]
@@ -108,9 +118,12 @@ class Reader(object):
 
         return hist
 
-    def plot_result(self, parameter, key, **kwargs):
+    def plot_result(self, parameter, key, neurons=None, **kwargs):
 
-        results = self.get_results(parameter, self.get_neurons(), key, repetition=0)
+        if neurons == None:
+            neurons = self.get_neurons()
+
+        results = self.get_results(parameter, neurons, key, repetition=0)
 
         config = self.runner.config.copy(parameter)
 
