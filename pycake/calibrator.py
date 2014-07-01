@@ -223,7 +223,7 @@ class E_synx_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.E_synx
     
     def is_defect(self, coeffs):
-        defect = (coeffs[0] - 1) > 1 # Defect if slope of the fit is too high
+        defect = (coeffs[0] - 1) > 1 or coeffs[1] > 100 # Defect if slope of the fit is too high or offset is significantly positive
         return defect
 
 class E_syni_Calibrator(BaseCalibrator):
@@ -236,9 +236,11 @@ class E_syni_Calibrator(BaseCalibrator):
 class E_l_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.E_l
 
+    """
     def is_defect(self, coeffs):
         defect = (coeffs[0] - 1) > 1 # Defect if slope of the fit is too high
         return defect
+    """
 
 class V_t_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.V_t
@@ -319,6 +321,12 @@ class V_syntc_psp_max_BaseCalibrator(BaseCalibrator):
         print coeffs
 
         return [(self.target_parameter, coeffs)]
+
+    """
+    def is_defect(self, coeffs, xs):
+        defect = np.max(xs) < 0.005
+        print xs, np.max(xs), defect
+    """
 
 class V_syntci_psp_max_Calibrator(V_syntc_psp_max_BaseCalibrator):
     target_parameter = neuron_parameter.V_syntci
