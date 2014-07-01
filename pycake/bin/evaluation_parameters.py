@@ -23,6 +23,10 @@ eval_parameters = {
         "V_t_range":      [{neuron_parameter.V_t : v} for v in linspace_voltage(700, 800, 3)],
         "E_synx_range":   [{neuron_parameter.E_synx : Voltage(800)}],
 
+        "I_gl_range":     [{neuron_parameter.I_gl : Current(0)}], # dummy
+        "V_syntcx_range": [{neuron_parameter.V_syntcx : Voltage(1440)} ], # dummy
+        "V_syntci_range": [{neuron_parameter.V_syntci : Voltage(1440)} ], # dummy
+
         # How many repetitions?
         # Each repetition will take about 1 minute per step!
         "repetitions":  1,
@@ -34,10 +38,12 @@ eval_parameters = {
         "run_E_l":      True,
         "run_V_t":      False,
         "run_I_gl":     False,
+        "run_I_pl":     False,
         "run_V_syntcx": False,
         "run_V_syntci": False,
         "run_V_syntci_psp_max": False,
         "run_V_syntcx_psp_max": False,
+        "run_E_l_I_gl_fixed":  False,
 
         # Measurement runs twice by default: first to generate calibration data, and a second time to measure the success of calibration
         # Here you can turn either of these runs on or off
