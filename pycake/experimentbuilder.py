@@ -5,9 +5,6 @@ import pyhalbe
 import copy
 from itertools import product
 
-import pyredman as redman
-
-from pycake.helpers.redman import init_backend as init_redman
 from pycake.helpers.units import Current, Voltage, DAC
 from pycake.helpers.sthal import StHALContainer
 from pycake.helpers.calibtic import Calibtic
@@ -162,20 +159,6 @@ class BaseExperimentBuilder(object):
         Overwrite in subclass, when required.
         """
         return Measurement(sthal, neurons, readout_shifts)
-
-    # TODO implement redman, but not here I think
-    #def init_redman(self, backend):
-    #    """Initialize defect management for given backend."""
-    #    # FIXME default coordinates
-    #    coord_hglobal = self.sthal.hicann.index()  # grab HICANNGlobal from StHAL
-    #    coord_wafer = coord_hglobal.wafer()
-    #    coord_hicann = coord_hglobal.on_wafer()
-    #    wafer = redman.Wafer(backend, coord_wafer)
-    #    if not wafer.hicanns().has(coord_hicann):
-    #        raise ValueError("HICANN {} is marked as defect.".format(int(coord_hicann.id())))
-    #    hicann = wafer.find(coord_hicann)
-    #    self._red_hicann = hicann
-    #    self._red_nrns = hicann.neurons()
 
 class E_l_Experimentbuilder(BaseExperimentBuilder):
     pass
