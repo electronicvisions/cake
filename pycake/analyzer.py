@@ -232,5 +232,24 @@ class V_t_Analyzer(Analyzer):
 
         return {"max" : V_t, "old_max" : np.max(v)}
 
+class I_pl_Analyzer(Analyzer):
+    def __call__(self, t, v, neuron):
+
+        delta = np.std(v)
+
+        try:
+            maxtab, mintab = peakdet(v, delta)
+            maxs = maxtab[:,0]
+            #print maxs
+            mean = np.mean([x - maxs[i - 1] for i, x in enumerate(maxs[1:])])
+            #print mean
+            tau_refrac = t[mean]-t[0]
+            #print tau_refrac
+        except Exception as e:
+            print e
+            tau_refrac = None
+
+        return {"tau_refrac" : tau_refrac}
+
 V_syntci_psp_max_Analyzer = MeanOfTraceAnalyzer
 V_syntcx_psp_max_Analyzer = MeanOfTraceAnalyzer

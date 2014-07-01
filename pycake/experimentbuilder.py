@@ -197,6 +197,11 @@ class V_t_Experimentbuilder(BaseExperimentBuilder):
         "get analyzer"
         return pycake.analyzer.V_t_Analyzer()
 
+class I_pl_Experimentbuilder(BaseExperimentBuilder):
+    def get_analyzer(self):
+        "get analyzer"
+        return pycake.analyzer.I_pl_Analyzer()
+
 class E_syni_Experimentbuilder(BaseExperimentBuilder):
     def prepare_specific_config(self, sthal):
         sthal.stimulateNeurons(5.0e6, 1, excitatory=False)
