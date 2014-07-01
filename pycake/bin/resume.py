@@ -5,8 +5,9 @@ import bz2
 import pylogging
 
 pylogging.default_config(date_format='absolute')
-pylogging.set_loglevel(pylogging.get("Default"),                    pylogging.LogLevel.ERROR)
+pylogging.set_loglevel(pylogging.get("Default"),                    pylogging.LogLevel.INFO)
 pylogging.set_loglevel(pylogging.get("pycake.calibrationrunner"),   pylogging.LogLevel.DEBUG )
+pylogging.set_loglevel(pylogging.get("pycake.testrunner"),          pylogging.LogLevel.DEBUG )
 pylogging.set_loglevel(pylogging.get("pycake.measurement"),         pylogging.LogLevel.DEBUG )
 pylogging.set_loglevel(pylogging.get("pycake.experiment"),          pylogging.LogLevel.DEBUG )
 pylogging.set_loglevel(pylogging.get("pycake.experimentbuilder"),   pylogging.LogLevel.DEBUG )
