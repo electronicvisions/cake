@@ -231,7 +231,7 @@ class Calibtic(object):
             calib_dac_value = calib.at(parameter).apply(dac_value)
             self.logger.TRACE("Calibrated {} parameter {}: {} --> {} DAC".format(coord, parameter.name, dac_value, calib_dac_value))
         else:
-            self.logger.WARN("Applying calibration failed: Nothing found for {} parameter {}.".format(coord, parameter.name))
+            self.logger.WARN("Applying calibration failed: Nothing found for {} parameter {}. Using uncalibrated value {}".format(coord, parameter.name, dac_value))
             calib_dac_value = dac_value
 
         if calib_dac_value < 0:
