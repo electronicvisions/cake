@@ -29,14 +29,82 @@ class MeanOfTraceAnalyzer(Analyzer):
                  "max"  : np.max(v),
                  "min"  : np.min(v)}
 
-class V_reset_Analyzer(Analyzer):
-    """ 
+class PeakAnalyzer(Analyzer):
+    """ Used to analyze a constant-spiking-pattern (rest > thresh)
+
+        Args:
+            t, v, neuron: times, voltage trace, neuron coordinate.
+        Returns:
+            Result dictionary containing:
+                hard_max : max(v)
+                hard_min : min(v)
+                mean_max : Average maximum of spikes
+                mean_min : Average minimum of spikes
+                baseline : Baseline (only works with non-zero refractory period)
+                frequency: Spike frequency
     """
+    def __init__(self):
+        super(PeakAnalyzer, self).__init__()
+
     def __call__(self, t,v, neuron):
         baseline, delta_t = self.find_baseline(t,v)
+        mean_max, mean_min = self.get_mean_peak(t, v, neuron)
+        freq = self.get_frequency(t, v)
         
-        return { "baseline" : baseline,
-                 "delta_t"  : delta_t}
+        return { "hard_max" : np.max(v),
+                 "hard_min" : np.min(v),
+                 "mean"     : np.mean(v),
+                 "std"      : np.std(v),
+                 "mean_max" : mean_max,
+                 "mean_min" : mean_min,
+                 "baseline" : baseline,
+                 "frequency": freq}
+
+    def get_mean_peak(self, t, v, neuron):
+        delta = np.std(v)
+        try:
+            maxtab, mintab = peakdet(v, delta)
+            mean_max = np.mean(maxtab[:,1])
+            mean_min = np.mean(mintab[:,1])
+        except IndexError as e:
+            self.logger.INFO("No mean min/max found. Using hard min/max.")
+            mean_max = np.max(v)
+            mean_min = np.min(v)
+        return mean_max, mean_min
+
+    def get_frequency(self, t, v):
+        spikes = self.detect_spikes(t,v)
+        return self.spikes_to_frequency(spikes)
+
+    def detect_spikes(self, time, voltage):
+        """Detect spikes from a voltage trace."""
+
+        # make sure we have numpy arrays
+        t = np.array(time)
+        v = np.array(voltage)
+
+        # Derivative of voltages
+        dv = v[1:] - v[:-1]
+        # Take average over 3 to reduce noise and increase spikes
+        smooth_dv = dv[:-2] + dv[1:-1] + dv[2:]
+        threshhold = -2.5 * np.std(smooth_dv)
+
+        # Detect positions of spikes
+        tmp = smooth_dv < threshhold
+        pos = np.logical_and(tmp[1:] != tmp[:-1], tmp[1:])
+        spikes = t[1:-2][pos]
+
+        return spikes
+
+    def spikes_to_frequency(self, spikes):
+        """Calculate the spiking frequency from spikes."""
+
+        # inter spike interval
+        isi = spikes[1:] - spikes[:-1]
+        if (len(isi) == 0) or (np.mean(isi) == 0):
+            return 0
+        else:
+            return 1./np.mean(isi)
 
     def find_baseline(self, t,v):
             """ find baseline of trace
@@ -94,6 +162,37 @@ class V_reset_Analyzer(Analyzer):
             #-------------------------------------------------------------------
 
             return baseline, delta_t
+
+class V_reset_Analyzer(PeakAnalyzer):
+    """ Uses PeakAnalyzer to get results that are relevant for V_reset
+
+        Returns:
+            Result dictionary containing:
+                mean_min: mean minimum after spikes.
+                baseline: baseline of trace. use only if refractory period is non-zero!
+                delta_t : time between spikes
+    """
+    def __call__(self, t,v, neuron):
+        baseline, delta_t = self.find_baseline(t,v)
+        mean_max, mean_min = self.get_mean_peak(t, v, neuron)
+
+        return { "mean_min" : mean_min,
+                 "baseline" : baseline,
+                 "delta_t"  : delta_t}
+
+class V_t_Analyzer(PeakAnalyzer):
+    """ Uses PeakAnalyzer to get results that are relevant for V_reset
+
+        Returns:
+            Result dictionary containing:
+                max: mean maximum of spikes
+                old_max: hard maximum of complete trace
+    """
+    def __call__(self, t,v, neuron):
+        mean_max, mean_min = self.get_mean_peak(t, v, neuron)
+
+        return { "max"      : mean_max,
+                 "old_max"  : np.max(v)}
 
 class I_gl_Analyzer(Analyzer):
     def __init__(self, coord_wafer, coord_hicann, save_mean=True):
@@ -219,18 +318,8 @@ class I_gl_Analyzer(Analyzer):
 
         return tau, V_rest, height, red_chisquare, pcov, infodict, ier
 
-class V_t_Analyzer(Analyzer):
-    def __call__(self, t, v, neuron):
-
-        delta = np.std(v)
-
-        try:
-            maxtab, mintab = peakdet(v, delta)
-            V_t = np.mean(maxtab[:,1])
-        except IndexError as e:
-            V_t = np.max(v)
-
-        return {"max" : V_t, "old_max" : np.max(v)}
+V_syntci_psp_max_Analyzer = MeanOfTraceAnalyzer
+V_syntcx_psp_max_Analyzer = MeanOfTraceAnalyzer
 
 class I_pl_Analyzer(Analyzer):
     def __call__(self, t, v, neuron):
@@ -250,6 +339,3 @@ class I_pl_Analyzer(Analyzer):
             tau_refrac = None
 
         return {"tau_refrac" : tau_refrac}
-
-V_syntci_psp_max_Analyzer = MeanOfTraceAnalyzer
-V_syntcx_psp_max_Analyzer = MeanOfTraceAnalyzer
