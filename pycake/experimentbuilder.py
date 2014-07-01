@@ -52,7 +52,7 @@ class BaseExperimentBuilder(object):
         # Create one sthal container for each step
         # order is step 1, step 2, step 3, ..., step 1, step 2, step 3, ...
         for rep, step in product(range(repetions), steps):
-            self.logger.TRACE("Building step {}".format(step))
+            self.logger.INFO("Building step {}, repetition {}".format(step,rep))
             sthal = StHALContainer(coord_wafer, coord_hicann)
             # TODO maybe find better solution
             if self.test:
