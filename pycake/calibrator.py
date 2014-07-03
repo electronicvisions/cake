@@ -213,7 +213,6 @@ class V_reset_Calibrator(BaseCalibrator):
 
         coeffs = {}
         for coord, mean in block_means.iteritems():
-            print mean
             coeffs[coord] = self.do_fit(mean[:,2], mean[:,0])
 
         coeffs.update(self.get_neuron_shifts(neuron_results, block_means))
