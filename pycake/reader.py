@@ -22,7 +22,7 @@ class Reader(object):
             with f_open(runner, 'rb') as infile:
                 self.runner = cPickle.load(infile)
         else:
-            print "Not a valid file or runner"
+            raise RuntimeError("Not a valid file or runner")
 
         self.include_defects = include_defects
 
