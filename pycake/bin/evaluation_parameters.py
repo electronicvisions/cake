@@ -6,7 +6,7 @@ from pycake.helpers.units import linspace_voltage, linspace_current
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
 
-folder = "~/.calibration-restructure"
+folder = "/tmp"
 
 from fastcalibration_parameters import parameters
 
