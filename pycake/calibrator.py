@@ -317,8 +317,6 @@ class V_syntc_psp_max_BaseCalibrator(BaseCalibrator):
             V_syntc_psp_max = self.fit_neuron(neuron)
             coeffs[neuron] = [V_syntc_psp_max]
 
-        print coeffs
-
         return [(self.target_parameter, coeffs)]
 
     """
