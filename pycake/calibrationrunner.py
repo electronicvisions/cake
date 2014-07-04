@@ -138,8 +138,8 @@ class CalibrationRunner(object):
                 config_name))
             self.write_calibration(coeffs)
             self.write_defects(coeffs)
-            #self.coeffs[config_name] = coeffs
-            #self.save_state()
+            self.coeffs[config_name] = coeffs
+            self.save_state()
 
     def save_state(self):
         """ Saves itself to a file in the given path.
