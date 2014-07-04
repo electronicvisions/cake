@@ -118,7 +118,9 @@ class Reader(object):
 
         return hist
 
-    def plot_result(self, parameter, key, neurons=None, **kwargs):
+    def plot_result(self, parameter, key, neurons=None, yfactor=1000, **kwargs):
+
+        fig = plt.figure()
 
         if neurons == None:
             neurons = self.get_neurons()
@@ -133,8 +135,8 @@ class Reader(object):
         for step, step_value in enumerate(config.get_steps()):
 
             xs.append(step_value.values()[0].value)
-            ys.append(np.array(results.values())[:,step])
+            ys.append((np.array(results.values())*yfactor)[:,step])
 
         plot = plt.plot(xs, ys, **kwargs)
 
-        return plot
+        return fig, plot
