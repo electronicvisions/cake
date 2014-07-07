@@ -44,14 +44,14 @@ class BaseExperimentBuilder(object):
         measurements = []
         coord_wafer, coord_hicann = self.config.get_coordinates()
         steps = self.config.get_steps()
-        repetions = self.config.get_repetitions()
+        repetitions = self.config.get_repetitions()
 
         # Get readout shifts
         readout_shifts = self.get_readout_shifts(self.neurons)
 
         # Create one sthal container for each step
         # order is step 1, step 2, step 3, ..., step 1, step 2, step 3, ...
-        for rep, step in product(range(repetions), steps):
+        for rep, step in product(range(repetitions), steps):
             self.logger.INFO("Building step {}, repetition {}".format(step,rep))
             sthal = StHALContainer(coord_wafer, coord_hicann)
             # TODO maybe find better solution
@@ -67,7 +67,7 @@ class BaseExperimentBuilder(object):
             measurement = self.make_measurement(sthal, self.neurons, readout_shifts)
             measurements.append(measurement)
 
-        return measurements, repetions
+        return measurements, repetitions
 
     def get_step_parameters(self, step):
         """ Get parameters for this step.
@@ -143,8 +143,8 @@ class BaseExperimentBuilder(object):
         """
         """
         analyzer = self.get_analyzer()
-        measurements, repetions = self.generate_measurements()
-        return BaseExperiment(measurements, analyzer, repetions)
+        measurements, repetitions = self.generate_measurements()
+        return BaseExperiment(measurements, analyzer, repetitions)
 
     def get_analyzer(self):
         """

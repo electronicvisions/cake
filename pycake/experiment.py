@@ -17,11 +17,11 @@ class BaseExperiment(object):
 
     logger = pylogging.get("pycake.experiment")
 
-    def __init__(self, measurements, analyzer, repetions):
+    def __init__(self, measurements, analyzer, repetitions):
         self.measurements = measurements
         self.analyzer = analyzer
         self.results = []
-        self.repetions = repetions
+        self.repetitions = repetitions
 
     def run(self):
         """Run the experiment and process results."""
