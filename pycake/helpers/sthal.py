@@ -53,13 +53,19 @@ class StHALContainer(object):
     def __init__(self, coord_wafer,
                  coord_hicann,
                  coord_analog=Coordinate.AnalogOnHICANN(0),
-                 recording_time=1.e-4):
+                 recording_time=1.e-4,
+                 wafer_cfg="wafer.xml"):
         """Initialize StHAL. kwargs default to vertical setup configuration."""
 
         self.coord_wafer = coord_wafer
         self.coord_hicann = coord_hicann
 
         wafer = pysthal.Wafer(coord_wafer)  # Stateful HICANN Container
+
+        if wafer_cfg:
+            print "loading", wafer_cfg
+            wafer.load(wafer_cfg)
+
         hicann = wafer[coord_hicann]
 
         self.wafer = wafer
@@ -112,8 +118,8 @@ class StHALContainer(object):
             self.connect()
         self.hicann.disable_aout()
         self.hicann.disable_current_stimulus()
-        if l1address is not None:
-            self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(l1address))
+        #if l1address is not None:
+        #    self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(l1address))
         self.hicann.enable_aout(coord_neuron, self.coord_analog)
         self.wafer.configure(UpdateAnalogOutputConfigurator())
 
