@@ -105,7 +105,7 @@ class Experimentreader(object):
             print p
 
         return expdirs
-    
+
     def load_experiment(self, expname):
             """ 
                 """
@@ -262,6 +262,46 @@ class Experimentreader(object):
                 print "{} broken: no results folder".format(d)
                 broken.append(d)
         return broken
+
+    def get_all_of_one_parameter(self, parameter):
+        """ Gives all experiments with the same target parameter
+
+            Args:
+                parameter: neuron_parameter or shared_parameter
+            Returns:
+                list of experiment ids
+        """
+        directories = []
+        for directory in self.list_experiments():
+            path_full = os.path.join(self.workdir, directory)
+            filepath_full = os.path.join(path_full, 'target_parameter.p')
+            exp_param = pickle.load(open(filepath_full))
+            if exp_param == parameter:
+                directories.append(directory)
+
+        return directories
+
+    def create_plots(self, experiment1, experiment2):
+        ex1 = self.load_experiment(experiment1)
+        ex2 = self.load_experiment(experiment2)
+
+        steps_ex1 = ex1.get_steps()
+        steps_ex2 = ex2.get_steps()
+
+        assert (ex1.get_steps()==ex2.get_steps()) # Steps should be the same!
+
+        figures = []
+        for sid in range(len(ex1.get_steps())):
+            figures.append(self.compare_experiments(experiment1, experiment2, sid))
+
+        results = self.print_results([experiment1, experiment2])
+
+        neuron_results1 = ex1.plot_neuron_results(range(512))
+        neuron_results2 = ex2.plot_neuron_results(range(512))
+
+        return [figures, results, [neuron_results1, neuron_results2]]
+        
+
 
 
 
@@ -631,3 +671,8 @@ class Experiment(object):
         """
         pass # TODO
 
+    def create_plots(self):
+        neuron_results = [self.plot_neuron_results(nid) for nid in range(512)]
+        traces = [[[self.plot_trace(nid, sid, rid) for nid in range(512)] for rid in range(self.repetitions)] for sid in range(self.num_steps)]
+
+        return [neuron_results, traces]

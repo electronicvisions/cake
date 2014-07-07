@@ -5,14 +5,15 @@ import traceback
 workers = multiprocessing.cpu_count() - 1
 
 class WorkerPool(object):
+    """A worker pool"""
+
     def __init__(self, f, workers = None):
         if workers is None:
             workers = multiprocessing.cpu_count()
 
-        self.ii = 0
         self.q_in = multiprocessing.JoinableQueue()
         manager = multiprocessing.Manager()
-        self.result = manager.list()
+        self.result = manager.dict()
         self.workers = [self._make_worker(f) for ii in range(workers)]
         for w in self.workers:
             w.start()
@@ -21,9 +22,8 @@ class WorkerPool(object):
         for w in self.workers:
             w.terminate()
 
-    def do(self, *args):
-        self.q_in.put_nowait( (self.ii, args) )
-        self.ii += 1
+    def do(self, key, *args):
+        self.q_in.put_nowait( (key, args) )
 
     def join(self):
         for w in self.workers:
@@ -31,11 +31,8 @@ class WorkerPool(object):
         self.q_in.join()
         self.q_in.close()
 
-        result = list(self.result)
-        assert len(result) == self.ii
-        result.sort()
-        result = [r[1] for r in result]
-        for r in result:
+        result = dict(self.result)
+        for k, r in result.iteritems():
             if isinstance(r, Exception):
                 raise r
 
@@ -54,13 +51,14 @@ class WorkerPool(object):
 
     @staticmethod
     def _process(f, q_in, out_list):
-        for ii, args in iter(q_in.get, None):
+        for key, args in iter(q_in.get, None):
             try:
-                out_list.append((ii, f(*args)))
+                out_list[key] = f(*args)
             except Exception as e:
+                import traceback
                 print e
                 traceback.print_exc()
-                out_list.append( (ii, e) )
+                out_list[key] = e
             finally:
                 q_in.task_done()
         else:

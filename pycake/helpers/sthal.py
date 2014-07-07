@@ -7,7 +7,12 @@ import pylogging
 from pyhalbe import Coordinate
 
 class UpdateAnalogOutputConfigurator(pysthal.HICANNConfigurator):
-    """Change analog output only without writing other configuration."""
+    """ Configures the following things from sthal container:
+        - neuron quad configuration
+        - analog readout
+        - analog current input
+        - current stimulus strength/duration etc.
+    """
     def config_fpga(self, *args):
         """do not reset FPGA"""
         pass
@@ -16,6 +21,7 @@ class UpdateAnalogOutputConfigurator(pysthal.HICANNConfigurator):
         """Call analog output related configuration functions."""
         self.config_neuron_quads(h, hicann)
         self.config_analog_readout(h, hicann)
+        self.config_fg_stimulus(h, hicann)
         self.flush_fpga(fpga_handle)
 
 class UpdateCurrentStimuluConfigurator(pysthal.HICANNConfigurator):
@@ -31,6 +37,19 @@ class UpdateCurrentStimuluConfigurator(pysthal.HICANNConfigurator):
 
 class StHALContainer(object):
     """Contains StHAL objects for hardware access. Multiple experiments can share one container."""
+    def __getstate__(self):
+        odict = self.__dict__.copy()
+        del odict['hicann']
+        return odict
+
+    def __setstate__(self, dic):
+        coord_hicann = dic['coord_hicann']
+        wafer = dic['wafer']
+        dic['hicann'] = wafer[coord_hicann]
+        self.__dict__.update(dic)
+
+    logger = pylogging.get("pycake.helper.sthal")
+
     def __init__(self, coord_wafer,
                  coord_hicann,
                  coord_analog=Coordinate.AnalogOnHICANN(0),
@@ -49,9 +68,6 @@ class StHALContainer(object):
         self.recording_time = recording_time
         self.coord_analog = coord_analog
         self._connected = False
-        self._cfg_analog = UpdateAnalogOutputConfigurator()
-        self.logger = pylogging.get("pycake.helper.sthal")
-
 
     def connect(self):
         """Connect to the hardware."""
@@ -89,13 +105,17 @@ class StHALContainer(object):
             self.connect()
         self.wafer.configure(pysthal.HICANNConfigurator())
 
-    def switch_analog_output(self, coord_neuron, l1address=0, analog=0):
-        """Write analog output configuration (only)."""
+    def switch_analog_output(self, coord_neuron, l1address=0):
+        """Write analog output configuration (only).
+           If l1address is None, firing is disabled."""
         if not self._connected:
             self.connect()
-        self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(l1address))
-        self.hicann.enable_aout(coord_neuron, Coordinate.AnalogOnHICANN(analog))
-        self.wafer.configure(self._cfg_analog)
+        self.hicann.disable_aout()
+        self.hicann.disable_current_stimulus()
+        if l1address is not None:
+            self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(l1address))
+        self.hicann.enable_aout(coord_neuron, self.coord_analog)
+        self.wafer.configure(UpdateAnalogOutputConfigurator())
 
     def read_adc(self):
         if not self._connected:
@@ -111,12 +131,19 @@ class StHALContainer(object):
                 self.connect_adc()
         raise RuntimeError("Aborting ADC readout, maximum number of retries exceded")
 
+    def read_status(self):
+        if not self._connected:
+            self.connect()
+        return self.adc.status()
     def status(self):
         if not self._connected:
             self.connect()
         return self.wafer.status()
 
-    def stimulateNeurons(self, rate, no_generators):
+    def getPLL(self):
+        return self.wafer.commonFPGASettings().getPLL()
+
+    def stimulateNeurons(self, rate, no_generators, excitatory=True):
         """Stimulate neurons via background generators
 
         Args:
@@ -127,8 +154,11 @@ class StHALContainer(object):
         assert(rate <= 5.0e6)
 
         l1address = pyhalbe.HICANN.L1Address(0)
+
         PLL = self.wafer.commonFPGASettings().getPLL()
         bg_period = int(math.floor(PLL/rate) - 1)
+        self.logger.info("Stimulating neurons from {} background generators"
+                         " with isi {}".format(no_generators, bg_period))
 
         for bg in Coordinate.iter_all(Coordinate.BackgroundGeneratorOnHICANN):
             generator = self.hicann.layer1[bg]
@@ -149,14 +179,14 @@ class StHALContainer(object):
             if ii < no_generators:
                 self.route(bg_top, drv_top)
                 self.route(bg_bottom, drv_bottom)
-                self.enable_synapse_line(drv_top, l1address)
-                self.enable_synapse_line(drv_bottom, l1address)
+                self.enable_synapse_line(drv_top, l1address, excitatory)
+                self.enable_synapse_line(drv_bottom, l1address, excitatory)
             else:
                 self.disable_synapse_line(drv_top)
                 self.disable_synapse_line(drv_bottom)
 
 
-    def enable_synapse_line(self, driver_c, l1address, exitatory=True):
+    def enable_synapse_line(self, driver_c, l1address, excitatory=True):
         """
         """
 
@@ -167,7 +197,7 @@ class StHALContainer(object):
 
         driver = self.hicann.synapses[driver_c]
         driver_decoder = l1address.getDriverDecoderMask()
-        driver.set_l1();
+        driver.set_l1()
         driver[top].set_decoder(top, driver_decoder)
         driver[top].set_decoder(bottom, driver_decoder)
         driver[top].set_gmax_div(left, 1)
@@ -179,7 +209,7 @@ class StHALContainer(object):
         driver[bottom].set_syn_in(left, 0)
         driver[bottom].set_syn_in(right, 1)
 
-        if exitatory:
+        if excitatory:
             w_top = [pyhalbe.HICANN.SynapseWeight(15)] * 256
             w_bottom = [pyhalbe.HICANN.SynapseWeight(0)] * 256
         else:
@@ -194,7 +224,8 @@ class StHALContainer(object):
         synapse_decoder = [l1address.getSynapseDecoderMask()] * 256
         self.hicann.synapses[synapse_line_top].decoders[:] = synapse_decoder
         self.hicann.synapses[synapse_line_bottom].decoders[:] = synapse_decoder
-        self.logger.DEBUG("enabled {!s} listing to {!s}".format(driver_c, l1address))
+        self.logger.DEBUG("enabled {!s} listing to {!s}".format(
+            driver_c, l1address))
 
     def disable_synapse_line(self, driver_c):
         """
@@ -204,7 +235,7 @@ class StHALContainer(object):
         bottom = Coordinate.bottom
 
         driver = self.hicann.synapses[driver_c]
-        driver.disable();
+        driver.disable()
         synapse_line_top    = Coordinate.SynapseRowOnHICANN(driver_c, top)
         synapse_line_bottom = Coordinate.SynapseRowOnHICANN(driver_c, bottom)
         weights = [pyhalbe.HICANN.SynapseWeight(0)] * 256
@@ -241,22 +272,23 @@ class StHALContainer(object):
 
     def set_current_stimulus(self, stimulus):
         """Updates current stimulus for all neurons"""
-        if not self._connected:
-            self.connect()
         #for block in Coordinate.iter_all(Coordinate.FGBlockOnHICANN):
         for block in range(4):
             self.hicann.current_stimuli[block] = stimulus
         # TODO write to FG
 
-    def switch_current_stimulus(self, coord_neuron):
-        """ Properly switches the current stimulus to a certain neuron.
+    def switch_current_stimulus_and_output(self, coord_neuron, l1address=None):
+        """ Switches the current stimulus and analog output to a certain neuron.
             To avoid invalid neuron configurations (see HICANN doc page 33),
-            all aouts and current stimuli are disabled before enabling them for one neuron."""
+            all aouts and current stimuli are disabled before enabling them for
+            one neuron."""
         if not self._connected:
             self.connect()
         self.hicann.disable_aout()
         self.hicann.disable_current_stimulus()
         self.hicann.enable_current_stimulus(coord_neuron)
-        self.hicann.enable_aout(coord_neuron, Coordinate.AnalogOnHICANN(0))
-        self.wafer.configure(self._cfg_analog)
+        if not l1address is None:
+            self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(l1address))
+        self.hicann.enable_aout(coord_neuron, self.coord_analog)
+        self.wafer.configure(UpdateAnalogOutputConfigurator())
 

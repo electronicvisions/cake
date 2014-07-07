@@ -42,6 +42,8 @@ def _get_preout_trace(coord_wafer, coord_hicann, bg_rate, recording_time):
 
 def createTraceAverager(coord_wafer, coord_hicann):
     analog = Coordinate.AnalogOnHICANN(0)
+    logger.info("Create TraceAverager for {} on {}.".format(
+        analog, coord_hicann))
     bg_rate = 100.0e3
     recording_time = 1000.0 / bg_rate
     trace = _get_preout_trace(
