@@ -10,6 +10,10 @@ folder = "/tmp"
 
 from fastcalibration_parameters import parameters
 
+from fastcalibration_parameters import E_l_target
+from fastcalibration_parameters import E_syni_target
+from fastcalibration_parameters import E_synx_target
+
 eval_parameters = {
 # Which neurons and blocks do you want to calibrate?
         "filename_prefix":  "",
@@ -18,10 +22,10 @@ eval_parameters = {
 
         # For the evaluation of the calibration, only one point, except for V_t, is targeted
         "V_reset_range":  [{shared_parameter.V_reset : Voltage(500)}],
-        "E_syni_range":   [{neuron_parameter.E_syni : Voltage(600)}],
-        "E_l_range":      [{neuron_parameter.E_l : Voltage(700)}],
-        "V_t_range":      [{neuron_parameter.V_t : v} for v in linspace_voltage(700, 800, 3)],
-        "E_synx_range":   [{neuron_parameter.E_synx : Voltage(800)}],
+        "E_syni_range":   [{neuron_parameter.E_syni : Voltage(E_syni_target)}],
+        "E_l_range":      [{neuron_parameter.E_l : Voltage(E_l_target)}],
+        "V_t_range":      [{neuron_parameter.V_t : v} for v in linspace_voltage(E_l_target, E_synx_target, 3)],
+        "E_synx_range":   [{neuron_parameter.E_synx : Voltage(E_synx_target)}],
 
         "I_gl_range":     [{neuron_parameter.I_gl : Current(0)}], # dummy
         "V_syntcx_range": [{neuron_parameter.V_syntcx : Voltage(1440)} ], # dummy
