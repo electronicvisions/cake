@@ -58,18 +58,18 @@ parameters = {
         "repetitions":  1,
 
         # Set which calibrations you want to run
-        "run_V_reset":  False,
-        "run_E_synx":   False,
-        "run_E_syni":   False,
-        "run_E_l_I_gl_fixed":  False,
-        "run_E_l":      False,
-        "run_V_t":      False,
+        "run_V_reset":  True,
+        "run_E_synx":   True,
+        "run_E_syni":   True,
+        "run_E_l_I_gl_fixed":  True,
+        "run_E_l":      True,
+        "run_V_t":      True,
         "run_I_gl":     False,
         "run_I_pl":     False,
         "run_V_syntcx": False,
         "run_V_syntci": False,
-        "run_V_syntcx_psp_max": False,
-        "run_V_syntci_psp_max": False,
+        "run_V_syntcx_psp_max": True,
+        "run_V_syntci_psp_max": True,
 
 
         # Measurement runs twice by default: first to generate calibration data, and a second time to measure the success of calibration
