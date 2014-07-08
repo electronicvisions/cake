@@ -32,12 +32,12 @@ eval_parameters = {
         "repetitions":  1,
 
         # Set which calibrations you want to run
-        "run_V_reset":  False,
-        "run_E_synx":   False,
-        "run_E_syni":   False,
+        "run_V_reset":  True,
+        "run_E_synx":   True,
+        "run_E_syni":   True,
         "run_E_l":      True,
-        "run_V_t":      False,
-        "run_I_gl":     False,
+        "run_V_t":      True,
+        "run_I_gl":     True,
         "run_I_pl":     False,
         "run_V_syntcx": False,
         "run_V_syntci": False,
