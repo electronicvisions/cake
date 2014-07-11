@@ -40,6 +40,9 @@ margins={"left":0.11, "right":0.95, "top":0.95, "bottom":0.11}
 parser = argparse.ArgumentParser()
 parser.add_argument("runner", help="path to calibration runner")
 parser.add_argument("testrunner", help="path to test runner (evaluation of calibration)")
+parser.add_argument("hicann", help="HICANNOnWafer enum", type=int)
+parser.add_argument("backenddir", help="path to backends directory")
+parser.add_argument("--wafer", help="Wafer enum", default=0)
 parser.add_argument("--outdir", help="path of output directory for plots", default="./figures")
 args = parser.parse_args()
 
@@ -143,7 +146,7 @@ uncalibrated_hist("$V_{reset}$ [V]",
 
 fig = plt.figure()
 
-c = calibtic.Calibtic("/tmp/backends/",C.Wafer(C.Enum(0)),C.HICANNOnWafer(C.Enum(280)))
+c = calibtic.Calibtic(args.backenddir,C.Wafer(C.Enum(args.wafer)),C.HICANNOnWafer(C.Enum(args.hicann)))
 
 offsets = [c.nc.at(n).at(21).apply(0) * 1000 for n in xrange(512)]
 plt.hist(offsets, bins=100);
