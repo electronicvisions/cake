@@ -30,6 +30,7 @@ import numpy as np
 import os
 from collections import defaultdict
 import argparse
+from pycake.helpers.misc import mkdir_p
 
 font = {#'family' : 'normal',
         #'weight' : 'bold',
@@ -47,6 +48,8 @@ parser.add_argument("--outdir", help="path of output directory for plots", defau
 args = parser.parse_args()
 
 fig_dir = args.outdir
+mkdir_p(fig_dir)
+
 reader = Reader(args.runner)
 test_reader = Reader(args.testrunner)
 
