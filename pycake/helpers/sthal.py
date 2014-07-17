@@ -24,17 +24,6 @@ class UpdateAnalogOutputConfigurator(pysthal.HICANNConfigurator):
         self.config_fg_stimulus(h, hicann)
         self.flush_fpga(fpga_handle)
 
-class UpdateCurrentStimuluConfigurator(pysthal.HICANNConfigurator):
-    """Change analog output only without writing other configuration."""
-    def config_fpga(self, *args):
-        """do not reset FPGA"""
-        pass
-
-    def config(self, fpga_handle, h, hicann):
-        """Call analog output related configuration functions."""
-        self.config_fg_stimulus(h, hicann)
-        self.flush_fpga(fpga_handle)
-
 class StHALContainer(object):
     """Contains StHAL objects for hardware access. Multiple experiments can share one container."""
     def __getstate__(self):
@@ -139,6 +128,7 @@ class StHALContainer(object):
         if not self._connected:
             self.connect()
         return self.adc.status()
+
     def status(self):
         if not self._connected:
             self.connect()
@@ -188,7 +178,6 @@ class StHALContainer(object):
             else:
                 self.disable_synapse_line(drv_top)
                 self.disable_synapse_line(drv_bottom)
-
 
     def enable_synapse_line(self, driver_c, l1address, excitatory=True):
         """
@@ -247,7 +236,6 @@ class StHALContainer(object):
         self.hicann.synapses[synapse_line_bottom].weights[:] = weights
         self.logger.DEBUG("disabled {!s}".format(driver_c))
 
-
     def route(self, output_buffer, driver, route=0):
         """Connects one output buffer to a synapse driver via l1 routing
 
@@ -295,4 +283,3 @@ class StHALContainer(object):
             self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(l1address))
         self.hicann.enable_aout(coord_neuron, self.coord_analog)
         self.wafer.configure(UpdateAnalogOutputConfigurator())
-
