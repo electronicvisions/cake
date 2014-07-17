@@ -92,11 +92,15 @@ class StHALContainer(object):
         self.adc = None
         self._connected = False
 
-    def write_config(self):
+    def write_config(self, program_floating_gates=True):
         """Write full configuration."""
         if not self._connected:
             self.connect()
-        self.wafer.configure(pysthal.HICANNConfigurator())
+        if program_floating_gates:
+            configurator = pysthal.HICANNConfigurator()
+        else:
+            configurator = pysthal.DontProgramFloatingGatesHICANNConfigurator()
+        self.wafer.configure(configurator)
 
     def switch_analog_output(self, coord_neuron, l1address=0):
         """Write analog output configuration (only).
