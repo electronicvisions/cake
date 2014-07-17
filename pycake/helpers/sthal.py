@@ -75,6 +75,10 @@ class StHALContainer(object):
         self.connect_adc()
         self._connected = True
 
+    def dump_connect(self, filename, append):
+        self.wafer.connect(pysthal.DumpHardwareDatabase(filename, append))
+        self._connected = True
+
     def connect_adc(self, coord_analog=None):
         """Gets ADC handle.
 
