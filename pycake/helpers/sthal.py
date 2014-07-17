@@ -266,13 +266,29 @@ class StHALContainer(object):
         self.hicann.crossbar_switches.set(v_line, out_line, True)
         self.hicann.synapse_switches.set(v_line, driver_line, True)
 
+    def set_current_stimulus(self, stim_value, stim_length, pulse_length=15):
+        """ Set current. Does not write to hardware.
 
-    def set_current_stimulus(self, stimulus):
-        """Updates current stimulus for all neurons"""
-        #for block in Coordinate.iter_all(Coordinate.FGBlockOnHICANN):
+            Args:
+                stim_value: int -> strength of current (DAC -> nA conversion
+                            unclear, but ~ 2nA per 500 DAC)
+                stim_length: int -> how long should the current be?
+                             max. duration is a whole cycle: 129
+
+            Returns:
+                length of one pulse in seconds 
+        """
+        stimulus = pysthal.FGStimulus()
+        stimulus.setPulselength(pulse_length)
+        stimulus.setContinuous(True)
+
+        stimulus[:stim_length] = [stim_value] * stim_length
+        stimulus[stim_length:] = [0] * (len(stimulus) - stim_length)
+
         for block in range(4):
             self.hicann.current_stimuli[block] = stimulus
-        # TODO write to FG
+
+        return (pulse_length+1)*4 * stim_length / self.getPLL()
 
     def switch_current_stimulus_and_output(self, coord_neuron, l1address=None):
         """ Switches the current stimulus and analog output to a certain neuron.

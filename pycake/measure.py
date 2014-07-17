@@ -224,29 +224,6 @@ class I_gl_Measurement(Measurement):
         self.currents = currents
         self.skip_I_gl = skip_I_gl
 
-    def set_current(self, current, stim_length):
-        """ Change current.
-
-            Args:
-                current: value in nA
-                stim_length: int value. how long should the current be?
-                    max. duration is a whole cycle: 129
-        """
-        stim_current = current
-        pulse_length = 15
-
-        pll_freq = self.sthal.getPLL()
-        self.stimulus_length = (pulse_length+1) * stim_length * 129 * 4 / pll_freq
-
-        stimulus = pyhalbe.HICANN.FGStimulus()
-        stimulus.setPulselength(pulse_length)
-        stimulus.setContinuous(True)
-
-        stimulus[:stim_length] = [stim_current] * stim_length
-        stimulus[stim_length:] = [0] * (len(stimulus) - stim_length)
-
-        self.sthal.set_current_stimulus(stimulus)
-
     def measure_V_rest(self, neuron):
         """ Measure V_rest and independend std by injecting 0 current into the membrane.
             Only measures short traces to reduce time needed
@@ -322,7 +299,7 @@ class I_gl_Measurement(Measurement):
         if current is None:
             self.sthal.switch_analog_output(neuron, l1address=None) # No firing activated
         else:
-            self.set_current(int(current), stim_length)
+            self.sthal.set_current_stimulus(int(current), stim_length)
             self.sthal.switch_current_stimulus_and_output(neuron)
 
 
