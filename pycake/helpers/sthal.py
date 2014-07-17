@@ -276,7 +276,7 @@ class StHALContainer(object):
                              max. duration is a whole cycle: 129
 
             Returns:
-                length of one pulse in seconds 
+                length of one pulse in seconds
         """
         stimulus = pysthal.FGStimulus()
         stimulus.setPulselength(pulse_length)
