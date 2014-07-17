@@ -15,14 +15,13 @@ class Reader(object):
 
         if isinstance(runner, pycake.calibrationrunner.CalibrationRunner):
             self.runner = runner
-        elif os.path.isfile(runner):
-            f_open = open
+        else:
             if runner.endswith('.bz2'):
                 f_open = BZ2File
+            else:
+                f_open = open
             with f_open(runner, 'rb') as infile:
                 self.runner = cPickle.load(infile)
-        else:
-            raise RuntimeError("Not a valid file or runner")
 
         self.include_defects = include_defects
 

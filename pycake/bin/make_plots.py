@@ -30,6 +30,7 @@ import numpy as np
 import os
 from collections import defaultdict
 import argparse
+from pycake.helpers.misc import mkdir_p
 
 font = {#'family' : 'normal',
         #'weight' : 'bold',
@@ -40,10 +41,15 @@ margins={"left":0.11, "right":0.95, "top":0.95, "bottom":0.11}
 parser = argparse.ArgumentParser()
 parser.add_argument("runner", help="path to calibration runner")
 parser.add_argument("testrunner", help="path to test runner (evaluation of calibration)")
+parser.add_argument("hicann", help="HICANNOnWafer enum", type=int)
+parser.add_argument("backenddir", help="path to backends directory")
+parser.add_argument("--wafer", help="Wafer enum", default=0)
 parser.add_argument("--outdir", help="path of output directory for plots", default="./figures")
 args = parser.parse_args()
 
 fig_dir = args.outdir
+mkdir_p(fig_dir)
+
 reader = Reader(args.runner)
 test_reader = Reader(args.testrunner)
 
@@ -68,6 +74,10 @@ def uncalibrated_hist(xlabel, reader, **reader_kwargs):
                                                     defects_string,
                                                     "uncalibrated.pdf"])))
 
+        fig.savefig(os.path.join(fig_dir, "_".join([reader_kwargs["parameter"],
+                                                    defects_string,
+                                                    "uncalibrated.png"])))
+
 def calibrated_hist(xlabel, reader, **reader_kwargs):
 
     print "calibrated hist for", reader_kwargs["parameter"]
@@ -89,6 +99,10 @@ def calibrated_hist(xlabel, reader, **reader_kwargs):
                                                     defects_string,
                                                     "calibrated.pdf"])))
 
+        fig.savefig(os.path.join(fig_dir, "_".join([reader_kwargs["parameter"],
+                                                    defects_string,
+                                                    "calibrated.png"])))
+
 def trace(ylabel, reader, parameter, steps, neuron, start=0, end=-1):
 
     fig = plt.figure()
@@ -106,6 +120,7 @@ def trace(ylabel, reader, parameter, steps, neuron, start=0, end=-1):
     plt.ylabel(ylabel)
     plt.subplots_adjust(**margins)
     plt.savefig(os.path.join(fig_dir,parameter+"_trace.pdf"))
+    plt.savefig(os.path.join(fig_dir,parameter+"_trace.png"))
 
 def result(label, xlabel=None, ylabel=None, reader=None, **reader_kwargs):
     """ label must have placeholder 'inout' for 'in' and 'out' x and y labels, 
@@ -126,6 +141,10 @@ def result(label, xlabel=None, ylabel=None, reader=None, **reader_kwargs):
                                                    defects_string,
                                                    "result.pdf"])))
 
+        plt.savefig(os.path.join(fig_dir,"_".join([reader_kwargs["parameter"],
+                                                   defects_string,
+                                                   "result.png"])))
+
 ## V reset
 
 r_v_reset = reader
@@ -143,7 +162,7 @@ uncalibrated_hist("$V_{reset}$ [V]",
 
 fig = plt.figure()
 
-c = calibtic.Calibtic("/tmp/backends/",C.Wafer(C.Enum(0)),C.HICANNOnWafer(C.Enum(280)))
+c = calibtic.Calibtic(args.backenddir,C.Wafer(C.Enum(args.wafer)),C.HICANNOnWafer(C.Enum(args.hicann)))
 
 offsets = [c.nc.at(n).at(21).apply(0) * 1000 for n in xrange(512)]
 plt.hist(offsets, bins=100);
@@ -151,6 +170,7 @@ plt.xlabel("offset [mV]")
 plt.ylabel("#")
 plt.subplots_adjust(**margins)
 plt.savefig(os.path.join(fig_dir,"analog_readout_offset.pdf"))
+plt.savefig(os.path.join(fig_dir,"analog_readout_offset.png"))
 
 result("$V_{{reset}}$ {inout} [mV]", reader=r_v_reset, parameter="V_reset",key="baseline",alpha=0.05,color="b",neurons=range(512),marker="o")
 
@@ -486,6 +506,7 @@ plt.ylabel("#")
 plt.ylim(0,23)
 plt.subplots_adjust(**margins)
 plt.savefig(os.path.join(fig_dir,"V_syntcx_psp_stds.pdf"))
+plt.savefig(os.path.join(fig_dir,"V_syntcx_psp_stds.png"))
 
 # In[242]:
 
@@ -540,6 +561,7 @@ plt.ylim(0,23)
 plt.xlim(0,30)
 plt.subplots_adjust(**margins)
 plt.savefig(os.path.join(fig_dir,"V_syntci_psp_stds.pdf"))
+plt.savefig(os.path.join(fig_dir,"V_syntci_psp_stds.png"))
 
 exit(0)
 
@@ -613,6 +635,7 @@ plt.xlabel("Cummulative")
 plt.ylabel("$\sigma(V_{rest})$ [mV]")
 plt.subplots_adjust(**margins)
 plt.savefig(os.path.join(fig_dir,"V_rest_ttt_cummulative.pdf"))
+plt.savefig(os.path.join(fig_dir,"V_rest_ttt_cummulative.png"))
 
 
 # In[12]:
