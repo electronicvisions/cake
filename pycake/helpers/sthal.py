@@ -19,6 +19,7 @@ class UpdateAnalogOutputConfigurator(pysthal.HICANNConfigurator):
 
     def config(self, fpga_handle, h, hicann):
         """Call analog output related configuration functions."""
+        self.config_neuron_config(h, hicann);
         self.config_neuron_quads(h, hicann)
         self.config_analog_readout(h, hicann)
         self.config_fg_stimulus(h, hicann)
