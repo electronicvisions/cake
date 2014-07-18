@@ -45,6 +45,28 @@ parser.add_argument("hicann", help="HICANNOnWafer enum", type=int)
 parser.add_argument("backenddir", help="path to backends directory")
 parser.add_argument("--wafer", help="Wafer enum", default=0)
 parser.add_argument("--outdir", help="path of output directory for plots", default="./figures")
+
+parser.add_argument("--v_reset_runner", help="path to V reset runner (if different from 'runner')", default=None)
+parser.add_argument("--v_reset_testrunner", help="path to V reset test runner (if different from 'testrunner')", default=None)
+
+parser.add_argument("--v_t_runner", help="path to V t runner (if different from 'runner')", default=None)
+parser.add_argument("--v_t_testrunner", help="path to V t test runner (if different from 'testrunner')", default=None)
+
+parser.add_argument("--e_synx_runner", help="path to E synx runner (if different from 'runner')", default=None)
+parser.add_argument("--e_synx_testrunner", help="path to E synx test runner (if different from 'testrunner')", default=None)
+
+parser.add_argument("--e_syni_runner", help="path to E syni runner (if different from 'runner')", default=None)
+parser.add_argument("--e_syni_testrunner", help="path to E syni test runner (if different from 'testrunner')", default=None)
+
+parser.add_argument("--e_l_runner", help="path to E l runner (if different from 'runner')", default=None)
+parser.add_argument("--e_l_testrunner", help="path to E l test runner (if different from 'testrunner')", default=None)
+
+parser.add_argument("--v_syntcx_runner", help="path to V syntcx runner (if different from 'runner')", default=None)
+parser.add_argument("--v_syntcx_testrunner", help="path to V syntcx test runner (if different from 'testrunner')", default=None)
+
+parser.add_argument("--v_syntci_runner", help="path to V syntci runner (if different from 'runner')", default=None)
+parser.add_argument("--v_syntci_testrunner", help="path to V syntci test runner (if different from 'testrunner')", default=None)
+
 args = parser.parse_args()
 
 fig_dir = args.outdir
@@ -147,7 +169,7 @@ def result(label, xlabel=None, ylabel=None, reader=None, **reader_kwargs):
 
 ## V reset
 
-r_v_reset = reader
+r_v_reset = reader if args.v_reset_runner != None else Reader(args.v_reset_runner)
 
 uncalibrated_hist("$V_{reset}$ [V]",
                   r_v_reset,
@@ -174,7 +196,7 @@ plt.savefig(os.path.join(fig_dir,"analog_readout_offset.png"))
 
 result("$V_{{reset}}$ {inout} [mV]", reader=r_v_reset, parameter="V_reset",key="baseline",alpha=0.05,color="b",neurons=range(512),marker="o")
 
-r_test_v_reset = test_reader
+r_test_v_reset = test_reader if args.v_reset_testrunner != None else Reader(args.v_reset_testrunner)
 
 calibrated_hist("$V_{reset}$ [V]",
                   r_test_v_reset,
@@ -188,7 +210,7 @@ trace("$V_{reset}$ [mV]", r_test_v_reset, "V_reset", [0], C.NeuronOnHICANN(C.Enu
 
 ## E synx
 
-r_e_synx = reader
+r_e_synx = reader if args.e_synx_runner != None else Reader(args.e_synx_runner)
 
 uncalibrated_hist("$E_{synx}$ [V]",
                   r_e_synx,
@@ -201,7 +223,7 @@ uncalibrated_hist("$E_{synx}$ [V]",
 result("$E_{{synx}}$ {inout} [mV]", reader=r_e_synx, parameter="E_synx",key="mean",alpha=0.05,color="b",neurons=r_e_synx.get_neurons()#range(512),
                            ,marker="o")
 
-r_test_e_synx = test_reader
+r_test_e_synx = test_reader if args.e_synx_testrunner != None else Reader(args.e_synx_testrunner)
 
 calibrated_hist("$E_{synx}$ [V]",
                 r_test_e_synx,
@@ -217,7 +239,7 @@ calibrated_hist("$E_{synx}$ [V]",
 
 ## E syni
 
-r_e_syni = reader
+r_e_syni = reader if args.e_syni_runner == None else Reader(args.e_syni_runner)
 
 r_e_syni.include_defects=True
 r_e_syni.plot_result("E_syni","mean",neurons=[C.NeuronOnHICANN(C.X(173), C.top), 
@@ -239,7 +261,7 @@ np.polyfit(np.array(results)*1000, [s.values()[0].value for s in steps],1)
 r_e_syni.include_defects=False
 r_e_syni.plot_result("E_syni","mean",alpha=0.05, color='b');
 
-r_test_e_syni = test_reader
+r_test_e_syni = test_reader if args.e_syni_testrunner == None else Reader(args.e_syni_testrunner)
 
 calibrated_hist("$E_{syni}$ [V]",
                 r_test_e_syni,
@@ -251,7 +273,7 @@ calibrated_hist("$E_{syni}$ [V]",
 
 ## E l
 
-r_e_l = reader
+r_e_l = reader if args.e_l_runner != None else Reader(args.e_l_runner)
 
 uncalibrated_hist("$E_{l}$ [V]",
                   r_e_l,
@@ -302,7 +324,7 @@ plt.grid(True)
 fig.savefig(os.path.join(fig_dir,"calib_example_lines.pdf"))
 """
 
-r_test_e_l = test_reader
+r_test_e_l = test_reader if args.e_l_testrunner != None else Reader(args.e_l_testrunner)
 
 calibrated_hist("$E_{l}$ [V]",
                 r_test_e_l,
@@ -314,7 +336,7 @@ calibrated_hist("$E_{l}$ [V]",
 
 ## V t
 
-r_v_t = reader
+r_v_t = reader if args.v_t_runner != None else Reader(args.v_t_runner)
 
 uncalibrated_hist("$V_{t}$ [V]",
                   r_v_t,
@@ -323,7 +345,7 @@ uncalibrated_hist("$V_{t}$ [V]",
                   bins=100,
                   range=(0.5,0.85))
 
-r_test_v_t = test_reader
+r_test_v_t = test_reader if args.v_t_testrunner != None else Reader(args.v_t_testrunner)
 
 calibrated_hist("$V_{t}$ [V]",
                 r_test_v_t,
@@ -389,7 +411,7 @@ print r_v_t.runner.coeffs.keys()
 
 ## V syntcx psp max
 
-r_v_syntcx = reader
+r_v_syntcx = reader if args.v_syntcx_runner != None else Reader(args.v_syntcx_runner)
 
 """
 
@@ -514,7 +536,7 @@ sum(np.array(max_stds) < 0.005)
 
 ## V syntci psp max
 
-r_v_syntci = reader
+r_v_syntci = reader if args.v_syntci_runner != None else Reader(args.v_syntci_runner)
 
 e = r_v_syntci.runner.experiments["V_syntci_psp_max"]
 
