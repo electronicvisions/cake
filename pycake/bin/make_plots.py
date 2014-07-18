@@ -169,7 +169,7 @@ def result(label, xlabel=None, ylabel=None, reader=None, **reader_kwargs):
 
 ## V reset
 
-r_v_reset = reader if args.v_reset_runner != None else Reader(args.v_reset_runner)
+r_v_reset = reader if args.v_reset_runner == None else Reader(args.v_reset_runner)
 
 uncalibrated_hist("$V_{reset}$ [V]",
                   r_v_reset,
@@ -196,7 +196,7 @@ plt.savefig(os.path.join(fig_dir,"analog_readout_offset.png"))
 
 result("$V_{{reset}}$ {inout} [mV]", reader=r_v_reset, parameter="V_reset",key="baseline",alpha=0.05,color="b",neurons=range(512),marker="o")
 
-r_test_v_reset = test_reader if args.v_reset_testrunner != None else Reader(args.v_reset_testrunner)
+r_test_v_reset = test_reader if args.v_reset_testrunner == None else Reader(args.v_reset_testrunner)
 
 calibrated_hist("$V_{reset}$ [V]",
                   r_test_v_reset,
@@ -210,7 +210,7 @@ trace("$V_{reset}$ [mV]", r_test_v_reset, "V_reset", [0], C.NeuronOnHICANN(C.Enu
 
 ## E synx
 
-r_e_synx = reader if args.e_synx_runner != None else Reader(args.e_synx_runner)
+r_e_synx = reader if args.e_synx_runner == None else Reader(args.e_synx_runner)
 
 uncalibrated_hist("$E_{synx}$ [V]",
                   r_e_synx,
@@ -223,7 +223,7 @@ uncalibrated_hist("$E_{synx}$ [V]",
 result("$E_{{synx}}$ {inout} [mV]", reader=r_e_synx, parameter="E_synx",key="mean",alpha=0.05,color="b",neurons=r_e_synx.get_neurons()#range(512),
                            ,marker="o")
 
-r_test_e_synx = test_reader if args.e_synx_testrunner != None else Reader(args.e_synx_testrunner)
+r_test_e_synx = test_reader if args.e_synx_testrunner == None else Reader(args.e_synx_testrunner)
 
 calibrated_hist("$E_{synx}$ [V]",
                 r_test_e_synx,
@@ -273,7 +273,7 @@ calibrated_hist("$E_{syni}$ [V]",
 
 ## E l
 
-r_e_l = reader if args.e_l_runner != None else Reader(args.e_l_runner)
+r_e_l = reader if args.e_l_runner == None else Reader(args.e_l_runner)
 
 uncalibrated_hist("$E_{l}$ [V]",
                   r_e_l,
@@ -324,7 +324,7 @@ plt.grid(True)
 fig.savefig(os.path.join(fig_dir,"calib_example_lines.pdf"))
 """
 
-r_test_e_l = test_reader if args.e_l_testrunner != None else Reader(args.e_l_testrunner)
+r_test_e_l = test_reader if args.e_l_testrunner == None else Reader(args.e_l_testrunner)
 
 calibrated_hist("$E_{l}$ [V]",
                 r_test_e_l,
@@ -336,7 +336,7 @@ calibrated_hist("$E_{l}$ [V]",
 
 ## V t
 
-r_v_t = reader if args.v_t_runner != None else Reader(args.v_t_runner)
+r_v_t = reader if args.v_t_runner == None else Reader(args.v_t_runner)
 
 uncalibrated_hist("$V_{t}$ [V]",
                   r_v_t,
@@ -345,7 +345,7 @@ uncalibrated_hist("$V_{t}$ [V]",
                   bins=100,
                   range=(0.5,0.85))
 
-r_test_v_t = test_reader if args.v_t_testrunner != None else Reader(args.v_t_testrunner)
+r_test_v_t = test_reader if args.v_t_testrunner == None else Reader(args.v_t_testrunner)
 
 calibrated_hist("$V_{t}$ [V]",
                 r_test_v_t,
@@ -411,7 +411,7 @@ print r_v_t.runner.coeffs.keys()
 
 ## V syntcx psp max
 
-r_v_syntcx = reader if args.v_syntcx_runner != None else Reader(args.v_syntcx_runner)
+r_v_syntcx = reader if args.v_syntcx_runner == None else Reader(args.v_syntcx_runner)
 
 """
 
@@ -536,7 +536,7 @@ sum(np.array(max_stds) < 0.005)
 
 ## V syntci psp max
 
-r_v_syntci = reader if args.v_syntci_runner != None else Reader(args.v_syntci_runner)
+r_v_syntci = reader if args.v_syntci_runner == None else Reader(args.v_syntci_runner)
 
 e = r_v_syntci.runner.experiments["V_syntci_psp_max"]
 
