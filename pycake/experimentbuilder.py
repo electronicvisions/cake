@@ -83,8 +83,6 @@ class BaseExperimentBuilder(object):
             This includes calibration and transformation from mV or nA to DAC values.
         """
 
-        return sthal
-
         fgc = pyhalbe.HICANN.FGControl()
 
         for neuron in self.neurons:
