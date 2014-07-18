@@ -1,4 +1,5 @@
 import numpy as np
+np.seterr(all='raise')
 import pylab
 import pylogging
 import scipy.signal
@@ -115,49 +116,56 @@ class PeakAnalyzer(Analyzer):
                 returns baseline and time between values in unit index (do t[delta_t] to get delta in units of time)
             """
 
-            std_v = np.std(v)
+            try:
 
-            # to be tuned
-            drop_threshold = -std_v/2
-            min_drop_distance = 5
-            start_div = 10
-            end_div = 5
+                std_v = np.std(v)
 
-            # find right edge of spike --------------------------------------------
-            diff = np.diff(v)
-            drop = np.where(diff < drop_threshold)[0]
-            #----------------------------------------------------------------------
+                # to be tuned
+                drop_threshold = -std_v/2
+                min_drop_distance = 5
+                start_div = 10
+                end_div = 5
 
-            # the differences of the drop position n yields the time between spikes
-            drop_diff = np.diff(drop)
-            # filter consecutive values
-            drop_diff_filtered = drop_diff[drop_diff > min_drop_distance]
-            # take mean of differences
-            delta_t = np.mean(drop_diff_filtered)
-            #----------------------------------------------------------------------
+                # find right edge of spike --------------------------------------------
+                diff = np.diff(v)
+                drop = np.where(diff < drop_threshold)[0]
+                #----------------------------------------------------------------------
 
-            # collect baseline voltages -------------------------------------------
-            only_base = []
-            last_n = -1
+                # the differences of the drop position n yields the time between spikes
+                drop_diff = np.diff(drop)
+                # filter consecutive values
+                drop_diff_filtered = drop_diff[drop_diff > min_drop_distance]
+                # take mean of differences
+                delta_t = np.mean(drop_diff_filtered)
+                #----------------------------------------------------------------------
 
-            baseline = 0
-            N = 0
+                # collect baseline voltages -------------------------------------------
+                only_base = []
+                last_n = -1
 
-            for n in drop[np.where(np.diff(drop) > min_drop_distance)[0]]:
+                baseline = 0
+                N = 0
 
-                # start some time after spike and stop early to avoid taking rising edge
-                start = n+int(delta_t/start_div)
-                end = n+int(delta_t/end_div)
+                for n in drop[np.where(np.diff(drop) > min_drop_distance)[0]]:
 
-                if start < len(v) and end < len(v):
-                    baseline += np.mean(v[start:end])
-                    N += 1
+                    # start some time after spike and stop early to avoid taking rising edge
+                    start = n+int(delta_t/start_div)
+                    end = n+int(delta_t/end_div)
 
-            # take mean
-            if N:
-                baseline /= N
-            else:
+                    if start < len(v) and end < len(v):
+                        baseline += np.mean(v[start:end])
+                        N += 1
+
+                # take mean
+                if N:
+                    baseline /= N
+                else:
+                    baseline = np.min(v)
+
+            except FloatingPointError as e:
                 baseline = np.min(v)
+                delta_t = 0
+                self.logger.WARN("Baseline finding failed because of {}. Returning minimum of trace: {}.".format(e,baseline))
 
             #-------------------------------------------------------------------
 
