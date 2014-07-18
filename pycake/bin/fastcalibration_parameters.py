@@ -29,8 +29,8 @@ parameters = {
 
         # Set the ranges within which you want to calibrate
         "V_reset_range":  [{shared_parameter.V_reset : v} for v in linspace_voltage(400, 700, 5)],
-        "E_syni_range":   [{neuron_parameter.E_syni : v} for v in linspace_voltage(350, 650, 4)],
-        "E_synx_range":   [{neuron_parameter.E_synx : v} for v in linspace_voltage(650, 950, 4)],
+        "E_syni_range":   [{neuron_parameter.E_syni : v} for v in linspace_voltage(550, 850, 5)],
+        "E_synx_range":   [{neuron_parameter.E_synx : v} for v in linspace_voltage(650, 950, 5)],
         "E_l_range":      [{neuron_parameter.E_l : v} for v in linspace_voltage(550, 850, 6)],
         "V_t_range":      [{neuron_parameter.V_t : v} for v in linspace_voltage(600, 900, 4)],
         "E_l_I_gl_fixed_range": pproduct((neuron_parameter.E_l, neuron_parameter.I_gl), (linspace_voltage(550, 850, 2),
