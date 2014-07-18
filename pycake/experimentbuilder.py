@@ -49,11 +49,13 @@ class BaseExperimentBuilder(object):
         # Get readout shifts
         readout_shifts = self.get_readout_shifts(self.neurons)
 
+        wafer_cfg = self.config.get_wafer_cfg()
+
         # Create one sthal container for each step
         # order is step 1, step 2, step 3, ..., step 1, step 2, step 3, ...
         for rep, step in product(range(repetitions), steps):
             self.logger.INFO("Building step {}, repetition {}".format(step,rep))
-            sthal = StHALContainer(coord_wafer, coord_hicann)
+            sthal = StHALContainer(coord_wafer, coord_hicann, wafer_cfg=wafer_cfg)
             # TODO maybe find better solution
             if self.test:
                 step = step.copy()
@@ -61,7 +63,9 @@ class BaseExperimentBuilder(object):
                     value.apply_calibration = True
 
             step_parameters = self.get_step_parameters(step)
-            sthal = self.prepare_parameters(sthal, step_parameters)
+
+            if not wafer_cfg:
+                sthal = self.prepare_parameters(sthal, step_parameters)
             sthal = self.prepare_specific_config(sthal)
 
             measurement = self.make_measurement(sthal, self.neurons, readout_shifts)
@@ -78,6 +82,9 @@ class BaseExperimentBuilder(object):
         """ Writes parameters into a sthal container.
             This includes calibration and transformation from mV or nA to DAC values.
         """
+
+        return sthal
+
         fgc = pyhalbe.HICANN.FGControl()
 
         for neuron in self.neurons:

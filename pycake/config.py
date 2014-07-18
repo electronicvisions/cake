@@ -80,6 +80,9 @@ class Config(object):
         folder = os.path.expanduser(self.parameters['folder'])
         return folder
 
+    def get_wafer_cfg(self):
+        return self.get_config_with_default("wafer_cfg", "")
+
     def get_parameters(self):
         """ Returns the parameter dictionary.
         """
