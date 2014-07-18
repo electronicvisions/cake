@@ -44,7 +44,7 @@ class StHALContainer(object):
                  coord_hicann,
                  coord_analog=Coordinate.AnalogOnHICANN(0),
                  recording_time=1.e-4,
-                 wafer_cfg="wafer.xml"):
+                 wafer_cfg=""):
         """Initialize StHAL. kwargs default to vertical setup configuration."""
 
         self.coord_wafer = coord_wafer
@@ -53,7 +53,7 @@ class StHALContainer(object):
         wafer = pysthal.Wafer(coord_wafer)  # Stateful HICANN Container
 
         if wafer_cfg:
-            print "loading", wafer_cfg
+            self.logger.info("Loading {}".format(wafer_cfg))
             wafer.load(wafer_cfg)
 
         hicann = wafer[coord_hicann]
