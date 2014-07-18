@@ -2,6 +2,7 @@ import cPickle
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+import pylogging
 import pycake.calibrationrunner
 import Coordinate as C
 import pyhalbe
@@ -25,11 +26,18 @@ class Reader(object):
 
         self.include_defects = include_defects
 
+    logger = pylogging.get("pycake.reader")
+
     def get_neurons(self):
-        return [nrn for nrn in self.runner.config.get_neurons()
-                if (self.include_defects == True or
-                    self.runner.redman.hicann_with_backend.neurons().has(nrn))
+        neurons = [nrn for nrn in self.runner.config.get_neurons()
+                   if (self.include_defects == True or
+                       self.runner.redman.hicann_with_backend.neurons().has(nrn))
                ]
+
+        if not neurons:
+            self.logger.warn("no neurons specified or all marked as defect")
+
+        return neurons
 
     def get_parameters(self):
         return self.runner.experiments.keys()
