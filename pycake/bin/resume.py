@@ -14,6 +14,7 @@ pylogging.set_loglevel(pylogging.get("pycake.experimentbuilder"),   pylogging.Lo
 pylogging.set_loglevel(pylogging.get("pycake.calibtic"),            pylogging.LogLevel.DEBUG )
 pylogging.set_loglevel(pylogging.get("pycake.redman"),              pylogging.LogLevel.DEBUG )
 pylogging.set_loglevel(pylogging.get("sthal"),                      pylogging.LogLevel.INFO )
+pylogging.set_loglevel(pylogging.get("pycake.helper.sthal"),        pylogging.LogLevel.INFO )
 pylogging.set_loglevel(pylogging.get("sthal.AnalogRecorder"),       pylogging.LogLevel.WARN)
 
 parser = argparse.ArgumentParser(
