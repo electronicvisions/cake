@@ -193,10 +193,6 @@ class PeakAnalyzer(Analyzer):
                 delta_t = np.mean(drop_diff_filtered)
                 #----------------------------------------------------------------------
 
-                # collect baseline voltages -------------------------------------------
-                only_base = []
-                last_n = -1
-
                 baseline = 0
                 N = 0
 
