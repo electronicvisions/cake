@@ -116,8 +116,8 @@ class StHALContainer(object):
             self.connect()
         self.hicann.disable_aout()
         self.hicann.disable_current_stimulus()
-        #if l1address is not None:
-        #    self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(l1address))
+        if l1address is not None:
+            self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(l1address))
         self.hicann.enable_aout(coord_neuron, self.coord_analog)
         self.wafer.configure(UpdateAnalogOutputConfigurator())
 
