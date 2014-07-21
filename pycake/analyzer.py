@@ -21,14 +21,16 @@ class Analyzer(object):
         """
         raise NotImplemented
 
+
 class MeanOfTraceAnalyzer(Analyzer):
     """ Analyzes traces for E_l measurement.
     """
     def __call__(self, t, v, neuron):
-        return { "mean" : np.mean(v),
-                 "std"  : np.std(v),
-                 "max"  : np.max(v),
-                 "min"  : np.min(v)}
+        return {"mean": np.mean(v),
+                "std": np.std(v),
+                "max": np.max(v),
+                "min": np.min(v)}
+
 
 class PeakAnalyzer(Analyzer):
     """ Used to analyze a constant-spiking-pattern (rest > thresh)
@@ -223,6 +225,7 @@ class PeakAnalyzer(Analyzer):
 
             return baseline, delta_t
 
+
 class V_reset_Analyzer(PeakAnalyzer):
     """ Uses PeakAnalyzer to get results that are relevant for V_reset
 
@@ -232,13 +235,14 @@ class V_reset_Analyzer(PeakAnalyzer):
                 baseline: baseline of trace. use only if refractory period is non-zero!
                 delta_t : time between spikes
     """
-    def __call__(self, t,v, neuron):
-        baseline, delta_t = self.find_baseline(t,v)
+    def __call__(self, t, v, neuron):
+        baseline, delta_t = self.find_baseline(t, v)
         mean_max, mean_min = self.get_mean_peak(t, v, neuron)
 
-        return { "mean_min" : mean_min,
-                 "baseline" : baseline,
-                 "delta_t"  : delta_t}
+        return {"mean_min": mean_min,
+                "baseline": baseline,
+                "delta_t": delta_t}
+
 
 class V_t_Analyzer(PeakAnalyzer):
     """ Uses PeakAnalyzer to get results that are relevant for V_reset
@@ -248,11 +252,12 @@ class V_t_Analyzer(PeakAnalyzer):
                 max: mean maximum of spikes
                 old_max: hard maximum of complete trace
     """
-    def __call__(self, t,v, neuron):
+    def __call__(self, t, v, neuron):
         mean_max, mean_min = self.get_mean_peak(t, v, neuron)
 
-        return { "max"      : mean_max,
-                 "old_max"  : np.max(v)}
+        return {"max": mean_max,
+                "old_max": np.max(v)}
+
 
 class I_gl_Analyzer(Analyzer):
     def __init__(self, coord_wafer, coord_hicann, save_mean=True):
@@ -263,12 +268,12 @@ class I_gl_Analyzer(Analyzer):
         self.logger.INFO("TraceAverager created with ADC frequency {} Hz.".format(self.trace_averager.adc_freq))
         self.dt = 129 * 4 * 16 / pll_freq
         # TODO implement different capacitors
-        self.C = 2.16456e-12 # Capacitance when bigcap is turned on
+        self.C = 2.16456e-12  # Capacitance when bigcap is turned on
         self.save_mean = save_mean
 
     def __call__(self, t, v, neuron, std, V_rest_init=0.7, used_current=None):
         mean_trace, std_trace, n_chunks = self.trace_averager.get_average(v, self.dt)
-        t,v = None, None
+        t, v = None, None
         mean_trace = np.array(mean_trace)
         # TODO take std of an independent measurement (see CKs method)
         trace_cut, fittimes = self.get_decay_fit_range(mean_trace)
@@ -278,13 +283,13 @@ class I_gl_Analyzer(Analyzer):
         else:
             g_l = None
 
-        result = {"tau_m" : tau_m,
-                  "g_l"  : g_l,
+        result = {"tau_m": tau_m,
+                  "g_l": g_l,
                   "reduced_chi2": red_chi2,
-                  "V_rest" : V_rest,
-                  "height" : height,
-                  "pcov"   : pcov,
-                  "std" : std,
+                  "V_rest": V_rest,
+                  "height": height,
+                  "pcov": pcov,
+                  "std": std,
                   "n_chunks": n_chunks,
                   "used_current": used_current,
                   "ier": ier}
@@ -296,17 +301,14 @@ class I_gl_Analyzer(Analyzer):
         """Cuts the trace for the exponential fit. This is done by calculating the second derivative.
         Returns:
             trace_cut, std_cut, fittimes"""
-        filter_width = 250e-9 # Magic number that was carefully tuned to give best results
+        filter_width = 250e-9  # Magic number that was carefully tuned to give best results
         dt = 1/self.trace_averager.adc_freq
-
-        stim_steps = int(stim_length * 4 * 16 * self.trace_averager.adc_freq/100e6)
-        stim_time = stim_steps * dt
 
         kernel = scipy.signal.gaussian(len(trace), filter_width / dt)
         kernel /= pylab.sum(kernel)
         kernel = pylab.roll(kernel, int(len(trace) / 2))
 
-        diff  = pylab.roll(trace, -1) - trace
+        diff = pylab.roll(trace, -1) - trace
         diff_smooth = pylab.real(pylab.ifft(pylab.fft(kernel) * pylab.fft(diff)))
 
         diff2_smooth = pylab.roll(diff_smooth, -1) - diff_smooth
@@ -315,17 +317,17 @@ class I_gl_Analyzer(Analyzer):
         # For fit start, check if first derivative is really negative.
         # This should make the fit more robust
         diff2_with_negative_diff = np.zeros(len(diff2_smooth))
-        for i, j in enumerate(diff_smooth<0):
+        for i, j in enumerate(diff_smooth < 0):
             if j:
                 diff2_with_negative_diff[i] = diff2_smooth[i]
 
         fitstart = np.argmin(diff2_with_negative_diff)
-        fitstop  = np.argmax(diff2_smooth)
+        fitstop = np.argmax(diff2_smooth)
 
         trace = pylab.roll(trace, -fitstart)
 
         fitstop = fitstop - fitstart
-        if fitstop<0:
+        if fitstop < 0:
             fitstop += len(trace)
 
         fitstart = 0
@@ -335,7 +337,7 @@ class I_gl_Analyzer(Analyzer):
 
         self.logger.TRACE("Cut trace from length {} to length {}.".format(len(trace), len(trace_cut)))
 
-        return trace_cut,fittimes
+        return trace_cut, fittimes
 
     def get_initial_parameters(self, times, trace, V_rest):
         height = trace[0] - V_rest
@@ -343,11 +345,11 @@ class I_gl_Analyzer(Analyzer):
             # get first element where trace is below 1/e of initial value
             # This does not always work
             tau = times[trace-V_rest < ((trace[0]-V_rest) / np.exp(1))][0]
-        except IndexError: # If trace never goes below 1/e, use some high value
+        except IndexError:  # If trace never goes below 1/e, use some high value
             tau = 1e-5
         return [tau, height, V_rest]
 
-    def fit_exponential(self, trace_cut, fittimes, std, V_rest_init, n_chunks, stim_length = 65):
+    def fit_exponential(self, trace_cut, fittimes, std, V_rest_init, n_chunks, stim_length=65):
         """ Fit an exponential function to the mean trace. """
         def func(t, tau, height, V_rest):
             return height * np.exp(-(t - t[0]) / tau) + V_rest
@@ -367,12 +369,12 @@ class I_gl_Analyzer(Analyzer):
             self.logger.WARN("Fit failed: {}".format(e))
             return None, V_rest_init, None, None, None, None, 0
 
-        tau    = expf[0]
+        tau = expf[0]
         height = expf[1]
         V_rest = expf[2]
 
         DOF = len(fittimes) - len(expf)
-        red_chisquare= sum(infodict["fvec"] ** 2) / (DOF)
+        red_chisquare = sum(infodict["fvec"] ** 2) / (DOF)
 
         self.logger.TRACE("Successful fit: tau={0:.2e} s, V_rest={1:.2f} V, height={2:.2f} V, red_chi2={3:.2f}".format(tau, V_rest, height, red_chisquare))
 
@@ -381,6 +383,7 @@ class I_gl_Analyzer(Analyzer):
 V_syntci_psp_max_Analyzer = MeanOfTraceAnalyzer
 V_syntcx_psp_max_Analyzer = MeanOfTraceAnalyzer
 
+
 class I_pl_Analyzer(Analyzer):
     def __call__(self, t, v, neuron):
 
@@ -388,14 +391,14 @@ class I_pl_Analyzer(Analyzer):
 
         try:
             maxtab, mintab = peakdet(v, delta)
-            maxs = maxtab[:,0]
+            maxs = maxtab[:, 0]
             #print maxs
             mean = np.mean([x - maxs[i - 1] for i, x in enumerate(maxs[1:])])
             #print mean
             tau_refrac = t[mean]-t[0]
             #print tau_refrac
         except Exception as e:
-            print e
+            self.logger.ERROR(e)
             tau_refrac = None
 
-        return {"tau_refrac" : tau_refrac}
+        return {"tau_refrac": tau_refrac}
