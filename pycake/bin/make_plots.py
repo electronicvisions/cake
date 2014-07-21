@@ -73,9 +73,16 @@ fig_dir = args.outdir
 mkdir_p(fig_dir)
 
 reader = Reader(args.runner)
-test_reader = Reader(args.testrunner)
+
+try:
+    test_reader = Reader(args.testrunner)
+except Exception as e:
+    print "Cannot instantiate test reader because:", e
+    test_reader = None
 
 def uncalibrated_hist(xlabel, reader, **reader_kwargs):
+
+    if not reader: return
 
     print "uncalibrated hist for", reader_kwargs["parameter"]
 
@@ -102,6 +109,8 @@ def uncalibrated_hist(xlabel, reader, **reader_kwargs):
 
 def calibrated_hist(xlabel, reader, **reader_kwargs):
 
+    if not reader: return
+
     print "calibrated hist for", reader_kwargs["parameter"]
 
     for include_defects in [True, False]:
@@ -127,6 +136,10 @@ def calibrated_hist(xlabel, reader, **reader_kwargs):
 
 def trace(ylabel, reader, parameter, steps, neuron, start=0, end=-1):
 
+    if not reader: return
+
+    print "trace for", parameter
+
     fig = plt.figure()
 
     for step in steps:
@@ -149,6 +162,10 @@ def result(label, xlabel=None, ylabel=None, reader=None, **reader_kwargs):
         like: '$E_{{synx}}$ {inout} [mV]'
     """
 
+    if not reader: return
+
+    print "result for", reader_kwargs["parameter"]
+
     for include_defects in [True, False]:
 
         reader.include_defects = include_defects
@@ -156,6 +173,8 @@ def result(label, xlabel=None, ylabel=None, reader=None, **reader_kwargs):
         fig = reader.plot_result(**reader_kwargs)
         plt.xlabel(xlabel if xlabel != None else label.format(inout="(in)"))
         plt.ylabel(ylabel if ylabel != None else label.format(inout="(out)"))
+
+        plt.subplots_adjust(**margins)
 
         defects_string = "with_defects" if include_defects else "without_defects"
 
@@ -194,7 +213,7 @@ plt.subplots_adjust(**margins)
 plt.savefig(os.path.join(fig_dir,"analog_readout_offset.pdf"))
 plt.savefig(os.path.join(fig_dir,"analog_readout_offset.png"))
 
-result("$V_{{reset}}$ {inout} [mV]", reader=r_v_reset, parameter="V_reset",key="baseline",alpha=0.05,color="b",neurons=range(512),marker="o")
+result("$V_{{reset}}$ {inout} [mV]", reader=r_v_reset, parameter="V_reset",key="baseline",alpha=0.05,color="b",marker="o")
 
 r_test_v_reset = test_reader if args.v_reset_testrunner == None else Reader(args.v_reset_testrunner)
 
@@ -220,8 +239,7 @@ uncalibrated_hist("$E_{synx}$ [V]",
                   range=(0.55,0.99),
                   show_legend=False);
 
-result("$E_{{synx}}$ {inout} [mV]", reader=r_e_synx, parameter="E_synx",key="mean",alpha=0.05,color="b",neurons=r_e_synx.get_neurons()#range(512),
-                           ,marker="o")
+result("$E_{{synx}}$ {inout} [mV]", reader=r_e_synx, parameter="E_synx",key="mean",alpha=0.05,color="b",marker="o")
 
 r_test_e_synx = test_reader if args.e_synx_testrunner == None else Reader(args.e_synx_testrunner)
 
@@ -253,13 +271,7 @@ uncalibrated_hist("$E_{syni}$ [V]",
                   range=(0.3, 0.8),
                   show_legend=False);
 
-results = r_e_syni.get_result("E_syni",neuron=C.NeuronOnHICANN(C.X(173), C.top),key="mean")
-steps = r_e_syni.runner.config.copy("E_syni").get_steps()
-
-np.polyfit(np.array(results)*1000, [s.values()[0].value for s in steps],1)
-
-r_e_syni.include_defects=False
-r_e_syni.plot_result("E_syni","mean",alpha=0.05, color='b');
+result("$E_{{syni}}$ {inout} [mV]", reader=r_e_syni, parameter="E_syni",key="mean",alpha=0.05,color="b",marker="o")
 
 r_test_e_syni = test_reader if args.e_syni_testrunner == None else Reader(args.e_syni_testrunner)
 
@@ -282,6 +294,8 @@ uncalibrated_hist("$E_{l}$ [V]",
                   bins=100,
                   range=(0.5,1),
                   show_legend=False)
+
+result("$E_{{l}}$ {inout} [mV]", reader=r_e_l, parameter="E_l",key="mean",alpha=0.05,color="b",marker="o")
 
 r_e_l.include_defects = True
 r_e_l.plot_result("E_l","mean");
@@ -345,6 +359,8 @@ uncalibrated_hist("$V_{t}$ [V]",
                   bins=100,
                   range=(0.5,0.85))
 
+result("$V_{{t}}$ {inout} [mV]", reader=r_v_t, parameter="V_t",key="max",alpha=0.05,color="b",marker="o")
+
 r_test_v_t = test_reader if args.v_t_testrunner == None else Reader(args.v_t_testrunner)
 
 calibrated_hist("$V_{t}$ [V]",
@@ -374,7 +390,7 @@ neurons = r_v_t.get_neurons()[0:1]
 
 fig = r_v_t.plot_result("V_t","max",neurons,marker='o',linestyle="None");
 
-print r_v_t.runner.coeffs.keys()
+#print r_v_t.runner.coeffs.keys()
 
 #coeffs = r_v_t.runner.coeffs["V_t"]
 #
