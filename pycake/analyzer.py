@@ -33,6 +33,10 @@ class MeanOfTraceAnalyzer(Analyzer):
 class PeakAnalyzer(Analyzer):
     """ Used to analyze a constant-spiking-pattern (rest > thresh)
 
+        Init Args:
+            analyze_slopes: if True, also analyzes the slopes between spikes
+                            This takes more time, so deactivate if not needed
+            verbose: if True, it returns a list of all recognized minima and maxima
         Args:
             t, v, neuron: times, voltage trace, neuron coordinate.
         Returns:
@@ -44,37 +48,85 @@ class PeakAnalyzer(Analyzer):
                 baseline : Baseline (only works with non-zero refractory period)
                 frequency: Spike frequency
     """
-    def __init__(self):
+    def __init__(self, analyze_slopes=False, verbose=False):
         super(PeakAnalyzer, self).__init__()
+        self.analyze_slopes = analyze_slopes
 
-    def __call__(self, t,v, neuron):
-        baseline, delta_t = self.find_baseline(t,v)
+    def __call__(self, t, v, neuron):
+        baseline, delta_t = self.find_baseline(t, v)
         mean_max, mean_min = self.get_mean_peak(t, v, neuron)
         freq = self.get_frequency(t, v)
-        
-        return { "hard_max" : np.max(v),
-                 "hard_min" : np.min(v),
-                 "mean"     : np.mean(v),
-                 "std"      : np.std(v),
-                 "mean_max" : mean_max,
-                 "mean_min" : mean_min,
-                 "baseline" : baseline,
-                 "frequency": freq}
+
+        results = {"hard_max": np.max(v),
+                   "hard_min": np.min(v),
+                   "mean": np.mean(v),
+                   "std": np.std(v),
+                   "mean_max": mean_max,
+                   "mean_min": mean_min,
+                   "baseline": baseline,
+                   "frequency": freq}
+
+        if self.analyze_slopes:
+            slopes_rising, slopes_falling = self.get_slopes(t, v)
+            results['slopes_rising'] = slopes_rising
+            results['slopes_falling'] = slopes_falling
+
+        if self.verbose:
+            maxtab, mintab = self.get_peaks(t, v)
+            results['maxtab'] = maxtab
+            results['mintab'] = mintab
+
+        return results
+
+    def get_peaks(self, t, v):
+        delta = np.std(v)
+        return peakdet(v, delta)
+
+    def get_slopes(self, t, v):
+        """ Returns all the slopes of a trace
+
+            Return:
+                slopes_rising, slopes_falling
+        """
+        maxtab, mintab = self.get_peaks(t, v)
+        imin = [int(mt[0]) for mt in mintab]
+        valmin = mintab[:, 1]
+        imax = [int(mt[0]) for mt in maxtab]
+        valmax = maxtab[:, 1]
+        dv_down = []
+        dt_down = []
+        dt_up = []
+        dv_up = []
+
+        for i in range(min(len(valmax), len(valmin))):
+            dv_down.append(valmax[i] - valmin[i])
+            dt_down.append(t[imax[i]] - t[imin[i]])
+        for i in range(min(len(valmax), len(valmin))-1):
+            dv_up.append(valmax[i+1] - valmin[i])
+            dt_up.append(t[imax[i+1]] - t[imin[i]])
+
+        dv_down = np.array(dv_down)
+        dt_down = np.array(dt_down)
+        slopes_falling = dv_down/dt_down
+        dv_up = np.array(dv_up)
+        dt_up = np.array(dt_up)
+        slopes_rising = dv_up/dt_up
+
+        return slopes_rising, slopes_falling
 
     def get_mean_peak(self, t, v, neuron):
-        delta = np.std(v)
         try:
-            maxtab, mintab = peakdet(v, delta)
-            mean_max = np.mean(maxtab[:,1])
-            mean_min = np.mean(mintab[:,1])
-        except IndexError as e:
+            maxtab, mintab = self.get_peaks(t, v)
+            mean_max = np.mean(maxtab[:, 1])
+            mean_min = np.mean(mintab[:, 1])
+        except IndexError:
             self.logger.INFO("No mean min/max found. Using hard min/max.")
             mean_max = np.max(v)
             mean_min = np.min(v)
         return mean_max, mean_min
 
     def get_frequency(self, t, v):
-        spikes = self.detect_spikes(t,v)
+        spikes = self.detect_spikes(t, v)
         return self.spikes_to_frequency(spikes)
 
     def detect_spikes(self, time, voltage):
@@ -107,7 +159,7 @@ class PeakAnalyzer(Analyzer):
         else:
             return 1./np.mean(isi)
 
-    def find_baseline(self, t,v):
+    def find_baseline(self, t, v):
             """ find baseline of trace
 
                 t - list of time stamps
