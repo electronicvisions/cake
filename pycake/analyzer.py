@@ -1,5 +1,6 @@
 import numpy as np
 np.seterr(all='raise')
+np.seterr(under='warn')
 import pylab
 import pylogging
 import scipy.signal
