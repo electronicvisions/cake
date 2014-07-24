@@ -28,7 +28,7 @@ parameters = {
         "blocks":  [FGBlockOnHICANN(Enum(i)) for i in range(4)],
 
         # Set the ranges within which you want to calibrate
-        "V_reset_range":  [{shared_parameter.V_reset : v} for v in linspace_voltage(400, 700, 5)],
+        "V_reset_range":  [{shared_parameter.V_reset : v} for v in linspace_voltage(600, 800, 5)],
         "E_syni_range":   [{neuron_parameter.E_syni : v} for v in linspace_voltage(550, 850, 5)],
         "E_synx_range":   [{neuron_parameter.E_synx : v} for v in linspace_voltage(650, 950, 5)],
         "E_l_range":      [{neuron_parameter.E_l : v} for v in linspace_voltage(550, 850, 6)],
