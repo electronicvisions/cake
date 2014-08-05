@@ -43,7 +43,7 @@ parser.add_argument("runner", help="path to calibration runner")
 parser.add_argument("testrunner", help="path to test runner (evaluation of calibration)")
 parser.add_argument("hicann", help="HICANNOnWafer enum", type=int)
 parser.add_argument("backenddir", help="path to backends directory")
-parser.add_argument("--wafer", help="Wafer enum", default=0)
+parser.add_argument("--wafer", help="Wafer enum", default=0, type=int)
 parser.add_argument("--outdir", help="path of output directory for plots", default="./figures")
 
 parser.add_argument("--v_reset_runner", help="path to V reset runner (if different from 'runner')", default=None)
