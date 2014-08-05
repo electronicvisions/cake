@@ -39,7 +39,7 @@ eval_parameters = {
         "run_E_syni":   True,
         "run_E_l":      True,
         "run_V_t":      True,
-        "run_I_gl":     True,
+        "run_I_gl":     False,
         "run_I_pl":     False,
         "run_V_syntcx": False,
         "run_V_syntci": False,
