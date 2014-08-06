@@ -107,9 +107,9 @@ class BaseExperimentBuilder(object):
                     continue
                 # Check if parameter exists for this block
                 even = block.id().value()%2
-                if even and param.name in ['V_clrc', 'V_bout']:
+                if even and param.name in ['V_clra', 'V_bout']:
                     continue
-                if not even and param.name in ['V_clra', 'V_bexp']:
+                if not even and param.name in ['V_clrc', 'V_bexp']:
                     continue
 
                 value_dac = value.toDAC()
