@@ -145,13 +145,30 @@ parameters = {
                                 neuron_parameter.V_synx: Voltage(1000),    # excitatory synaptic reversal potential
                                 neuron_parameter.V_t: Voltage(1000),       # recommended threshold, maximum is 1100
 
-                                shared_parameter.V_bexp: Current(2500), # exp-term: Must be set to max if I_bexp is 2500
-                                shared_parameter.V_bout: Current(750),
-                                shared_parameter.V_gmax0: Voltage(80),
-                                shared_parameter.V_gmax1: Voltage(80),
-                                shared_parameter.V_gmax2: Voltage(80),
-                                shared_parameter.V_gmax3: Voltage(80),
-                                shared_parameter.V_reset: Voltage(500),
+                                shared_parameter.V_reset:       Voltage(500),   #* Neuron reset voltage
+                                shared_parameter.int_op_bias:   DAC(1023),      # internal OP bias
+                                shared_parameter.V_dllres:      DAC(200),       # DLL reset voltage
+                                shared_parameter.V_bout:        Current(750),   #* Global bias of neuron readout amps
+                                shared_parameter.V_bexp:        Current(2500),  #* exp-term: Must be set to max if I_bexp is 2500
+                                shared_parameter.V_fac:         DAC(0),         # Short-term plasticity in facilitation mode
+                                shared_parameter.I_breset:      DAC(1023),      # Current used to pull down membrane after reset
+                                shared_parameter.V_dep:         DAC(0),         # Short-term plasticity in depression mode
+                                shared_parameter.I_bstim:       DAC(1023),      # Bias for neuron stimulation circuit
+                                shared_parameter.V_thigh:       DAC(0),         # STDP readout compare voltage
+                                shared_parameter.V_gmax3:       Voltage(80),    # max. synaptic weight
+                                shared_parameter.V_tlow:        DAC(0),         # STDP readout compare voltage (?)
+                                shared_parameter.V_gmax0:       Voltage(80),    #* max. synaptic weight
+                                shared_parameter.V_clra:        DAC(0),         # STDP CLR voltage (acausal)
+                                shared_parameter.V_clrc:        DAC(0),         # STDP CLR voltage (causa)l
+                                shared_parameter.V_gmax1:       Voltage(80),    #* max. synaptic weight
+                                shared_parameter.V_stdf:        DAC(0),         # STDF reset voltage
+                                shared_parameter.V_gmax2:       Voltage(80),    #* max. synaptic weight
+                                shared_parameter.V_m:           DAC(0),         # Start load voltage of causal STDP capacitor (grnd for acausal)
+                                shared_parameter.V_bstdf:       DAC(0),         # Bias for short-term plasticity
+                                shared_parameter.V_dtc:         DAC(0),         # Bias for DTC in short-term plasticity circuit
+                                shared_parameter.V_br:          DAC(0),         # Bias for STDP readout circuit
+
+
                                 },
 
         "E_synx_parameters":     {  neuron_parameter.I_gl: Current(0), # I_gl and I_convi MUST be set to 0
