@@ -43,14 +43,15 @@ class Parameters(ValueStorage):
                 'I_gl': 1023,
                 'V_syntcx': 800,
                 'V_syntci': 800,
-                'V_synx': 100,
+                'V_synx': 511,
+                'V_syni': 511,
                 'E_l': 100
                 }),
             'synapse_driver': ValueStorage({
                 'stp': None,
                 'cap': 0,
                 'gmax': 0,
-                'gmax_div': 0
+                'gmax_div': 11
                 })
             })
 
@@ -313,8 +314,9 @@ class Hardware(object):
 
         # Return voltage trace
         trace = recorder0.trace()
+        timestamps = recorder0.getTimestamps()
         recorder0.freeHandle()
-        return trace
+        return timestamps, trace
 
     @run_configuration
     def run(self, duration):

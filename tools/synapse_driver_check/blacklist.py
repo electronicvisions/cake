@@ -18,14 +18,16 @@ HICANN = 84
 #PATH = 'blacklists/{0}'.format(time.strftime('%Y-%m-%d-%H-%M-%S'))
 #os.mkdir(PATH)
 
+from pycake.helpers.units import DAC, Voltage, Current
+
 params = shallow.Parameters()
-params.neuron.E_l = 400
-params.neuron.V_t = 500
-params.neuron.E_synx = 1023
-params.neuron.E_syni = 330
+params.neuron.E_l = Voltage(700).toDAC().value
+params.neuron.V_t = Voltage(730).toDAC().value
+params.neuron.E_synx = Voltage(800).toDAC().value
+params.neuron.E_syni = Voltage(600).toDAC().value
 params.neuron.V_syntcx = 800
 params.neuron.V_syntci = 800
-params.neuron.I_gl = 200
+params.neuron.I_gl = 409
 
 params.shared.V_reset = 200
 
@@ -33,7 +35,7 @@ hardware = shallow.Hardware(WAFER, HICANN,
         '/wang/data/calibration/wafer_{0}'.format(WAFER))
 hardware.connect()
 
-blacklist_file = open('blacklist.csv', 'a')
+blacklist_file = open('blacklist_w{}_h{}.csv'.format(WAFER,HICANN), 'a')
 blacklist = csv.writer(blacklist_file, dialect='excel-tab')
 
 # Configure floating gates and synapse drivers
@@ -54,9 +56,11 @@ for neurons in [range(i, i+32) for i in range(0, 512, 32)]:
         driver = 127 - bus * 2
     assert bus == shallow.get_bus_from_driver(driver)
 
+    sending_addr = 1
+
     for addr, neuron in enumerate(neurons):
         hardware.add_route(
-            42,
+            sending_addr,
             driver,
             neuron
             )
@@ -65,17 +69,30 @@ for neurons in [range(i, i+32) for i in range(0, 512, 32)]:
 
     # Create input spike trains
     train = np.arange(200) * 0.1e-6 + 5e-6
-    hardware.add_spike_train(bus, 42, train)
-            
-    hardware.run(1e-3)
+    hardware.add_spike_train(bus, sending_addr, train)
+
+    record_membrane = False
+
+    if record_membrane:
+        adc = 0
+        hardware.enable_adc(neurons[0], adc)
+        timestamps, trace = hardware.record(adc, 1e-3)
+        np.savetxt('membrane_n_{}_w{}_h{}.txt'.format(neurons[0], WAFER, HICANN), np.transpose([timestamps, trace]))
+    else:
+        hardware.run(1e-3)
+
     spikes = hardware.get_spikes(receiving_link)
 
     for i, nrn in enumerate(neurons):
         correct = spikes[(spikes[:,1] == i+1) & (spikes[:,0] <= 30e-6),:]
         incorrect = spikes[(spikes[:,1] == i+1) & (spikes[:,0] > 30e-6),:]
-        if correct.size != 0 and incorrect.size == 0:
-            print "Neuron {0} works fine.".format(nrn)
+
+        n_correct = len(correct)
+        n_incorrect = len(incorrect)
+
+        if n_correct != 0 and n_incorrect == 0:
+            print "Neuron {0} works fine.".format(nrn), "n_correct:", n_correct, "n_incorrect:", n_incorrect
         else:
-            print "Neuron {0} is dead.".format(nrn)
+            print "Neuron {0} is dead.".format(nrn), "n_correct:", n_correct, "n_incorrect:", n_incorrect
             blacklist.writerow((nrn, ))
             blacklist_file.flush()
