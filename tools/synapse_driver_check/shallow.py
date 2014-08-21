@@ -1,0 +1,329 @@
+#! /usr/bin/python
+# -*- coding: utf-8 -*-
+
+import time
+import numpy as np
+ 
+import pyhalbe
+import pysthal
+from pycake.helpers.calibtic import Calibtic
+
+from utils import ValueStorage
+
+try:
+    import logbook
+    log = logbook.Logger("shallow")
+except:
+    import logging
+    log = logging.getLogger("shallow")
+
+# Set up shortcuts
+Coordinate = pyhalbe.Coordinate
+HICANN = pyhalbe.HICANN
+
+# Select L1 addresses
+BG_ADDRESS = pyhalbe.HICANN.L1Address(0)
+TOP = Coordinate.top
+BOT = Coordinate.bottom
+
+class Parameters(ValueStorage):
+    def __init__(self):
+        ValueStorage.__init__(self, {
+            'shared': ValueStorage({
+                'V_fac': 1023,
+                'V_dep': 0,
+                'V_stdf': 400,
+                'V_reset': 200,
+                'V_dtc': 0,
+                'V_gmax0': 50,
+                'V_bstdf': 800
+                }),
+            'neuron': ValueStorage({
+                'V_t': 500,
+                'I_gl': 1023,
+                'V_syntcx': 800,
+                'V_syntci': 800,
+                'V_synx': 100,
+                'E_l': 100
+                }),
+            'synapse_driver': ValueStorage({
+                'stp': None,
+                'cap': 0,
+                'gmax': 0,
+                'gmax_div': 0
+                })
+            })
+
+class reset_configuration:
+    def __init__(self, fg=False):
+        self.fg = fg
+
+    def __call__(self, func):
+        fg = self.fg
+        def proxy(self, *args, **kwargs):
+            self._configured = False
+            if fg:
+                self._fg_written = False
+
+            return func(self, *args, **kwargs)
+        return proxy
+
+def run_configuration(func):
+        def proxy(self, *args, **kwargs):
+            if not self._configured:
+                self.configure(not self._fg_written)
+                self._configured = True
+                self._fg_written = True
+            return func(self, *args, **kwargs)
+        return proxy
+
+def get_bus_from_driver(driver):
+        top = driver < 112
+        if top:
+            return ((driver//2*2 + 1) % 16 - 1) / 2
+        else:
+            return 7 - (driver//2*2 % 16 + 1) / 2
+
+class FastHICANNConfigurator(pysthal.HICANNConfigurator):
+    def __init__(self, configure_floating_gates=True):
+        pysthal.HICANNConfigurator.__init__(self)
+        self._configure_floating_gates = configure_floating_gates
+
+    def config_floating_gates(self, *args, **kwargs):
+        if self._configure_floating_gates:
+            pysthal.HICANNConfigurator.config_floating_gates(self, *args, **kwargs)
+
+class Hardware(object):
+    def __init__(self, wafer, hicann, calibration_backend=None):
+        wafer_c = Coordinate.Wafer(wafer)
+        hicann_c = Coordinate.HICANNOnWafer(Coordinate.Enum(hicann))
+
+        self.wafer = pysthal.Wafer(wafer_c)
+        self.hicann = self.wafer[hicann_c]
+
+        # Going to be set during routing
+        self.sending_link = None
+        self.receiving_link = None
+
+        self.params = Parameters()
+
+        self._configured = False
+        self._fg_written = False
+
+        # Activate firing for all neurons to work around 1.2V bug
+        for nrn in Coordinate.iter_all(Coordinate.NeuronOnHICANN):
+            self.hicann.neurons[nrn].activate_firing(True)
+
+        # Configure background generators to fire on L1 address 0
+        for bg in Coordinate.iter_all(Coordinate.BackgroundGeneratorOnHICANN):
+            generator = self.hicann.layer1[bg]
+            generator.enable(True)
+            generator.random(False)
+            generator.period(2000)
+            generator.address(BG_ADDRESS)
+
+        if calibration_backend is not None:
+            self.calibration = Calibtic(calibration_backend, wafer_c, hicann_c)
+        else:
+            self.calibration = None
+
+    def set_parameters(self, params):
+        if (params.shared != self.params.shared) \
+         | (params.neuron != self.params.neuron):
+             self._configured = False
+             self._fg_written = False
+        if (params.synapse_driver != self.params.synapse_driver):
+             self._configured = False
+
+        self.params = params
+          
+    @reset_configuration()
+    def add_route(self, address, synapse_driver, neuron, line=TOP):
+        # Calculate bus from synapse driver
+        top = synapse_driver < 112
+
+        bus = get_bus_from_driver(synapse_driver)
+
+        if top:
+            if synapse_driver % 2 == 1:
+                side = Coordinate.left
+            else:
+                side = Coordinate.right
+        else:
+            if synapse_driver % 2 == 0:
+                side = Coordinate.left
+            else:
+                side = Coordinate.right
+
+        # Select neuron
+        address = pyhalbe.HICANN.L1Address(address)
+        neuron_c = Coordinate.NeuronOnHICANN(Coordinate.Enum(neuron))
+
+        # Setup Gbit Links and merger tree
+        self.sending_link = Coordinate.GbitLinkOnHICANN(bus)
+        self.hicann.layer1[self.sending_link] = pyhalbe.HICANN.GbitLink.Direction.TO_HICANN
+
+        for merger in Coordinate.iter_all(Coordinate.DNCMergerOnHICANN):
+            merger = self.hicann.layer1[merger]
+            merger.slow = True
+            merger.loopback = False
+
+        # Configure sending repeater to forward spikes to the right
+        h_line = Coordinate.HLineOnHICANN(2 * 4 * (8 - bus) - 2)
+        sending_repeater = self.hicann.repeater[Coordinate.HRepeaterOnHICANN(h_line, Coordinate.left)]
+        sending_repeater.setOutput(Coordinate.right, True)
+
+        # Enable a crossbar switch to route the signal into the first vertical line
+        if side == Coordinate.left:
+            v_line_c = Coordinate.VLineOnHICANN(4*bus)
+        else:
+            v_line_c = Coordinate.VLineOnHICANN(159 - 4*bus)
+
+        self.hicann.crossbar_switches.set(v_line_c, h_line, True)
+         
+        # Configure synapse switches and forward to synapse switch row 81
+        driver_line_c = Coordinate.SynapseSwitchRowOnHICANN(Coordinate.Y(synapse_driver), side)
+        self.hicann.synapse_switches.set(v_line_c, driver_line_c.line(), True)
+         
+        # Configure synapse driver
+        driver = self.hicann.synapses[Coordinate.SynapseDriverOnHICANN(driver_line_c)]
+         
+        driver.set_l1() # Set to process spikes from L1
+        
+        if neuron % 2 == 0:
+            driver[line].set_decoder(Coordinate.top, address.getDriverDecoderMask()) # Listen to addresses with MSB 0
+        else:
+            driver[line].set_decoder(Coordinate.bottom, address.getDriverDecoderMask())
+
+        driver[line].set_syn_in(Coordinate.left, 1)
+        driver[line].set_syn_in(Coordinate.right, 0)
+
+        # Configure synaptic inputs
+        synapse_line_c = Coordinate.SynapseRowOnHICANN(Coordinate.SynapseDriverOnHICANN(driver_line_c.line(), side), line)
+
+        synapse_line = self.hicann.synapses[synapse_line_c]
+         
+        # … for first neuron
+        synapse_line.weights[int(neuron_c.x())] = HICANN.SynapseWeight(15) # Set weights
+        synapse_line.decoders[int(neuron_c.x())] = HICANN.SynapseDecoder(address.getSynapseDecoderMask()) # And listen for spikes from address 0 (background generator)
+
+    def enable_readout(self, dnc):
+        dnc_link = Coordinate.GbitLinkOnHICANN(dnc)
+        self.hicann.layer1[dnc_link] = pyhalbe.HICANN.GbitLink.Direction.TO_DNC
+
+    def assign_address(self, neuron, address):
+        self.hicann.enable_l1_output(Coordinate.NeuronOnHICANN(Coordinate.Enum(neuron)), HICANN.L1Address(address))
+
+    @reset_configuration()
+    def clear_routes(self):
+        self.hicann.clear_l1_routing()
+        self.hicann.clear_l1_switches()
+        self.hicann.synapses.clear_drivers()
+        self.hicann.synapses.clear_synapses()
+        time.sleep(0.5)
+    
+    @reset_configuration()
+    def enable_adc(self, neuron, adc):
+        neuron_c = Coordinate.NeuronOnHICANN(Coordinate.Enum(neuron))
+        self.hicann.enable_aout(neuron_c, Coordinate.AnalogOnHICANN(adc))
+
+    def connect(self):
+        # Connect to hardware
+        connection_db = pysthal.MagicHardwareDatabase()
+        self.wafer.connect(connection_db)
+
+    def disconnect(self):
+        self.wafer.disconnect()
+
+    def clear_spike_trains(self):
+        self.wafer.clearSpikes()
+        time.sleep(0.5)
+
+    def add_spike_train(self, bus, address, times):
+        # Construct spike train
+        spikes = pysthal.Vector_Spike()
+        for t in times:
+            spikes.append(pysthal.Spike(pyhalbe.HICANN.L1Address(address), t))
+        sending_link = Coordinate.GbitLinkOnHICANN(bus)
+        self.hicann.sendSpikes(sending_link, spikes)
+
+    def configure(self, write_floating_gates=True):
+        s = time.time()
+        # Configure synapse drivers
+        for driver_c in Coordinate.iter_all(Coordinate.SynapseDriverOnHICANN):
+            driver = self.hicann.synapses[driver_c]
+            for i in [TOP, BOT]:
+                driver[i].set_gmax(self.params.synapse_driver.gmax)
+                driver[i].set_gmax_div(Coordinate.left, self.params.synapse_driver.gmax_div)
+                driver[i].set_gmax_div(Coordinate.right, self.params.synapse_driver.gmax_div)
+
+            if self.params.synapse_driver.stp == 'facilitation':
+                driver.set_stf()
+            elif self.params.synapse_driver.stp == 'depression':
+                driver.set_std()
+            
+            driver.stp_cap = self.params.synapse_driver.cap
+        
+        # Now we can set the floating gate parameters for the neurons
+        if write_floating_gates:
+            fg = self.hicann.floating_gates
+            
+            for neuron_c in Coordinate.iter_all(Coordinate.NeuronOnHICANN):
+                fg_block = neuron_c.sharedFGBlock()
+                for k, v in self.params.neuron.iteritems():
+                    if self.calibration is not None:
+                        v_old = v
+                        v = self.calibration.apply_calibration(
+                                v,
+                                getattr(HICANN.neuron_parameter, k),
+                                neuron_c
+                                )
+                        #log.debug("Calibrating neuron parameter {0} ({1} → {2}).".format(k, v_old, v))
+                    fg.setNeuron(neuron_c, getattr(HICANN, k), v)
+
+                # Minimize influence of exponential term
+                # V_bexp (shared)
+                fg.setNeuron(neuron_c, HICANN.neuron_parameter.V_exp, 1023)
+                fg.setNeuron(neuron_c, HICANN.neuron_parameter.I_rexp, 1023)
+                fg.setNeuron(neuron_c, HICANN.neuron_parameter.I_bexp, 1023)
+
+                # Minimize influence of adaptation term
+                # Bias
+                fg.setNeuron(neuron_c, HICANN.neuron_parameter.I_gladapt, 0)
+                fg.setNeuron(neuron_c, HICANN.neuron_parameter.I_fire, 0)
+                fg.setNeuron(neuron_c, HICANN.neuron_parameter.I_radapt, 1023)
+
+            for fg_block in Coordinate.iter_all(Coordinate.FGBlockOnHICANN):
+                for k, v in self.params.shared.iteritems():
+                    fg.setShared(fg_block, getattr(HICANN, k), v)
+
+        # Write configuration
+        self.wafer.configure(FastHICANNConfigurator(write_floating_gates))
+        #self.wafer.configure(pysthal.HICANNConfigurator())
+    
+    @run_configuration
+    def record(self, adc, duration):
+        # Setup ADC
+        recorder0 = self.hicann.analogRecorder(Coordinate.AnalogOnHICANN(adc))
+        recorder0.activateTrigger(duration)
+
+        # Run experiment:
+        runner = pysthal.ExperimentRunner(duration)
+        self.wafer.start(runner)
+
+        # Return voltage trace
+        trace = recorder0.trace()
+        recorder0.freeHandle()
+        return trace
+
+    @run_configuration
+    def run(self, duration):
+        runner = pysthal.ExperimentRunner(duration)
+        self.wafer.start(runner)
+
+    def get_spikes(self, bus):
+        bus = Coordinate.GbitLinkOnHICANN(bus)
+        spikes = self.hicann.receivedSpikes(bus)
+        return spikes
+
+
