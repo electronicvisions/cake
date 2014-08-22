@@ -10,6 +10,12 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
+import pylogging
+pylogging.default_config(date_format='absolute')
+pylogging.set_loglevel(pylogging.get("sthal"), pylogging.LogLevel.INFO)
+pylogging.set_loglevel(pylogging.get("sthal.HICANNConfigurator.Time"), pylogging.LogLevel.DEBUG)
+pylogging.set_loglevel(pylogging.get("Default"), pylogging.LogLevel.INFO)
+
 import shallow
 
 from pycake.helpers.misc import mkdir_p
