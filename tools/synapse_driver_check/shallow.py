@@ -72,7 +72,14 @@ class reset_configuration:
 def run_configuration(func):
         def proxy(self, *args, **kwargs):
             if not self._configured:
-                self.configure(not self._fg_written)
+
+                self.configure(not self._fg_written, not self._fg_written or self._not_reset_count==0)
+
+                if self._not_reset_count >= self._max_without_reset:
+                    self._not_reset_count = 0 # reset next time
+                else:
+                    self._not_reset_count += 1
+
                 self._configured = True
                 self._fg_written = True
             return func(self, *args, **kwargs)
@@ -86,20 +93,57 @@ def get_bus_from_driver(driver):
             return 7 - (driver//2*2 % 16 + 1) / 2
 
 class FastHICANNConfigurator(pysthal.HICANNConfigurator):
-    def __init__(self, configure_floating_gates=True):
+    def __init__(self, configure_floating_gates=True, reset=True):
         pysthal.HICANNConfigurator.__init__(self)
         self._configure_floating_gates = configure_floating_gates
+        self._reset = reset
 
     def config_floating_gates(self, *args, **kwargs):
         if self._configure_floating_gates:
             pysthal.HICANNConfigurator.config_floating_gates(self, *args, **kwargs)
 
+    def config_fpga(self, *args, **kwargs):
+        if self._reset:
+            pysthal.HICANNConfigurator.config_fpga(self, *args, **kwargs)
+
+    def config(self, fpga, handle, data):
+
+        if self._reset:
+            pyhalbe.HICANN.init(handle, False)
+
+        self.config_floating_gates(handle, data);
+        self.config_fg_stimulus(handle, data);
+
+        self.config_synapse_array(handle, data);
+
+        self.config_neuron_quads(handle, data)
+        self.config_phase(handle, data)
+        self.config_gbitlink(handle, data)
+
+        self.config_synapse_drivers(handle, data)
+        self.config_synapse_switch(handle, data)
+        self.config_stdp(handle, data);
+        self.config_crossbar_switches(handle, data)
+        self.config_repeater(handle, data)
+        self.config_merger_tree(handle, data)
+        self.config_dncmerger(handle, data)
+        self.config_background_generators(handle, data)
+        self.flush_fpga(fpga)
+        self.lock_repeater(handle, data)
+        
+        self.config_neuron_config(handle, data)
+        self.config_neuron_quads(handle, data)
+        self.config_analog_readout(handle, data)
+        self.flush_fpga(fpga)
+
+
 class Hardware(object):
-    def __init__(self, wafer, hicann, calibration_backend=None):
+    def __init__(self, wafer, hicann, calibration_backend=None, freq=100e6, bg_period=10000):
         wafer_c = Coordinate.Wafer(wafer)
         hicann_c = Coordinate.HICANNOnWafer(Coordinate.Enum(hicann))
 
         self.wafer = pysthal.Wafer(wafer_c)
+        self.wafer.commonFPGASettings().setPLL(freq)
         self.hicann = self.wafer[hicann_c]
 
         # Going to be set during routing
@@ -108,6 +152,8 @@ class Hardware(object):
 
         self.params = Parameters()
 
+        self._not_reset_count = 0
+        self._max_without_reset = 15
         self._configured = False
         self._fg_written = False
 
@@ -120,7 +166,7 @@ class Hardware(object):
             generator = self.hicann.layer1[bg]
             generator.enable(True)
             generator.random(False)
-            generator.period(2000)
+            generator.period(bg_period)
             generator.address(BG_ADDRESS)
 
         if calibration_backend is not None:
@@ -248,7 +294,7 @@ class Hardware(object):
         sending_link = Coordinate.GbitLinkOnHICANN(bus)
         self.hicann.sendSpikes(sending_link, spikes)
 
-    def configure(self, write_floating_gates=True):
+    def configure(self, write_floating_gates=True, reset=True):
         s = time.time()
         # Configure synapse drivers
         for driver_c in Coordinate.iter_all(Coordinate.SynapseDriverOnHICANN):
@@ -299,7 +345,7 @@ class Hardware(object):
                     fg.setShared(fg_block, getattr(HICANN, k), v)
 
         # Write configuration
-        self.wafer.configure(FastHICANNConfigurator(write_floating_gates))
+        self.wafer.configure(FastHICANNConfigurator(write_floating_gates, reset))
         #self.wafer.configure(pysthal.HICANNConfigurator())
     
     @run_configuration
