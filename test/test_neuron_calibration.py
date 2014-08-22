@@ -16,6 +16,7 @@ from pycake.helpers.calibtic import Calibtic as CalibData
 import pyhalbe
 Coordinate = pyhalbe.Coordinate
 Enum = pyhalbe.Coordinate.Enum
+neuron_parameter = pyhalbe.HICANN.neuron_parameter
 
 
 class TestNeuronCalibration(unittest.TestCase):
@@ -27,7 +28,7 @@ class TestNeuronCalibration(unittest.TestCase):
             "c_hicann": Coordinate.HICANNOnWafer(Enum(280)),
             "c_nrn": Coordinate.NeuronOnHICANN(Enum(23)),
             "hw_vreset": 500,  # mV
-            "xmlbackendpath": "/wang/data/calibration/cake/porthos/2014-07-22_mkleider/"  # TODO use fake data
+            "xmlbackendpath": "/wang/data/calibration/fake/"  # use fake data
         }
 
     def test_apply_calibration(self):
@@ -54,23 +55,17 @@ class TestNeuronCalibration(unittest.TestCase):
         # modify FGControl using calibrated parameters
         fgc = pyhalbe.HICANN.FGControl()
 
-        ##print """========================
-        ##before:
-        ##========================
-        ##""", fgc
-
         hwparam_n.toHW(c_nrn, fgc)
         hwparam_s.toHW(c_nrn.sharedFGBlock(), fgc)
 
-        ##print """========================
-        ##after:
-        ##========================
-        ##""", fgc
-
         unmodified_fgc = pyhalbe.HICANN.FGControl()
         self.assertNotEqual(unmodified_fgc, fgc)
-        # TODO useful assertions
 
+        """
+        more useful assertions would check values, which
+        involves transformations from pyNN to HW,
+        including readout/V_reset shift
+        """
 
 if __name__ == "__main__":
     unittest.main()
