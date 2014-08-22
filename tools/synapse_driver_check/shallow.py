@@ -95,11 +95,12 @@ class FastHICANNConfigurator(pysthal.HICANNConfigurator):
             pysthal.HICANNConfigurator.config_floating_gates(self, *args, **kwargs)
 
 class Hardware(object):
-    def __init__(self, wafer, hicann, calibration_backend=None):
+    def __init__(self, wafer, hicann, calibration_backend=None, freq=100e6, bg_period=10000):
         wafer_c = Coordinate.Wafer(wafer)
         hicann_c = Coordinate.HICANNOnWafer(Coordinate.Enum(hicann))
 
         self.wafer = pysthal.Wafer(wafer_c)
+        self.wafer.commonFPGASettings().setPLL(freq)
         self.hicann = self.wafer[hicann_c]
 
         # Going to be set during routing
@@ -120,7 +121,7 @@ class Hardware(object):
             generator = self.hicann.layer1[bg]
             generator.enable(True)
             generator.random(False)
-            generator.period(2000)
+            generator.period(bg_period)
             generator.address(BG_ADDRESS)
 
         if calibration_backend is not None:
