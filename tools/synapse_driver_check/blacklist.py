@@ -12,8 +12,16 @@ import matplotlib.pyplot as plt
 
 import shallow
 
-WAFER = 0
-HICANN = 84
+
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('hicann', type=int)
+parser.add_argument('--wafer', type=int, default=0)
+args = parser.parse_args()
+
+WAFER = args.wafer
+HICANN = args.hicann
 
 #PATH = 'blacklists/{0}'.format(time.strftime('%Y-%m-%d-%H-%M-%S'))
 #os.mkdir(PATH)

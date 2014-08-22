@@ -14,10 +14,19 @@ import shallow
 
 from pycake.helpers.misc import mkdir_p
 
-WAFER = 0
-HICANN = 84
-FREQ = 100
-BKGISI = 10000
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('hicann', type=int)
+parser.add_argument('--wafer', type=int, default=0)
+parser.add_argument('--freq', type=int, default=100)
+parser.add_argument('--bkgisi', type=int, default=10000)
+args = parser.parse_args()
+
+WAFER = args.wafer
+HICANN = args.hicann
+FREQ = args.freq
+BKGISI = args.bkgisi
 
 PATH = 'defects_w{}_h{}_f{}_bkgisi{}'.format(WAFER,HICANN,FREQ,BKGISI)
 mkdir_p(PATH)
