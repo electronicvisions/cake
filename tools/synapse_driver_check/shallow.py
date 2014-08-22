@@ -72,7 +72,14 @@ class reset_configuration:
 def run_configuration(func):
         def proxy(self, *args, **kwargs):
             if not self._configured:
-                self.configure(not self._fg_written, not self._fg_written)
+
+                self.configure(not self._fg_written, not self._fg_written or self._not_reset_count==0)
+
+                if self._not_reset_count >= self._max_without_reset:
+                    self._not_reset_count = 0 # reset next time
+                else:
+                    self._not_reset_count += 1
+
                 self._configured = True
                 self._fg_written = True
             return func(self, *args, **kwargs)
@@ -145,6 +152,8 @@ class Hardware(object):
 
         self.params = Parameters()
 
+        self._not_reset_count = 0
+        self._max_without_reset = 15
         self._configured = False
         self._fg_written = False
 
