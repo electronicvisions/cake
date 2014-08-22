@@ -12,37 +12,44 @@ import matplotlib.pyplot as plt
 
 import shallow
 
+from pycake.helpers.misc import mkdir_p
+
 WAFER = 0
 HICANN = 84
+FREQ = 100
+BKGISI = 10000
 
-PATH = 'dfcts'
+PATH = 'defects_w{}_h{}_f{}_bkgisi{}'.format(WAFER,HICANN,FREQ,BKGISI)
+mkdir_p(PATH)
 
-#os.mkdir(PATH)
+from pycake.helpers.units import DAC, Voltage, Current
 
 params = shallow.Parameters()
-params.neuron.E_l = 400
-params.neuron.V_t = 500
-params.neuron.E_synx = 1023
-params.neuron.E_syni = 330
+
+params.neuron.E_l = Voltage(700).toDAC().value
+params.neuron.V_t = Voltage(730).toDAC().value
+params.neuron.E_synx = Voltage(800).toDAC().value
+params.neuron.E_syni = Voltage(600).toDAC().value
 params.neuron.V_syntcx = 800
 params.neuron.V_syntci = 800
-params.neuron.I_gl = 200
+params.neuron.I_gl = 409
+
 
 params.shared.V_reset = 200
 
 hardware = shallow.Hardware(WAFER, HICANN,
-        '/wang/data/calibration/wafer_{0}'.format(WAFER))
+                            '/wang/data/calibration/wafer_{0}'.format(WAFER), FREQ*1e6, BKGISI)
 hardware.connect()
 
-neuron_blacklist = np.loadtxt('blacklist.csv')
+neuron_blacklist = np.loadtxt('blacklist_w{}_h{}.csv'.format(WAFER, HICANN))
 
 # Configure floating gates and synapse drivers
 hardware.set_parameters(params)
 
-defects_file = open(os.path.join(PATH, 'defects.csv'), 'a')
+defects_file = open(os.path.join(PATH, 'defects_w{}_h{}.csv'.format(WAFER, HICANN)), 'a')
 defects = csv.writer(defects_file, dialect='excel-tab')
 
-for driver in range(222, 224):
+for driver in range(0, 224):
     hardware.clear_routes()
     hardware.clear_spike_trains()
     
