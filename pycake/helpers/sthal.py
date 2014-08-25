@@ -44,7 +44,8 @@ class StHALContainer(object):
                  coord_hicann,
                  coord_analog=Coordinate.AnalogOnHICANN(0),
                  recording_time=1.e-4,
-                 wafer_cfg=""):
+                 wafer_cfg="",
+                 PLL=100e6):
         """Initialize StHAL. kwargs default to vertical setup configuration."""
 
         self.coord_wafer = coord_wafer
@@ -57,6 +58,8 @@ class StHALContainer(object):
         if self.wafer_cfg:
             self.logger.info("Loading {}".format(wafer_cfg))
             wafer.load(wafer_cfg)
+
+        wafer.commonFPGASettings().setPLL(PLL)
 
         hicann = wafer[coord_hicann]
 
