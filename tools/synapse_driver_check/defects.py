@@ -27,6 +27,10 @@ parser.add_argument('hicann', type=int)
 parser.add_argument('--wafer', type=int, default=0)
 parser.add_argument('--freq', type=int, default=100)
 parser.add_argument('--bkgisi', type=int, default=10000)
+parser.add_argument('--calibpath', type=str, default="/wang/data/calibration/")
+parser.add_argument('--anaonly', action="store_true", default=False)
+parser.add_argument('--extrasuffix', type=str, default=None)
+parser.add_argument('--correctoffset', action="store_true", default=False)
 args = parser.parse_args()
 
 WAFER = args.wafer
@@ -34,7 +38,11 @@ HICANN = args.hicann
 FREQ = args.freq
 BKGISI = args.bkgisi
 
-PATH = 'defects_w{}_h{}_f{}_bkgisi{}'.format(WAFER,HICANN,FREQ,BKGISI)
+suffix='_'.join(["w{}","h{}","f{}","bkgisi{}"]).format(WAFER,HICANN,FREQ,BKGISI)
+if args.extrasuffix:
+    suffix += "_"+args.extrasuffix
+
+PATH = '_'.join(["defects", suffix])
 mkdir_p(PATH)
 
 from pycake.helpers.units import DAC, Voltage, Current
@@ -52,25 +60,78 @@ params.neuron.I_gl = 409
 
 params.shared.V_reset = 200
 
-hardware = shallow.Hardware(WAFER, HICANN,
-                            '/wang/data/calibration/wafer_{0}'.format(WAFER), FREQ*1e6, BKGISI)
-hardware.connect()
-
-neuron_blacklist = np.loadtxt('blacklist_w{}_h{}.csv'.format(WAFER, HICANN))
-
-# Configure floating gates and synapse drivers
-hardware.set_parameters(params)
-
-defects_file = open(os.path.join(PATH, 'defects_w{}_h{}.csv'.format(WAFER, HICANN)), 'a')
+defects_file = open(os.path.join(PATH, '_'.join(["defects",suffix])+'.csv'), 'a')
 defects = csv.writer(defects_file, dialect='excel-tab')
 
-for driver in range(0, 224):
+def ana(spikes):
+
+    print "analyzing data of driver", driver
+
+    spikes = np.loadtxt(os.path.join(PATH, '_'.join(['spikes',"drv",str(driver),suffix])+".dat"))
+
+    plt.figure()
+    plt.title("Test Result for Synapse Driver {0}".format(driver))
+    plt.xlabel("Time [s]")
+    plt.ylabel("Source Address")
+
+    plt.grid(False)
+    plt.ylim((-1, 64))
+    plt.xlim((0, 4e-3))
+    plt.yticks(range(0, 64, 8))
+
+    result = []
+
+    defect_addresses = 0
+
+    details_file = open(os.path.join(PATH, '_'.join(['details',"drv",str(driver),suffix])+'.csv'), 'w')
+    details = csv.writer(details_file, dialect='excel-tab')
+
+    offset=sorted(spikes[:,0])[0] if args.correctoffset else 0
+
+    for i in range(64):
+        plt.axhline(i, c='0.8', ls=':')
+        try:
+            s = spikes[spikes[:,1] == i]
+
+            pos = 5e-6 + i*50e-6
+
+            try:
+                correct = s[np.abs(s[:,0] - pos - 25e-6 - offset) <= 25e-6 * 1.1,:]
+            except:
+                correct = np.array(())
+            try:
+                incorrect = s[np.abs(s[:,0] - pos - 25e-6  - offset) > 25e-6 * 1.1,:]
+            except:
+                incorrect = np.array(())
+
+            details.writerow((i, correct.size/2, incorrect.size/2))
+            details_file.flush()
+
+            if correct.size == 0 or incorrect.size != 0:
+                defect_addresses += 1
+
+            plt.plot(correct[:,0], correct[:,1], 'g|')
+            plt.plot(incorrect[:,0], incorrect[:,1], 'r|')
+        except BaseException, e:
+            pass
+
+    defects.writerow((driver, defect_addresses))
+    defects_file.flush()
+
+    plt.savefig(os.path.join(PATH, '_'.join(["defects","drv",str(driver),suffix])+".pdf"))
+
+    print "analyzing done"
+
+def aquire(driver):
+
+    print "aquiring data for driver", driver
+
     hardware.clear_routes()
     hardware.clear_spike_trains()
-    
+
     # Every synapse driver is accessible via a specific bus. Calculate that bus.
     bus = shallow.get_bus_from_driver(driver)
-    
+
     if driver < 112:
         neurons = np.arange(256)
     else:
@@ -87,7 +148,11 @@ for driver in range(0, 224):
 
     recording_links = []
     for addr in range(64):
+        #default
         half = shallow.BOT if addr < 32 else shallow.TOP
+
+        #alternative
+        #half = shallow.TOP if addr < 32 else shallow.BOT
         if addr % 32 < 16:
             neuron = even[addr]
         else:
@@ -111,54 +176,31 @@ for driver in range(0, 224):
     for i in range(64):
         train = np.arange(200) * 0.1e-6 + 5e-6 + 50e-6*i
         hardware.add_spike_train(bus, i, train)
-            
+
     hardware.run(4e-3)
     spikes = np.vstack([hardware.get_spikes(rl) for rl in recording_links])
-    
-    plt.figure()
-    plt.title("Test Result for Synapse Driver {0}".format(driver))
-    plt.xlabel("Time [s]")
-    plt.ylabel("Source Address")
 
-    plt.grid(False)
-    plt.ylim((-1, 64))
-    plt.xlim((0, 4e-3))
-    plt.yticks(range(0, 64, 8))
+    np.savetxt(os.path.join(PATH, '_'.join(['spikes',"drv",str(driver),suffix])+".dat"), spikes)
 
-    result = []
+    print "aquiring done"
 
-    defect_addresses = 0
+if __name__ == "__main__":
 
-    details_file = open(os.path.join(PATH, 'details_{0}.csv'.format(driver)), 'a')
-    details = csv.writer(details_file, dialect='excel-tab')
+    run_on_hardware = not args.anaonly
 
-    for i in range(64):
-        plt.axhline(i, c='0.8', ls=':')
-        try:
-            s = spikes[spikes[:,1] == i]
-            pos = 5e-6 + i*50e-6
-            
-            try:
-                correct = s[np.abs(s[:,0] - pos - 25e-6) <= 25e-6,:]
-            except:
-                correct = np.array(())
-            try:
-                incorrect = s[np.abs(s[:,0] - pos - 25e-6) > 25e-6,:]
-            except:
-                incorrect = np.array(())
+    if run_on_hardware:
 
-            details.writerow((i, correct.size/2, incorrect.size/2))
-            details_file.flush()
+        hardware = shallow.Hardware(WAFER, HICANN,
+                                    os.path.join(args.calibpath,'wafer_{0}').format(WAFER), FREQ*1e6, BKGISI)
+        hardware.connect()
 
-            if correct.size == 0 or incorrect.size != 0:
-                defect_addresses += 1
+        neuron_blacklist = np.loadtxt('blacklist_w{}_h{}.csv'.format(WAFER, HICANN)) # no notion of freq and bkgisi
 
-            plt.plot(correct[:,0], correct[:,1], 'g|')
-            plt.plot(incorrect[:,0], incorrect[:,1], 'r|')
-        except BaseException, e:
-            pass
+        # Configure floating gates and synapse drivers
+        hardware.set_parameters(params)
 
-    defects.writerow((driver, defect_addresses))
-    defects_file.flush()
+    for driver in range(0, 224):
 
-    plt.savefig(os.path.join(PATH, 'defects_{0}.pdf'.format(driver)))
+        if run_on_hardware:
+            aquire(driver)
+        ana(driver)
