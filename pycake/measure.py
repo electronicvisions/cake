@@ -80,7 +80,7 @@ class Measurement(object):
     def get_parameter(self, parameter, coords):
         """ Used to read out parameters that were used during this measurement.
 
-            Args: 
+            Args:
                 parameter: which parameter (neuron_parameter or shared_parameter)
                 coord: pyhalbe coordinate or list of coordinates (FGBlockOnHICANN or NeuronOnHICANN)
             Return:
@@ -219,7 +219,7 @@ class I_gl_Measurement(Measurement):
         skip_I_gl can be used to skip step 2) above a certain I_gl (default 700 nA,
         adjust this for other SpeedUp factors!)
     """
-    def __init__(self, sthal, neurons, readout_shifts=None, currents=range(30), skip_I_gl=700):
+    def __init__(self, sthal, neurons, readout_shifts=None, currents=range(30), skip_I_gl=2000):
         super(I_gl_Measurement, self).__init__(sthal, neurons, readout_shifts)
         self.currents = currents
         self.skip_I_gl = skip_I_gl
@@ -253,11 +253,11 @@ class I_gl_Measurement(Measurement):
         """
         old_recording_time = self.sthal.recording_time
         I_gl = self.get_parameter(neuron_parameter.I_gl, neuron).values()[0]*2500/1023.
-        self.sthal.adc.setRecordingTime(old_recording_time/recording_time_divider)
-        self.logger.TRACE("Finding best current for neuron {}".format(neuron))
         if I_gl > skip_I_gl: # Experience shows that for a large enough I_gl, a current of 30 nA is good
             self.logger.TRACE("I_gl of {0:.1f} large enough. Setting current to 30 nA".format(I_gl))
             return 30
+        self.sthal.adc.setRecordingTime(old_recording_time/recording_time_divider)
+        self.logger.TRACE("Finding best current for neuron {}".format(neuron))
         best_current = None
         highest_trace_max = None
         for current in currents:
@@ -300,7 +300,7 @@ class I_gl_Measurement(Measurement):
             self.sthal.switch_analog_output(neuron, l1address=None) # No firing activated
         else:
             self.sthal.set_current_stimulus(int(current), stim_length)
-            self.sthal.switch_current_stimulus_and_output(neuron)
+            self.sthal.switch_current_stimulus_and_output(neuron, l1address=None)
 
 
 class I_gl_Measurement_multiple_currents(I_gl_Measurement):
