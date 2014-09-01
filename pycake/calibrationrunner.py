@@ -42,7 +42,7 @@ class CalibrationRunner(object):
         self.redman =   pycake.helpers.redman.Redman(path, Coordinate.HICANNGlobal(hicann,wafer))
 
         prefix = self.config.get_filename_prefix()
-        name_details = "_".join([s for s in [prefix, time.strftime('%m%d_%H%M')] if s])
+        name_details = "_".join([s for s in ["w{}".format(wafer.value()), "h{}".format(hicann.id().value()), prefix, time.strftime('%m%d_%H%M')] if s != ""])
         self.filename = self.pickle_file_pattern.format(name_details)
         self.measurements_folder = self.pickel_measurements_folder.format(name_details)
 
