@@ -72,7 +72,11 @@ args = parser.parse_args()
 fig_dir = args.outdir
 mkdir_p(fig_dir)
 
-reader = Reader(args.runner)
+try:
+    reader = Reader(args.runner)
+except Exception as e:
+    print "Cannot instantiate reader because:", e
+    reader = None
 
 try:
     test_reader = Reader(args.testrunner)
@@ -190,13 +194,15 @@ def result(label, xlabel=None, ylabel=None, reader=None, **reader_kwargs):
 
 r_v_reset = reader if args.v_reset_runner == None else Reader(args.v_reset_runner)
 
-uncalibrated_hist("$V_{reset}$ [V]",
-                  r_v_reset,
-                  parameter="V_reset",
-                  key="baseline",
-                  bins=100,
-                  range=(0.4,0.8),
-                  show_legend=False)
+if r_v_reset:
+
+    uncalibrated_hist("$V_{reset}$ [V]",
+                      r_v_reset,
+                      parameter="V_reset",
+                      key="baseline",
+                      bins=100,
+                      range=(0.4,0.8),
+                      show_legend=False)
 
 
 # offset
@@ -217,39 +223,45 @@ result("$V_{{reset}}$ {inout} [mV]", reader=r_v_reset, parameter="V_reset",key="
 
 r_test_v_reset = test_reader if args.v_reset_testrunner == None else Reader(args.v_reset_testrunner)
 
-calibrated_hist("$V_{reset}$ [V]",
-                  r_test_v_reset,
-                  parameter="V_reset",
-                  key="baseline",
-                  bins=100,
-                  range=(0.46,0.54),
-                  show_legend=True)
+if r_test_v_reset:
 
-trace("$V_{reset}$ [mV]", r_test_v_reset, "V_reset", [0], C.NeuronOnHICANN(C.Enum(57)), end=510)
+    calibrated_hist("$V_{reset}$ [V]",
+                      r_test_v_reset,
+                      parameter="V_reset",
+                      key="baseline",
+                      bins=100,
+                      range=(0.46,0.54),
+                      show_legend=True)
+
+    trace("$V_{reset}$ [mV]", r_test_v_reset, "V_reset", [0], C.NeuronOnHICANN(C.Enum(57)), end=510)
 
 ## E synx
 
 r_e_synx = reader if args.e_synx_runner == None else Reader(args.e_synx_runner)
 
-uncalibrated_hist("$E_{synx}$ [V]",
-                  r_e_synx,
-                  parameter="E_synx",
-                  key="mean",
-                  bins=100,
-                  range=(0.55,0.99),
-                  show_legend=False);
+if r_e_synx:
 
-result("$E_{{synx}}$ {inout} [mV]", reader=r_e_synx, parameter="E_synx",key="mean",alpha=0.05,color="b",marker="o")
+    uncalibrated_hist("$E_{synx}$ [V]",
+                      r_e_synx,
+                      parameter="E_synx",
+                      key="mean",
+                      bins=100,
+                      range=(0.55,0.99),
+                      show_legend=False);
+
+    result("$E_{{synx}}$ {inout} [mV]", reader=r_e_synx, parameter="E_synx",key="mean",alpha=0.05,color="b",marker="o")
 
 r_test_e_synx = test_reader if args.e_synx_testrunner == None else Reader(args.e_synx_testrunner)
 
-calibrated_hist("$E_{synx}$ [V]",
-                r_test_e_synx,
-                parameter="E_synx",
-                key="mean",
-                bins=100,
-                range=(0.55,0.95),
-                show_legend=True);
+if r_test_e_synx:
+
+    calibrated_hist("$E_{synx}$ [V]",
+                    r_test_e_synx,
+                    parameter="E_synx",
+                    key="mean",
+                    bins=100,
+                    range=(0.55,0.95),
+                    show_legend=True);
 
 #for k,v in r_test_e_synx.get_results("E_synx", r_test_e_synx.get_neurons(), "mean").iteritems():
 #        if v[0] < 0.78 or v[0] > 0.82:
@@ -259,156 +271,168 @@ calibrated_hist("$E_{synx}$ [V]",
 
 r_e_syni = reader if args.e_syni_runner == None else Reader(args.e_syni_runner)
 
-r_e_syni.include_defects=True
-r_e_syni.plot_result("E_syni","mean",neurons=[C.NeuronOnHICANN(C.X(173), C.top), 
-                                              C.NeuronOnHICANN(C.X(5), C.top)],alpha=0.05, color='b');
+if r_e_syni:
 
-uncalibrated_hist("$E_{syni}$ [V]",
-                  r_e_syni,
-                  parameter="E_syni",
-                  key="mean",
-                  bins=100,
-                  range=(0.3, 0.8),
-                  show_legend=False);
+    r_e_syni.include_defects=True
+    r_e_syni.plot_result("E_syni","mean",neurons=[C.NeuronOnHICANN(C.X(173), C.top), 
+                                                  C.NeuronOnHICANN(C.X(5), C.top)],alpha=0.05, color='b');
 
-result("$E_{{syni}}$ {inout} [mV]", reader=r_e_syni, parameter="E_syni",key="mean",alpha=0.05,color="b",marker="o")
+    uncalibrated_hist("$E_{syni}$ [V]",
+                      r_e_syni,
+                      parameter="E_syni",
+                      key="mean",
+                      bins=100,
+                      range=(0.3, 0.8),
+                      show_legend=False);
+
+    result("$E_{{syni}}$ {inout} [mV]", reader=r_e_syni, parameter="E_syni",key="mean",alpha=0.05,color="b",marker="o")
 
 r_test_e_syni = test_reader if args.e_syni_testrunner == None else Reader(args.e_syni_testrunner)
 
-calibrated_hist("$E_{syni}$ [V]",
-                r_test_e_syni,
-                parameter="E_syni",
-                key="mean",
-                bins=100,
-                range=(0.55, 0.65),
-                show_legend=True);
+if r_test_e_syni:
+
+    calibrated_hist("$E_{syni}$ [V]",
+                    r_test_e_syni,
+                    parameter="E_syni",
+                    key="mean",
+                    bins=100,
+                    range=(0.55, 0.65),
+                    show_legend=True);
 
 ## E l
 
 r_e_l = reader if args.e_l_runner == None else Reader(args.e_l_runner)
 
-uncalibrated_hist("$E_{l}$ [V]",
-                  r_e_l,
-                  parameter="E_l",
-                  key="mean",
-                  bins=100,
-                  range=(0.5,1),
-                  show_legend=False)
+if r_e_l:
 
-result("$E_{{l}}$ {inout} [mV]", reader=r_e_l, parameter="E_l",key="mean",alpha=0.05,color="b",marker="o")
+    uncalibrated_hist("$E_{l}$ [V]",
+                      r_e_l,
+                      parameter="E_l",
+                      key="mean",
+                      bins=100,
+                      range=(0.5,1),
+                      show_legend=False)
 
-r_e_l.include_defects = True
-r_e_l.plot_result("E_l","mean");
+    result("$E_{{l}}$ {inout} [mV]", reader=r_e_l, parameter="E_l",key="mean",alpha=0.05,color="b",marker="o")
 
-r_e_l.include_defects = False
+    r_e_l.include_defects = True
+    r_e_l.plot_result("E_l","mean");
 
-"""
+    r_e_l.include_defects = False
 
-neurons = r_e_l.get_neurons()[132:135]
+    """
 
-fig = r_e_l.plot_result("E_l","mean",neurons,marker='o',linestyle="None");
+    neurons = r_e_l.get_neurons()[132:135]
 
-print r_e_l.runner.coeffs.keys()
+    fig = r_e_l.plot_result("E_l","mean",neurons,marker='o',linestyle="None");
 
-coeffs = r_e_l.runner.coeffs["E_l"]
+    print r_e_l.runner.coeffs.keys()
 
-xs = np.array([500,900])
+    coeffs = r_e_l.runner.coeffs["E_l"]
 
-for n in neurons:
-    #print len(coeffs), len(coeffs[0]), len(coeffs[0][1])
-    c = coeffs[0][1][n]
-    if c == None: 
-        #print c
-        #continue
-        pass
-    a = c[0]
-    b = c[1]
-    #print a,b, 1/a, -b/a
-    polynomial = numpy.poly1d([1/a,-b/a])
-    #print polynomial
-    plt.plot(xs,np.array(polynomial(xs/1800.*1023.)*1800./1023.), label="Neuron {}".format(n.id().value()))
-    
-plt.xlabel("Input [DAC]")
-plt.ylabel("Output [mV]")
-plt.subplots_adjust(**margins)
-plt.xlim(500,900)
-plt.ylim(500,900)
-plt.legend(loc="upper left")
-plt.grid(True)
-fig.savefig(os.path.join(fig_dir,"calib_example_lines.pdf"))
-"""
+    xs = np.array([500,900])
+
+    for n in neurons:
+        #print len(coeffs), len(coeffs[0]), len(coeffs[0][1])
+        c = coeffs[0][1][n]
+        if c == None: 
+            #print c
+            #continue
+            pass
+        a = c[0]
+        b = c[1]
+        #print a,b, 1/a, -b/a
+        polynomial = numpy.poly1d([1/a,-b/a])
+        #print polynomial
+        plt.plot(xs,np.array(polynomial(xs/1800.*1023.)*1800./1023.), label="Neuron {}".format(n.id().value()))
+
+    plt.xlabel("Input [DAC]")
+    plt.ylabel("Output [mV]")
+    plt.subplots_adjust(**margins)
+    plt.xlim(500,900)
+    plt.ylim(500,900)
+    plt.legend(loc="upper left")
+    plt.grid(True)
+    fig.savefig(os.path.join(fig_dir,"calib_example_lines.pdf"))
+    """
 
 r_test_e_l = test_reader if args.e_l_testrunner == None else Reader(args.e_l_testrunner)
 
-calibrated_hist("$E_{l}$ [V]",
-                r_test_e_l,
-                parameter="E_l",
-                key="mean",
-                show_legend=True,
-                bins=100,
-                range=(0.6,0.8))
+if r_test_e_l:
+
+    calibrated_hist("$E_{l}$ [V]",
+                    r_test_e_l,
+                    parameter="E_l",
+                    key="mean",
+                    show_legend=True,
+                    bins=100,
+                    range=(0.6,0.8))
 
 ## V t
 
 r_v_t = reader if args.v_t_runner == None else Reader(args.v_t_runner)
 
-uncalibrated_hist("$V_{t}$ [V]",
-                  r_v_t,
-                  parameter="V_t",
-                  key="max",
-                  bins=100,
-                  range=(0.5,0.85))
+if r_v_t:
 
-result("$V_{{t}}$ {inout} [mV]", reader=r_v_t, parameter="V_t",key="max",alpha=0.05,color="b",marker="o")
+    uncalibrated_hist("$V_{t}$ [V]",
+                      r_v_t,
+                      parameter="V_t",
+                      key="max",
+                      bins=100,
+                      range=(0.5,0.85))
+
+    result("$V_{{t}}$ {inout} [mV]", reader=r_v_t, parameter="V_t",key="max",alpha=0.05,color="b",marker="o")
 
 r_test_v_t = test_reader if args.v_t_testrunner == None else Reader(args.v_t_testrunner)
 
-calibrated_hist("$V_{t}$ [V]",
-                r_test_v_t,
-                parameter="V_t",
-                key="max",
-                bins=100,
-                range=(0.65,0.85),
-                show_legend=True)
+if  r_test_v_t:
 
-#for k,v in r_test_v_t.get_results("V_t", range(512), "max").iteritems():
-#        if v[0] < 0.675 or v[0] > 0.725:
-#            print 0.7, k.id(), v[0]
-#            print
-#        if v[1] < 0.725 or v[1] > 0.775:
-#            print 0.75, k.id(), v[1]
-#            print
-#        if v[2] < 0.775 or v[2] > 0.825:
-#            print 0.8, k.id(), v[2]
-#            print
+    calibrated_hist("$V_{t}$ [V]",
+                    r_test_v_t,
+                    parameter="V_t",
+                    key="max",
+                    bins=100,
+                    range=(0.65,0.85),
+                    show_legend=True)
 
-trace("$V_{mem}$ [mV]", r_test_v_t, parameter="V_t", steps=[0,1,2], neuron=C.NeuronOnHICANN(C.Enum(57)), start=500, end=700)
+    #for k,v in r_test_v_t.get_results("V_t", range(512), "max").iteritems():
+    #        if v[0] < 0.675 or v[0] > 0.725:
+    #            print 0.7, k.id(), v[0]
+    #            print
+    #        if v[1] < 0.725 or v[1] > 0.775:
+    #            print 0.75, k.id(), v[1]
+    #            print
+    #        if v[2] < 0.775 or v[2] > 0.825:
+    #            print 0.8, k.id(), v[2]
+    #            print
 
-r_v_t.include_defects = False
+    trace("$V_{mem}$ [mV]", r_test_v_t, parameter="V_t", steps=[0,1,2], neuron=C.NeuronOnHICANN(C.Enum(57)), start=500, end=700)
 
-neurons = r_v_t.get_neurons()[0:1]
+    r_v_t.include_defects = False
 
-fig = r_v_t.plot_result("V_t","max",neurons,marker='o',linestyle="None");
+    neurons = r_v_t.get_neurons()[0:1]
 
-#print r_v_t.runner.coeffs.keys()
+    fig = r_v_t.plot_result("V_t","max",neurons,marker='o',linestyle="None");
 
-#coeffs = r_v_t.runner.coeffs["V_t"]
-#
-#xs = np.array([550,850])
-#
-#for n in neurons:
-#    #print len(coeffs), len(coeffs[0]), len(coeffs[0][1])
-#    c = coeffs[0][1][n]
-#    if c == None: 
-#        #print c
-#        continue
-#        pass
-#    a = c[0]
-#    b = c[1]
-#    #print a,b, 1/a, -b/a
-#    polynomial = numpy.poly1d([1/a,-b/a])
-#    #print polynomial
-#    plt.plot(xs,np.array(polynomial(xs/1800.*1023.)*1800./1023.))
+    #print r_v_t.runner.coeffs.keys()
+
+    #coeffs = r_v_t.runner.coeffs["V_t"]
+    #
+    #xs = np.array([550,850])
+    #
+    #for n in neurons:
+    #    #print len(coeffs), len(coeffs[0]), len(coeffs[0][1])
+    #    c = coeffs[0][1][n]
+    #    if c == None: 
+    #        #print c
+    #        continue
+    #        pass
+    #    a = c[0]
+    #    b = c[1]
+    #    #print a,b, 1/a, -b/a
+    #    polynomial = numpy.poly1d([1/a,-b/a])
+    #    #print polynomial
+    #    plt.plot(xs,np.array(polynomial(xs/1800.*1023.)*1800./1023.))
 
 ## E l, I gl
 
@@ -429,37 +453,62 @@ fig = r_v_t.plot_result("V_t","max",neurons,marker='o',linestyle="None");
 
 r_v_syntcx = reader if args.v_syntcx_runner == None else Reader(args.v_syntcx_runner)
 
-"""
+if r_v_syntcx:
 
-e = r_v_syntcx.runner.experiments["V_syntcx_psp_max"]
+    """
 
-x = 3000
+    e = r_v_syntcx.runner.experiments["V_syntcx_psp_max"]
 
-neuron = C.NeuronOnHICANN(C.Enum(103))
+    x = 3000
 
-for m in [e.measurements[idx] for idx in [0,-1,3]]:
-    t = m.get_trace(neuron)
-    plt.plot(np.array(t[0][:x])*1e6,t[1][:x], label="$V_{{syntcx}}$ {:.0f} [mV]".format(#np.std(t[1]), 
-             m.sthal.hicann.floating_gates.getNeuron(neuron, pyhalbe.HICANN.neuron_parameter.V_syntcx)/1023.*1800))
-plt.legend()
-plt.ylabel("$V_{mem}$ [mV]")
-plt.xlabel("t [$\mu$s]")
-plt.ylim(0.69, 0.78)
-plt.subplots_adjust(**margins)
-plt.savefig(os.path.join(fig_dir,"V_syntcx_trace.pdf"))
+    neuron = C.NeuronOnHICANN(C.Enum(103))
 
-data = t[1]
+    for m in [e.measurements[idx] for idx in [0,-1,3]]:
+        t = m.get_trace(neuron)
+        plt.plot(np.array(t[0][:x])*1e6,t[1][:x], label="$V_{{syntcx}}$ {:.0f} [mV]".format(#np.std(t[1]), 
+                 m.sthal.hicann.floating_gates.getNeuron(neuron, pyhalbe.HICANN.neuron_parameter.V_syntcx)/1023.*1800))
+    plt.legend()
+    plt.ylabel("$V_{mem}$ [mV]")
+    plt.xlabel("t [$\mu$s]")
+    plt.ylim(0.69, 0.78)
+    plt.subplots_adjust(**margins)
+    plt.savefig(os.path.join(fig_dir,"V_syntcx_trace.pdf"))
 
-max_std = -1
-current_std = 0
+    data = t[1]
 
-period_index = 6000
+    max_std = -1
+    current_std = 0
 
-stds = []
-period_indices = []
+    period_index = 6000
 
-for period_index in range(1,len(data)):
-    
+    stds = []
+    period_indices = []
+
+    for period_index in range(1,len(data)):
+
+        nperiods = len(data)/period_index
+        max_index = nperiods*period_index
+        data_cut = data[:max_index]
+        data_split = np.array_split(data_cut, len(data_cut)/period_index)
+        avg_raw = np.mean([ds for ds in data_split], axis=0)
+        current_std = np.std(avg_raw)
+
+        period_indices.append(period_index)
+        stds.append(current_std)
+
+    plt.plot(period_indices, stds)
+
+    #plt.scatter(np.array(maxtab)[:,0][:x], np.array(maxtab)[:,1][:x], color='blue')
+
+
+    maxtab, mintab = peakdet(stds, 0.003)
+
+    # In[57]:
+
+    data = t[1]
+
+    period_index = 959
+
     nperiods = len(data)/period_index
     max_index = nperiods*period_index
     data_cut = data[:max_index]
@@ -467,158 +516,137 @@ for period_index in range(1,len(data)):
     avg_raw = np.mean([ds for ds in data_split], axis=0)
     current_std = np.std(avg_raw)
 
-    period_indices.append(period_index)
-    stds.append(current_std)
+    plt.plot(avg_raw)
 
-plt.plot(period_indices, stds)
+    print np.std(avg_raw), np.std(t[1])
 
-#plt.scatter(np.array(maxtab)[:,0][:x], np.array(maxtab)[:,1][:x], color='blue')
+    maxtab, mintab = peakdet(avg_raw, np.std(avg_raw))
 
+    print maxtab, mintab
 
-maxtab, mintab = peakdet(stds, 0.003)
+    plt.scatter(np.array(maxtab)[:,0], np.array(maxtab)[:,1], color='red')
 
-# In[57]:
+    def my_exp(x):
+        return 0.745 + 0.04*(np.exp(-1/70.*(x-113)) - 1)
 
-data = t[1]
+    exp_range = np.arange(113,400)
 
-period_index = 959
+    plt.plot(exp_range, my_exp(exp_range))
 
-nperiods = len(data)/period_index
-max_index = nperiods*period_index
-data_cut = data[:max_index]
-data_split = np.array_split(data_cut, len(data_cut)/period_index)
-avg_raw = np.mean([ds for ds in data_split], axis=0)
-current_std = np.std(avg_raw)
+    # In[43]:
 
-plt.plot(avg_raw)
+    m.sthal.hicann.floating_gates.getNeuron(neuron, pyhalbe.HICANN.neuron_parameter.V_syntcx)
 
-print np.std(avg_raw), np.std(t[1])
+    """
 
-maxtab, mintab = peakdet(avg_raw, np.std(avg_raw))
+    # In[222]:
 
-print maxtab, mintab
+    r_v_syntcx.plot_hists("V_syntcx_psp_max", "std", bins=100, range=(0,0.03), draw_target_line=False);
 
-plt.scatter(np.array(maxtab)[:,0], np.array(maxtab)[:,1], color='red')
+    # In[223]:
 
-def my_exp(x):
-    return 0.745 + 0.04*(np.exp(-1/70.*(x-113)) - 1)
+    r_v_syntcx.plot_result("V_syntcx_psp_max","mean", color='b', alpha=0.1);
 
-exp_range = np.arange(113,400)
+    # In[310]:
 
-plt.plot(exp_range, my_exp(exp_range))
+    result(label=None,
+           xlabel="$V_{syntcx}$ [mV]",
+           ylabel="$\sigma$(trace) [mV]",
+           reader=r_v_syntcx,
+           parameter="V_syntcx_psp_max",
+           key="std",
+           neurons=range(50),
+           alpha=0.5)
 
-# In[43]:
+    # In[311]:
 
-m.sthal.hicann.floating_gates.getNeuron(neuron, pyhalbe.HICANN.neuron_parameter.V_syntcx)
+    fig = plt.figure()
+    r_v_syntcx.include_defects = False
+    results_v_syntcx = r_v_syntcx.get_results("V_syntcx_psp_max",r_v_syntcx.get_neurons(),"std")
+    max_stds = [np.max(stds)*1000 for n, stds in results_v_syntcx.iteritems()]
+    plt.hist(max_stds,bins=100);
+    plt.xlabel("$\sigma$(trace) [mV]")
+    plt.ylabel("#")
+    plt.ylim(0,23)
+    plt.subplots_adjust(**margins)
+    plt.savefig(os.path.join(fig_dir,"V_syntcx_psp_stds.pdf"))
+    plt.savefig(os.path.join(fig_dir,"V_syntcx_psp_stds.png"))
 
-"""
+    # In[242]:
 
-# In[222]:
-
-r_v_syntcx.plot_hists("V_syntcx_psp_max", "std", bins=100, range=(0,0.03), draw_target_line=False);
-
-# In[223]:
-
-r_v_syntcx.plot_result("V_syntcx_psp_max","mean", color='b', alpha=0.1);
-
-# In[310]:
-
-result(label=None,
-       xlabel="$V_{syntcx}$ [mV]",
-       ylabel="$\sigma$(trace) [mV]",
-       reader=r_v_syntcx,
-       parameter="V_syntcx_psp_max",
-       key="std",
-       neurons=range(50),
-       alpha=0.5)
-
-# In[311]:
-
-fig = plt.figure()
-r_v_syntcx.include_defects = False
-results_v_syntcx = r_v_syntcx.get_results("V_syntcx_psp_max",r_v_syntcx.get_neurons(),"std")
-max_stds = [np.max(stds)*1000 for n, stds in results_v_syntcx.iteritems()]
-plt.hist(max_stds,bins=100);
-plt.xlabel("$\sigma$(trace) [mV]")
-plt.ylabel("#")
-plt.ylim(0,23)
-plt.subplots_adjust(**margins)
-plt.savefig(os.path.join(fig_dir,"V_syntcx_psp_stds.pdf"))
-plt.savefig(os.path.join(fig_dir,"V_syntcx_psp_stds.png"))
-
-# In[242]:
-
-sum(np.array(max_stds) < 0.005)
+    sum(np.array(max_stds) < 0.005)
 
 ## V syntci psp max
 
 r_v_syntci = reader if args.v_syntci_runner == None else Reader(args.v_syntci_runner)
 
-e = r_v_syntci.runner.experiments["V_syntci_psp_max"]
+if r_v_syntci:
+
+    e = r_v_syntci.runner.experiments["V_syntci_psp_max"]
+
+    """
+
+    x = 3000
+
+    neuron = C.NeuronOnHICANN(C.Enum(401))
+
+    for m in [e.measurements[idx] for idx in [0,3,-1]]:
+        t = m.get_trace(neuron)
+        plt.plot(np.array(t[0][:x])*1e6,t[1][:x], label="$V_{{syntci}}$ {:.0f} [mV]".format(#np.std(t[1]), 
+                 m.sthal.hicann.floating_gates.getNeuron(neuron, pyhalbe.HICANN.neuron_parameter.V_syntci)/1023.*1800))
+    plt.legend()
+    plt.ylabel("$V_{mem}$ [mV]")
+    plt.xlabel("t [$\mu$s]")
+    plt.ylim(0.64, 0.76)
+    plt.subplots_adjust(**margins)
+    plt.savefig(os.path.join(fig_dir,"V_syntci_trace.pdf"))
+
+    """
+
+    # In[318]:
+
+    result(label=None,
+           xlabel="$V_{syntci}$ [mV]",
+           ylabel="$\sigma$(trace) [mV]",
+           reader=r_v_syntci,
+           parameter="V_syntci_psp_max",
+           key="std",
+           neurons=range(50),
+           alpha=0.5)
+
+    # In[319]:
+
+    fig = plt.figure()
+    r_v_syntci.include_defects = False
+    results_v_syntci = r_v_syntci.get_results("V_syntci_psp_max",r_v_syntci.get_neurons(),"std")
+    max_stds = [np.max(stds)*1000 for n, stds in results_v_syntci.iteritems()]
+    plt.hist(max_stds,bins=100);
+    plt.xlabel("$\sigma$(trace) [mV]")
+    plt.ylabel("#")
+    plt.ylim(0,23)
+    plt.xlim(0,30)
+    plt.subplots_adjust(**margins)
+    plt.savefig(os.path.join(fig_dir,"V_syntci_psp_stds.pdf"))
+    plt.savefig(os.path.join(fig_dir,"V_syntci_psp_stds.png"))
 
 """
+    # In[247]:
 
-x = 3000
+    sum(np.array(max_stds) < 0.005)
 
-neuron = C.NeuronOnHICANN(C.Enum(401))
 
-for m in [e.measurements[idx] for idx in [0,3,-1]]:
-    t = m.get_trace(neuron)
-    plt.plot(np.array(t[0][:x])*1e6,t[1][:x], label="$V_{{syntci}}$ {:.0f} [mV]".format(#np.std(t[1]), 
-             m.sthal.hicann.floating_gates.getNeuron(neuron, pyhalbe.HICANN.neuron_parameter.V_syntci)/1023.*1800))
-plt.legend()
-plt.ylabel("$V_{mem}$ [mV]")
-plt.xlabel("t [$\mu$s]")
-plt.ylim(0.64, 0.76)
-plt.subplots_adjust(**margins)
-plt.savefig(os.path.join(fig_dir,"V_syntci_trace.pdf"))
+    # In[253]:
 
+    bad_syntci = [n  for n, stds in results_v_syntci.iteritems() if np.max(stds) < 0.005];
+    bad_syntcx = [n  for n, stds in results_v_syntcx.iteritems() if np.max(stds) < 0.005]
+
+
+    # In[255]:
+
+    set(bad_syntcx).intersection(bad_syntci)
 """
-
-# In[318]:
-
-result(label=None,
-       xlabel="$V_{syntci}$ [mV]",
-       ylabel="$\sigma$(trace) [mV]",
-       reader=r_v_syntci,
-       parameter="V_syntci_psp_max",
-       key="std",
-       neurons=range(50),
-       alpha=0.5)
-
-# In[319]:
-
-fig = plt.figure()
-r_v_syntci.include_defects = False
-results_v_syntci = r_v_syntci.get_results("V_syntci_psp_max",r_v_syntci.get_neurons(),"std")
-max_stds = [np.max(stds)*1000 for n, stds in results_v_syntci.iteritems()]
-plt.hist(max_stds,bins=100);
-plt.xlabel("$\sigma$(trace) [mV]")
-plt.ylabel("#")
-plt.ylim(0,23)
-plt.xlim(0,30)
-plt.subplots_adjust(**margins)
-plt.savefig(os.path.join(fig_dir,"V_syntci_psp_stds.pdf"))
-plt.savefig(os.path.join(fig_dir,"V_syntci_psp_stds.png"))
 
 exit(0)
-
-# In[247]:
-
-sum(np.array(max_stds) < 0.005)
-
-
-# In[253]:
-
-bad_syntci = [n  for n, stds in results_v_syntci.iteritems() if np.max(stds) < 0.005];
-bad_syntcx = [n  for n, stds in results_v_syntcx.iteritems() if np.max(stds) < 0.005]
-
-
-# In[255]:
-
-set(bad_syntcx).intersection(bad_syntci)
-
-
 
 ## Trial to Trial
 
