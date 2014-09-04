@@ -59,7 +59,7 @@ class StHALContainer(object):
             self.logger.info("Loading {}".format(wafer_cfg))
             wafer.load(wafer_cfg)
 
-        wafer.commonFPGASettings().setPLL(PLL)
+        self.setPLL(PLL)
 
         hicann = wafer[coord_hicann]
 
@@ -159,6 +159,12 @@ class StHALContainer(object):
     def getPLL(self):
         return self.wafer.commonFPGASettings().getPLL()
 
+    def setPLL(self, freq):
+        """
+        pll frequency of the hicann, musst be 50.0e6, 100.0e6, 150.0e6, 200.0e6 or 250.0e6
+        """
+        return self.wafer.commonFPGASettings().setPLL(freq)
+
     def stimulateNeurons(self, rate, no_generators, excitatory=True):
         """Stimulate neurons via background generators
 
@@ -171,7 +177,7 @@ class StHALContainer(object):
 
         l1address = pyhalbe.HICANN.L1Address(0)
 
-        PLL = self.wafer.commonFPGASettings().getPLL()
+        PLL = self.getPLL()
         bg_period = int(math.floor(PLL/rate) - 1)
         self.logger.info("Stimulating neurons from {} background generators"
                          " with isi {}".format(no_generators, bg_period))
