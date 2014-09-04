@@ -442,11 +442,11 @@ if  r_test_v_t:
 
     trace("$V_{mem}$ [mV]", r_test_v_t, parameter="V_t", neuron=C.NeuronOnHICANN(C.Enum(args.neuron_enum)), start=500, end=700, suffix="_calibrated")
 
-    r_v_t.include_defects = False
+    #r_v_t.include_defects = False
 
-    neurons = r_v_t.get_neurons()[0:1]
+    #neurons = r_v_t.get_neurons()[0:1]
 
-    fig = r_v_t.plot_result("V_t","max",neurons,marker='o',linestyle="None");
+    #fig = r_v_t.plot_result("V_t","max",neurons,marker='o',linestyle="None");
 
     #print r_v_t.runner.coeffs.keys()
 
