@@ -116,7 +116,13 @@ class StHALContainer(object):
 
     def switch_analog_output(self, coord_neuron, l1address=0):
         """Write analog output configuration (only).
-           If l1address is None, firing is disabled."""
+           If l1address is None, firing is disabled.
+
+           Using write_config() after this function will result
+           in errors like
+           HostALController: FPGA expected sequence number 00000000 instead of the current 000xxxxx. Cannot correct this.
+           HostALController::sendSingleFrame: did not get an answer from FPGA.
+        """
         if not self._connected:
             self.connect()
         self.hicann.disable_aout()
