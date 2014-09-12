@@ -254,6 +254,8 @@ class Hardware(object):
         synapse_line.weights[int(neuron_c.x())] = HICANN.SynapseWeight(15) # Set weights
         synapse_line.decoders[int(neuron_c.x())] = HICANN.SynapseDecoder(address.getSynapseDecoderMask())
 
+        return bus, h_line, v_line_c
+
     def enable_readout(self, dnc):
         dnc_link = Coordinate.GbitLinkOnHICANN(dnc)
         self.hicann.layer1[dnc_link] = pyhalbe.HICANN.GbitLink.Direction.TO_DNC
