@@ -46,7 +46,7 @@ hardware = shallow.Hardware(WAFER, HICANN,
         '/wang/data/calibration/wafer_{0}'.format(WAFER))
 hardware.connect()
 
-blacklist_file = open('blacklist_w{}_h{}.csv'.format(WAFER,HICANN), 'a')
+blacklist_file = open('blacklist_w{}_h{}.csv'.format(WAFER,HICANN), 'w')
 blacklist = csv.writer(blacklist_file, dialect='excel-tab')
 
 # Configure floating gates and synapse drivers
