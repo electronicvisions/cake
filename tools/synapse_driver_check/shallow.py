@@ -238,7 +238,7 @@ class Hardware(object):
         driver.set_l1() # Set to process spikes from L1
         
         if neuron % 2 == 0:
-            driver[line].set_decoder(Coordinate.top, address.getDriverDecoderMask()) # Listen to addresses with MSB 0
+            driver[line].set_decoder(Coordinate.top, address.getDriverDecoderMask())
         else:
             driver[line].set_decoder(Coordinate.bottom, address.getDriverDecoderMask())
 
@@ -252,7 +252,7 @@ class Hardware(object):
          
         # … for first neuron
         synapse_line.weights[int(neuron_c.x())] = HICANN.SynapseWeight(15) # Set weights
-        synapse_line.decoders[int(neuron_c.x())] = HICANN.SynapseDecoder(address.getSynapseDecoderMask()) # And listen for spikes from address 0 (background generator)
+        synapse_line.decoders[int(neuron_c.x())] = HICANN.SynapseDecoder(address.getSynapseDecoderMask())
 
     def enable_readout(self, dnc):
         dnc_link = Coordinate.GbitLinkOnHICANN(dnc)
