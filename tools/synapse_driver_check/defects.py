@@ -5,6 +5,8 @@ import os
 import time
 import csv
 
+from collections import defaultdict
+
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
@@ -19,6 +21,10 @@ pylogging.set_loglevel(pylogging.get("Default"), pylogging.LogLevel.INFO)
 import shallow
 
 from pycake.helpers.misc import mkdir_p
+
+import glob
+
+import random
 
 import argparse
 
@@ -64,30 +70,66 @@ params.shared.V_reset = 200
 defects_file = open(os.path.join(PATH, '_'.join(["defects",suffix])+'.csv'), 'a')
 defects = csv.writer(defects_file, dialect='excel-tab')
 
-def ana(spikes):
+import resource
+
+def ana(driver, filename_stub):
 
     print "analyzing data of driver", driver
 
-    spikes = np.loadtxt(os.path.join(PATH, '_'.join(['spikes',"drv",str(driver),suffix])+".dat"))
+    print 'Memory usage: %s (kb)' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 
-    plt.figure()
+    if not filename_stub:
+        guess = glob.glob(os.path.join(PATH,"spikes*drv_{}_*.dat".format(driver)))[0]
+        guess = guess.split('/')[-1]
+        guess = guess.lstrip("spikes_")
+        guess = guess.rstrip(".dat")
+
+        filename_stub = guess
+
+    with open(os.path.join(PATH,'addr_neuron_map_'+filename_stub+'.csv')) as f:
+        reader = csv.DictReader(f, quoting=csv.QUOTE_NONNUMERIC)
+
+        for row in reader:
+            addr_neuron_map = row
+
+    spikes = np.loadtxt(os.path.join(PATH, "spikes_"+filename_stub+".dat"))
+
+    fig, ax1 = plt.subplots()
     plt.title("Test Result for Synapse Driver {0}".format(driver))
     plt.xlabel("Time [s]")
-    plt.ylabel("Source Address")
+    plt.ylabel("Source Address (Neuron, OB)")
 
     plt.grid(False)
     plt.ylim((-1, 64))
     plt.xlim((0, 4e-3))
-    plt.yticks(range(0, 64, 8))
+    plt.yticks(range(0, 64, 1))
+
+    yticklabels=["{:.0f} ({:.0f}, {})".format(yt, addr_neuron_map[yt], int((addr_neuron_map[yt] % 256) / 32)) for yt in ax1.get_yticks()]
+
+    ax1.set_yticklabels(yticklabels)
+
+    plt.tick_params(axis='y', which='both', labelsize=5)
 
     result = []
 
     defect_addresses = 0
 
-    details_file = open(os.path.join(PATH, '_'.join(['details',"drv",str(driver),suffix])+'.csv'), 'w')
+    details_file = open(os.path.join(PATH, "detail_"+filename_stub+".csv"), 'w')
     details = csv.writer(details_file, dialect='excel-tab')
 
-    offset=sorted(spikes[:,0])[0] if args.correctoffset else 0
+    if args.correctoffset:
+        try:
+            offset=sorted(spikes[spikes[:,1] == 1][:,0])[0]
+            offset -= 3*25e-6
+        except IndexError:
+            try:
+                offset=sorted(spikes[spikes[:,1] == 2][:,0])[0]
+                offset -= 1*25e-6
+            except IndexError:
+                offset = 0
+    else:
+            offset = 0
+    print "offset", offset
 
     for i in range(64):
         plt.axhline(i, c='0.8', ls=':')
@@ -119,7 +161,11 @@ def ana(spikes):
     defects.writerow((driver, defect_addresses))
     defects_file.flush()
 
-    plt.savefig(os.path.join(PATH, '_'.join(["defects","drv",str(driver),suffix])+".pdf"))
+    plt.savefig(os.path.join(PATH, "defects_"+filename_stub+".pdf"))
+    
+    print os.path.join(PATH, "defects_"+filename_stub+".pdf")
+
+    plt.close()
 
     print "analyzing done"
 
@@ -144,27 +190,43 @@ def aquire(driver):
     for i in np.arange(32) + bus*32 + 256:
         neurons = neurons[neurons != i]
 
-    even = neurons[neurons % 2 == 0]
-    odd = neurons[neurons % 2 == 1]
+    random.shuffle(neurons)
+
+    even = list(neurons[neurons % 2 == 0])
+    odd = list(neurons[neurons % 2 == 1])
 
     recording_links = []
-    for addr in range(64):
-        #default
-        half = shallow.BOT if addr < 32 else shallow.TOP
 
-        #alternative
-        #half = shallow.TOP if addr < 32 else shallow.BOT
-        if addr % 32 < 16:
-            neuron = even[addr]
-        else:
-            neuron = odd[addr]
-        hardware.add_route(
-            int(addr),
-            driver,
-            int(neuron),
-            half
-            )
+    max_index = 0
+
+    addr_neuron_map = {}
+
+    foo = {0 : (shallow.BOT, even),
+           1 : (shallow.TOP, odd),
+           2 : (shallow.BOT, odd),
+           3 : (shallow.TOP, even)}
+
+    for addr in range(64):
+
+        msb = (addr & 0x30) >> 4
+
+        half, bank = foo[msb]
+
+        print msb, half, len(bank)
+
+        neuron = bank.pop()
+
+        max_index = addr
+
+        bus, hline, vline =  hardware.add_route(int(addr),
+                                                 driver,
+                                                 int(neuron),
+                                                 half)
+        print "bus {}, hline {}, vline {}".format(bus, hline, vline)
+
         hardware.assign_address(int(neuron), int(addr))
+
+        addr_neuron_map[addr] = int(neuron)
 
         rl = int((neuron % 256) / 32)
         if rl not in recording_links:
@@ -174,18 +236,73 @@ def aquire(driver):
         hardware.enable_readout(rl)
 
     # Create input spike trains
-    for i in range(64):
+    for i in range(max_index+1):
         train = np.arange(200) * 0.1e-6 + 5e-6 + 50e-6*i
         hardware.add_spike_train(bus, i, train)
 
-    hardware.run(4e-3)
+    print hardware.hicann
+
+    duration = 4e-3
+
+    record_membrane = False
+
+    filename_stub = '_'.join(["bus",str(bus),"hline", str(hline.value()), "vline", str(vline.value()), "drv",str(driver), suffix])
+
+    #record_addr = 56
+
+    #params.neuron[addr_neuron_map[record_addr]].V_t = 1023
+
+    # Configure floating gates and synapse drivers
+    hardware.set_parameters(params)
+
+    if record_membrane:
+        adc = 0
+        hardware.enable_adc(addr_neuron_map[record_addr], adc)
+        timestamps, trace = hardware.record(adc, duration)
+        np.savetxt(os.path.join(PATH, 'membrane_n{}_'.format(addr_neuron_map[record_addr])+filename_stub+'.dat'), np.transpose([timestamps, trace]))
+    else:
+        hardware.run(duration)
+
+    rl_dict = {}
+
+    for n, rl in enumerate(recording_links):
+        spikes = np.array(hardware.get_spikes(rl))
+        rl_dict[rl] = spikes[:,1]
+
+    addr_dict = defaultdict(set)
+
+    for rl, rl_spikes in rl_dict.iteritems():
+
+        for addr in rl_spikes:
+            addr_dict[addr].add(rl)
+
+    for addr, rls in addr_dict.iteritems():
+        print "addr {}, rls {}, len(rls) {}".format(addr, rls, len(rls))
+        if len(rls) > 1 and addr != 0:
+            #raise Exception("WTF")
+            print "PROBLEM(?)"
+
     spikes = np.vstack([hardware.get_spikes(rl) for rl in recording_links])
 
-    np.savetxt(os.path.join(PATH, '_'.join(['spikes',"drv",str(driver),suffix])+".dat"), spikes)
+    with open(os.path.join(PATH,'addr_neuron_map_'+filename_stub+'.csv'), 'wb') as f:
+        w = csv.DictWriter(f, addr_neuron_map.keys())
+        w.writeheader()
+        w.writerow(addr_neuron_map)
+
+    np.savetxt(os.path.join(PATH, "spikes_"+filename_stub+".dat"), spikes)
+
+    print hardware.hicann
+    print hardware.hicann.layer1
+
+    hardware.wafer.dump(os.path.join(PATH, "wafer_"+filename_stub+".xml"), True)
 
     print "aquiring done"
 
+    return filename_stub
+
 if __name__ == "__main__":
+
+    random.seed(1)
 
     run_on_hardware = not args.anaonly
 
@@ -197,11 +314,12 @@ if __name__ == "__main__":
 
         neuron_blacklist = np.loadtxt('blacklist_w{}_h{}.csv'.format(WAFER, HICANN)) # no notion of freq and bkgisi
 
-        # Configure floating gates and synapse drivers
-        hardware.set_parameters(params)
+    drivers = range(224)
 
-    for driver in range(0, 224):
+    for driver in drivers:
+
+        filename = None
 
         if run_on_hardware:
-            aquire(driver)
-        ana(driver)
+            filename = aquire(driver)
+        ana(driver, filename)
