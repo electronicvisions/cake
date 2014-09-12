@@ -267,6 +267,11 @@ class Hardware(object):
         self.hicann.clear_l1_switches()
         self.hicann.synapses.clear_drivers()
         self.hicann.synapses.clear_synapses()
+
+        for nrn in Coordinate.iter_all(Coordinate.NeuronOnHICANN):
+            self.hicann.neurons[nrn].enable_spl1_output(False)
+            self.hicann.neurons[nrn].activate_firing(False)
+
         time.sleep(0.5)
     
     @reset_configuration()
