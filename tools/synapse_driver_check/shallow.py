@@ -38,7 +38,7 @@ class Parameters(ValueStorage):
                 'V_gmax0': 50,
                 'V_bstdf': 800
                 }),
-            'neuron': ValueStorage({
+            'neuron': {i : ValueStorage({
                 'V_t': 500,
                 'I_gl': 1023,
                 'V_syntcx': 800,
@@ -46,7 +46,7 @@ class Parameters(ValueStorage):
                 'V_synx': 511,
                 'V_syni': 511,
                 'E_l': 100
-                }),
+                }) for i in range(512)},
             'synapse_driver': ValueStorage({
                 'stp': None,
                 'cap': 0,
@@ -317,7 +317,10 @@ class Hardware(object):
             
             for neuron_c in Coordinate.iter_all(Coordinate.NeuronOnHICANN):
                 fg_block = neuron_c.sharedFGBlock()
-                for k, v in self.params.neuron.iteritems():
+                
+                neuron_params = self.params.neuron[neuron_c.id().value()]
+
+                for k, v in neuron_params.iteritems():
                     if self.calibration is not None:
                         v_old = v
                         v = self.calibration.apply_calibration(

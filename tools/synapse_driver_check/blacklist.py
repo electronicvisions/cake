@@ -29,13 +29,16 @@ HICANN = args.hicann
 from pycake.helpers.units import DAC, Voltage, Current
 
 params = shallow.Parameters()
-params.neuron.E_l = Voltage(700).toDAC().value
-params.neuron.V_t = Voltage(730).toDAC().value
-params.neuron.E_synx = Voltage(800).toDAC().value
-params.neuron.E_syni = Voltage(600).toDAC().value
-params.neuron.V_syntcx = 800
-params.neuron.V_syntci = 800
-params.neuron.I_gl = 409
+
+for i in range(512):
+
+    params.neuron[i].E_l = Voltage(700).toDAC().value
+    params.neuron[i].V_t = Voltage(730).toDAC().value
+    params.neuron[i].E_synx = Voltage(800).toDAC().value
+    params.neuron[i].E_syni = Voltage(600).toDAC().value
+    params.neuron[i].V_syntcx = 800
+    params.neuron[i].V_syntci = 800
+    params.neuron[i].I_gl = 409
 
 params.shared.V_reset = 200
 
