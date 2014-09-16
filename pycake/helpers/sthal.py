@@ -59,11 +59,11 @@ class StHALContainer(object):
             self.logger.info("Loading {}".format(wafer_cfg))
             wafer.load(wafer_cfg)
 
+        self.wafer = wafer
         self.setPLL(PLL)
 
         hicann = wafer[coord_hicann]
 
-        self.wafer = wafer
         self.hicann = hicann
         self.adc = None
         self.recording_time = recording_time
