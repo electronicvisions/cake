@@ -114,7 +114,10 @@ class FastHICANNConfigurator(pysthal.HICANNConfigurator):
         self.config_floating_gates(handle, data);
         self.config_fg_stimulus(handle, data);
 
-        self.config_synapse_array(handle, data);
+        # if floating gates are configured we also configure synapses
+        # should be disentangled
+        if self._configure_floating_gates:
+            self.config_synapse_array(handle, data);
 
         self.config_neuron_quads(handle, data)
         self.config_phase(handle, data)
@@ -183,7 +186,52 @@ class Hardware(object):
              self._configured = False
 
         self.params = params
-          
+
+    def setup_driver(self, address, synapse_driver, neuron, line=TOP):
+        # Calculate bus from synapse driver
+        top = synapse_driver < 112
+
+        bus = get_bus_from_driver(synapse_driver)
+
+        if top:
+            if synapse_driver % 2 == 1:
+                side = Coordinate.left
+            else:
+                side = Coordinate.right
+        else:
+            if synapse_driver % 2 == 0:
+                side = Coordinate.left
+            else:
+                side = Coordinate.right
+
+        # Select neuron
+        address = pyhalbe.HICANN.L1Address(address)
+        neuron_c = Coordinate.NeuronOnHICANN(Coordinate.Enum(neuron))
+
+        driver_line_c = Coordinate.SynapseSwitchRowOnHICANN(Coordinate.Y(synapse_driver), side)
+
+        # Configure synapse driver
+        driver = self.hicann.synapses[Coordinate.SynapseDriverOnHICANN(driver_line_c)]
+
+        driver.set_l1() # Set to process spikes from L1
+
+        if neuron % 2 == 0:
+            driver[line].set_decoder(Coordinate.top, address.getDriverDecoderMask())
+        else:
+            driver[line].set_decoder(Coordinate.bottom, address.getDriverDecoderMask())
+
+        driver[line].set_syn_in(Coordinate.left, 1)
+        driver[line].set_syn_in(Coordinate.right, 0)
+
+        # Configure synaptic inputs
+        synapse_line_c = Coordinate.SynapseRowOnHICANN(Coordinate.SynapseDriverOnHICANN(driver_line_c.line(), side), line)
+
+        synapse_line = self.hicann.synapses[synapse_line_c]
+
+        # … for first neuron
+        synapse_line.weights[int(neuron_c.x())] = HICANN.SynapseWeight(15) # Set weights
+        synapse_line.decoders[int(neuron_c.x())] = HICANN.SynapseDecoder(address.getSynapseDecoderMask())
+
     @reset_configuration()
     def add_route(self, address, synapse_driver, neuron, line=TOP):
         # Calculate bus from synapse driver
@@ -268,7 +316,7 @@ class Hardware(object):
         self.hicann.clear_l1_routing()
         self.hicann.clear_l1_switches()
         self.hicann.synapses.clear_drivers()
-        self.hicann.synapses.clear_synapses()
+        #self.hicann.synapses.clear_synapses() # make me configurable
 
         for nrn in Coordinate.iter_all(Coordinate.NeuronOnHICANN):
             self.hicann.neurons[nrn].enable_spl1_output(False)

@@ -171,6 +171,69 @@ def ana(driver, filename_stub):
 
 def aquire(driver):
 
+def get_neurons(driver):
+
+    if driver < 112:
+        neurons = np.arange(256)
+    else:
+        neurons = np.arange(256, 512)
+
+    bus = shallow.get_bus_from_driver(driver)
+
+    neurons = np.delete(neurons, neuron_blacklist)
+
+    random.seed(driver)
+    random.shuffle(neurons)
+
+    for i in np.arange(32) + bus*32:
+        neurons = neurons[neurons != i]
+    for i in np.arange(32) + bus*32 + 256:
+        neurons = neurons[neurons != i]
+
+    even = list(neurons[neurons % 2 == 0])
+    odd = list(neurons[neurons % 2 == 1])
+
+    return even, odd
+
+def get_half_and_bank(addr, even, odd):
+
+    msb = (addr & 0x30) >> 4
+
+    foo = {0 : (shallow.BOT, even),
+           1 : (shallow.TOP, odd),
+           2 : (shallow.BOT, odd),
+           3 : (shallow.TOP, even)}
+
+    half, bank = foo[msb]
+
+    return half, bank
+
+def prepare_drivers(drivers):
+
+    print "preparing drivers"
+
+    for driver in drivers:
+
+        even, odd = get_neurons(driver)
+
+        for addr in range(64):
+
+            half, bank = get_half_and_bank(addr, even, odd)
+
+            neuron = bank[addr]
+            max_index = addr
+
+            hardware.setup_driver(int(addr),
+                                  driver,
+                                  int(neuron),
+                                  half)
+
+        #print hardware.hicann
+
+    print "done"
+
+def aquire(driver):
+
     print "aquiring data for driver", driver
 
     hardware.clear_routes()
@@ -179,21 +242,7 @@ def aquire(driver):
     # Every synapse driver is accessible via a specific bus. Calculate that bus.
     bus = shallow.get_bus_from_driver(driver)
 
-    if driver < 112:
-        neurons = np.arange(256)
-    else:
-        neurons = np.arange(256, 512)
-
-    neurons = np.delete(neurons, neuron_blacklist)
-    for i in np.arange(32) + bus*32:
-        neurons = neurons[neurons != i]
-    for i in np.arange(32) + bus*32 + 256:
-        neurons = neurons[neurons != i]
-
-    random.shuffle(neurons)
-
-    even = list(neurons[neurons % 2 == 0])
-    odd = list(neurons[neurons % 2 == 1])
+    even, odd = get_neurons(driver)
 
     recording_links = []
 
@@ -201,21 +250,11 @@ def aquire(driver):
 
     addr_neuron_map = {}
 
-    foo = {0 : (shallow.BOT, even),
-           1 : (shallow.TOP, odd),
-           2 : (shallow.BOT, odd),
-           3 : (shallow.TOP, even)}
-
     for addr in range(64):
 
-        msb = (addr & 0x30) >> 4
-
-        half, bank = foo[msb]
-
-        print msb, half, len(bank)
-
-        neuron = bank.pop()
-
+        half, bank = get_half_and_bank(addr, even, odd)
+        #print msb, half, len(bank)
+        neuron = bank[addr]
         max_index = addr
 
         bus, hline, vline =  hardware.add_route(int(addr),
@@ -306,20 +345,23 @@ if __name__ == "__main__":
 
     run_on_hardware = not args.anaonly
 
+    neuron_blacklist = np.loadtxt('blacklist_w{}_h{}.csv'.format(WAFER, HICANN)) # no notion of freq and bkgisi
+
+    hardware = shallow.Hardware(WAFER, HICANN, os.path.join(args.calibpath,'wafer_{0}').format(WAFER), FREQ*1e6, BKGISI)
+
     if run_on_hardware:
 
-        hardware = shallow.Hardware(WAFER, HICANN,
-                                    os.path.join(args.calibpath,'wafer_{0}').format(WAFER), FREQ*1e6, BKGISI)
         hardware.connect()
 
-        neuron_blacklist = np.loadtxt('blacklist_w{}_h{}.csv'.format(WAFER, HICANN)) # no notion of freq and bkgisi
 
     drivers = range(224)
 
+    if run_on_hardware:
+        prepare_drivers(drivers)
+
     for driver in drivers:
 
-        filename = None
+        filename_stub = None
 
         if run_on_hardware:
-            filename = aquire(driver)
-        ana(driver, filename)
+            filename_stub = aquire(driver)
