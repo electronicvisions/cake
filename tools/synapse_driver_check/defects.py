@@ -67,7 +67,7 @@ for i in range(512):
 
 params.shared.V_reset = 200
 
-defects_file = open(os.path.join(PATH, '_'.join(["defects",suffix])+'.csv'), 'a')
+defects_file = open(os.path.join(PATH, '_'.join(["defects",suffix])+'.csv'), 'w')
 defects = csv.writer(defects_file, dialect='excel-tab')
 
 import resource
