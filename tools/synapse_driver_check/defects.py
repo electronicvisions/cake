@@ -4,6 +4,7 @@
 import os
 import time
 import csv
+import json
 
 from collections import defaultdict
 
@@ -339,6 +340,19 @@ def aquire(driver):
 
     return filename_stub
 
+def store_voltages(filename):
+
+    cmd = "ssh -F /dev/null -x -i ./id_rsa_resetuser resetuser@raspeval-001 -o PubkeyAuthentication=yes /home/pi/voltages/readVoltages"
+    data = dict()
+    for l in os.popen(cmd).read().rstrip('\n').split('\n'):
+        if "dac" in l: break
+        if "voltage" in l: continue
+        data.update({ l.split('\t')[0]: map(float, l.split('\t')[1:]) })
+
+    with open(filename, "w") as f:
+
+        json.dump(data, f)
+
 if __name__ == "__main__":
 
     random.seed(1)
@@ -365,3 +379,4 @@ if __name__ == "__main__":
 
         if run_on_hardware:
             filename_stub = aquire(driver)
+            store_voltages(os.path.join(PATH, "voltages_"+filename_stub+".json"))
