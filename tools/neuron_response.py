@@ -1,0 +1,423 @@
+#!/bin/env python
+
+import math
+import os
+import copy
+import numpy
+import cPickle
+import Coordinate
+import pyhalbe
+import pysthal
+import pylogging
+import pycellparameters
+
+from pysthal.command_line_util import add_default_coordinate_options
+from pysthal.command_line_util import add_logger_options
+from pysthal.command_line_util import init_logger
+from pycake.helpers.calibtic import Calibtic
+from pycake.helpers.TraceAverager import createTraceAverager
+from pycake.helpers.TraceAverager import TraceAverager
+import pyNN.standardmodels.cells as pynn
+
+logger = pylogging.get(__name__.replace('_', ''))
+
+class UpdateConfigurator(pysthal.HICANNConfigurator):
+    def __init__(self, synapse_array):
+        super(UpdateConfigurator, self).__init__()
+        self.last_array = copy.copy(synapse_array)
+
+    def config_fpga(self, handle, fpga):
+        pass
+
+    def config_synapse_array(self, handle, data):
+        """ Differential update of synapse array """
+        synapses = data.synapses
+        for syndrv in Coordinate.iter_all(Coordinate.SynapseDriverOnHICANN):
+            row = synapses.getDecoderDoubleRow(syndrv)
+            if row != self.last_array.getDecoderDoubleRow(syndrv):
+                self.last_array.setDecoderDoubleRow(syndrv, row)
+                pyhalbe.HICANN.set_decoder_double_row(handle, syndrv, row)
+                self.getLogger().info("update decoder row {}".format(syndrv))
+
+            for side in Coordinate.iter_all(Coordinate.SideVertical):
+                synrow = Coordinate.SynapseRowOnHICANN(syndrv, side)
+                row_data = synapses[synrow].weights
+                if row_data != self.last_array[synrow].weights:
+                    self.last_array[synrow].weights = row_data
+                    pyhalbe.HICANN.set_weights_row(handle, synrow, row_data)
+                    self.getLogger().info("update synapse row {}".format(synrow))
+
+    def hicann_init(self, handle):
+        pass
+
+    def config_floating_gates(self, handle, data):
+        pass
+
+    def config_fg_stimulus(self, handle, data):
+        pass
+
+    def config_phase(self, handle, data):
+        pass
+
+    def config_gbitlink(self, handle, data):
+        pass
+
+    def config_merger_tree(self, handle, data):
+        pass
+
+    def config_dncmerger(self, handle, data):
+        pass
+
+
+class RecordJob(object):
+    logger = pylogging.get("RecordJob")
+    EXITATORY = True
+    INHIBITORY = False
+    VALID_NEURONSIZES = [2**x for x in range(7)]
+
+    def __init__(self, neuron, synapse, stim_freq, neuronsize):
+        if not isinstance(neuron, Coordinate.NeuronOnHICANN):
+            raise TypeError("neuron must be NeuronOnHICANN")
+        if not isinstance(synapse, Coordinate.SynapseOnHICANN):
+            raise TypeError("synapse must be SynapseOnHICANN")
+        if int(neuronsize) not in self.VALID_NEURONSIZES:
+            msg = "neuronsize {} is invalid, valid values are: {}".format(
+                    neuronsize,
+                    ", ".join(str(ii) for ii in self.VALID_NEURONSIZES))
+            raise ValueError(msg)
+        self.neuron = neuron
+        self.synapse = synapse
+        self.stim_freq = float(stim_freq)
+        self.exitaroy = self.EXITATORY
+        self.neuronsize = int(neuronsize)
+        self.trace = None
+        self.averaged_trace = None
+        self.inactive_trace = None
+        self.inactive_averaged_trace = None
+        self.logger.debug("Created job {}".format(self))
+
+    @property
+    def driver(self):
+        return self.synapse.driver()
+
+    @property
+    def output_buffer(self):
+        return self.driver.getOutputBufferOnHICANN()
+
+    @property
+    def synapse_row(self):
+        return self.synapse.row()
+
+    def nice_name(self):
+        return "RecordJob_neuron{:0>3}_size{:0>2}_synrow{:0>3}_freq{}".format(
+                self.neuron.id().value(),
+                self.neuronsize,
+                self.synapse_row.value(),
+                self.stim_freq)
+
+    def __str__(self):
+        msg = 'RecordJob: Stimulate neuron (size={}) {} via {} with {}Hz'
+        return msg.format(self.neuron,
+                          self.neuronsize,
+                          self.synapse_row,
+                          self.stim_freq)
+
+class RecordTraces(object):
+    logger = pylogging.get('RecordTraces')
+    def __init__(self, wafer, hicann, jobs, adc_freq):
+        if not all(isinstance(job, RecordJob) for job in jobs):
+            raise TypeError("jobs must be a list of RecordJob objects")
+        self.jobs = jobs
+        self.wafer_coordinate = wafer
+        self.hicann_coordinate = hicann
+        self.trace_averager = self.create_trace_averager(adc_freq)
+        self.logger.info('Running {} jobs'.format(len(self.jobs)))
+
+        self.calibration_path = '/wang/users/koke/cluster_home/calib/backends'
+        self.l1address = pyhalbe.HICANN.L1Address(0)
+        self.gmax_div = 1
+        self.weight = pyhalbe.HICANN.SynapseWeight(15)
+        self.analog = Coordinate.AnalogOnHICANN(0)
+
+    def create_trace_averager(self, adc_freq):
+        if adc_freq is None:
+            self.logger.warn('adc frequency not given, measuring it now')
+            trace_averager = createTraceAverager(self.wafer_coordinate,
+                                                 self.hicann_coordinate)
+        else:
+            trace_averager = TraceAverager(adc_freq)
+        self.logger.info('Using adc frequency of {}'.format(
+            trace_averager.adc_freq))
+        return trace_averager
+
+    def run(self):
+        self.logger.info('Starting base configuration')
+        wafer = pysthal.Wafer(self.wafer_coordinate)
+        hicann = wafer[self.hicann_coordinate]
+        self.init_configuration(hicann)
+        wafer.connect(pysthal.MagicHardwareDatabase())
+        wafer.configure(pysthal.HICANNConfigurator())
+        update_cfg = UpdateConfigurator(hicann.synapses)
+        executed_jobs = []
+        for job in self.jobs:
+            executed_jobs.append(
+                    self.run_job(copy.copy(job), wafer, hicann, update_cfg))
+        wafer.disconnect()
+        return executed_jobs
+
+    def run_job(self, job, wafer, hicann, update_cfg):
+        self.logger.info('Starting job {}'.format(job))
+        adc = hicann.analogRecorder(self.analog)
+        self.config_job(job, wafer, hicann, False)
+        wafer.configure(update_cfg)
+        adc.record(0.04)
+        job.inactive_trace = adc.trace()
+        job.inactive_averaged_trace = self.trace_averager.get_average(
+                job.inactive_trace, 1.0/job.stim_freq)
+        self.config_job(job, wafer, hicann, True)
+        wafer.configure(update_cfg)
+        adc.record(0.04)
+        job.trace = adc.trace()
+        job.averaged_trace = self.trace_averager.get_average(
+                job.trace, 1.0/job.stim_freq)
+        adc.freeHandle()
+        return job
+
+    def init_configuration(self, hicann):
+        for bg in Coordinate.iter_all(Coordinate.BackgroundGeneratorOnHICANN):
+            hicann.layer1[bg].enable(True)
+            hicann.layer1[bg].random(False)
+            hicann.layer1[bg].period(3000)
+            hicann.layer1[bg].address(self.l1address)
+
+        for merger in Coordinate.iter_all(Coordinate.DNCMergerOnHICANN):
+            m = hicann.layer1[merger]
+            m.config = m.MERGE
+            m.slow = True
+            m.loopback = False
+
+        hicann.synapses.set_all(self.l1address.getSynapseDecoderMask(),
+                                pyhalbe.HICANN.SynapseWeight(0));
+
+        self.set_neuron_parameters(hicann)
+
+    def config_job(self, job, wafer, hicann, enable_stimulus):
+        # Cleanup
+        hicann.synapses.clear_synapses()
+        hicann.clear_complete_l1_routing()
+        hicann.enable_aout(job.neuron, self.analog)
+
+
+        # Reconfigure
+        hicann.set_neuron_size(job.neuronsize)
+
+        if not enable_stimulus:
+            return
+        PLL = wafer.commonFPGASettings().getPLL()
+        bg_period = int(math.floor(PLL/job.stim_freq) - 1)
+        job.stim_freq = PLL / (bg_period + 1)
+        for bg in Coordinate.iter_all(Coordinate.BackgroundGeneratorOnHICANN):
+            hicann.layer1[bg].period(bg_period)
+        hicann.route(job.output_buffer, job.driver, Coordinate.Enum(0))
+        self.config_driver(hicann, job.driver)
+        hicann.synapses[job.synapse].weight = self.weight
+
+    def config_driver(self, hicann, driver_c):
+        from Coordinate import top, bottom, left, right
+        driver = hicann.synapses[driver_c]
+        driver_decoder = self.l1address.getDriverDecoderMask()
+        driver[top].set_decoder(top, driver_decoder)
+        driver[top].set_decoder(bottom, driver_decoder)
+        driver[top].set_gmax_div(left, self.gmax_div)
+        driver[top].set_gmax_div(right, self.gmax_div)
+        driver[top].set_syn_in(left, 1)
+        driver[top].set_syn_in(right, 0)
+        driver[top].set_gmax(0)
+        driver[bottom] = driver[top]
+        driver[bottom].set_syn_in(left, 0)
+        driver[bottom].set_syn_in(right, 1)
+        driver.set_l1()
+
+    def set_neuron_parameters(self, hicann):
+        fg_control = hicann.floating_gates
+
+        # load calibration data
+        calib = Calibtic(self.calibration_path,
+                         self.wafer_coordinate,
+                         self.hicann_coordinate)
+
+        # create desired parameters via PyNN
+        pynn_parameters = pynn.IF_cond_exp.default_parameters
+        pynn_parameters['v_reset'] = -70.
+        pynn_parameters['e_rev_I'] = -60.
+        pynn_parameters['v_rest'] = -50.
+        pynn_parameters['e_rev_E'] = -40.
+        pynn_parameters['v_thresh'] = -30.
+        parameters = pycellparameters.IF_cond_exp(pynn_parameters)
+
+        # apply calibration
+        for block in Coordinate.iter_all(Coordinate.FGBlockOnHICANN):
+            param = calib.bc.applySharedCalibration(500, block.id())
+            param.toHW(block, fg_control)
+
+        for neuron in Coordinate.iter_all(Coordinate.NeuronOnHICANN):
+            param = calib.nc.applyNeuronCalibration(parameters, neuron.id())
+            param.toHW(neuron, fg_control)
+
+
+def plot_jobs(folder, jobs):
+    import matplotlib as mpl
+    mpl.use('Agg')
+    import matplotlib.pyplot as plt
+
+    for job in jobs:
+        xlabel = "Time []"
+        ylabel = "Membrane Voltage [mV]"
+        title = str(job)
+
+        fig = plt.figure()
+        axis = fig.add_subplot(1, 1, 1)
+        if job.inactive_trace is not None:
+            axis.plot(job.inactive_trace, '.')
+        axis.plot(job.trace, '.')
+        axis.set_title(title)
+        axis.set_xlabel(xlabel)
+        axis.set_ylabel(ylabel)
+        filename = os.path.join(
+                folder, '{}.png'.format(job.nice_name()))
+        fig.savefig(filename, dpi=300)
+        logger.info("Created plot " + filename)
+
+        fig = plt.figure()
+        axis = fig.add_subplot(1, 1, 1)
+        if job.inactive_averaged_trace is not None:
+            axis.plot(job.inactive_averaged_trace[0], '.')
+        axis.plot(job.averaged_trace[0], '.')
+        axis.set_title(title)
+        axis.set_xlabel(xlabel)
+        axis.set_ylabel(ylabel)
+        filename = os.path.join(
+                folder, '{}_averaged.png'.format(job.nice_name()))
+        fig.savefig(filename, dpi=300)
+        logger.info("Created plot " + filename)
+
+        plt.close('all')
+
+def save_jobs(file_object, jobs):
+    logger.info("Saving jobs...")
+    cPickle.dump(jobs, file_object, cPickle.HIGHEST_PROTOCOL)
+    logger.info("Saving jobs done")
+
+def load_jobs(file_object):
+    logger.info("loading jobs...")
+    return cPickle.load(file_object)
+
+def add_options(parser):
+    import argparse
+
+    def folder(value):
+        if not os.path.isdir(value):
+            try:
+                os.makedirs(value)
+            except Exception as err:
+                msg = "Couldn't created output folder {}: {}".format(value, err)
+                raise argparse.ArgumentTypeError(msg)
+        if not os.access(value, os.R_OK | os.W_OK | os.X_OK):
+            raise argparse.ArgumentTypeError(
+                    "{0} is not accessible".format(value))
+        return value
+
+    def parse_job(arg):
+        """Helper to parse neuron argument"""
+        try:
+            xcoord, ycoord, synapse_row, bg_freq, neuronsize = arg.split(",")
+            xcoord = Coordinate.X(int(xcoord))
+            ycoord = Coordinate.Y(int(ycoord))
+            hicann = Coordinate.NeuronOnHICANN(xcoord, ycoord)
+            synapse_column = Coordinate.SynapseColumnOnHICANN(xcoord)
+            synapse_row = Coordinate.SynapseRowOnHICANN(int(synapse_row))
+            synapse = Coordinate.SynapseOnHICANN(synapse_column, synapse_row)
+            return RecordJob(hicann, synapse, bg_freq, neuronsize)
+        except Exception as err:
+            raise argparse.ArgumentTypeError(
+                    "Please provide "
+                    "--neuron <x>,<y>,<synapse_row>,<bg_freq>,<neuronsize>"
+                    "; Not: " + arg + " (" + str(err) + ")")
+
+    class JobsFromFile(argparse.Action):
+        def __init__(self, option_strings, dest, nargs=None, **kwargs):
+            if nargs is not None:
+                raise ValueError("nargs not allowed")
+            super(JobsFromFile, self).__init__(option_strings, dest, **kwargs)
+
+        def __call__(self, parser, namespace, values, option_string=None):
+            args = getattr(namespace, self.dest, None)
+            if args is None:
+                args = []
+            def skip(line):
+                return line.strip() == '' or line.strip()[0] == '#'
+            with open(values, 'r') as in_file:
+                args.extend(parse_job(l) for l in in_file if not skip(l))
+            setattr(namespace, self.dest, args)
+
+    group = parser.add_argument_group("Neuron select:")
+    group.add_argument('--plot', action='store',
+            type=folder,
+            help="Plot results immediately using matplotlib")
+    group.add_argument('--save', action='store',
+            type=argparse.FileType('w'),
+            help="Save neuron trace to file")
+    group.add_argument('--load', action='store',
+            type=argparse.FileType('r'),
+            help="Load neuron trace instead of running jobs")
+    group.add_argument('--job', action='append', default=[],
+            type=parse_job, dest='jobs',
+            help="Neuron, synapse, bg_freq to stimulate")
+    group.add_argument('--jobfile', action=JobsFromFile, dest='jobs',
+            help="File with one job per line")
+    group.add_argument('--adc-freq', action='store',
+            type=float,
+            help='ADC frequencey used by the trace averager, '
+                 'use adc_freq.py to get it')
+
+def main():
+    import argparse
+
+    init_logger('WARN', [
+            ('main', 'INFO'),
+            ('RecordJob', 'INFO'),
+            ('RecordTraces', 'INFO'),
+            ('sthal', 'INFO'),
+            ('sthal.AnalogRecorder', 'WARN'),
+            ('halbe.fgwriter', 'ERROR')])
+
+
+    parser = argparse.ArgumentParser(description='PSP visualization tool')
+    add_default_coordinate_options(parser)
+    add_logger_options(parser)
+    add_options(parser)
+    args, _ = parser.parse_known_args()
+    
+    if args.load is not None and args.jobs:
+        parser.print_help()
+        print "Conflicting options --load and --job"
+        exit(1)
+
+    if args.load:
+        executed_jobs = load_jobs()
+    else:
+        if None in (args.wafer, args.hicann, args.jobs):
+            parser.print_help()
+            print 'Missing argument --wafer, --hicann, or --job'
+            exit(1)
+        tool = RecordTraces(args.wafer, args.hicann, args.jobs,
+                            args.adc_freq)
+        executed_jobs = tool.run()
+
+    if args.save:
+        save_jobs(args.save, executed_jobs)
+    if args.plot is not None:
+        plot_jobs(args.plot, executed_jobs)
+
+if __name__ == '__main__':
+    main()
