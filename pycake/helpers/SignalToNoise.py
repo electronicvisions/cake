@@ -7,6 +7,7 @@ try:
 except ImportError as exc:
     print exc
     print "FFT will not work!"
+    print "use: pip install --upgrade --user pyFFTW"
     fft = None
     fftfreq = None
 
