@@ -53,18 +53,14 @@ class StHALContainer(object):
 
         self.wafer_cfg = wafer_cfg
 
-        wafer = pysthal.Wafer(coord_wafer)  # Stateful HICANN Container
+        self.wafer = pysthal.Wafer(coord_wafer)  # Stateful HICANN Container
 
         if self.wafer_cfg:
             self.logger.info("Loading {}".format(wafer_cfg))
-            wafer.load(wafer_cfg)
+            self.wafer.load(wafer_cfg)
 
         self.setPLL(PLL)
-
-        hicann = wafer[coord_hicann]
-
-        self.wafer = wafer
-        self.hicann = hicann
+        self.hicann = self.wafer[coord_hicann]
         self.adc = None
         self.recording_time = recording_time
         self.coord_analog = coord_analog
