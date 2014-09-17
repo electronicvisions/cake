@@ -1,15 +1,12 @@
 import numpy as np
 
-from pyhalbe import Coordinate
+import pylogging
+import Coordinate
 from pycake.helpers.sthal import StHALContainer
 
-import pylogging
+
 logger = pylogging.get("pycake.helper.TraceAverager")
 
-import matplotlib.pyplot as plt
-from scipy.optimize import curve_fit
-import scipy.signal
-import pylab
 
 def _find_spikes_in_preout(trace):
     """Detects spikes in a trace of the HICANN preout
@@ -28,6 +25,7 @@ def _find_spikes_in_preout(trace):
         positions.append(pos)
     return np.array(positions)
 
+
 def _get_preout_trace(coord_wafer, coord_hicann, bg_rate, recording_time):
     analog = Coordinate.AnalogOnHICANN(0)
     sthal = StHALContainer(coord_wafer, coord_hicann, analog, recording_time)
@@ -39,6 +37,7 @@ def _get_preout_trace(coord_wafer, coord_hicann, bg_rate, recording_time):
     times, trace = sthal.read_adc()
     sthal.disconnect()
     return trace
+
 
 def createTraceAverager(coord_wafer, coord_hicann):
     analog = Coordinate.AnalogOnHICANN(0)
@@ -53,6 +52,7 @@ def createTraceAverager(coord_wafer, coord_hicann):
     expected_t = np.arange(n) / bg_rate
     adc_freq, _ = np.polyfit(expected_t, pos, 1)
     return TraceAverager(adc_freq)
+
 
 class TraceAverager(object):
     def __init__(self,  adc_freq):
