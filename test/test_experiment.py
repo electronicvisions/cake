@@ -5,6 +5,7 @@ import unittest
 import numpy as np
 import pycalibtic as cal
 import pycake.experiment as exp
+from pycake.helpers.units import Current, Voltage, DAC
 import random
 
 
@@ -65,15 +66,15 @@ class FakeADC(object):
 
 class TestExperiment(unittest.TestCase):
     def test_Current(self):
-        c = exp.Current(100)
+        c = Current(100)
         self.assertEqual(c.toDAC().value, 41)
 
     def test_Voltage(self):
-        v = exp.Voltage(360)
+        v = Voltage(360)
         self.assertEqual(v.toDAC().value, 205)
 
     def test_DAC(self):
-        d = exp.DAC(3.14)
+        d = DAC(3.14)
         self.assertEqual(d.toDAC().value, 3)
 
     def test_Calibrate_E_l(self):
