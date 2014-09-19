@@ -1,16 +1,13 @@
 #!/usr/bin/env python
 
-import os
-import copy
-
-from waflib.extras import symwaf2ic
-from waflib.extras.gtest import summary
+#from waflib.extras import symwaf2ic
+#from waflib.extras.gtest import summary
 
 
 def depends(ctx):
     ctx('sthal')
     ctx('symap2ic', 'src/pylogging')
-    ctx('calibtic', 'pycalibtic') # sthal does not depend on pycalibtic
+    ctx('calibtic', 'pycalibtic')  # sthal does not depend on pycalibtic
     ctx('redman', 'pyredman', branch="next")
     ctx('redman', 'backends', branch="next")
 
@@ -18,6 +15,7 @@ def depends(ctx):
 def options(opt):
     opt.load('post_task')
 
+    opt.recurse('test')
 
 def configure(cfg):
     cfg.load('post_task')
@@ -33,14 +31,18 @@ def configure(cfg):
     if disable_bindings:
         cfg.fatal('Calibration depends on Python bindings.')
 
+    cfg.recurse('test')
+
 
 def build(bld):
     bld(
         target='pycake',
         source=bld.path.ant_glob('pycake/**/*.py'),
         features='post_task',
-        post_task=['pycalibtic', 'pysthal', 'pylogging', 'pyredman',
-            'redman_xml', 'redman_mongo'],
+        post_task=['pycalibtic', 'pysthal', 'pyhalbe', 'pylogging', 'pyredman',
+                   'redman_xml', 'redman_mongo'],
+        pythonpath=['.'],
         install_from='.',
         install_path='lib',
     )
+    bld.recurse('test')

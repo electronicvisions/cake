@@ -1,0 +1,33 @@
+#!/usr/bin/env python
+
+import os
+
+#from waflib.extras import symwaf2ic
+#from waflib.extras.gtest import summary
+
+
+def depends(ctx):
+    pass
+
+
+def options(opt):
+    opt.load('pytest')
+    opt.load('post_task')
+
+
+def configure(cfg):
+    cfg.load('pytest')
+    cfg.load('post_task')
+
+
+def build(bld):
+    bld(
+        name='pycake_tests',
+        tests=bld.path.ant_glob('test_*.py'),
+        features='pytest post_task',
+        use=['pycalibtic', 'calibtic_xml', 'calibtic_mongo',
+             'pyredman', 'redman_xml', 'redman_mongo',
+             'pyhalbe_tests', 'pysthal_tests'],
+        pythonpath=['..'],
+        install_path=os.path.join('bin', 'tests', 'cake')
+    )
