@@ -265,21 +265,29 @@ class RecordTraces(object):
             param.toHW(neuron, fg_control)
 
 
-def plot_jobs(folder, jobs):
+def plot_jobs(basefolder, jobs):
     import matplotlib as mpl
     mpl.use('Agg')
     import matplotlib.pyplot as plt
+
+    max_samples = 20000
 
     for job in jobs:
         xlabel = "Time []"
         ylabel = "Membrane Voltage [mV]"
         title = str(job)
 
+        folder = os.path.join(basefolder, str(job.neuronsize))
+        try:
+            os.makedirs(folder)
+        except OSError:
+            pass
+
         fig = plt.figure()
         axis = fig.add_subplot(1, 1, 1)
         if job.inactive_trace is not None:
-            axis.plot(job.inactive_trace, '.')
-        axis.plot(job.trace, '.')
+            axis.plot(job.inactive_trace[:max_samples], ',')
+        axis.plot(job.trace[:max_samples], ',')
         axis.set_title(title)
         axis.set_xlabel(xlabel)
         axis.set_ylabel(ylabel)
@@ -291,8 +299,8 @@ def plot_jobs(folder, jobs):
         fig = plt.figure()
         axis = fig.add_subplot(1, 1, 1)
         if job.inactive_averaged_trace is not None:
-            axis.plot(job.inactive_averaged_trace[0], '.')
-        axis.plot(job.averaged_trace[0], '.')
+            axis.plot(job.inactive_averaged_trace[0], 'x')
+        axis.plot(job.averaged_trace[0], 'x')
         axis.set_title(title)
         axis.set_xlabel(xlabel)
         axis.set_ylabel(ylabel)
@@ -404,7 +412,7 @@ def main():
         exit(1)
 
     if args.load:
-        executed_jobs = load_jobs()
+        executed_jobs = load_jobs(args.load)
     else:
         if None in (args.wafer, args.hicann, args.jobs):
             parser.print_help()
