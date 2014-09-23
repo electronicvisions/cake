@@ -26,7 +26,7 @@ custom_buildshell = """\
 module load pynn
 
 ./waf configure --test-timeout=360 --test-xml-summary=test_results
-./waf build --test-execnone
+./waf install --test-execnone
 ./waf install --test-exec pycake_tests
 """
 
