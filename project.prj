@@ -1,0 +1,56 @@
+/* Symwaf2icProject File */
+/* vim: set expandtab ts=4 sw=4 ft=groovy foldmethod=marker foldmarker={,}: */
+// :setlocal fillchars=fold:\  foldtext=getline(v:foldstart)
+
+startup()   // list basic information about the project being created
+//help()    // list available environment
+
+/**
+* Symwaf2ic Project Definition - README.
+*
+* Note that this boils down to groovy code. More information can be found in
+* the files Symwaf2icProject, Symwaf2icJob and Symwaf2icGenerator - ordered by
+* importance to the project-definition scripter.
+*
+* External Documentation: Jenkins JobDSL Plugin
+* 
+* Note that provided shell scipts in this file must follow some groovy escaping
+* rules: ${BASH_VARIABLE} must be written as \${BASH...; if you write
+* ${GROOVY_VAR} it expands to during the dsl/groovy processing already.
+* startup() lists some of the available groovy variables. A complete list is
+* shown by help(). If you want your bash to emit a newline you must write
+* '\\n'.
+*/
+
+custom_buildshell = """\
+#UGLY!
+source /afs/kip.uni-heidelberg.de/projects/vision/definst_software/shrc
+module load pynn
+
+./waf configure --test-timeout=360 --test-xml-summary=test_results
+./waf install  --test-exec pycake_tests
+"""
+
+sw = SoftwareJob([
+    debug       : false,    // if true, the jobname is postfixed with '-dsldbg' and the job is disabled
+    enabled     : true,     // if the job should be enabled (will be overridden if debug is true)
+    space       : 10,       // number of GiBs that must be free on the node for the job to perform, false=no space check
+    description : true,     // true=default (project_db + some), false=no descr., text= user defined description
+    
+    scripttrigger_schedule  : true, // true=default, false=off, string=userdefined
+    crontrigger_schedule    : true, // as above
+    
+    cleanonce   : true,     // if the workspace should be cleaned after each recreation
+    distclean   : false,
+    
+    buildshell  : custom_buildshell,
+    
+    blamemail   : true,     // if the job should send mails to vandals, will be overridden to false if debug is true
+    
+    test_publisher          : true,     // build/test_results/test-*.xml
+    distribution            : true,     // create artifacts for lib and bin folder
+    
+    queue       : false,    // if the job should be queued after the generator
+])
+
+return "Done."
