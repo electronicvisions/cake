@@ -23,7 +23,7 @@ logfile = args.logfile
 
 config_filename = args.parameter_file
 
-config = pycake.config.Config(config_filename)
+config = pycake.config.Config(None, config_filename)
 
 pylogging.default_config(date_format='absolute')
 pylogging.set_loglevel(pylogging.get("Default"),                    pylogging.LogLevel.INFO)
