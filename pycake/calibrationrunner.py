@@ -28,9 +28,8 @@ class CalibrationRunner(object):
     pickle_file_pattern = "runner_{}.p.bz2"
     pickel_measurements_folder = "runner_{}_measurements"
 
-    def __init__(self, config_file):
-        self.config_file = config_file
-        self.config = pycake.config.Config(None, self.config_file)
+    def __init__(self, config):
+        self.config = config
         self.experiments = {}
         self.coeffs = {}
         self.configurations = self.config.get_enabled_calibrations()

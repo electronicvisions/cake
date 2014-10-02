@@ -1,10 +1,10 @@
 #!/usr/bin/env python
-import pickle
 import argparse
 import os
 import sys
 import pylogging
 from pycake.calibrationrunner import CalibrationRunner, TestRunner
+import pycake.config
 
 
 def check_file(string):
@@ -23,6 +23,8 @@ logfile = args.logfile
 
 config_filename = args.parameter_file
 
+config = pycake.config.Config(config_filename)
+
 pylogging.default_config(date_format='absolute')
 pylogging.set_loglevel(pylogging.get("Default"),                    pylogging.LogLevel.INFO)
 pylogging.set_loglevel(pylogging.get("pycake.calibrationrunner"),   pylogging.LogLevel.DEBUG )
@@ -40,11 +42,12 @@ pylogging.set_loglevel(pylogging.get("sthal.AnalogRecorder"),       pylogging.Lo
 if logfile is not None:
     pylogging.log_to_file(logfile, pylogging.LogLevel.ALL)
 
-runner = CalibrationRunner(config_filename)
+runner = CalibrationRunner(config)
+
 if runner.config.get_run_calibration():
     runner.run_calibration()
 
-test_runner = TestRunner(config_filename)
+test_runner = TestRunner(config)
 
 pylogging.reset()
 pylogging.default_config()
