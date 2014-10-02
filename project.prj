@@ -23,6 +23,9 @@ startup()   // list basic information about the project being created
 */
 
 custom_buildshell = """\
+# workaround for "module: command not found"
+source /afs/kip.uni-heidelberg.de/projects/vision/definst_software/shrc
+
 module load pynn
 
 ./waf configure --test-timeout=360 --test-xml-summary=test_results
