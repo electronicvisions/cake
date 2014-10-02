@@ -5,6 +5,7 @@ import sys
 import pylogging
 from pycake.calibrationrunner import CalibrationRunner, TestRunner
 import pycake.config
+import Coordinate
 
 
 def check_file(string):
@@ -15,6 +16,8 @@ def check_file(string):
 
 parser = argparse.ArgumentParser(description='HICANN Calibration tool. Takes a parameter file as input. See pycake/bin/parameters.py to see an example.')
 parser.add_argument('parameter_file', type=check_file, help='parameterfile containing the parameters of this calibration')
+parser.add_argument('-hicann', type=int, default=None, help='hicann index. default is the one specified in the config file.')
+parser.add_argument('-outdir', type=str, default=None, help="output folder. default is the one specified in the config file.")
 parser.add_argument('--logfile', default=None,
                         help="Specify a logfile where all the logger output will be stored (any LogLevel!)")
 args = parser.parse_args()
@@ -22,8 +25,17 @@ args = parser.parse_args()
 logfile = args.logfile
 
 config_filename = args.parameter_file
+hicann = args.hicann
+outdir = args.outdir
 
 config = pycake.config.Config(None, config_filename)
+
+if outdir:
+    config.parameters['folder'] = outdir
+    config.parameters['backend_c'] = os.path.join(outdir, 'backends')
+    config.parameters['backend_r'] = os.path.join(outdir, 'backends')
+if hicann:
+    config.parameters['coord_hicann'] = Coordinate.HICANNOnWafer(Coordinate.Enum(hicann))
 
 pylogging.default_config(date_format='absolute')
 pylogging.set_loglevel(pylogging.get("Default"),                    pylogging.LogLevel.INFO)
