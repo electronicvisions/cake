@@ -217,7 +217,7 @@ parameters = {
                                              },
 
         "V_t_parameters":       {   neuron_parameter.E_l:        Voltage(1200),
-                                    neuron_parameter.I_gl:       Current(2500),
+                                    neuron_parameter.I_gl:       Current(1500),
                                     shared_parameter.V_reset:    Voltage(400),
                                     neuron_parameter.I_convx: Current(0),
                                     neuron_parameter.I_convi: Current(0),
