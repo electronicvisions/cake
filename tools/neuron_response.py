@@ -95,6 +95,7 @@ class RecordJob(object):
         self.inactive_trace = None
         self.inactive_averaged_trace = None
         self.logger.debug("Created job {}".format(self))
+        self.pattern = (0.2, 0.3, 0.4)
 
     @property
     def driver(self):
@@ -103,6 +104,10 @@ class RecordJob(object):
     @property
     def output_buffer(self):
         return self.driver.getOutputBufferOnHICANN()
+
+    @property
+    def gbitlink(self):
+        return self.driver.getSendingRepeaterOnHICANN().getGbitLinkOnHICANN()
 
     @property
     def synapse_row(self):
@@ -134,10 +139,12 @@ class RecordTraces(object):
         self.logger.info('Running {} jobs'.format(len(self.jobs)))
 
         self.calibration_path = '/wang/users/koke/cluster_home/calib/backends'
-        self.l1address = pyhalbe.HICANN.L1Address(0)
+        self.l1address = pyhalbe.HICANN.L1Address(16)
+        self.bg_l1address = pyhalbe.HICANN.L1Address(0)
         self.gmax_div = 1
         self.weight = pyhalbe.HICANN.SynapseWeight(15)
         self.analog = Coordinate.AnalogOnHICANN(0)
+        self.runtime = 0.04
 
     def create_trace_averager(self, adc_freq):
         if adc_freq is None:
@@ -176,7 +183,8 @@ class RecordTraces(object):
                 job.inactive_trace, 1.0/job.stim_freq)
         self.config_job(job, wafer, hicann, True)
         wafer.configure(update_cfg)
-        adc.record(0.04)
+        adc.activateTrigger(self.runtime)
+        wafer.start(pysthal.ExperimentRunner(self.runtime))
         job.trace = adc.trace()
         job.averaged_trace = self.trace_averager.get_average(
                 job.trace, 1.0/job.stim_freq)
@@ -188,13 +196,17 @@ class RecordTraces(object):
             hicann.layer1[bg].enable(True)
             hicann.layer1[bg].random(False)
             hicann.layer1[bg].period(3000)
-            hicann.layer1[bg].address(self.l1address)
+            hicann.layer1[bg].address(self.bg_l1address)
 
         for merger in Coordinate.iter_all(Coordinate.DNCMergerOnHICANN):
             m = hicann.layer1[merger]
             m.config = m.MERGE
             m.slow = True
             m.loopback = False
+
+        TO_HICANN = pyhalbe.HICANN.GbitLink.Direction.TO_HICANN
+        for channel in Coordinate.iter_all(Coordinate.GbitLinkOnHICANN):
+            hicann.layer1[channel] = TO_HICANN
 
         hicann.synapses.set_all(self.l1address.getSynapseDecoderMask(),
                                 pyhalbe.HICANN.SynapseWeight(0));
@@ -206,7 +218,7 @@ class RecordTraces(object):
         hicann.synapses.clear_synapses()
         hicann.clear_complete_l1_routing()
         hicann.enable_aout(job.neuron, self.analog)
-
+        wafer.clearSpikes()
 
         # Reconfigure
         hicann.set_neuron_size(job.neuronsize)
@@ -221,6 +233,22 @@ class RecordTraces(object):
         hicann.route(job.output_buffer, job.driver, Coordinate.Enum(0))
         self.config_driver(hicann, job.driver)
         hicann.synapses[job.synapse].weight = self.weight
+
+        spike_times = numpy.arange(0.0, self.runtime, 0.5 / job.stim_freq,
+                                   dtype=numpy.double)
+        spike_times += 0.2 / job.stim_freq
+        pattern = numpy.array([x/job.stim_freq for x in job.pattern])
+        pattern = numpy.floor(pattern * PLL)/PLL
+        offsets = numpy.arange(0.0, self.runtime, 1.0/job.stim_freq)
+        spike_times = numpy.array(
+            [pattern + t for t in offsets]).flatten()
+        print 'XXX\n', spike_times
+        print spike_times[:30], spike_times[:10]
+        numpy.savetxt('spikes.txt', spike_times)
+        spikes = pysthal.Vector_Spike()
+        for time in spike_times:
+            spikes.append(pysthal.Spike(self.l1address, time))
+        hicann.sendSpikes(job.gbitlink, spikes)
 
     def config_driver(self, hicann, driver_c):
         from Coordinate import top, bottom, left, right
@@ -263,6 +291,7 @@ class RecordTraces(object):
         for neuron in Coordinate.iter_all(Coordinate.NeuronOnHICANN):
             param = calib.nc.applyNeuronCalibration(parameters, neuron.id())
             param.toHW(neuron, fg_control)
+
 
 
 def plot_jobs(basefolder, jobs):

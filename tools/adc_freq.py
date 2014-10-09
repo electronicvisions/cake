@@ -2,9 +2,9 @@
 
 from pycake.helpers.TraceAverager import createTraceAverager
 
-from pysthal.util import add_default_coordinate_options
-from pysthal.util import add_logger_options
-from pysthal.util import init_logger
+from pysthal.command_line_util import add_default_coordinate_options
+from pysthal.command_line_util import add_logger_options
+from pysthal.command_line_util import init_logger
 
 def main():
     import argparse
