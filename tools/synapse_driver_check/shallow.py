@@ -338,6 +338,10 @@ class Hardware(object):
             self.hicann.neurons[nrn].enable_spl1_output(False)
             self.hicann.neurons[nrn].activate_firing(False)
 
+        # enable all horizontal repeaters
+        #for r_c in Coordinate.iter_all(Coordinate.HRepeaterOnHICANN):
+        #    self.hicann.repeater[r_c].setOutput(Coordinate.right, True)
+
         time.sleep(0.5)
     
     @reset_configuration()
