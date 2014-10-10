@@ -139,12 +139,14 @@ def ana(driver, filename_stub):
 
             pos = 5e-6 + i*50e-6
 
+            safety=3
+
             try:
-                correct = s[np.abs(s[:,0] - pos - 25e-6 - offset) <= 25e-6 * 1.1,:]
+                correct = s[np.abs(s[:,0] - pos - 25e-6*safety - offset) <= 25e-6*safety,:]
             except:
                 correct = np.array(())
             try:
-                incorrect = s[np.abs(s[:,0] - pos - 25e-6  - offset) > 25e-6 * 1.1,:]
+                incorrect = s[np.abs(s[:,0] - pos - 25e-6*safety  - offset) > 25e-6*safety,:]
             except:
                 incorrect = np.array(())
 
