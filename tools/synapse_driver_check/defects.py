@@ -357,9 +357,13 @@ def store_voltages(filename):
     cmd = "ssh -F /dev/null -x -i ./id_rsa_resetuser resetuser@raspeval-001 -o PubkeyAuthentication=yes /home/pi/voltages/readVoltages"
     data = dict()
     for l in os.popen(cmd).read().rstrip('\n').split('\n'):
-        if "dac" in l: break
-        if "voltage" in l: continue
-        data.update({ l.split('\t')[0]: map(float, l.split('\t')[1:]) })
+        if "voltage" in l:
+            prefix = ""
+            continue
+        if "dac" in l:
+            prefix = "DAC_"
+            continue
+        data.update({ prefix+l.split('\t')[0]: map(float, l.split('\t')[1:]) })
 
     with open(filename, "w") as f:
 
