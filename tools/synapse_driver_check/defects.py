@@ -130,7 +130,7 @@ def ana(driver, filename_stub):
                 offset = 0
     else:
             offset = 0
-    print "offset", offset
+    #print "offset", offset
 
     right_yticklabels = []
 
@@ -175,8 +175,8 @@ def ana(driver, filename_stub):
     plt.tick_params(axis='y', which='both', labelsize=5)
 
     plt.savefig(os.path.join(PATH, "defects_"+filename_stub+".pdf"))
-    
-    print os.path.join(PATH, "defects_"+filename_stub+".pdf")
+
+    #print os.path.join(PATH, "defects_"+filename_stub+".pdf")
 
     plt.close()
 
@@ -274,7 +274,7 @@ def aquire(driver):
                                                  driver,
                                                  int(neuron),
                                                  half)
-        print "bus {}, hline {}, vline {}".format(bus, hline, vline)
+        #print "bus {}, hline {}, vline {}".format(bus, hline, vline)
 
         hardware.assign_address(int(neuron), int(addr))
 
@@ -292,7 +292,7 @@ def aquire(driver):
         train = np.arange(200) * 0.1e-6 + 5e-6 + 50e-6*i
         hardware.add_spike_train(bus, i, train)
 
-    print hardware.hicann
+    #print hardware.hicann
 
     duration = 4e-3
 
@@ -329,7 +329,7 @@ def aquire(driver):
             addr_dict[addr].add(rl)
 
     for addr, rls in addr_dict.iteritems():
-        print "addr {}, rls {}, len(rls) {}".format(addr, rls, len(rls))
+        #print "addr {}, rls {}, len(rls) {}".format(addr, rls, len(rls))
         if len(rls) > 1 and addr != 0:
             #raise Exception("WTF")
             print "PROBLEM(?)"
@@ -343,8 +343,8 @@ def aquire(driver):
 
     np.savetxt(os.path.join(PATH, "spikes_"+filename_stub+".dat"), spikes)
 
-    print hardware.hicann
-    print hardware.hicann.layer1
+    #print hardware.hicann
+    #print hardware.hicann.layer1
 
     hardware.wafer.dump(os.path.join(PATH, "wafer_"+filename_stub+".xml"), True)
 
