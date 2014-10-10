@@ -38,6 +38,7 @@ parser.add_argument('--calibpath', type=str, default="/wang/data/calibration/")
 parser.add_argument('--anaonly', action="store_true", default=False)
 parser.add_argument('--extrasuffix', type=str, default=None)
 parser.add_argument('--correctoffset', action="store_true", default=False)
+parser.add_argument('--dumpwafercfg', action="store_true", default=False)
 args = parser.parse_args()
 
 WAFER = args.wafer
@@ -358,7 +359,8 @@ def aquire(driver):
     #print hardware.hicann
     #print hardware.hicann.layer1
 
-    hardware.wafer.dump(os.path.join(PATH, "wafer_"+filename_stub+".xml"), True)
+    if args.dumpwafercfg:
+        hardware.wafer.dump(os.path.join(PATH, "wafer_"+filename_stub+".xml"), True)
 
     print "aquiring done"
 
