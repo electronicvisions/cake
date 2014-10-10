@@ -129,7 +129,7 @@ def ana(driver, filename_stub):
         except IndexError:
             try:
                 offset=sorted(spikes[spikes[:,1] == 2][:,0])[0]
-                offset -= 1*25e-6
+                offset -= 4*25e-6
             except IndexError:
                 offset = 0
     else:
