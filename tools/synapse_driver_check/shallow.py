@@ -258,6 +258,22 @@ class Hardware(object):
         self.sending_link = Coordinate.GbitLinkOnHICANN(bus)
         self.hicann.layer1[self.sending_link] = pyhalbe.HICANN.GbitLink.Direction.TO_HICANN
 
+        for merger in Coordinate.iter_all(Coordinate.Merger0OnHICANN):
+            merger = self.hicann.layer1[merger]
+#            merger.slow = True
+
+        for merger in Coordinate.iter_all(Coordinate.Merger1OnHICANN):
+            merger = self.hicann.layer1[merger]
+#            merger.slow = True
+
+        for merger in Coordinate.iter_all(Coordinate.Merger2OnHICANN):
+            merger = self.hicann.layer1[merger]
+#            merger.slow = True
+
+        for merger in Coordinate.iter_all(Coordinate.Merger3OnHICANN):
+            merger = self.hicann.layer1[merger]
+#            merger.slow = True
+
         for merger in Coordinate.iter_all(Coordinate.DNCMergerOnHICANN):
             merger = self.hicann.layer1[merger]
             merger.slow = True
