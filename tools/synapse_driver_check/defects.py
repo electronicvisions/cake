@@ -132,6 +132,8 @@ def ana(driver, filename_stub):
             offset = 0
     print "offset", offset
 
+    right_yticklabels = []
+
     for i in range(64):
         plt.axhline(i, c='0.8', ls=':')
         try:
@@ -150,6 +152,8 @@ def ana(driver, filename_stub):
             except:
                 incorrect = np.array(())
 
+            right_yticklabels.append("{},{}".format(correct.size/2,incorrect.size/2))
+
             details.writerow((i, correct.size/2, incorrect.size/2))
             details_file.flush()
 
@@ -163,6 +167,12 @@ def ana(driver, filename_stub):
 
     defects.writerow((driver, defect_addresses))
     defects_file.flush()
+    ax2 = ax1.twinx()
+    ax2.set_ylabel("cor,incor")
+    plt.ylim((-1, 64))
+    plt.yticks(range(0, 64, 1))
+    ax2.set_yticklabels(right_yticklabels)
+    plt.tick_params(axis='y', which='both', labelsize=5)
 
     plt.savefig(os.path.join(PATH, "defects_"+filename_stub+".pdf"))
     
