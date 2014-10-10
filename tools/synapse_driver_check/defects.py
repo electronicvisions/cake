@@ -194,7 +194,6 @@ def ana(driver, filename_stub):
 
     print "analyzing done"
 
-def aquire(driver):
     return defect_addresses, incorrect_addresses, no_correct_addresses, silent_addresses
 
 def get_neurons(driver):
