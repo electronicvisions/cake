@@ -405,6 +405,8 @@ if __name__ == "__main__":
 
     for driver in drivers:
 
+        start = time.time()
+
         filename_stub = None
 
         if run_on_hardware:
@@ -413,3 +415,5 @@ if __name__ == "__main__":
 
         defects_addresses, incorrect_addresses, no_correct_addresses, silent_addresses = ana(driver, filename_stub)
         defects_addresses_drivers.append((driver, defects_addresses, incorrect_addresses, no_correct_addresses, silent_addresses))
+
+        print "it took {} s".format(time.time()-start)
