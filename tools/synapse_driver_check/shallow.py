@@ -286,9 +286,9 @@ class Hardware(object):
 
         # Enable a crossbar switch to route the signal into the first vertical line
         if side == Coordinate.left:
-            v_line_c = Coordinate.VLineOnHICANN(4*bus)
+            v_line_c = Coordinate.VLineOnHICANN(4*bus)# + 32)
         else:
-            v_line_c = Coordinate.VLineOnHICANN(159 - 4*bus)
+            v_line_c = Coordinate.VLineOnHICANN(159 - 4*bus)# + 32)
 
         self.hicann.crossbar_switches.set(v_line_c, h_line, True)
          
