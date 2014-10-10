@@ -114,6 +114,9 @@ def ana(driver, filename_stub):
     result = []
 
     defect_addresses = 0
+    no_correct_addresses = 0
+    incorrect_addresses = 0
+    silent_addresses = 0
 
     details_file = open(os.path.join(PATH, "detail_"+filename_stub+".csv"), 'w')
     details = csv.writer(details_file, dialect='excel-tab')
@@ -160,12 +163,20 @@ def ana(driver, filename_stub):
             if correct.size == 0 or incorrect.size != 0:
                 defect_addresses += 1
 
+            if incorrect.size != 0:
+                incorrect_addresses += 1
+
+            if correct.size == 0:
+                no_correct_addresses += 1
+
+            if correct.size == 0 and  incorrect.size == 0:
+                silent_addresses += 1
+
             plt.plot(correct[:,0], correct[:,1], 'g|')
             plt.plot(incorrect[:,0], incorrect[:,1], 'r|')
         except BaseException, e:
             pass
 
-    defects.writerow((driver, defect_addresses))
     defects_file.flush()
     ax2 = ax1.twinx()
     ax2.set_ylabel("cor,incor")
@@ -174,6 +185,7 @@ def ana(driver, filename_stub):
     ax2.set_yticklabels(right_yticklabels)
     plt.tick_params(axis='y', which='both', labelsize=5)
 
+    defects.writerow((driver, defect_addresses, incorrect_addresses, no_correct_addresses, silent_addresses))
     plt.savefig(os.path.join(PATH, "defects_"+filename_stub+".pdf"))
 
     #print os.path.join(PATH, "defects_"+filename_stub+".pdf")
@@ -183,6 +195,7 @@ def ana(driver, filename_stub):
     print "analyzing done"
 
 def aquire(driver):
+    return defect_addresses, incorrect_addresses, no_correct_addresses, silent_addresses
 
 def get_neurons(driver):
 
@@ -389,6 +402,8 @@ if __name__ == "__main__":
     if run_on_hardware:
         prepare_drivers(drivers)
 
+    defects_addresses_drivers = []
+
     for driver in drivers:
 
         filename_stub = None
@@ -396,3 +411,6 @@ if __name__ == "__main__":
         if run_on_hardware:
             filename_stub = aquire(driver)
             store_voltages(os.path.join(PATH, "voltages_"+filename_stub+".json"))
+
+        defects_addresses, incorrect_addresses, no_correct_addresses, silent_addresses = ana(driver, filename_stub)
+        defects_addresses_drivers.append((driver, defects_addresses, incorrect_addresses, no_correct_addresses, silent_addresses))
