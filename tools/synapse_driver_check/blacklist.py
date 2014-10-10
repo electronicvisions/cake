@@ -12,6 +12,9 @@ import matplotlib.pyplot as plt
 
 import shallow
 
+import pylogging
+pylogging.default_config(date_format='absolute')
+pylogging.set_loglevel(pylogging.get("shallow"), pylogging.LogLevel.DEBUG)
 
 import argparse
 
