@@ -258,6 +258,22 @@ class Hardware(object):
         self.sending_link = Coordinate.GbitLinkOnHICANN(bus)
         self.hicann.layer1[self.sending_link] = pyhalbe.HICANN.GbitLink.Direction.TO_HICANN
 
+        for merger in Coordinate.iter_all(Coordinate.Merger0OnHICANN):
+            merger = self.hicann.layer1[merger]
+#            merger.slow = True
+
+        for merger in Coordinate.iter_all(Coordinate.Merger1OnHICANN):
+            merger = self.hicann.layer1[merger]
+#            merger.slow = True
+
+        for merger in Coordinate.iter_all(Coordinate.Merger2OnHICANN):
+            merger = self.hicann.layer1[merger]
+#            merger.slow = True
+
+        for merger in Coordinate.iter_all(Coordinate.Merger3OnHICANN):
+            merger = self.hicann.layer1[merger]
+#            merger.slow = True
+
         for merger in Coordinate.iter_all(Coordinate.DNCMergerOnHICANN):
             merger = self.hicann.layer1[merger]
             merger.slow = True
@@ -270,9 +286,9 @@ class Hardware(object):
 
         # Enable a crossbar switch to route the signal into the first vertical line
         if side == Coordinate.left:
-            v_line_c = Coordinate.VLineOnHICANN(4*bus)
+            v_line_c = Coordinate.VLineOnHICANN(4*bus)# + 32)
         else:
-            v_line_c = Coordinate.VLineOnHICANN(159 - 4*bus)
+            v_line_c = Coordinate.VLineOnHICANN(159 - 4*bus)# + 32)
 
         self.hicann.crossbar_switches.set(v_line_c, h_line, True)
          
@@ -321,6 +337,10 @@ class Hardware(object):
         for nrn in Coordinate.iter_all(Coordinate.NeuronOnHICANN):
             self.hicann.neurons[nrn].enable_spl1_output(False)
             self.hicann.neurons[nrn].activate_firing(False)
+
+        # enable all horizontal repeaters
+        #for r_c in Coordinate.iter_all(Coordinate.HRepeaterOnHICANN):
+        #    self.hicann.repeater[r_c].setOutput(Coordinate.right, True)
 
         time.sleep(0.5)
     

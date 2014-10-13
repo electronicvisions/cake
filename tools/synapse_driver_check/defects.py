@@ -38,6 +38,7 @@ parser.add_argument('--calibpath', type=str, default="/wang/data/calibration/")
 parser.add_argument('--anaonly', action="store_true", default=False)
 parser.add_argument('--extrasuffix', type=str, default=None)
 parser.add_argument('--correctoffset', action="store_true", default=False)
+parser.add_argument('--dumpwafercfg', action="store_true", default=False)
 args = parser.parse_args()
 
 WAFER = args.wafer
@@ -114,6 +115,9 @@ def ana(driver, filename_stub):
     result = []
 
     defect_addresses = 0
+    no_correct_addresses = 0
+    incorrect_addresses = 0
+    silent_addresses = 0
 
     details_file = open(os.path.join(PATH, "detail_"+filename_stub+".csv"), 'w')
     details = csv.writer(details_file, dialect='excel-tab')
@@ -125,12 +129,14 @@ def ana(driver, filename_stub):
         except IndexError:
             try:
                 offset=sorted(spikes[spikes[:,1] == 2][:,0])[0]
-                offset -= 1*25e-6
+                offset -= 4*25e-6
             except IndexError:
                 offset = 0
     else:
             offset = 0
-    print "offset", offset
+    #print "offset", offset
+
+    right_yticklabels = []
 
     for i in range(64):
         plt.axhline(i, c='0.8', ls=':')
@@ -139,14 +145,18 @@ def ana(driver, filename_stub):
 
             pos = 5e-6 + i*50e-6
 
+            safety=3
+
             try:
-                correct = s[np.abs(s[:,0] - pos - 25e-6 - offset) <= 25e-6 * 1.1,:]
+                correct = s[np.abs(s[:,0] - pos - 25e-6*safety - offset) <= 25e-6*safety,:]
             except:
                 correct = np.array(())
             try:
-                incorrect = s[np.abs(s[:,0] - pos - 25e-6  - offset) > 25e-6 * 1.1,:]
+                incorrect = s[np.abs(s[:,0] - pos - 25e-6*safety  - offset) > 25e-6*safety,:]
             except:
                 incorrect = np.array(())
+
+            right_yticklabels.append("{},{}".format(correct.size/2,incorrect.size/2))
 
             details.writerow((i, correct.size/2, incorrect.size/2))
             details_file.flush()
@@ -154,23 +164,38 @@ def ana(driver, filename_stub):
             if correct.size == 0 or incorrect.size != 0:
                 defect_addresses += 1
 
+            if incorrect.size != 0:
+                incorrect_addresses += 1
+
+            if correct.size == 0:
+                no_correct_addresses += 1
+
+            if correct.size == 0 and  incorrect.size == 0:
+                silent_addresses += 1
+
             plt.plot(correct[:,0], correct[:,1], 'g|')
             plt.plot(incorrect[:,0], incorrect[:,1], 'r|')
         except BaseException, e:
             pass
 
-    defects.writerow((driver, defect_addresses))
     defects_file.flush()
+    ax2 = ax1.twinx()
+    ax2.set_ylabel("cor,incor")
+    plt.ylim((-1, 64))
+    plt.yticks(range(0, 64, 1))
+    ax2.set_yticklabels(right_yticklabels)
+    plt.tick_params(axis='y', which='both', labelsize=5)
 
+    defects.writerow((driver, defect_addresses, incorrect_addresses, no_correct_addresses, silent_addresses))
     plt.savefig(os.path.join(PATH, "defects_"+filename_stub+".pdf"))
-    
-    print os.path.join(PATH, "defects_"+filename_stub+".pdf")
+
+    #print os.path.join(PATH, "defects_"+filename_stub+".pdf")
 
     plt.close()
 
     print "analyzing done"
 
-def aquire(driver):
+    return defect_addresses, incorrect_addresses, no_correct_addresses, silent_addresses
 
 def get_neurons(driver):
 
@@ -262,7 +287,7 @@ def aquire(driver):
                                                  driver,
                                                  int(neuron),
                                                  half)
-        print "bus {}, hline {}, vline {}".format(bus, hline, vline)
+        #print "bus {}, hline {}, vline {}".format(bus, hline, vline)
 
         hardware.assign_address(int(neuron), int(addr))
 
@@ -280,7 +305,7 @@ def aquire(driver):
         train = np.arange(200) * 0.1e-6 + 5e-6 + 50e-6*i
         hardware.add_spike_train(bus, i, train)
 
-    print hardware.hicann
+    #print hardware.hicann
 
     duration = 4e-3
 
@@ -317,7 +342,7 @@ def aquire(driver):
             addr_dict[addr].add(rl)
 
     for addr, rls in addr_dict.iteritems():
-        print "addr {}, rls {}, len(rls) {}".format(addr, rls, len(rls))
+        #print "addr {}, rls {}, len(rls) {}".format(addr, rls, len(rls))
         if len(rls) > 1 and addr != 0:
             #raise Exception("WTF")
             print "PROBLEM(?)"
@@ -331,10 +356,11 @@ def aquire(driver):
 
     np.savetxt(os.path.join(PATH, "spikes_"+filename_stub+".dat"), spikes)
 
-    print hardware.hicann
-    print hardware.hicann.layer1
+    #print hardware.hicann
+    #print hardware.hicann.layer1
 
-    hardware.wafer.dump(os.path.join(PATH, "wafer_"+filename_stub+".xml"), True)
+    if args.dumpwafercfg:
+        hardware.wafer.dump(os.path.join(PATH, "wafer_"+filename_stub+".xml"), True)
 
     print "aquiring done"
 
@@ -345,9 +371,13 @@ def store_voltages(filename):
     cmd = "ssh -F /dev/null -x -i ./id_rsa_resetuser resetuser@raspeval-001 -o PubkeyAuthentication=yes /home/pi/voltages/readVoltages"
     data = dict()
     for l in os.popen(cmd).read().rstrip('\n').split('\n'):
-        if "dac" in l: break
-        if "voltage" in l: continue
-        data.update({ l.split('\t')[0]: map(float, l.split('\t')[1:]) })
+        if "voltage" in l:
+            prefix = ""
+            continue
+        if "dac" in l:
+            prefix = "DAC_"
+            continue
+        data.update({ prefix+l.split('\t')[0]: map(float, l.split('\t')[1:]) })
 
     with open(filename, "w") as f:
 
@@ -373,10 +403,19 @@ if __name__ == "__main__":
     if run_on_hardware:
         prepare_drivers(drivers)
 
+    defects_addresses_drivers = []
+
     for driver in drivers:
+
+        start = time.time()
 
         filename_stub = None
 
         if run_on_hardware:
             filename_stub = aquire(driver)
             store_voltages(os.path.join(PATH, "voltages_"+filename_stub+".json"))
+
+        defects_addresses, incorrect_addresses, no_correct_addresses, silent_addresses = ana(driver, filename_stub)
+        defects_addresses_drivers.append((driver, defects_addresses, incorrect_addresses, no_correct_addresses, silent_addresses))
+
+        print "it took {} s".format(time.time()-start)

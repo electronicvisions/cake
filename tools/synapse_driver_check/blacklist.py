@@ -12,6 +12,9 @@ import matplotlib.pyplot as plt
 
 import shallow
 
+import pylogging
+pylogging.default_config(date_format='absolute')
+pylogging.set_loglevel(pylogging.get("shallow"), pylogging.LogLevel.DEBUG)
 
 import argparse
 
@@ -60,11 +63,13 @@ for neurons in [range(i, i+32) for i in range(0, 512, 32)]:
     if neurons[0] < 256:
         receiving_link = (neurons[0] / 32)
         bus = (receiving_link + 1) % 8
-        driver = bus * 2
+        driver = bus * 2# + 16*2
     else:
         receiving_link = (neurons[0] % 256 / 32)
         bus = (receiving_link + 1) % 8
-        driver = 127 - bus * 2
+        driver = 127 - bus * 2# + 16*2
+
+    # comment assert if driver is manually tweaked
     assert bus == shallow.get_bus_from_driver(driver)
 
     sending_addr = 1
