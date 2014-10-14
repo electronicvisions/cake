@@ -186,6 +186,10 @@ class V_t_Experimentbuilder(BaseExperimentBuilder):
         return pycake.analyzer.V_t_Analyzer()
 
 class I_pl_Experimentbuilder(BaseExperimentBuilder):
+    def prepare_specific_config(self, sthal):
+        sthal.recording_time = 1e-3
+        return sthal
+
     def get_analyzer(self):
         "get analyzer"
         return pycake.analyzer.I_pl_Analyzer()
