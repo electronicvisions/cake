@@ -1,8 +1,9 @@
 import pylogging
 import time
 import numpy
+import copy
 
-class BaseExperiment(object):
+class Experiment(object):
     """ Takes a list of measurements and analyzers.
         Then, it runs the measurements and analyzes them.
         Traces can be saved to hard drive or discarded after analysis.
@@ -17,34 +18,28 @@ class BaseExperiment(object):
 
     logger = pylogging.get("pycake.experiment")
 
-    def __init__(self, measurements, analyzer, repetitions):
-        self.measurements = measurements
+    def __init__(self, analyzer):
         self.analyzer = analyzer
+        self.measurements = []
         self.results = []
-        self.repetitions = repetitions
 
     def run(self):
         """Run the experiment and process results."""
         return list(self.iter_measurements())
 
     def iter_measurements(self):
-        i_max = len(self.measurements)
-        for i, measurement in enumerate(self.measurements):
-            if not measurement.done:
-                self.logger.INFO("Running measurement {}/{}".format(i+1, i_max))
-                results = measurement.run_measurement(self.analyzer)
-                self.results.append(results)
-                yield True # Used to save state of runner 
-            else:
-                self.logger.INFO("Measurement {}/{} already done. Going on with next one.".format(i+1, i_max))
-                yield False
-        return
+        cls_name = type(self).__name__
+        raise NotImplementedError("Not implemented in {}".format(cls_name))
 
     def get_measurement(self, i):
         try:
             return self.measurements[i]
         except IndexError:
             return None
+
+    def append_measurement_and_result(self, measurement, result):
+        self.measurements.append(measurement)
+        self.results.append(result)
 
     def get_parameters_and_results(self, neuron, parameters, result_keys):
         """ Read out parameters and result for the given neuron.
@@ -96,3 +91,43 @@ class BaseExperiment(object):
                 results[ii-1][row] = (mean[0], count, mean[ii], std[ii])
         return results
 
+
+class SequentialExperiment(Experiment):
+    """ Takes a list of measurements and analyzers.
+        Then, it runs the measurements and analyzes them.
+        Traces can be saved to hard drive or discarded after analysis.
+
+        Experiments can be continued after a crash by just loading and starting them again.
+
+        Args:
+            measurements: list of Measurement objects
+            analyzer: list of analyzer objects (or just one)
+            save_traces: (True|False) should the traces be saved to HDD
+    """
+    def __init__(self, measurements, analyzer, repetitions):
+        Experiment.__init__(self, analyzer)
+        self.measurements_to_run = measurements
+        self.repetitions = repetitions
+
+    def iter_measurements(self):
+        i_max = len(self.measurements)
+        for i, measurement in enumerate(self.measurements_to_run):
+            if not measurement.done:
+                self.logger.INFO("Running measurement {}/{}".format(i+1, i_max))
+                result = measurement.run_measurement(self.analyzer)
+                self.append_measurement_and_result(measurement, result)
+                yield True # Used to save state of runner 
+            else:
+                self.logger.INFO("Measurement {}/{} already done. Going on with next one.".format(i+1, i_max))
+                yield False
+        return
+
+    # Compatibility for old pickels
+    def __setstate__(self, state):
+        if 'measurements_to_run' not in state:
+            state['measurements_to_run'] = copy.copy(state['measurements'])
+        self.__dict__.update(state)
+
+
+# Compatibility for old pickels
+BaseExperiment = SequentialExperiment

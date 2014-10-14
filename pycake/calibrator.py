@@ -269,12 +269,12 @@ class V_syntc_psp_max_BaseCalibrator(BaseCalibrator):
 
     def __init__(self, experiments):
 
-        from pycake.experiment import BaseExperiment
+        from pycake.experiment import SequentialExperiment
 
         if not isinstance(experiments, list):
             experiments = [experiments]
 
-        self.experiment = BaseExperiment(sum(
+        self.experiment = SequentialExperiment(sum(
             [exp.measurements for exp in experiments], []),
             experiments[0].analyzer, None)
         self.experiment.results = sum(

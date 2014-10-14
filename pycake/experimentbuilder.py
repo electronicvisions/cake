@@ -9,7 +9,7 @@ from pycake.helpers.units import Current, Voltage, DAC
 from pycake.helpers.sthal import StHALContainer
 from pycake.helpers.calibtic import Calibtic
 from pycake.measure import Measurement, I_gl_Measurement
-from pycake.experiment import BaseExperiment
+from pycake.experiment import SequentialExperiment
 import pycake.analyzer
 
 # shorter names
@@ -149,7 +149,7 @@ class BaseExperimentBuilder(object):
         """
         analyzer = self.get_analyzer()
         measurements, repetitions = self.generate_measurements()
-        return BaseExperiment(measurements, analyzer, repetitions)
+        return SequentialExperiment(measurements, analyzer, repetitions)
 
     def get_analyzer(self):
         """

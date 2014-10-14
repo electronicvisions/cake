@@ -2,7 +2,7 @@ import pyhalbe
 import numpy as np
 
 from pycake.helpers.units import Voltage
-from pycake.experiment import BaseExperiment
+from pycake.experiment import SequentialExperiment
 
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
@@ -10,14 +10,8 @@ shared_parameter = pyhalbe.HICANN.shared_parameter
 class E_l_I_gl_fixed_Calibrator(object):
     target_parameters = (neuron_parameter.E_l, neuron_parameter.I_gl)
 
-    def __init__(self, experiments):
-        if not isinstance(experiments, list):
-            experiments = [experiments]
-        self.experiment = BaseExperiment(sum(
-            [exp.measurements for exp in experiments], []),
-            experiments[0].analyzer, None)
-        self.experiment.results = sum(
-            [exp.results for exp in experiments], [])
+    def __init__(self, experiment):
+        self.experiment = experiment
         self.neurons = self.experiment.measurements[0].neurons
         # TODO from config? perhaps later
         self.target = 700.0
