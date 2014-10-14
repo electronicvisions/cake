@@ -117,7 +117,7 @@ def HCtoHW(value, parameter):
         else:
             raise ValueError("No valid transformation found.")
 
-def HCtoDAC(value, parameter, rounded = True):
+def HCtoDAC(value, parameter, rounded=True):
     """ Transform hardware control parameter to DAC value.
         
         Args:
@@ -127,24 +127,29 @@ def HCtoDAC(value, parameter, rounded = True):
         Return:
             DAC value
     """
+    lower_limit = 0
+    upper_limit = 1023
+    if parameter is neuron_parameter.I_pl:
+        lower_limit = 4
+    if np.isscalar(value):
+        value = np.array([value])
+    else:
+        value = np.array(value)
     if parameter in voltage_params:
         DAC = value * 1023/1800.
     elif parameter in current_params:
         DAC = value * 1023/2500.
     
     if rounded:
-        DAC = int(round(DAC))
+        DAC = np.array(np.round(DAC), dtype=int)
 
-    if (DAC < 1024) and (DAC > -1):
-        return DAC
-    else:
-        if DAC > 1023:
-            #print "DAC-Value {} for parameter {} too high. Setting to 1023.".format(DAC,parameter.name)
-            return 1023
-        if DAC < 0:
-            #print "DAC-Value {} for parameter {} too low. Setting to 0.".format(DAC,parameter.name)
-            return 0
-        #raise ValueError("DAC-Value {} for parameter {} out of range".format(DAC,parameter.name))
+    DAC[np.where(DAC < lower_limit)] = lower_limit
+    DAC[np.where(DAC > upper_limit)] = upper_limit
+
+    if len(DAC) < 2:
+        DAC = DAC[0]
+
+    return DAC
 
 def DACtoHC(value, parameter):
     """ Transform DAC value to hardware control parameter.
