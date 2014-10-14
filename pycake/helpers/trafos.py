@@ -69,11 +69,12 @@ HWtoHC_polys = {
         # My measured parameters from /home/np001/experiments/I_gl_ideal_curve/
         neuron_parameter.I_gl:      [  4.90185342e+14,  -1.19763859e+09,   9.38291537e+02],
         #neuron_parameter.I_gl:      [4.32743990e-03, -3.08259218e+00, 9.79811614e+02], # <-- Marco Parameters
+        neuron_parameter.I_pl:      [ 0.025e6, 0.0004],
         neuron_parameter.E_syni:    [        1.,  0.],
         neuron_parameter.E_synx:    [        1.,  0.],
         }
 
-def HWtoDAC(value, parameter, rounded = True):
+def HWtoDAC(value, parameter, rounded=True):
     return HCtoDAC(HWtoHC(value, parameter), parameter, rounded)
 
 def DACtoHW(value, parameter):
@@ -90,6 +91,8 @@ def HWtoHC(value, parameter):
             Hardwarecontrol value
     """
     if parameter in HWtoHC_polys.keys():
+        if parameter is neuron_parameter.I_pl:
+            return 1/np.polyval(HWtoHC_polys[parameter], value)
         return np.polyval(HWtoHC_polys[parameter], value)
     else:
         return value
@@ -108,6 +111,8 @@ def HCtoHW(value, parameter):
         if len(HWtoHC_polys[parameter]) is 2:
             a = HWtoHC_polys[parameter][0] 
             b = HWtoHC_polys[parameter][1] 
+            if parameter is neuron_parameter.I_pl:
+                return 1/(a*value) - b/a
             return (value - b)/a
         elif len(HWtoHC_polys[parameter]) is 3:
             a = HWtoHC_polys[parameter][0] 
