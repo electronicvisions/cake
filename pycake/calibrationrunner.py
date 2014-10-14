@@ -130,15 +130,17 @@ class CalibrationRunner(object):
                 if measured:
                     self.save_state()
 
-            self.logger.INFO("Fitting result data for {}".format(config_name))
-            calibrator = self.get_calibrator(config_name, experiment)
-            coeffs = calibrator.generate_coeffs()
-            self.logger.INFO("Writing calibration data for {}".format(
-                config_name))
-            self.write_calibration(coeffs)
-            self.write_defects(coeffs)
-            self.coeffs[config_name] = coeffs
-            self.save_state()
+            self.generate_calibration_data(config_name, experiment)
+
+    def generate_calibration_data(self, config_name, experiment):
+        self.logger.INFO("Fitting result data for {}".format(config_name))
+        calibrator = self.get_calibrator(config_name, experiment)
+        coeffs = calibrator.generate_coeffs()
+        self.logger.INFO("Writing calibration data for {}".format(config_name))
+        self.write_calibration(coeffs)
+        self.write_defects(coeffs)
+        self.coeffs[config_name] = coeffs
+        self.save_state()
 
     def save_state(self):
         """ Saves itself to a file in the given path.
@@ -187,15 +189,13 @@ class TestRunner(CalibrationRunner):
     pickle_file_pattern = "testrunner_{}.p.bz2"
     pickel_measurements_folder = "testrunner_{}_measurements"
 
+    def generate_calibration_data(self, config_name, experiment):
+        self.logger.INFO("Skipping calibration fit since this is a test measurement.")
+        return
+
     def clear_calibration(self):
         self.logger.TRACE("Not clearing calibration since this is test measurement")
         pass
-
-    def write_calibration(self, _):
-        self.logger.INFO("Writing no calibration since this is test measurement")
-
-    def write_defects(self, _):
-        self.logger.INFO("Writing no defects since this is test measurement")
 
     def get_builder(self, config_name, config):
         """ Get the right experiment builder.
