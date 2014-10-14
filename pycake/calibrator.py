@@ -330,3 +330,27 @@ class V_syntci_psp_max_Calibrator(V_syntc_psp_max_BaseCalibrator):
 
 class V_syntcx_psp_max_Calibrator(V_syntc_psp_max_BaseCalibrator):
     target_parameter = neuron_parameter.V_syntcx
+
+class I_pl_Calibrator(BaseCalibrator):
+    target_parameter = neuron_parameter.I_pl
+
+    def get_key(self):
+        return 'tau_refrac'
+
+    def prepare_x(self, x):
+        """ Prepares x values for fit
+            Here, the refractory period needs to be calculated from dt of spikes.
+            The last measurement is the one with I_pl=2500, so tau_ref=0
+        """
+        dts = np.array(x)
+        tau_refracs = dts - dts[-1]
+        tau_refracs = tau_refracs[0:-1]
+        xs = HWtoDAC(tau_refracs, self.target_parameter)
+        return xs
+
+    def prepare_y(self, y):
+        """ Prepares y values for fit
+            Per default, these are the step (DAC) values that were set.
+        """
+        ys = np.array(y)
+        return ys[0:-1]
