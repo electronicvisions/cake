@@ -222,14 +222,14 @@ class E_synx_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.E_synx
     
     def is_defect(self, coeffs):
-        defect = (coeffs[0] - 1) > 1 or coeffs[1] > 100 # Defect if slope of the fit is too high or offset is significantly positive
+        defect = (abs(coeffs[0]) - 1) > 1 or abs(coeffs[1]) > 500 # Defect if slope of the fit is too high or offset is significantly positive
         return defect
 
 class E_syni_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.E_syni
 
     def is_defect(self, coeffs):
-        defect = (coeffs[0] - 1) > 1 # Defect if slope of the fit is too high
+        defect = (abs(coeffs[0]) - 1) > 1 or abs(coeffs[1]) > 500 # Defect if slope of the fit is too high
         return defect
 
 class E_l_Calibrator(BaseCalibrator):
