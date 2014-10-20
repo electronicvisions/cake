@@ -1,6 +1,7 @@
 """bla bla"""
 
 import multiprocessing
+import Queue
 import time
 import os
 import tempfile
@@ -36,7 +37,7 @@ class StorageProcess(object):
         object state in background. If there is still a process working, it will
         block until its finished"""
         self.join()
-        result = multiprocessing.Queue()
+        result = multiprocessing.JoinableQueue()
         assert os.path.isdir(os.path.dirname(fullpath))
         process = multiprocessing.Process(target=self.pickle,
                 args=(result, fullpath, obj, self.compresslevel))
@@ -51,7 +52,14 @@ class StorageProcess(object):
             return
 
         process.join()
-        result = result_queue.get()
+        try:
+            result = result_queue.get(False)
+        except Queue.Empty:
+            # Note: this might happen, when the OS out-of-memory killer, kills
+            # our poor innocent storage process
+            self.logger.error("Storage process seems to be lost")
+            raise RuntimeError("Storage process died unexpectedly")
+
         if isinstance(result, Exception):
             raise result
         else:
@@ -81,6 +89,8 @@ class StorageProcess(object):
             cls.logger.INFO("Pickled object in {}s to '{}'".format(
                     int(time.time() - tstart), filename))
             result.put(None)
-        except Exception as e:
-            result.put(e)
+        except Exception as error:
+            cls.logger.error("Error in StorageProcess.pickle: " + str(error))
+            result.put(error)
+        result.close()
 

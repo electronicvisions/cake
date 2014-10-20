@@ -174,27 +174,28 @@ class Measurement(object):
         self.last_trace = np.array([])
         self.adc_status = []
         self.logger.INFO("Measuring.")
-        worker = WorkerPool(analyzer)
-        for neuron in self.neurons:
-            self.pre_measure(neuron)
-            times, trace = self.sthal.read_adc()
-            worker.do(neuron, times, self.readout_shifts(neuron, trace), neuron)
-            if not self.traces is None:
-                self.traces[neuron] = np.array([times, trace])
-            # DEBUG stuff
-            self.adc_status.append(self.sthal.read_status())
-            if np.array_equal(trace, self.last_trace):
-                self.logger.ERROR("ADC trace didn't change from the last "
-                        "readout, printing status information of all ADC "
-                        "previous readouts:\n" + "\n".join(self.adc_status))
-                raise RuntimeError("Broken ADC readout abort measurement "
-                        "(details see log messages)")
-            self.last_trace = trace
-            # DEBUG stuff end
-        self.last_trace = None
+        with WorkerPool(analyzer) as worker:
+            for neuron in self.neurons:
+                self.pre_measure(neuron)
+                times, trace = self.sthal.read_adc()
+                worker.do(
+                    neuron, times, self.readout_shifts(neuron, trace), neuron)
+                if not self.traces is None:
+                    self.traces[neuron] = np.array([times, trace])
+                # DEBUG stuff
+                self.adc_status.append(self.sthal.read_status())
+                if np.array_equal(trace, self.last_trace):
+                    self.logger.ERROR("ADC trace didn't change from the last "
+                            "readout, printing status information of all ADC "
+                            "previous readouts:\n" + "\n".join(self.adc_status))
+                    raise RuntimeError("Broken ADC readout abort measurement "
+                            "(details see log messages)")
+                self.last_trace = trace
+                # DEBUG stuff end
+            self.last_trace = None
 
-        self.logger.INFO("Wait for analysis to complete.")
-        return worker.join()
+            self.logger.INFO("Wait for analysis to complete.")
+            return worker.join()
 
     def run_measurement(self, analyzer):
         """ First configure, then measure
@@ -206,6 +207,7 @@ class Measurement(object):
         self.finish()
         self.sthal.disconnect()
         return result
+
 
 class I_gl_Measurement(Measurement):
     """ This measurement is done in three steps:

@@ -22,12 +22,26 @@ class WorkerPool(object):
         for w in self.workers:
             w.terminate()
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, error_type, value, traceback):
+        self.terminate()
+
+    def is_alive(self):
+        return all(w.is_alive() for w in self.workers)
+
     def do(self, key, *args):
+        if not self.is_alive():
+            print "DO: ERROR process died unexpetedly"
         self.q_in.put_nowait( (key, args) )
 
     def join(self):
         for w in self.workers:
             self.q_in.put(None)
+        # TODO potential dead lock, if a worker or queue process dies unexpectedly
+        if not self.is_alive():
+            raise RuntimeError("Worker process died unexpeted.")
         self.q_in.join()
         self.q_in.close()
 
@@ -42,6 +56,10 @@ class WorkerPool(object):
                 print "Fucking Zombies..."
             w.terminate()
         return result
+
+    def terminate(self):
+        for w in self.workers:
+            w.terminate()
 
     def _make_worker(self, f):
         return multiprocessing.Process(
