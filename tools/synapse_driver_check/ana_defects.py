@@ -20,8 +20,6 @@ import matplotlib.pyplot as plt
 
 import numpy as np
 
-from multiprocessing import Pool
-
 def categorize(addr, spikes, start_offset, addr_offset):
 
     pos = start_offset + addr*addr_offset
@@ -33,7 +31,7 @@ def categorize(addr, spikes, start_offset, addr_offset):
 
     return correct, incorrect
 
-def ana(seg, plot=True):
+def ana(seg, plotpath=None):
 
     driver = seg.annotations["driver"]
 
@@ -44,6 +42,8 @@ def ana(seg, plot=True):
     addr_offset = seg.annotations["addr_offset"]*quantities.s
     addr_spikes_map = {spikes.annotations["addr"]: spikes.times for spikes in seg.spiketrains}
     addr_neuron_map = seg.annotations["addr_neuron_map"]
+
+    plot = True if plotpath else False
 
     if plot:
         fig, ax1 = plt.subplots()
@@ -86,22 +86,19 @@ def ana(seg, plot=True):
         ax2.set_yticklabels(right_yticklabels)
         plt.tick_params(axis='y', which='both', labelsize=5)
 
-        PATH = "./foobarbaz"
-
-        plt.savefig(os.path.join(PATH, "defects_{}.pdf".format(driver)))
+        if plotpath:
+            plt.savefig(os.path.join(plotpath, "driver_{}.pdf".format(driver)))
         plt.close()
 
     print "analyzing done"
 
     return seg
 
-def ana_no_plot(seg):
-    return ana(seg, plot=False)
-
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('file', type=argparse.FileType('r'))
+    parser.add_argument('--plotpath', default=None)
     args = parser.parse_args()
 
     reader = NeoHdf5IO(filename=args.file.name)
@@ -115,11 +112,8 @@ if __name__ == "__main__":
 
     segments = blk.segments
 
-    #p = Pool(4)
-    #augmented_segments = p.map(ana_no_plot, segments)
-
     # one driver per segment
-    augmented_segments = [ana_no_plot(seg) for seg in segments]
+    augmented_segments = [ana(seg, plotpath=args.plotpath) for seg in segments]
 
     for seg in augmented_segments:
         reader.save(seg)
