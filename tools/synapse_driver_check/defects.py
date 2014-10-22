@@ -291,7 +291,7 @@ if __name__ == "__main__":
     # one block per voltage setting
     # think about indexing all spiketrains, maybe just empty for not-scanned drivers
 
-    drivers = range(20)
+    drivers = range(224)
 
     prepare_drivers(drivers)
 
