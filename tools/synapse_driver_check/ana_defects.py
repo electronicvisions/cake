@@ -113,7 +113,7 @@ if __name__ == "__main__":
 
     start = time.time()
 
-    segments = blk.segments[0:10]
+    segments = blk.segments
 
     #p = Pool(4)
     #augmented_segments = p.map(ana_no_plot, segments)
