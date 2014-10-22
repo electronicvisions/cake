@@ -69,7 +69,7 @@ class CalibrationRunner(object):
         experiment = builder.get_experiment()
 
         if config.get_save_traces():
-            for mid, measurement in enumerate(experiment.measurements):
+            for mid, measurement in enumerate(experiment.measurements_to_run):
                 measurement.save_traces(self.get_measurement_storage_path(
                                 mid, config_name))
 
