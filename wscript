@@ -8,8 +8,8 @@ def depends(ctx):
     ctx('sthal')
     ctx('symap2ic', 'src/pylogging')
     ctx('calibtic', 'pycalibtic')  # sthal does not depend on pycalibtic
-    ctx('redman', 'pyredman', branch="next")
-    ctx('redman', 'backends', branch="next")
+    ctx('redman', 'pyredman')
+    ctx('redman', 'backends')
 
 
 def options(opt):
