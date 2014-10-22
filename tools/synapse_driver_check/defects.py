@@ -14,9 +14,6 @@ import time
 from collections import defaultdict
 
 import numpy as np
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 
 import pylogging
 pylogging.default_config(date_format='absolute')
@@ -34,6 +31,8 @@ import random
 
 import argparse
 
+import ana_defects
+
 parser = argparse.ArgumentParser()
 parser.add_argument('hicann', type=int)
 parser.add_argument('--wafer', type=int, default=0)
@@ -42,6 +41,7 @@ parser.add_argument('--bkgisi', type=int, default=10000)
 parser.add_argument('--calibpath', type=str, default="/wang/data/calibration/")
 parser.add_argument('--extrasuffix', type=str, default=None)
 parser.add_argument('--dumpwafercfg', action="store_true", default=False)
+parser.add_argument('--ana', action="store_true", default=False)
 args = parser.parse_args()
 
 WAFER = args.wafer
@@ -309,6 +309,9 @@ if __name__ == "__main__":
 
         aquire(seg, driver)
         #store_voltages(os.path.join(PATH, "voltages_"+filename_stub+".json"))
+
+        if args.ana:
+            ana_defects.ana(seg, plotpath=PATH)
 
         print "it took {} s".format(time.time()-start)
 
