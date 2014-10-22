@@ -1,10 +1,15 @@
 #! /usr/bin/python
 # -*- coding: utf-8 -*-
 
+from neo.core import (Block, Segment, RecordingChannelGroup,
+                      RecordingChannel, AnalogSignal, SpikeTrain)
+
+from neo.io import NeoHdf5IO
+
+import quantities
+
 import os
 import time
-import csv
-import json
 
 from collections import defaultdict
 
@@ -69,133 +74,7 @@ for i in range(512):
 
 params.shared.V_reset = 200
 
-defects_file = open(os.path.join(PATH, '_'.join(["defects",suffix])+'.csv'), 'w')
-defects = csv.writer(defects_file, dialect='excel-tab')
-
 import resource
-
-def ana(driver, filename_stub):
-
-    print "analyzing data of driver", driver
-
-    print 'Memory usage: %s (kb)' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-
-    if not filename_stub:
-        guess = glob.glob(os.path.join(PATH,"spikes*drv_{}_*.dat".format(driver)))[0]
-        guess = guess.split('/')[-1]
-        guess = guess.lstrip("spikes_")
-        guess = guess.rstrip(".dat")
-
-        filename_stub = guess
-
-    with open(os.path.join(PATH,'addr_neuron_map_'+filename_stub+'.csv')) as f:
-        reader = csv.DictReader(f, quoting=csv.QUOTE_NONNUMERIC)
-
-        for row in reader:
-            addr_neuron_map = row
-
-    spikes = np.loadtxt(os.path.join(PATH, "spikes_"+filename_stub+".dat"))
-
-    fig, ax1 = plt.subplots()
-    plt.title("Test Result for Synapse Driver {0}".format(driver))
-    plt.xlabel("Time [s]")
-    plt.ylabel("Source Address (Neuron, OB)")
-
-    plt.grid(False)
-    plt.ylim((-1, 64))
-    plt.xlim((0, 4e-3))
-    plt.yticks(range(0, 64, 1))
-
-    yticklabels=["{:.0f} ({:.0f}, {})".format(yt, addr_neuron_map[yt], int((addr_neuron_map[yt] % 256) / 32)) for yt in ax1.get_yticks()]
-
-    ax1.set_yticklabels(yticklabels)
-
-    plt.tick_params(axis='y', which='both', labelsize=5)
-
-    result = []
-
-    defect_addresses = 0
-    no_correct_addresses = 0
-    incorrect_addresses = 0
-    silent_addresses = 0
-
-    details_file = open(os.path.join(PATH, "detail_"+filename_stub+".csv"), 'w')
-    details = csv.writer(details_file, dialect='excel-tab')
-
-    if args.correctoffset:
-        try:
-            offset=sorted(spikes[spikes[:,1] == 1][:,0])[0]
-            offset -= 3*25e-6
-        except IndexError:
-            try:
-                offset=sorted(spikes[spikes[:,1] == 2][:,0])[0]
-                offset -= 4*25e-6
-            except IndexError:
-                offset = 0
-    else:
-            offset = 0
-    #print "offset", offset
-
-    right_yticklabels = []
-
-    for i in range(64):
-        plt.axhline(i, c='0.8', ls=':')
-        try:
-            s = spikes[spikes[:,1] == i]
-
-            pos = 5e-6 + i*50e-6
-
-            safety=3
-
-            try:
-                correct = s[np.abs(s[:,0] - pos - 25e-6*safety - offset) <= 25e-6*safety,:]
-            except:
-                correct = np.array(())
-            try:
-                incorrect = s[np.abs(s[:,0] - pos - 25e-6*safety  - offset) > 25e-6*safety,:]
-            except:
-                incorrect = np.array(())
-
-            right_yticklabels.append("{},{}".format(correct.size/2,incorrect.size/2))
-
-            details.writerow((i, correct.size/2, incorrect.size/2))
-            details_file.flush()
-
-            if correct.size == 0 or incorrect.size != 0:
-                defect_addresses += 1
-
-            if incorrect.size != 0:
-                incorrect_addresses += 1
-
-            if correct.size == 0:
-                no_correct_addresses += 1
-
-            if correct.size == 0 and  incorrect.size == 0:
-                silent_addresses += 1
-
-            plt.plot(correct[:,0], correct[:,1], 'g|')
-            plt.plot(incorrect[:,0], incorrect[:,1], 'r|')
-        except BaseException, e:
-            pass
-
-    defects_file.flush()
-    ax2 = ax1.twinx()
-    ax2.set_ylabel("cor,incor")
-    plt.ylim((-1, 64))
-    plt.yticks(range(0, 64, 1))
-    ax2.set_yticklabels(right_yticklabels)
-    plt.tick_params(axis='y', which='both', labelsize=5)
-
-    defects.writerow((driver, defect_addresses, incorrect_addresses, no_correct_addresses, silent_addresses))
-    plt.savefig(os.path.join(PATH, "defects_"+filename_stub+".pdf"))
-
-    #print os.path.join(PATH, "defects_"+filename_stub+".pdf")
-
-    plt.close()
-
-    print "analyzing done"
-
-    return defect_addresses, incorrect_addresses, no_correct_addresses, silent_addresses
 
 def get_neurons(driver):
 
@@ -258,7 +137,7 @@ def prepare_drivers(drivers):
 
     print "done"
 
-def aquire(driver):
+def aquire(seg, driver):
 
     print "aquiring data for driver", driver
 
@@ -301,8 +180,20 @@ def aquire(driver):
         hardware.enable_readout(rl)
 
     # Create input spike trains
+
+    start_offset = 5e-6
+    addr_offset = 50e-6
+    n_input_spikes = 200
+    input_spike_isi = 0.1e-6
+
+    seg.annotations["start_offset"] = start_offset
+    seg.annotations["addr_offset"] = addr_offset
+    seg.annotations["addr_neuron_map"] = addr_neuron_map
+    seg.annotations["n_input_spikes"] = n_input_spikes
+    seg.annotations["input_spike_isi"] = input_spike_isi
+
     for i in range(max_index+1):
-        train = np.arange(200) * 0.1e-6 + 5e-6 + 50e-6*i
+        train = np.arange(n_input_spikes) * input_spike_isi + start_offset + addr_offset*i
         hardware.add_spike_train(bus, i, train)
 
     #print hardware.hicann
@@ -349,24 +240,22 @@ def aquire(driver):
 
     spikes = np.vstack([hardware.get_spikes(rl) for rl in recording_links])
 
-    with open(os.path.join(PATH,'addr_neuron_map_'+filename_stub+'.csv'), 'wb') as f:
-        w = csv.DictWriter(f, addr_neuron_map.keys())
-        w.writeheader()
-        w.writerow(addr_neuron_map)
+    for i in range(64):
+        spikes_i = spikes[spikes[:,1] == i][:,0]
 
-    np.savetxt(os.path.join(PATH, "spikes_"+filename_stub+".dat"), spikes)
+        if len(spikes_i) != 0: # any spikes?
+            seg.spiketrains.append(SpikeTrain(spikes_i*quantities.s, t_stop=spikes_i[-1]+1, addr=i))
+        else:
+            seg.spiketrains.append(SpikeTrain([]*quantities.s, t_stop=[], addr=i)) # empty spike train
 
-    #print hardware.hicann
-    #print hardware.hicann.layer1
+        #print i, seg.spiketrains[-1].times
 
     if args.dumpwafercfg:
         hardware.wafer.dump(os.path.join(PATH, "wafer_"+filename_stub+".xml"), True)
 
     print "aquiring done"
 
-    return filename_stub
-
-def store_voltages(filename):
+def read_voltages():
 
     cmd = "ssh -F /dev/null -x -i ./id_rsa_resetuser resetuser@raspeval-001 -o PubkeyAuthentication=yes /home/pi/voltages/readVoltages"
     data = dict()
@@ -379,43 +268,50 @@ def store_voltages(filename):
             continue
         data.update({ prefix+l.split('\t')[0]: map(float, l.split('\t')[1:]) })
 
+    return data
+
+"""
+def store_voltages(filename):
+
+    data = read_voltages()
+
     with open(filename, "w") as f:
 
         json.dump(data, f)
+"""
 
 if __name__ == "__main__":
 
     random.seed(1)
 
-    run_on_hardware = not args.anaonly
-
     neuron_blacklist = np.loadtxt('blacklist_w{}_h{}.csv'.format(WAFER, HICANN)) # no notion of freq and bkgisi
 
     hardware = shallow.Hardware(WAFER, HICANN, os.path.join(args.calibpath,'wafer_{0}').format(WAFER), FREQ*1e6, BKGISI)
 
-    if run_on_hardware:
+    hardware.connect()
 
-        hardware.connect()
+    # one block per voltage setting
+    # think about indexing all spiketrains, maybe just empty for not-scanned drivers
 
+    drivers = range(20)
 
-    drivers = range(224)
+    prepare_drivers(drivers)
 
-    if run_on_hardware:
-        prepare_drivers(drivers)
-
-    defects_addresses_drivers = []
+    reader = NeoHdf5IO(filename=os.path.join(PATH,suffix+".hdf5"))
+    # create a new block
+    blk = Block(time=time.time(),wafer=WAFER,hicann=HICANN,freq=FREQ,bkgisi=BKGISI)
 
     for driver in drivers:
 
         start = time.time()
 
-        filename_stub = None
+        data_voltages = read_voltages()
+        seg = Segment(driver=driver, voltages=data_voltages)
+        blk.segments.append(seg)
 
-        if run_on_hardware:
-            filename_stub = aquire(driver)
-            store_voltages(os.path.join(PATH, "voltages_"+filename_stub+".json"))
-
-        defects_addresses, incorrect_addresses, no_correct_addresses, silent_addresses = ana(driver, filename_stub)
-        defects_addresses_drivers.append((driver, defects_addresses, incorrect_addresses, no_correct_addresses, silent_addresses))
+        aquire(seg, driver)
+        #store_voltages(os.path.join(PATH, "voltages_"+filename_stub+".json"))
 
         print "it took {} s".format(time.time()-start)
+
+    reader.write(blk)
