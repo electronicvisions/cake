@@ -199,16 +199,6 @@ class V_reset_Calibrator(BaseCalibrator):
         ys = self.prepare_y(raw_y)
         return np.polyfit(xs, ys, 1)
 
-    def get_neuron_shifts(self, neuron_results, block_means):
-        block_means = self.mean_over_blocks(neuron_results)
-
-        neuron_shifts = {}
-        for neuron, value in neuron_results.iteritems():
-            block_mean = block_means[neuron.toSharedFGBlockOnHICANN()][:, 2]
-            diffs = value[:, 2] - block_mean
-            neuron_shifts[neuron] = [np.mean(diffs)]
-        return neuron_shifts
-
     def generate_coeffs(self):
         """ Takes averaged experiments and does the fits
         """
@@ -219,7 +209,6 @@ class V_reset_Calibrator(BaseCalibrator):
         for coord, mean in block_means.iteritems():
             coeffs[coord] = self.do_fit(mean[:, 2], mean[:, 0])
 
-        coeffs.update(self.get_neuron_shifts(neuron_results, block_means))
         return [(self.target_parameter, coeffs)]
 
 
