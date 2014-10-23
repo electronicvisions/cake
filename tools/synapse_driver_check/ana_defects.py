@@ -96,7 +96,7 @@ def ana(seg, plotpath=None):
         plt.tick_params(axis='y', which='both', labelsize=5)
 
         if plotpath:
-            plt.savefig(os.path.join(plotpath, "driver_{}.pdf".format(driver)))
+            plt.savefig(os.path.join(plotpath, "driver_{:03d}.pdf".format(driver)))
         plt.close()
 
     print "analyzing done"
