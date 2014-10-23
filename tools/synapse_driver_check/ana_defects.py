@@ -61,6 +61,8 @@ def ana(seg, plotpath=None):
         plt.tick_params(axis='y', which='both', labelsize=5)
         right_yticklabels = []
 
+    addr_result_map = {}
+
     for i in range(64):
 
         if plot:
@@ -69,13 +71,20 @@ def ana(seg, plotpath=None):
         spikes = addr_spikes_map[i]
         correct, incorrect = categorize(i, spikes, start_offset, addr_offset)
 
-        spikes.annotations["n_correct"] = len(correct)
-        spikes.annotations["n_incorrect"] = len(incorrect)
+        n_correct = len(correct)
+        n_incorrect = len(incorrect)
+
+        spikes.annotations["n_correct"] = n_correct
+        spikes.annotations["n_incorrect"] = n_incorrect
+
+        addr_result_map[i] = (n_correct, n_incorrect)
 
         if plot:
             right_yticklabels.append("{},{}".format(len(correct),len(incorrect)))
             plt.plot(correct, [i]*len(correct), 'g|')
             plt.plot(incorrect, [i]*len(incorrect), 'r|')
+
+    seg.annotations["addr_result_map"] = addr_result_map
 
     if plot:
 
