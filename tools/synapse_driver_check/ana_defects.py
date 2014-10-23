@@ -110,23 +110,32 @@ if __name__ == "__main__":
     parser.add_argument('--plotpath', default=None)
     args = parser.parse_args()
 
+    ############################################################################
+    print "opening file"
+    start = time.time()
     reader = NeoHdf5IO(filename=args.file.name)
-    blks = reader.read()
+    blks = reader.read(lazy=True, cascade="lazy")
+    print "done"
+    print "it took {} s".format(time.time()-start)
 
+    ############################################################################
+    print "starting analysis"
+    start = time.time()
     # take last block from file for now
     blk = blks[-1]
     #print "blk.annotations", blk.annotations
-
-    start = time.time()
-
     segments = blk.segments
-
     # one driver per segment
     augmented_segments = [ana(seg, plotpath=args.plotpath) for seg in segments]
+    print "done"
+    print "it took {} s".format(time.time()-start)
 
+    ############################################################################
+    print "storing results"
+    start = time.time()
     for seg in augmented_segments:
         reader.save(seg)
-
+    print "done"
     print "it took {} s".format(time.time()-start)
 
 
