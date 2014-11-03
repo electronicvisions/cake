@@ -136,7 +136,7 @@ if __name__ == "__main__":
     print "opening file"
     start = time.time()
     reader = NeoHdf5IO(filename=args.file.name)
-    blks = reader.read(lazy=True, cascade="lazy")
+    blks = reader.read()
     print "done"
     print "it took {} s".format(time.time()-start)
 
