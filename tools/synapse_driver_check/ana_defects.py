@@ -20,16 +20,40 @@ import matplotlib.pyplot as plt
 
 import numpy as np
 
+from collections import defaultdict
+
 def categorize(addr, spikes, start_offset, addr_offset):
 
-    pos = start_offset + addr*addr_offset
+    start_offset = float(start_offset)
+    addr_offset = float(addr_offset)
 
     safety = 3
 
-    correct = spikes[np.abs(spikes - pos - addr_offset/2*safety) <= addr_offset/2*safety]
-    incorrect = spikes[np.abs(spikes - pos - addr_offset/2*safety) > addr_offset/2*safety]
+    addr_correlation_map = {}
 
-    return correct, incorrect
+    correct = []
+    incorrect = []
+
+    for t in spikes:
+
+        t = float(t)
+
+        for o_addr in range(64):
+
+            pos = start_offset + o_addr*addr_offset
+
+            if np.abs(t - pos - addr_offset/2*safety) <= addr_offset/2*safety:
+                if o_addr == addr:
+                    correct.append(t)
+                if o_addr in addr_correlation_map:
+                    addr_correlation_map[o_addr] += 1
+                else:
+                    addr_correlation_map[o_addr] = 1
+            else:
+                if o_addr == addr:
+                    incorrect.append(t)
+
+    return correct, incorrect, addr_correlation_map
 
 def ana(seg, plotpath=None):
 
@@ -69,20 +93,18 @@ def ana(seg, plotpath=None):
             plt.axhline(i, c='0.8', ls=':')
 
         spikes = addr_spikes_map[i]
-        correct, incorrect = categorize(i, spikes, start_offset, addr_offset)
 
-        n_correct = len(correct)
-        n_incorrect = len(incorrect)
-
-        spikes.annotations["n_correct"] = n_correct
-        spikes.annotations["n_incorrect"] = n_incorrect
-
-        addr_result_map[i] = (n_correct, n_incorrect)
+        correct, incorrect, addr_correlation_map = categorize(i, spikes, start_offset, addr_offset)
 
         if plot:
             right_yticklabels.append("{},{}".format(len(correct),len(incorrect)))
             plt.plot(correct, [i]*len(correct), 'g|')
             plt.plot(incorrect, [i]*len(incorrect), 'r|')
+
+        n_correct = len(correct)
+        n_incorrect = len(incorrect)
+
+        addr_result_map[i] = (n_correct, n_incorrect, addr_correlation_map)
 
     seg.annotations["addr_result_map"] = addr_result_map
 
