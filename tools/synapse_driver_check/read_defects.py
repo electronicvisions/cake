@@ -36,6 +36,8 @@ if __name__ == "__main__":
     parser.add_argument('--files_are_plotdata', action="store_true", default=False)
     parser.add_argument('--plotfilename', type=str)
     parser.add_argument('--show', action="store_true", default=False)
+    parser.add_argument('--verbose', action="store_true", default=False)
+    parser.add_argument('--ignore_neurons', type=int, nargs="*", default=[])
     args = parser.parse_args()
 
     xs = []
@@ -93,6 +95,7 @@ if __name__ == "__main__":
         #            continue
         #
                 addr_result_map = seg.annotations["addr_result_map"]
+                addr_neuron_map = seg.annotations["addr_neuron_map"]
                 voltages = seg.annotations["voltages"]
 
                 vols_board_0.append(voltages["V9"][0])
@@ -105,7 +108,8 @@ if __name__ == "__main__":
                 drv_incorrect = 0
 
                 for addr, (correct, incorrect, addr_correlation_map) in addr_result_map.iteritems():
-                    if addr != 0: # address 0 will always see "false" background events
+                    # address 0 will always see "false" background events
+                    if addr != 0 and addr_neuron_map[addr] not in args.ignore_neurons:
                         drv_correct += correct
                         drv_incorrect += incorrect
 
@@ -121,6 +125,8 @@ if __name__ == "__main__":
                 if green_to_red > 0.8:
                     n_good_drv += 1
                     is_good.append(True)
+                    if args.verbose:
+                        print "driver {:03d} is good".format(driver)
                     try:
                         os.symlink("../driver_{:03d}.pdf".format(driver), os.path.join(fdir,"good/driver_{:03d}.pdf".format(driver)))
                     except OSError as e:
@@ -128,6 +134,8 @@ if __name__ == "__main__":
                         pass
                 else:
                     is_good.append(False)
+                    if args.verbose:
+                        print "driver {:03d} is bad".format(driver)
                     try:
                         os.symlink("../driver_{:03d}.pdf".format(driver), os.path.join(fdir,"bad/driver_{:03d}.pdf".format(driver)))
                     except OSError as e:
