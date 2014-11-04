@@ -232,23 +232,33 @@ if __name__ == "__main__":
                 ys.append(ls[1])
                 l_n_good_drv.append(ls[2])
 
+    if len(xs) > 1:
 
-    fig = plt.figure(figsize=(12, 10))
-    margins={"left":0.11, "right":0.95, "top":0.95, "bottom":0.11}
-    plt.subplots_adjust(**margins)
+        fig, ax = plt.subplots(figsize=(12, 10))
+        margins={"left":0.11, "right":0.95, "top":0.95, "bottom":0.11}
+        plt.subplots_adjust(**margins)
 
-    #plt.subplot(2, 2, 3)
-    plt.scatter(xs,ys,c=l_n_good_drv,s=500)
-    #plt.clim(0,45)
-    plt.colorbar()
+        #plt.subplot(2, 2, 3)
+        plt.scatter(xs,ys,c=l_n_good_drv,s=500, cmap=plt.cm.jet)
+        #plt.clim(0,45)
+        cbar = plt.colorbar()
 
-    plt.xlabel("VOL [V]")
-    plt.ylabel("VOH [V]")
+        plt.xlabel("VOL [V]")
+        plt.ylabel("VOH [V]")
 
-    if args.show:
-        plt.show()
-    if args.plotfilename:
-        fig.savefig(args.plotfilename)
+        plt.xlim(0.6,1.1)
+        plt.ylim(0.6,1.1)
+
+        # Plot your initial diagonal line based on the starting
+        # xlims and ylims.
+        ax.plot(ax.get_xlim(), ax.get_ylim(), ls="--", c=".3")
+
+        #plt.clim(min(l_n_good_drv),224)
+
+        if args.show:
+            plt.show()
+        if args.plotfilename:
+            fig.savefig(args.plotfilename)
 
 
     #        corr = np.zeros([64, 64])
