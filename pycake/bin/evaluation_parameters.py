@@ -13,6 +13,8 @@ from fastcalibration_parameters import E_syni_target
 from fastcalibration_parameters import E_synx_target
 from fastcalibration_parameters import E_syn_distance
 
+import numpy as np
+
 eval_parameters = {
 # Which neurons and blocks do you want to calibrate?
         "filename_prefix":  "",
