@@ -239,7 +239,11 @@ def aquire(seg, driver):
     spikes = np.vstack([hardware.get_spikes(rl) for rl in recording_links])
 
     for i in range(64):
-        spikes_i = spikes[spikes[:,1] == i][:,0]
+
+        try:
+            spikes_i = spikes[spikes[:,1] == i][:,0]
+        except IndexError:
+            spikes_i = []
 
         if len(spikes_i) != 0: # any spikes?
             seg.spiketrains.append(SpikeTrain(spikes_i*quantities.s, t_stop=spikes_i[-1]+1, addr=i))
