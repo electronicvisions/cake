@@ -42,6 +42,7 @@ parser.add_argument('--calibpath', type=str, default="/wang/data/calibration/")
 parser.add_argument('--extrasuffix', type=str, default=None)
 parser.add_argument('--dumpwafercfg', action="store_true", default=False)
 parser.add_argument('--ana', action="store_true", default=False)
+parser.add_argument('--drivers', type=int, nargs="+", default=range(224))
 args = parser.parse_args()
 
 WAFER = args.wafer
@@ -295,7 +296,7 @@ if __name__ == "__main__":
     # one block per voltage setting
     # think about indexing all spiketrains, maybe just empty for not-scanned drivers
 
-    drivers = range(224)
+    drivers = args.drivers
 
     prepare_drivers(drivers)
 
