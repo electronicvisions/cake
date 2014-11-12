@@ -20,6 +20,11 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
+from matplotlib.ticker import MultipleLocator, FormatStrFormatter
+
+from scipy import interpolate
+from scipy.interpolate import griddata
+
 # http://stackoverflow.com/a/600612/1350789
 def mkdir_p(path):
     try:
@@ -34,14 +39,17 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('files', type=argparse.FileType('r'), nargs="+")
     parser.add_argument('--files_are_plotdata', action="store_true", default=False)
-    parser.add_argument('--plotfilename', type=str)
+    parser.add_argument('--plotfilename', type=str, help="without suffix")
     parser.add_argument('--show', action="store_true", default=False)
     parser.add_argument('--verbose', action="store_true", default=False)
     parser.add_argument('--ignore_neurons', type=int, nargs="*", default=[])
+    parser.add_argument('--clim', type=int, nargs=2, default=None)
     args = parser.parse_args()
 
     xs = []
     ys = []
+    freqs = []
+    bkgisis = []
 
     l_n_good_drv = []
 
@@ -69,6 +77,13 @@ if __name__ == "__main__":
                 continue
 
             #print "blk.annotations", blk.annotations
+
+            bkgisi = blk.annotations["bkgisi"]
+            freq   = blk.annotations["freq"]
+
+            bkgisis.append(bkgisi)
+            freqs.append(freq)
+
             segments = blk.segments
 
             addr_n_silent = defaultdict(int)
@@ -158,7 +173,7 @@ if __name__ == "__main__":
             ys.append(np.mean([mean_vohs_board_0, mean_vohs_board_1]))
             l_n_good_drv.append(n_good_drv)
 
-            print "for plot", xs[-1], ys[-1], l_n_good_drv[-1]
+            print "for plot", xs[-1], ys[-1], l_n_good_drv[-1], freqs[-1], bkgisis[-1]
 
             vol_diffs = [(vol_b_1 - vol_b_0)*1000 for vol_b_0, vol_b_1 in zip(vols_board_0, vols_board_1)]
             nbins = 100
@@ -232,6 +247,13 @@ if __name__ == "__main__":
                 ys.append(ls[1])
                 l_n_good_drv.append(ls[2])
 
+                try:
+                    freqs.append(ls[3])
+                    bkgisis.append(ls[4])
+                except:
+                    freqs.append(0)
+                    bkgisis.append(0)
+
     if len(xs) > 1:
 
         fig, ax = plt.subplots(figsize=(12, 10))
@@ -240,26 +262,171 @@ if __name__ == "__main__":
 
         #plt.subplot(2, 2, 3)
         plt.scatter(xs,ys,c=l_n_good_drv,s=500, cmap=plt.cm.jet)
+
+        for vol, voh, n_good in zip(xs,ys,l_n_good_drv):
+            ax.annotate("{}".format(int(n_good)), (vol, voh), ha="center", va="center", size="xx-small")
+
         #plt.clim(0,45)
         cbar = plt.colorbar()
 
         plt.xlabel("VOL [V]")
         plt.ylabel("VOH [V]")
 
-        plt.xlim(0.6,1.1)
-        plt.ylim(0.6,1.1)
+        plt.xlim(0.6,1.5)
+        plt.ylim(0.6,1.5)
+
 
         # Plot your initial diagonal line based on the starting
         # xlims and ylims.
-        ax.plot(ax.get_xlim(), ax.get_ylim(), ls="--", c=".3")
 
-        #plt.clim(min(l_n_good_drv),224)
+        ax.plot(ax.get_xlim(), ax.get_ylim(), ls="--", c=".3")
+        ax.plot((ax.get_xlim()[0]-0.1, ax.get_xlim()[1]), (ax.get_ylim()[0], ax.get_ylim()[1]+0.1), ls="--", c=".3")
+        ax.plot((ax.get_xlim()[0]-0.2, ax.get_xlim()[1]), (ax.get_ylim()[0], ax.get_ylim()[1]+0.2), ls="--", c=".3")
+        ax.plot((ax.get_xlim()[0]-0.3, ax.get_xlim()[1]), (ax.get_ylim()[0], ax.get_ylim()[1]+0.3), ls="--", c=".3")
+
+        if args.clim:
+            plt.clim(*args.clim)
+
+        idx   = np.argsort(np.array(l_n_good_drv))
+        xs_sorted = np.array(xs)[idx]
+        ys_sorted = np.array(ys)[idx]
+        l_n_good_drv_sorted = np.array(l_n_good_drv)[idx]
+
+        # put solutions in text box
+        textstr = "\n".join([
+            "min: {}".format(int(l_n_good_drv_sorted[0])),
+            "at VOL: {:.2f} V, VOH: {:.2f} V".format(xs_sorted[0], ys_sorted[0]),
+            "",
+            "max: {}".format(int(l_n_good_drv_sorted[-1])),
+            "at VOL: {:.2f} V, VOH: {:.2f} V".format(xs_sorted[-1], ys_sorted[-1])
+        ])
+        props = dict(boxstyle='round', facecolor='white', alpha=1)
+        ax.text(0.5, 0.45, textstr, transform=ax.transAxes, fontsize=14,
+                verticalalignment='top', bbox=props)
+
+        majorLocator   = MultipleLocator(0.05)
+        majorFormatter = FormatStrFormatter('%.2f')
+
+        ax.xaxis.set_major_locator(majorLocator)
+        ax.xaxis.set_major_formatter(majorFormatter)
+
+        ax.yaxis.set_major_locator(majorLocator)
+        ax.yaxis.set_major_formatter(majorFormatter)
+
+        plt.grid(True)
 
         if args.show:
             plt.show()
         if args.plotfilename:
-            fig.savefig(args.plotfilename)
+            fig.savefig(args.plotfilename+".pdf")
 
+        plt.close()
+
+
+        if args.plotfilename:
+
+            """
+            grid_x, grid_y = np.mgrid[min(xs):max(xs):100j, min(ys):max(ys):100j]
+
+            xs_ys = []
+            for x,y in zip(xs,ys):
+                xs_ys.append([x,y])
+
+            grid_z1 = griddata(xs_ys, l_n_good_drv, (grid_x, grid_y), method='cubic')
+
+            print grid_z1
+
+            plt.imshow(grid_z1.T, origin='lower')
+
+            plt.colorbar()
+
+            plt.savefig(args.plotfilename+"_interpol.pdf")
+
+            plt.close()
+            """
+
+            fig, ax = plt.subplots(figsize=(12, 10))
+            margins={"left":0.11, "right":0.95, "top":0.95, "bottom":0.11}
+            plt.subplots_adjust(**margins)
+
+            plt.plot(freqs, l_n_good_drv, 'bo')
+            # plt.xlim(min(freqs)*0.8, max(freqs)*1.1)
+            plt.xlim(25,275)
+            plt.ylim(min(l_n_good_drv)*0, max(l_n_good_drv)*1.1)
+
+            plt.xlabel("HICANN frequency [MHz]")
+            plt.ylabel("# good drivers")
+
+            plt.grid(True)
+
+            fig.savefig(args.plotfilename + "_vs_freq.pdf")
+
+            plt.close()
+
+            fig, ax = plt.subplots(figsize=(12, 10))
+            margins={"left":0.11, "right":0.95, "top":0.95, "bottom":0.11}
+            plt.subplots_adjust(**margins)
+
+            plt.plot(bkgisis, l_n_good_drv, 'bo')
+            plt.xlim(min(bkgisis)*0.9, max(bkgisis)*1.1)
+            plt.ylim(min(l_n_good_drv)*0.9, max(l_n_good_drv)*1.1)
+
+            plt.grid(True)
+
+            plt.xlabel("bkg isi [clocks]")
+            plt.ylabel("# good drivers")
+
+            fig.savefig(args.plotfilename + "_vs_bkgisi.pdf")
+
+            # ---
+
+            fig, ax = plt.subplots(figsize=(12, 10))
+            margins={"left":0.11, "right":0.95, "top":0.95, "bottom":0.11}
+            plt.subplots_adjust(**margins)
+
+            N = 10
+
+            for n in xrange(N):
+
+                ra_low = 0.8 + (1.3-0.8)/N*n
+                ra_high = 0.8 + (1.3-0.8)/N*(n+1)
+
+                plt.plot([y for x,y in zip(xs,ys) if x > ra_low and x < ra_high] , [n_good for n_good, x in zip(l_n_good_drv,xs) if x > ra_low and x < ra_high], 'o')
+
+            plt.xlim(min(ys)*0.9, max(ys)*1.1)
+            plt.ylim(*args.clim)
+
+            plt.grid(True)
+
+            plt.xlabel("VOH [V]")
+            plt.ylabel("# good drivers")
+
+            fig.savefig(args.plotfilename + "_vs_voh.pdf")
+
+            # ---
+
+            fig, ax = plt.subplots(figsize=(12, 10))
+            margins={"left":0.11, "right":0.95, "top":0.95, "bottom":0.11}
+            plt.subplots_adjust(**margins)
+
+            N = 20
+
+            for n in xrange(N):
+
+                ra_low = 1 + (1.4-1.0)/N*n
+                ra_high = 1 + (1.4-1.0)/N*(n+1)
+
+                plt.plot([x for x,y in zip(xs,ys) if y > ra_low and y < ra_high] , [n_good for n_good, y in zip(l_n_good_drv,ys) if y > ra_low and y < ra_high], 'o')
+
+            plt.xlim(min(xs)*0.9, max(xs)*1.1)
+            plt.ylim(*args.clim)
+
+            plt.grid(True)
+
+            plt.xlabel("VOL [V]")
+            plt.ylabel("# good drivers")
+
+            fig.savefig(args.plotfilename + "_vs_vol.pdf")
 
     #        corr = np.zeros([64, 64])
     #
