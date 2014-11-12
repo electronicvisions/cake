@@ -8,7 +8,7 @@ import argparse
 
 # maximum number of iterations for setting a voltage given in volts
 MAX_ITERATIONS = 50
-
+MAX_DAC_STEP = 10
 # 
 V_OL = 9
 V_OH = 10
@@ -96,11 +96,11 @@ def set_DAC(board, v, new_DAC, stop_after_first_step=False, first_step=True):
 
         print "diff_DAC", diff_DAC, "board", board
 
-        if abs(diff_DAC) <= 25:
+        if abs(diff_DAC) <= MAX_DAC_STEP:
             act_new_DAC = new_DAC
         else:
             print "difference {} too large, stepping smaller first".format(diff_DAC)
-            act_new_DAC = current_DAC + 25*diff_DAC/abs(diff_DAC)
+            act_new_DAC = current_DAC + MAX_DAC_STEP*diff_DAC/abs(diff_DAC)
 
         print "set voltage number {} on board {} from {} to {}".format(v, board, current_DAC, act_new_DAC)
 
