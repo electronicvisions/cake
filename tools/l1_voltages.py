@@ -189,9 +189,17 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('voltage_number', type=int)
     parser.add_argument('DAC', type=int)
+    parser.add_argument('--board', type=int, choices=[0,1], default=None)
     args = parser.parse_args()
 
-    set_both_voltage(args.voltage_number, args.DAC)
+    if args.board == None:
+
+        set_both_voltage(args.voltage_number, args.DAC)
+
+    else:
+
+        set_DAC(args.board, args.voltage_number, args.DAC)
+
     time.sleep(2)
 
     for x in get_voltage(args.voltage_number, unit=DAC):
