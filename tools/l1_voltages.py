@@ -165,7 +165,7 @@ def set_both_voltage(v, new_DAC):
         if abs(diff) > 0.005:
 
             if abs(diff) > 0.01:
-                step = 5
+                step = 4
             elif abs(diff) > 0.005:
                 step = 2
             else:
@@ -178,7 +178,7 @@ def set_both_voltage(v, new_DAC):
                 # decrease DAC
                 set_DAC(other_board, v, current_DAC - step)
 
-            time.sleep(2)
+            time.sleep(3)
 
         else:
 
