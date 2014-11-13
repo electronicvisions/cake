@@ -2,18 +2,14 @@ import pylogging
 import time
 import numpy
 import copy
+import os
 
 class Experiment(object):
-    """ Takes a list of measurements and analyzers.
-        Then, it runs the measurements and analyzes them.
-        Traces can be saved to hard drive or discarded after analysis.
+    """Base class for running experiments
 
-        Experiments can be continued after a crash by just loading and starting them again.
-
-        Args:
-            measurements: list of Measurement objects
-            analyzer: list of analyzer objects (or just one)
-            save_traces: (True|False) should the traces be saved to HDD
+    Attributes:
+        analyzer: list of analyzer objects (or just one)
+        measurements: list of successful exececuted measurements
     """
 
     logger = pylogging.get("pycake.experiment")
@@ -28,6 +24,10 @@ class Experiment(object):
         return list(self.iter_measurements())
 
     def iter_measurements(self):
+        cls_name = type(self).__name__
+        raise NotImplementedError("Not implemented in {}".format(cls_name))
+
+    def save_traces(self):
         cls_name = type(self).__name__
         raise NotImplementedError("Not implemented in {}".format(cls_name))
 
@@ -60,7 +60,10 @@ class Experiment(object):
             for key in result_keys:
                 value.append(result[neuron][key])
             values.append(value)
-        return numpy.array(values)
+        try:
+            return numpy.array(values)
+        except ValueError:
+            return values
 
     def get_mean_results(self, neuron, parameter, result_keys):
         """ Read out parameters and result for the given neuron.
@@ -109,6 +112,11 @@ class SequentialExperiment(Experiment):
         self.measurements_to_run = measurements
         self.repetitions = repetitions
 
+    def save_traces(self, path):
+        for mid, measurement in enumerate(self.measurements_to_run):
+            filename = os.path.join(path, "{}.hdf5".format(mid))
+            measurement.save_traces(filename)
+
     def iter_measurements(self):
         i_max = len(self.measurements)
         for i, measurement in enumerate(self.measurements_to_run):
@@ -131,3 +139,34 @@ class SequentialExperiment(Experiment):
 
 # Compatibility for old pickels
 BaseExperiment = SequentialExperiment
+
+
+class IncrementalExperiment(Experiment):
+
+    def __init__(self, initial_configuration, generator, analyzer):
+        Experiment.__init__(self, analyzer)
+        self.initial_configuration = initial_configuration
+        self.generator = generator
+        self.traces_folder = None
+
+    def save_traces(self, path):
+        self.traces_folder = path
+
+    def run(self):
+        """Run the experiment and process results."""
+        return list(self.iter_measurements())
+
+    def iter_measurements(self):
+        self.logger.INFO("Connecting to hardware and configuring.")
+        sthal = self.initial_configuration
+        sthal.write_config()
+        i_max = len(self.generator)
+        for i, (configurator, measurement) in enumerate(self.generator(sthal)):
+            if self.traces_folder is not None:
+                filename = os.path.join(self.traces_folder, "{}.hdf5".format(i))
+                measurement.save_traces(filename)
+            self.logger.INFO("Running measurement {}/{}".format(i+1, i_max))
+            result = measurement.run_measurement(self.analyzer, configurator)
+            measurement.sthal = copy.deepcopy(measurement.sthal)
+            self.append_measurement_and_result(measurement, result)
+            yield True # Used to save state of runner

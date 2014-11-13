@@ -20,7 +20,8 @@ class Analyzer(object):
         """ Returns a dictionary of results:
             {neuron: value}
         """
-        raise NotImplemented
+        raise NotImplementedError("Not implemented in {}".format(
+            type(self).__name__))
 
 
 class MeanOfTraceAnalyzer(Analyzer):

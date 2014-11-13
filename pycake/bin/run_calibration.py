@@ -7,6 +7,10 @@ from pycake.calibrationrunner import CalibrationRunner, TestRunner
 import pycake.config
 import Coordinate
 
+from pysthal.command_line_util import add_default_coordinate_options
+from pysthal.command_line_util import add_logger_options
+from pysthal.command_line_util import init_logger
+
 
 def check_file(string):
     if not os.path.isfile(string):
@@ -14,45 +18,58 @@ def check_file(string):
         raise argparse.ArgumentTypeError(msg)
     return string
 
+
+def load_config(parsed_args):
+    cfg = pycake.config.Config(None, parsed_args.parameter_file)
+
+    if parsed_args.outdir:
+        backend_dir = os.path.join(parsed_args.outdir, 'backends')
+        cfg.parameters['folder'] = parsed_args.outdir
+        cfg.parameters['backend_c'] = backend_dir
+        cfg.parameters['backend_r'] = backend_dir
+    if parsed_args.hicann:
+        cfg.parameters['coord_hicann'] = parsed_args.hicann
+    if parsed_args.wafer:
+        cfg.parameters['coord_wafer'] = parsed_args.wafer
+    if parsed_args.parameter:
+        for key in cfg.parameters:
+            if key.startswith('run_'):
+                cfg.parameters[key] = False
+        cfg.parameters['run_' + parsed_args.parameter] = True
+    return cfg
+
+
+init_logger(pylogging.LogLevel.WARN, [
+    ("Default", pylogging.LogLevel.INFO),
+    ("halbe.fgwriter", pylogging.LogLevel.ERROR),
+    ("pycake.calibrationrunner", pylogging.LogLevel.DEBUG),
+    ("pycake.measurement", pylogging.LogLevel.DEBUG),
+    ("pycake.analyzer", pylogging.LogLevel.TRACE),
+    ("pycake.experiment", pylogging.LogLevel.DEBUG),
+    ("pycake.experimentbuilder", pylogging.LogLevel.DEBUG),
+    ("pycake.calibtic", pylogging.LogLevel.DEBUG),
+    ("pycake.redman", pylogging.LogLevel.DEBUG),
+    ("pycake.sthal", pylogging.LogLevel.DEBUG),
+    ("pycake.helper.sthal", pylogging.LogLevel.INFO),
+    ("sthal", pylogging.LogLevel.INFO),
+    ("sthal.AnalogRecorder", pylogging.LogLevel.WARN),
+    ])
+
 parser = argparse.ArgumentParser(description='HICANN Calibration tool. Takes a parameter file as input. See pycake/bin/parameters.py to see an example.')
+add_default_coordinate_options(parser)
+add_logger_options(parser)
 parser.add_argument('parameter_file', type=check_file, help='parameterfile containing the parameters of this calibration')
-parser.add_argument('-hicann', type=int, default=None, help='hicann index. default is the one specified in the config file.')
-parser.add_argument('-outdir', type=str, default=None, help="output folder. default is the one specified in the config file.")
+parser.add_argument('--outdir', type=str, default=None, help="output folder. default is the one specified in the config file.")
 parser.add_argument('--logfile', default=None,
                         help="Specify a logfile where all the logger output will be stored (any LogLevel!)")
+parser.add_argument('--parameter', type=str, default=None,
+                    help='Spezifiy paramter to calibrate')
 args = parser.parse_args()
 
-logfile = args.logfile
+if args.logfile is not None:
+    pylogging.log_to_file(args.logfile, pylogging.LogLevel.ALL)
 
-config_filename = args.parameter_file
-hicann = args.hicann
-outdir = args.outdir
-
-config = pycake.config.Config(None, config_filename)
-
-if outdir:
-    config.parameters['folder'] = outdir
-    config.parameters['backend_c'] = os.path.join(outdir, 'backends')
-    config.parameters['backend_r'] = os.path.join(outdir, 'backends')
-if hicann:
-    config.parameters['coord_hicann'] = Coordinate.HICANNOnWafer(Coordinate.Enum(hicann))
-
-pylogging.default_config(date_format='absolute')
-pylogging.set_loglevel(pylogging.get("Default"),                    pylogging.LogLevel.INFO)
-pylogging.set_loglevel(pylogging.get("pycake.calibrationrunner"),   pylogging.LogLevel.DEBUG )
-pylogging.set_loglevel(pylogging.get("pycake.measurement"),         pylogging.LogLevel.DEBUG )
-pylogging.set_loglevel(pylogging.get("pycake.analyzer"),            pylogging.LogLevel.TRACE )
-pylogging.set_loglevel(pylogging.get("pycake.experiment"),          pylogging.LogLevel.DEBUG )
-pylogging.set_loglevel(pylogging.get("pycake.experimentbuilder"),   pylogging.LogLevel.DEBUG )
-pylogging.set_loglevel(pylogging.get("pycake.calibtic"),            pylogging.LogLevel.DEBUG )
-pylogging.set_loglevel(pylogging.get("pycake.redman"),              pylogging.LogLevel.DEBUG )
-pylogging.set_loglevel(pylogging.get("pycake.sthal"),            pylogging.LogLevel.DEBUG )
-pylogging.set_loglevel(pylogging.get("pycake.helper.sthal"),        pylogging.LogLevel.INFO )
-pylogging.set_loglevel(pylogging.get("sthal"),                      pylogging.LogLevel.INFO )
-pylogging.set_loglevel(pylogging.get("sthal.AnalogRecorder"),       pylogging.LogLevel.WARN)
-
-if logfile is not None:
-    pylogging.log_to_file(logfile, pylogging.LogLevel.ALL)
+config = load_config(args)
 
 runner = CalibrationRunner(config)
 
@@ -60,23 +77,6 @@ if runner.config.get_run_calibration():
     runner.run_calibration()
 
 test_runner = TestRunner(config)
-
-pylogging.reset()
-pylogging.default_config()
-pylogging.set_loglevel(pylogging.get("Default"),                    pylogging.LogLevel.INFO)
-pylogging.set_loglevel(pylogging.get("pycake.testrunner"),          pylogging.LogLevel.DEBUG )
-pylogging.set_loglevel(pylogging.get("pycake.measurement"),         pylogging.LogLevel.DEBUG )
-pylogging.set_loglevel(pylogging.get("pycake.experiment"),          pylogging.LogLevel.DEBUG )
-pylogging.set_loglevel(pylogging.get("pycake.experimentbuilder"),   pylogging.LogLevel.DEBUG )
-pylogging.set_loglevel(pylogging.get("pycake.calibtic"),            pylogging.LogLevel.DEBUG )
-pylogging.set_loglevel(pylogging.get("pycake.redman"),              pylogging.LogLevel.DEBUG )
-pylogging.set_loglevel(pylogging.get("pycake.sthal"),            pylogging.LogLevel.DEBUG )
-pylogging.set_loglevel(pylogging.get("pycake.helper.sthal"),        pylogging.LogLevel.INFO )
-pylogging.set_loglevel(pylogging.get("sthal"),                      pylogging.LogLevel.INFO )
-pylogging.set_loglevel(pylogging.get("sthal.AnalogRecorder"),       pylogging.LogLevel.WARN)
-
-if logfile is not None:
-    pylogging.log_to_file(logfile, pylogging.LogLevel.ALL)
 
 if test_runner.config.get_run_test():
     test_runner.run_calibration()

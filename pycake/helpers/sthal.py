@@ -4,7 +4,7 @@ import math
 import pyhalbe
 import pysthal
 import pylogging
-from pyhalbe import Coordinate
+from pyhalbe import Coordinate, HICANN
 
 class UpdateAnalogOutputConfigurator(pysthal.HICANNConfigurator):
     """ Configures the following things from sthal container:
@@ -24,6 +24,33 @@ class UpdateAnalogOutputConfigurator(pysthal.HICANNConfigurator):
         self.config_analog_readout(h, hicann)
         self.config_fg_stimulus(h, hicann)
         self.flush_fpga(fpga_handle)
+
+class UpdateParameter(pysthal.HICANNConfigurator):
+    def __init__(self, neuron_parameters):
+        pysthal.HICANNConfigurator.__init__(self)
+        self.blocks = dict(
+            (row, []) for row in Coordinate.iter_all(Coordinate.FGRowOnFGBlock))
+        for parameter in neuron_parameters:
+            for block in Coordinate.iter_all(Coordinate.FGBlockOnHICANN):
+                self.blocks[HICANN.getNeuronRow(block, parameter)].append(block)
+
+    def hicann_init(self, h):
+        HICANN.init(h, False)
+
+    def config_synapse_array(self, handle, data):
+        pass
+
+    def write_fg_row(self, handle, row, fg, write_down):
+        blocks = self.blocks[row]
+        if len(blocks) == 4:
+            pysthal.HICANNConfigurator.write_fg_row(
+                self, handle, row, fg, write_down)
+        else:
+            for block in blocks:
+                data = fg.getBlock(block).getFGRow(row)
+                self.getLogger().info("Update {} on {}".format(row, block))
+                HICANN.set_fg_row_values(handle, block, row, data, write_down)
+
 
 class StHALContainer(object):
     """Contains StHAL objects for hardware access. Multiple experiments can share one container."""
@@ -100,14 +127,16 @@ class StHALContainer(object):
         self.adc = None
         self._connected = False
 
-    def write_config(self, program_floating_gates=True):
+    # TODO fix after dominiks thesis
+    def write_config(self, program_floating_gates=True, configurator=None):
         """Write full configuration."""
         if not self._connected:
             self.connect()
-        if program_floating_gates:
-            configurator = pysthal.HICANNConfigurator()
-        else:
-            configurator = pysthal.DontProgramFloatingGatesHICANNConfigurator()
+        if configurator is None:
+            if program_floating_gates:
+                configurator = pysthal.HICANNConfigurator()
+            else:
+                configurator = pysthal.DontProgramFloatingGatesHICANNConfigurator()
         self.wafer.configure(configurator)
 
     def switch_analog_output(self, coord_neuron, l1address=0):

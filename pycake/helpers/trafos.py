@@ -136,24 +136,20 @@ def HCtoDAC(value, parameter, rounded=True):
     upper_limit = 1023
     if parameter is neuron_parameter.I_pl:
         lower_limit = 4
-    if np.isscalar(value):
-        value = np.array([value])
-    else:
-        value = np.array(value)
     if parameter in voltage_params:
         DAC = value * 1023/1800.
     elif parameter in current_params:
         DAC = value * 1023/2500.
-    
+    else:
+        raise ValueError("Invalid Value")
+
     if rounded:
-        DAC = np.array(np.round(DAC), dtype=int)
-
-    DAC[np.where(DAC < lower_limit)] = lower_limit
-    DAC[np.where(DAC > upper_limit)] = upper_limit
-
-    if len(DAC) < 2:
-        DAC = DAC[0]
-
+        DAC = np.round(DAC)
+        if np.isscalar(DAC):
+            DAC = int(DAC)
+        else:
+            DAC = np.array(DAC, dtype=int)
+    DAC = np.clip(DAC, lower_limit, upper_limit)
     return DAC
 
 def DACtoHC(value, parameter):

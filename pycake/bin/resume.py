@@ -2,6 +2,7 @@
 import cPickle
 import argparse
 import bz2
+import gzip
 import pylogging
 
 pylogging.default_config(date_format='absolute')
@@ -26,6 +27,9 @@ args = parser.parse_args()
 runner_filename = args.runner_file.name
 if runner_filename.endswith('.bz2'):
     with bz2.BZ2File(runner_filename) as infile:
+        runner = cPickle.load(infile)
+elif runner_filename.endswith('.gz'):
+    with gzip.GzipFile(runner_filename) as infile:
         runner = cPickle.load(infile)
 else:
     runner = cPickle.load(args.runner_file)

@@ -267,18 +267,8 @@ class V_syntc_psp_max_BaseCalibrator(BaseCalibrator):
     # to be set in derived class
     target_parameter = None
 
-    def __init__(self, experiments):
-
-        from pycake.experiment import SequentialExperiment
-
-        if not isinstance(experiments, list):
-            experiments = [experiments]
-
-        self.experiment = SequentialExperiment(sum(
-            [exp.measurements for exp in experiments], []),
-            experiments[0].analyzer, None)
-        self.experiment.results = sum(
-            [exp.results for exp in experiments], [])
+    def __init__(self, experiment):
+        self.experiment = experiment
         self.neurons = self.experiment.measurements[0].neurons
 
     def get_key(self):

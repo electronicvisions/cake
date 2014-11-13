@@ -25,7 +25,7 @@ class CalibrationRunner(object):
     """
     """
     logger = pylogging.get("pycake.calibrationrunner")
-    pickle_file_pattern = "runner_{}.p.bz2"
+    pickle_file_pattern = "runner_{}.p.gz"
     pickel_measurements_folder = "runner_{}_measurements"
 
     def __init__(self, config):
@@ -63,29 +63,27 @@ class CalibrationRunner(object):
         """Returns the experiment for a givin config step"""
         config = self.config.copy(config_name)
 
-        self.logger.INFO("Creating analyzers and experiments for "
-                "parameter {}".format(config_name))
         builder = self.get_builder(config_name, config)
+        self.logger.INFO("Creating analyzers and experiments for parameter {} "
+            "using {}".format(config_name, type(builder).__name__))
         experiment = builder.get_experiment()
 
         if config.get_save_traces():
-            for mid, measurement in enumerate(experiment.measurements_to_run):
-                measurement.save_traces(self.get_measurement_storage_path(
-                                mid, config_name))
+            experiment.save_traces(
+                self.get_measurement_storage_path(config_name))
 
         return experiment
 
-    def get_measurement_storage_path(self, measurement_id, config_name):
+    def get_measurement_storage_path(self, config_name):
         """ Save measurement i of experiment to a file and clear the traces from
             that measurement.
         """
         folder = os.path.join(
-                self.config.get_folder(),
-                self.measurements_folder,
-                config_name)
+            self.config.get_folder(),
+            self.measurements_folder,
+            config_name)
         pycake.helpers.misc.mkdir_p(folder)
-        filename = "{}.hdf5".format(measurement_id)
-        return os.path.join(folder, filename)
+        return folder
 
     def clear_calibration(self):
         """ Clears calibration if this is set in the configuration
@@ -186,7 +184,7 @@ class CalibrationRunner(object):
 
 class TestRunner(CalibrationRunner):
     logger = pylogging.get("pycake.testrunner")
-    pickle_file_pattern = "testrunner_{}.p.bz2"
+    pickle_file_pattern = "testrunner_{}.p.gz"
     pickel_measurements_folder = "testrunner_{}_measurements"
 
     def generate_calibration_data(self, config_name, experiment):

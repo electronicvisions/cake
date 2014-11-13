@@ -2,6 +2,7 @@ import numpy as np
 import pylogging
 import Coordinate
 import pyhalbe
+import pysthal
 import copy
 from itertools import product
 
@@ -65,7 +66,7 @@ class BaseExperimentBuilder(object):
             step_parameters = self.get_step_parameters(step)
 
             if not wafer_cfg:
-                sthal = self.prepare_parameters(sthal, step_parameters)
+                sthal.hicann.floating_gates = self.prepare_parameters(step_parameters)
             sthal = self.prepare_specific_config(sthal)
 
             measurement = self.make_measurement(sthal, self.neurons, readout_shifts)
@@ -78,13 +79,15 @@ class BaseExperimentBuilder(object):
         """
         return self.config.get_step_parameters(step)
 
-    def prepare_parameters(self, sthal, parameters):
+    def prepare_parameters(self, parameters):
         """ Writes parameters into a sthal container.
             This includes calibration and transformation from mV or nA to DAC values.
+
+        Returns:
+            pysthal.FloatingGates with given parameters
         """
 
-        fgc = pyhalbe.HICANN.FGControl()
-
+        floating_gates = pysthal.FloatingGates()
         for neuron in self.neurons:
             neuron_params = copy.deepcopy(parameters)
             for param, value in neuron_params.iteritems():
@@ -98,7 +101,7 @@ class BaseExperimentBuilder(object):
                     value_dac.value = self.calibtic.apply_calibration(value_dac.value, param, neuron)
 
                 self.logger.TRACE("Setting FGValue of {} parameter {} to {}.".format(neuron, param, value_dac))
-                sthal.hicann.floating_gates.setNeuron(neuron, param, value_dac.value)
+                floating_gates.setNeuron(neuron, param, value_dac.value)
 
         for block in self.blocks:
             block_parameters = copy.deepcopy(parameters)
@@ -120,9 +123,8 @@ class BaseExperimentBuilder(object):
                     value_dac.value = self.calibtic.apply_calibration(value_dac.value, param, block)
 
                 self.logger.TRACE("Setting FGValue of {} parameter {} to {}.".format(block, param, value_dac))
-                sthal.hicann.floating_gates.setShared(block, param, value_dac.value)
-
-        return sthal
+                floating_gates.setShared(block, param, value_dac.value)
+        return floating_gates
 
     def prepare_specific_config(self, sthal):
         """ Hook function to specify additional stuff, e.g. current injection, spike generation, ...
@@ -138,17 +140,13 @@ class BaseExperimentBuilder(object):
             Returns:
                 shifts: a dictionary {neuron: shift (in V)}
         """
-        shifts = {}
-        for neuron in neurons:
-            shift = self.calibtic.get_readout_shift(neuron)
-            shifts[neuron] = shift
-        return shifts
+        return dict((n, self.calibtic.get_readout_shift(n)) for n in neurons)
 
     def get_experiment(self):
         """
         """
-        analyzer = self.get_analyzer()
         measurements, repetitions = self.generate_measurements()
+        analyzer = self.get_analyzer()
         return SequentialExperiment(measurements, analyzer, repetitions)
 
     def get_analyzer(self):

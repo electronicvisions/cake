@@ -7,6 +7,7 @@ import pycake.calibrationrunner
 import Coordinate as C
 import pyhalbe
 from bz2 import BZ2File
+from gzip import GzipFile
 
 class Reader(object):
     def __init__(self, runner, include_defects = True):
@@ -19,6 +20,8 @@ class Reader(object):
         else:
             if runner.endswith('.bz2'):
                 f_open = BZ2File
+            elif runner.endswith('.gz'):
+                f_open = GzipFile
             else:
                 f_open = open
             with f_open(runner, 'rb') as infile:
@@ -81,7 +84,6 @@ class Reader(object):
                 neuron = C.NeuronOnHICANN(C.Enum(neuron))
 
             results[neuron] = [r[neuron].get(key, None) for r in ex.results]
-
             if repetition != None:
                 results[neuron] = list(np.array(results[neuron])[:,[nsteps*repetition + step for step in range(nsteps)]])
                 #                                                   ^^^^^^^^^^^^^^^^^^^^^^^^

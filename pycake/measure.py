@@ -35,6 +35,9 @@ class Measurement(object):
     logger = pylogging.get("pycake.measurement")
 
     def __init__(self, sthal, neurons, readout_shifts=None):
+        for neuron in neurons:
+            if not isinstance(neuron, NeuronOnHICANN):
+                raise TypeError("Expected list of integers")
         # TODO: callable readout_shifter instead of dict
         # readout_shifter(neuron, trace)
         self.sthal = sthal
@@ -46,6 +49,7 @@ class Measurement(object):
         # Debug for repeated ADC traces
         self.last_trace = None
         self.adc_status = []
+
 
         if readout_shifts is None:
             self.logger.WARN("No readout shifts found. Shifts are set to 0")
@@ -127,7 +131,7 @@ class Measurement(object):
     def get_neurons(self):
         return self.neurons
 
-    def get_trace(self, neuron, apply_readout_shift = True):
+    def get_trace(self, neuron, apply_readout_shift=True):
         """ Get the voltage trace of a neuron.
             Other than in the measurement.trace dictionary,
             these traces are shifted by the readout shift.
@@ -149,16 +153,23 @@ class Measurement(object):
             return t, v
 
     def iter_traces(self):
+        """
+        Iterate over neuron traces
+
+        Returns:
+            ([numpy array] times, [numpy array] voltages [mV],
+             [NeuronOnHICANN] neuronId)
+        """
         for neuron in self.traces:
             t, v = self.get_trace(neuron)
             yield t, v, neuron
         return
 
-    def configure(self):
+    def configure(self, configurator):
         """ Write StHALContainer configuration to the hardware.
             This connects to the hardware.
         """
-        self.sthal.write_config()
+        self.sthal.write_config(configurator=configurator)
 
     def pre_measure(self, neuron):
         self.sthal.switch_analog_output(neuron)
@@ -185,11 +196,13 @@ class Measurement(object):
                 # DEBUG stuff
                 self.adc_status.append(self.sthal.read_status())
                 if np.array_equal(trace, self.last_trace):
-                    self.logger.ERROR("ADC trace didn't change from the last "
-                            "readout, printing status information of all ADC "
-                            "previous readouts:\n" + "\n".join(self.adc_status))
-                    raise RuntimeError("Broken ADC readout abort measurement "
-                            "(details see log messages)")
+                    self.logger.ERROR(
+                        "ADC trace didn't change from the last "
+                        "readout, printing status information of all ADC "
+                        "previous readouts:\n" + "\n".join(self.adc_status))
+                    raise RuntimeError(
+                        "Broken ADC readout abort measurement (details see "
+                        "log messages)")
                 self.last_trace = trace
                 # DEBUG stuff end
             self.last_trace = None
@@ -197,11 +210,11 @@ class Measurement(object):
             self.logger.INFO("Wait for analysis to complete.")
             return worker.join()
 
-    def run_measurement(self, analyzer):
+    def run_measurement(self, analyzer, configurator=None):
         """ First configure, then measure
         """
         self.logger.INFO("Connecting to hardware and configuring.")
-        self.configure()
+        self.configure(configurator)
         result = self._measure(analyzer)
         self.logger.INFO("Measurement done, disconnecting from hardware.")
         self.finish()

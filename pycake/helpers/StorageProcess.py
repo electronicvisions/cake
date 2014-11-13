@@ -6,6 +6,7 @@ import time
 import os
 import tempfile
 import bz2
+import gzip
 import shutil
 import cPickle
 import pylogging
@@ -70,22 +71,22 @@ class StorageProcess(object):
         try:
             tstart = time.time()
 
+            if filename.endswith('.bz2'):
+                fopen = bz2.BZ2File
+            elif filename.endswith('.gz'):
+                fopen = gzip.GzipFile
+            elif compresslevel > 0:
+                fopen = gzip.GzipFile
+                filename += '.gz'
+            else:
+                fopen = open
+
             # Note: this is not 100% safe against race condition when calling it
             # from multiple processes!
             tmpfile = tempfile.mktemp(dir=(os.path.dirname(filename)))
-
-            if compresslevel > 0:
-                with bz2.BZ2File(
-                        tmpfile, 'wb', compresslevel=compresslevel) as outfile:
-                    cPickle.dump(obj, outfile, cPickle.HIGHEST_PROTOCOL)
-            else:
-                with open(tmpfile, 'wb') as outfile:
-                    cPickle.dump(obj, outfile, cPickle.HIGHEST_PROTOCOL)
-
-            if compresslevel > 0 and not filename.endswith('.bz2'):
-                filename += '.bz2'
+            with fopen(tmpfile, 'wb') as outfile:
+                cPickle.dump(obj, outfile, cPickle.HIGHEST_PROTOCOL)
             shutil.move(tmpfile, filename)
-
             cls.logger.INFO("Pickled object in {}s to '{}'".format(
                     int(time.time() - tstart), filename))
             result.put(None)
