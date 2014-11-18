@@ -118,7 +118,7 @@ class SequentialExperiment(Experiment):
             measurement.save_traces(filename)
 
     def iter_measurements(self):
-        i_max = len(self.measurements)
+        i_max = len(self.measurements_to_run)
         for i, measurement in enumerate(self.measurements_to_run):
             if not measurement.done:
                 self.logger.INFO("Running measurement {}/{}".format(i+1, i_max))
