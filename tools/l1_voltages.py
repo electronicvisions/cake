@@ -189,7 +189,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('voltage_number', type=int)
     parser.add_argument('DAC', type=int)
-    parser.add_argument('--board', type=int, choices=[0,1], default=None)
+    parser.add_argument('--board', type=int, choices=[0,1,2], default=None)
     args = parser.parse_args()
 
     if args.board == None:
@@ -198,7 +198,12 @@ if __name__ == "__main__":
 
     else:
 
-        set_DAC(args.board, args.voltage_number, args.DAC)
+        if args.board in [0,1]:
+            set_DAC(args.board, args.voltage_number, args.DAC)
+        elif args.board == 2:
+            set_DAC_both(args.voltage_number, args.DAC)
+        else:
+            raise RuntimeError("invalid board number {}".format(args.board))
 
     time.sleep(2)
 
