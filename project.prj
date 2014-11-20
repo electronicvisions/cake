@@ -29,7 +29,6 @@ source /afs/kip.uni-heidelberg.de/projects/vision/definst_software/shrc
 module load pynn
 
 ./waf configure --test-timeout=360 --test-xml-summary=test_results
-./waf install --test-execnone
 ./waf install --test-exec pycake_tests
 """
 
