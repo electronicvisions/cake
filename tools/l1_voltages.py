@@ -5,6 +5,7 @@ import re
 import time
 import numpy as np
 import argparse
+import sys
 
 # maximum number of iterations for setting a voltage given in volts
 MAX_ITERATIONS = 50
@@ -17,7 +18,7 @@ V_OH = 10
 VOLT = 'volt'
 DAC = 'dac'
 
-SSH_CMD = 'ssh -F /dev/null -x -i ./id_rsa_resetuser resetuser@raspeval-001 -o PubkeyAuthentication=yes {0}'
+SSH_CMD = 'ssh -n -F /dev/null -x -i ./id_rsa_resetuser resetuser@raspeval-001 -o PubkeyAuthentication=yes {0}'
 
 def get_voltage(v, unit=VOLT):
     cmd = SSH_CMD.format('/home/pi/voltages/readVoltages')
