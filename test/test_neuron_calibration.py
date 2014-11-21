@@ -14,6 +14,7 @@ import pyNN.standardmodels.cells as pynn
 from pycake.helpers.calibtic import Calibtic as CalibData
 
 import pyhalbe
+import pycalibtic
 Coordinate = pyhalbe.Coordinate
 Enum = pyhalbe.Coordinate.Enum
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
@@ -49,7 +50,8 @@ class TestNeuronCalibration(unittest.TestCase):
 
         # apply calibration
         c_nrn = self.config["c_nrn"]
-        hwparam_n = neuron_cal.applyNeuronCalibration(parameters, c_nrn.id())
+        ncal_params = pycalibtic.NeuronCalibrationParameters()
+        hwparam_n = neuron_cal.applyNeuronCalibration(parameters, c_nrn.id().value(), ncal_params)
         hwparam_s = shared_cal.applySharedCalibration(self.config["hw_vreset"], c_nrn.sharedFGBlock().id())
 
         # modify FGControl using calibrated parameters
@@ -68,4 +70,7 @@ class TestNeuronCalibration(unittest.TestCase):
         """
 
 if __name__ == "__main__":
+    import pylogging
+    pylogging.set_loglevel(CalibData.logger, pylogging.LogLevel.INFO)
+    pylogging.append_to_cout(CalibData.logger)
     unittest.main()
