@@ -76,7 +76,12 @@ def set_DAC_both(v, new_DAC):
 def set_DAC(board, v, new_DAC, stop_after_first_step=False, first_step=True):
 
     if new_DAC < 0:
+        print "negative DAC {} - do nothing".format(new_DAC)
         return
+
+    if new_DAC < 20:
+        print "DAC too small {}, set to limit of 20".format(new_DAC)
+        new_DAC = 20
 
     if board not in [0,1]:
         raise Exception("invalid board id")
@@ -189,24 +194,80 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('voltage_number', type=int)
-    parser.add_argument('DAC', type=int)
+    parser.add_argument('new_value', type=float)
+    parser.add_argument('--unit', type=str, choices=[VOLT,DAC], default=DAC)
     parser.add_argument('--board', type=int, choices=[0,1,2], default=None)
     args = parser.parse_args()
 
-    if args.board == None:
 
-        set_both_voltage(args.voltage_number, args.DAC)
+    if args.unit == DAC:
+
+        if args.board == None:
+
+            set_both_voltage(args.voltage_number, args.new_value)
+
+        else:
+
+            if args.board in [0,1]:
+                set_DAC(args.board, args.voltage_number, args.new_value)
+            elif args.board == 2:
+                set_DAC_both(args.voltage_number, args.new_value)
+            else:
+                raise RuntimeError("invalid board number {}".format(args.board))
+
+    elif args.unit == VOLT:
+
+        # first have set both board to equal DACs
+
+        target_volt = args.new_value
+
+        slope = 75 / 0.2 # 75 DACs per 200 mV (guess)
+        print "slope {}".format(slope)
+
+        for i in range(MAX_ITERATIONS):
+
+            current_volt_board_0, current_volt_board_1 = get_voltage(args.voltage_number, unit=VOLT)
+            current_dac_board_0, current_dac_board_1 = get_voltage(args.voltage_number, unit=DAC)
+
+            diff_volt = target_volt - current_volt_board_0
+
+            if abs(diff_volt) < 0.005:
+                print "diff volt small enough, done"
+                break
+
+            target_DAC = current_dac_board_0 - diff_volt*slope
+
+            print "target_volt {}".format(target_volt)
+            print "current_volt_board_0 {}".format(current_volt_board_0)
+            print "target_DAC {}".format(target_DAC)
+            print "diff volt {}".format(diff_volt)
+
+            if abs(diff_volt) > 0.05:
+
+                print "diff volt too large, going only by step of 0.05 V"
+
+                diff_volt = diff_volt/abs(diff_volt) * 0.05
+                target_DAC = current_dac_board_0 - diff_volt*slope
+                print "new diff volt {}".format(diff_volt)
+                print "new target_DAC {}".format(target_DAC)
+
+            set_DAC_both(args.voltage_number, int(target_DAC))
+
+            time.sleep(2)
+
+        # equalize voltages of both boards with current DAC
+
+        print "start to equalize voltages"
+
+        current_dac_board_0, current_dac_board_1 = get_voltage(args.voltage_number, unit=DAC)
+        set_both_voltage(args.voltage_number, current_dac_board_0)
 
     else:
+        raise RuntimeError("invalid unit {}".format(args.unit))
 
-        if args.board in [0,1]:
-            set_DAC(args.board, args.voltage_number, args.DAC)
-        elif args.board == 2:
-            set_DAC_both(args.voltage_number, args.DAC)
-        else:
-            raise RuntimeError("invalid board number {}".format(args.board))
+    time.sleep(3)
 
-    time.sleep(2)
+    print "l1 voltages:",
 
     for x in get_voltage(args.voltage_number, unit=DAC):
         print x,
