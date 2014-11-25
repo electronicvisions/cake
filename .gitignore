@@ -1,10 +1,28 @@
+# compiled files
 *.pyc
-*.npy
 *.o
 *.so
-*.swp
-.ropeproject
-*.png
+
+# numpy data
+*.npy
 *.npz
+
+# vim swapfiles
+*.swp
+
+# rope code refactoring
+.ropeproject
+
+# generated images
+*.png
+
+# generated logfiles
 *.log
+
+# backup files
 *.bak
+
+# coverage report
+.coverage
+coverage.xml
+htmlcov/

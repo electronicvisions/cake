@@ -1,0 +1,34 @@
+# .coveragerc to control coverage.py
+[run]
+branch = False
+cover_pylib = False
+
+[paths]
+# consider this path identical when running on multiple machines
+source =
+    pycake/
+
+[report]
+modules = pycake
+# pattern for files to include in report
+include =
+    */pycake/*
+# pattern for files to omit in report
+omit =
+    */pycake/bin/*
+
+[html]
+directory = htmlcov
+title = Coverage report
+
+# copied from [report]
+modules = pycake
+include =
+    */pycake/*
+omit =
+    */pycake/bin/*
+
+[annotate]
+
+[xml]
+output = coverage.xml
