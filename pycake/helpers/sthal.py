@@ -139,7 +139,7 @@ class StHALContainer(object):
                 configurator = pysthal.DontProgramFloatingGatesHICANNConfigurator()
         self.wafer.configure(configurator)
 
-    def switch_analog_output(self, coord_neuron, l1address=0):
+    def switch_analog_output(self, coord_neuron, l1address=None):
         """Write analog output configuration (only).
            If l1address is None, firing is disabled.
 
