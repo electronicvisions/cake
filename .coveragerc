@@ -16,6 +16,10 @@ include =
 # pattern for files to omit in report
 omit =
     */pycake/bin/*
+# regex for excluding lines
+exclude_lines =
+    ^import
+    ^from
 
 [html]
 directory = htmlcov
@@ -27,6 +31,10 @@ include =
     */pycake/*
 omit =
     */pycake/bin/*
+# regex for excluding lines
+exclude_lines =
+    ^import
+    ^from
 
 [annotate]
 
