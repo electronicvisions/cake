@@ -6,12 +6,19 @@ import os
 import unittest
 import coverage
 
-# TODO move configuration from .coveragerc here
 
-cov = coverage.coverage()
+cov = coverage.coverage(
+    branch=False,
+    cover_pylib=False,
+    source=["pycake/"],
+)
 
 # erase old data
 cov.erase()
+
+# exclude counting some lines
+cov.exclude("^import")
+cov.exclude("^from")
 
 # start recording
 cov.start()
@@ -31,4 +38,9 @@ cov.save()
 #cov.report()
 
 # generate html report
-cov.html_report()
+cov.html_report(
+    include=["*/pycake/*"],
+    omit=["*/pycake/bin/*"],
+    directory="htmlcov",
+    #title="Coverage report",
+)
