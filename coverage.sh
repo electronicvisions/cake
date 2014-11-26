@@ -4,17 +4,20 @@
 # Runs coverage.py for code coverage report
 ############################################
 
+COV=python-coverage
+
+
 # delete old data
-coverage erase
+$COV erase
 
 # run code
-coverage run 'test/run_all_tests.py'
+$COV run 'test/run_all_tests.py'
 
 # report result
-coverage report
+$COV report
 
 # generate HTML report
-coverage html
+$COV html
 
 ## generate XML report
-#coverage xml
+#$COV xml
