@@ -39,8 +39,8 @@ cov.save()
 
 # generate html report
 cov.html_report(
-    include=["*/pycake/*"],
-    omit=["*/pycake/bin/*"],
+    include=["*/pycake/*", "pycake/*"],
+    omit=["*/pycake/bin/*", "pycake/bin/*"],
     directory="htmlcov",
     #title="Coverage report",
 )
