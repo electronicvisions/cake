@@ -167,7 +167,7 @@ class CalibrationRunner(object):
         calibrator_type = getattr(pycake.calibrator,
                 "{}_Calibrator".format(config_name))
         return calibrator_type(experiments)
-        
+
     def write_calibration(self, coeffs):
         """
         """
