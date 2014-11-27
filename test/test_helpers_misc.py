@@ -15,6 +15,7 @@ class TestMkdir(unittest.TestCase):
     remove it afterwards."""
 
     def setUp(self):
+        """generate random directory name which does not exist"""
         def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
             return "".join(random.choice(chars) for _ in range(size))
 
@@ -27,6 +28,7 @@ class TestMkdir(unittest.TestCase):
         self.randdir = randdir
 
     def test_mkdir(self):
+        """create directory twice"""
         randdir = self.randdir
         self.assertFalse(os.path.exists(randdir))
         mkdir_p(randdir)
