@@ -43,21 +43,27 @@ def fit(psp_shape, time, voltage, error_estimate, maxcall=1000,
 
     f = lambda param: (psp_shape(time, *param) - voltage)
     x0 = [initial_values[key] for key in parnames]
-    if jacobian:
-        j = lambda param: jacobian(time, *param)
-        resultparams, cov_x, info, fit_msg, ier = optimize.leastsq(
-            f, x0, Dfun=j, col_deriv=True,
-            full_output=1, maxfev=maxcall,
-            diag=scale
+    try:
+        if jacobian:
+            j = lambda param: jacobian(time, *param)
+            resultparams, cov_x, info, fit_msg, ier = optimize.leastsq(
+                f, x0, Dfun=j, col_deriv=True,
+                full_output=1, maxfev=maxcall,
+                diag=scale
+                )
+        else:
+            # If epsfcn is not set estimating of the jacobian will fail
+            resultparams, cov_x, info, fit_msg, ier = optimize.leastsq(
+                f, x0,
+                full_output=1, maxfev=maxcall,
+                epsfcn=1e-5,
+                diag=scale
             )
-    else:
-        # If epsfcn is not set estimating of the jacobian will fail
-        resultparams, cov_x, info, fit_msg, ier = optimize.leastsq(
-            f, x0,
-            full_output=1, maxfev=maxcall,
-            epsfcn=1e-5,
-            diag=scale
-        )
+    except FloatingPointError:
+        return False, None, None, None
+    except Exception as err:
+        logger.ERROR("Fit failed with error: {} ({})".format(err, type(err)))
+        return False, None, None, None
 
     ndof = len(time) - len(parnames)
     fit_voltage = psp_shape(time, *resultparams)

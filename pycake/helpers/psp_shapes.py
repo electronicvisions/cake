@@ -124,13 +124,14 @@ class DoubleExponentialPSP(PSPShape):
         tau_1 = p.maximum(tau_1, 0.)
         tau_2 = p.maximum(tau_2, 0.)
 
-        tau_frac = tau_2 / p.float64(tau_1)
-        t = p.maximum((time - start) / p.float64(tau_1), 0)
-
-
-        if self.is_singular(tau_frac):
+        if tau_1 == tau_2:
+            t = p.maximum((time - start) / p.float64(tau_1), 0)
             return self.__psp_singular(height, t) + offset
+        elif tau_1 == 0.0:
+            return time * p.nan
         else:
+            t = p.maximum((time - start) / p.float64(tau_1), 0)
+            tau_frac = p.float64(tau_2) / p.float64(tau_1)
             return self.__psp_normal(height, tau_frac, t) + offset
 
     def initial_fit_values(self, time, value, smoothing_samples=10,
