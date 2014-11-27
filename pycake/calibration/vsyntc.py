@@ -1,18 +1,26 @@
 #/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import copy
+
 from pycake.analyzer import Analyzer
 from pycake.experimentbuilder import BaseExperimentBuilder
 from pycake.helpers.psp_shapes import DoubleExponentialPSP
 from pycake.helpers.TraceAverager import createTraceAverager
 from pycake.helpers.SignalToNoise import SignalToNoise
-from pycake.helpers.sthal import StHALContainer
+from pycake.helpers.sthal import StHALContainer, UpdateParameter
 from pycake.measure import Measurement
+from pycake.experiment import IncrementalExperiment
 from pycake.helpers import psp_fit
 
+import pyhalbe
+neuron_parameter = pyhalbe.HICANN.neuron_parameter
+from Coordinate import Enum
+
+import numpy
 import numpy as np
 
-class V_syntc_PrerunAnalyzer(object):
+class V_syntc_PrerunAnalyzer(Analyzer):
     def __init__(self, averager, bg_period):
         self.averager = averager
         self.bg_period = bg_period
@@ -26,7 +34,7 @@ class V_syntc_PrerunAnalyzer(object):
                 "error_estimate" : np.std(mean),
                 "error_estimate_samples" : n }
 
-class PSPAnalyzer(object):
+class PSPAnalyzer(Analyzer):
     """Evaluation class for membrane traces
 
     This class performs fits on the membrane traces and evaluates
@@ -103,6 +111,11 @@ class PSPAnalyzer(object):
             result['chi2'] = chi2
             result['err_estimate'] = err_estimate
             result['area'] = np.sum(psp - result['fit']['offset'])
+        else:
+            result['fit'] = None
+            result['chi2'] = numpy.nan
+            result['err_estimate'] = numpy.nan
+            result['area'] = numpy.nan
         if self.save_mean:
             result['mean'] = psp
         return result
@@ -118,6 +131,24 @@ class PSPAnalyzer(object):
         assert len(psp) > 1500
         x = np.argmax(psp) - 230
         return np.roll(psp, -x)
+
+class V_syntc_Generator(object):
+    def __init__(self, steps, neurons, readout_shifts):
+        self.steps = copy.deepcopy(steps)
+        self.neurons = neurons
+        self.readout_shifts = readout_shifts
+
+    def __len__(self):
+        return len(self.steps)
+
+    def __call__(self, sthal):
+        def generator(sthal, steps):
+            "Experiment generator"
+            for parameters, floating_gates in steps:
+                cfg = UpdateParameter(parameters)
+                sthal.hicann.floating_gates = floating_gates
+                yield cfg, Measurement(sthal, self.neurons, self.readout_shifts)
+        return generator(sthal, self.steps)
 
 class V_syntc_Experimentbuilder(BaseExperimentBuilder):
     def __init__(self, *args, **kwargs):
@@ -149,7 +180,7 @@ class V_syntc_Experimentbuilder(BaseExperimentBuilder):
         """Creates the analyzer for PSP measurements.
         This makes to preparatory measurements.
         1) Initializing the Trace Average
-        2) Determine the background noise, for error estimation and signal 
+        2) Determine the background noise, for error estimation and signal
             strength
         """
         coord_wafer, coord_hicann = self.config.get_coordinates()
@@ -157,7 +188,7 @@ class V_syntc_Experimentbuilder(BaseExperimentBuilder):
         readout_shifts = self.get_readout_shifts(self.neurons)
 
         sthal = StHALContainer(coord_wafer, coord_hicann)
-        sthal = self.prepare_parameters(sthal, parameters)
+        sthal.hicann.floating_gates = self.prepare_parameters(parameters)
         self.set_recording_time(sthal)
         pre_measurement = Measurement(sthal, self.neurons, readout_shifts)
         averager = createTraceAverager(coord_wafer, coord_hicann)
@@ -168,7 +199,47 @@ class V_syntc_Experimentbuilder(BaseExperimentBuilder):
         save_traces = self.config.get_save_traces()
         return PSPAnalyzer(averager, self.get_bg_period(sthal),
                 self.sn_threshold, self.chi2_threshold,
-                DoubleExponentialPSP, pre_result, save_traces)
+                DoubleExponentialPSP, pre_result, save_mean=True)
+                #save_mean=save_traces)
+
+    def generate_measurements(self):
+        self.logger.INFO("Building experiment {}".format(self.config.get_target()))
+        coord_wafer, coord_hicann = self.config.get_coordinates()
+        steps = self.config.get_steps()
+
+        if not steps:
+            raise RuntimeError(":P")
+
+        readout_shifts = self.get_readout_shifts(self.neurons)
+        wafer_cfg = self.config.get_wafer_cfg()
+
+        parameters = [[p for p in s.iterkeys()
+                       if isinstance(p, neuron_parameter)] for s in steps]
+        floating_gates = [self.prepare_parameters(self.get_step_parameters(s))
+                          for s in steps]
+
+        sthal = StHALContainer(coord_wafer, coord_hicann, wafer_cfg=wafer_cfg)
+        sthal = self.prepare_specific_config(sthal)
+        sthal.hicann.floating_gates = copy.copy(floating_gates[0])
+
+        fgcs = [
+            sthal.hicann.floating_gates.getFGConfig(Enum(ii)) for ii in (2,3)]
+        for fg in floating_gates:
+            fg.setNoProgrammingPasses(Enum(len(fgcs)))
+            for ii, fgc in enumerate(fgcs):
+                fg.setFGConfig(Enum(ii), fgc)
+
+
+        generator = V_syntc_Generator(zip(parameters, floating_gates),
+                                      self.neurons, readout_shifts)
+        return sthal, generator
+
+    def get_experiment(self):
+        """
+        """
+        sthal, generator = self.generate_measurements()
+        analyzer = self.get_analyzer()
+        return IncrementalExperiment(sthal, generator, analyzer)
 
 class V_syntci_Experimentbuilder(V_syntc_Experimentbuilder):
     pass
