@@ -73,7 +73,8 @@ class TestFit(unittest.TestCase):
         #                 max_dev * err[4])
 
         self.assertLess(red_chi2, 1.5)
-        print red_chi2, abs(fitres[1] - tau_1) / err[1], abs(fitres[2] - tau_2) / err[2]
+        if debug_plot:
+            print red_chi2, abs(fitres[1] - tau_1) / err[1], abs(fitres[2] - tau_2) / err[2]
 
     def test_fit_quality_fixed_seeds(self):
         """
@@ -93,7 +94,6 @@ class TestFit(unittest.TestCase):
 
         for _ in range(50):
             self.calculate_fit_quality_fixed_seed(None)
-
 
     def test_param_estimate(self, debug_plot=False):
         """
