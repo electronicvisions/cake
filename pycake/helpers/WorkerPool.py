@@ -1,6 +1,7 @@
 import multiprocessing
 import time
 import traceback
+import cPickle
 
 workers = multiprocessing.cpu_count() - 1
 
@@ -33,14 +34,16 @@ class WorkerPool(object):
 
     def do(self, key, *args):
         if not self.is_alive():
-            print "DO: ERROR process died unexpetedly"
-        self.q_in.put_nowait( (key, args) )
+            self.terminate()
+            raise RuntimeError("Worker process died unexpeted.")
+        self.q_in.put_nowait((key, args))
 
     def join(self):
         for w in self.workers:
             self.q_in.put(None)
         # TODO potential dead lock, if a worker or queue process dies unexpectedly
         if not self.is_alive():
+            self.terminate()
             raise RuntimeError("Worker process died unexpeted.")
         self.q_in.join()
         self.q_in.close()
@@ -74,9 +77,12 @@ class WorkerPool(object):
                 out_list[key] = f(*args)
             except Exception as e:
                 import traceback
-                print e
-                traceback.print_exc()
-                out_list[key] = e
+                print "{}\nERROR in worker thread:\n{} ({})\n{}\n{}".format(
+                    '-' * 80, e, type(e), traceback.format_exc(), '-' * 80)
+                try:
+                    out_list[key] = e
+                except cPickle.PicklingError:
+                    out_list[key] = RuntimeError(str(e))
             finally:
                 q_in.task_done()
         else:
