@@ -32,7 +32,7 @@ eval_parameters = {
         "V_syntcx_range": [{neuron_parameter.V_syntcx : Voltage(1440)} ], # dummy
         "V_syntci_range": [{neuron_parameter.V_syntci : Voltage(1440)} ], # dummy
 
-        "I_pl_range":   [{neuron_parameter.I_pl : Current(v)} for v in 1/np.array([10, 30, 50, 70, 90, 2500])],
+        "I_pl_range":   [{neuron_parameter.I_pl : Current(1.0/v)} for v in [10, 30, 50, 70, 90, 2500]],
 
         # How many repetitions?
         # Each repetition will take about 1 minute per step!
