@@ -1,11 +1,23 @@
 import numpy as np
 
+import pysthal
+import pyhalbe
 import pylogging
 import Coordinate
+import time
 from pycake.helpers.sthal import StHALContainer
 
-
 logger = pylogging.get("pycake.helper.TraceAverager")
+
+class Configurator(pysthal.HICANNConfigurator):
+    def hicann_init(self, h):
+        pyhalbe.HICANN.init(h, False)
+
+    def config_synapse_array(self, handle, data):
+        pass
+
+    def config_floating_gates(self, handle, data):
+        pass
 
 
 def _find_spikes_in_preout(trace):
@@ -27,19 +39,30 @@ def _find_spikes_in_preout(trace):
 
 
 def _get_preout_trace(coord_wafer, coord_hicann, bg_rate, recording_time):
+    """
+    Read preout of upper (debug) synapse driver.
+
+    note: This won't work on Analog 1, because stimulateNeurons doesn't give input
+    to the lower synapse driver with debug output.
+    """
     analog = Coordinate.AnalogOnHICANN(0)
     sthal = StHALContainer(coord_wafer, coord_hicann, analog, recording_time)
     # We need SynapseDriverOnHICANN(Enum(111)), this should be covered
     sthal.stimulateNeurons(bg_rate, 4)
     sthal.hicann.analog.set_preout(analog)
     # TODO skip floating gates to speed up
-    sthal.write_config()
+    sthal.write_config(configurator=Configurator())
+    time.sleep(1) # Settle driver locking
     times, trace = sthal.read_adc()
     sthal.disconnect()
     return trace
 
 
 def createTraceAverager(coord_wafer, coord_hicann):
+    """
+    Creates a TraceAverage by using constant spike input on the upper
+    synapse driver preout.
+    """
     analog = Coordinate.AnalogOnHICANN(0)
     logger.info("Create TraceAverager for {} on {}.".format(
         analog, coord_hicann))
@@ -51,6 +74,9 @@ def createTraceAverager(coord_wafer, coord_hicann):
     n = len(pos)
     expected_t = np.arange(n) / bg_rate
     adc_freq, _ = np.polyfit(expected_t, pos, 1)
+    if not 95e6 < adc_freq < 97e6:
+        raise RuntimeError("Found ADC frequency of {}, this is unlikly".format(
+            adc_freq))
     return TraceAverager(adc_freq)
 
 
