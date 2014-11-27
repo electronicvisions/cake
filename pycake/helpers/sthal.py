@@ -6,6 +6,7 @@ import pysthal
 import pylogging
 from pyhalbe import Coordinate, HICANN
 
+
 class UpdateAnalogOutputConfigurator(pysthal.HICANNConfigurator):
     """ Configures the following things from sthal container:
         - neuron quad configuration
@@ -19,11 +20,12 @@ class UpdateAnalogOutputConfigurator(pysthal.HICANNConfigurator):
 
     def config(self, fpga_handle, h, hicann):
         """Call analog output related configuration functions."""
-        self.config_neuron_config(h, hicann);
+        self.config_neuron_config(h, hicann)
         self.config_neuron_quads(h, hicann)
         self.config_analog_readout(h, hicann)
         self.config_fg_stimulus(h, hicann)
         self.flush_fpga(fpga_handle)
+
 
 class UpdateParameter(pysthal.HICANNConfigurator):
     def __init__(self, neuron_parameters):
@@ -72,11 +74,22 @@ class StHALContainer(object):
                  coord_analog=Coordinate.AnalogOnHICANN(0),
                  recording_time=1.e-4,
                  wafer_cfg="",
-                 PLL=100e6):
-        """Initialize StHAL. kwargs default to vertical setup configuration."""
+                 PLL=100e6,
+                 dump_file=None):
+        """Initialize StHAL. kwargs default to vertical setup configuration.
+
+        Args:
+            coord_hicann: HICANN Coordinate
+            coord_analog: AnalogOnHICANN Coordinate
+            recording_time: ADC recording time in seconds
+            wafer_cfg: ?
+            PLL: HICANN PLL frequency in Hz
+            dump_file: filename for StHAL dump handle instead of hardware
+        """
 
         self.coord_wafer = coord_wafer
         self.coord_hicann = coord_hicann
+        self.dump_file = dump_file
 
         self.wafer_cfg = wafer_cfg
 
@@ -95,7 +108,12 @@ class StHALContainer(object):
 
     def connect(self):
         """Connect to the hardware."""
-        self.wafer.connect(pysthal.MagicHardwareDatabase())
+        if self.dump_file is None:
+            db = pysthal.MagicHardwareDatabase()
+        else:
+            # do not actually connect, write to file
+            db = pysthal.DumpHardwareDatabase(self.dump_file, False)
+        self.wafer.connect(db)
         self.connect_adc()
         self._connected = True
 
@@ -197,7 +215,7 @@ class StHALContainer(object):
             rate: Rate of a single generator in Hertz
             number: Number of generators to use in parallel (per Neuron)
         """
-        assert(no_generators>= 0 and no_generators <= 4)
+        assert(no_generators >= 0 and no_generators <= 4)
         assert(rate <= 5.0e6)
 
         l1address = pyhalbe.HICANN.L1Address(0)
@@ -216,13 +234,13 @@ class StHALContainer(object):
             self.logger.DEBUG("activate {!s} with period {}".format(bg, bg_period))
 
         for ii in range(4):
-            bg_top    = Coordinate.OutputBufferOnHICANN(2*ii+1)
+            bg_top = Coordinate.OutputBufferOnHICANN(2*ii+1)
             bg_bottom = Coordinate.OutputBufferOnHICANN(2*ii)
 
-            drv_top    = Coordinate.SynapseDriverOnHICANN(
-                    Coordinate.Enum( 99 + ii * 4))
+            drv_top = Coordinate.SynapseDriverOnHICANN(
+                Coordinate.Enum(99 + ii * 4))
             drv_bottom = Coordinate.SynapseDriverOnHICANN(
-                    Coordinate.Enum( 126 - ii * 4))
+                Coordinate.Enum(126 - ii * 4))
             if ii < no_generators:
                 self.route(bg_top, drv_top)
                 self.route(bg_bottom, drv_bottom)
@@ -248,8 +266,8 @@ class StHALContainer(object):
         driver[top].set_decoder(bottom, driver_decoder)
         driver[top].set_gmax_div(left, 1)
         driver[top].set_gmax_div(right, 1)
-        driver[top].set_syn_in(left, 1) # Esynx
-        driver[top].set_syn_in(right, 0) # Esyni, perhaps
+        driver[top].set_syn_in(left, 1)  # Esynx
+        driver[top].set_syn_in(right, 0)  # Esyni, perhaps
         driver[top].set_gmax(0)
         driver[bottom] = driver[top]
         driver[bottom].set_syn_in(left, 0)
@@ -262,8 +280,7 @@ class StHALContainer(object):
             w_top = [pyhalbe.HICANN.SynapseWeight(0)] * 256
             w_bottom = [pyhalbe.HICANN.SynapseWeight(15)] * 256
 
-
-        synapse_line_top    = Coordinate.SynapseRowOnHICANN(driver_c, top)
+        synapse_line_top = Coordinate.SynapseRowOnHICANN(driver_c, top)
         synapse_line_bottom = Coordinate.SynapseRowOnHICANN(driver_c, bottom)
         self.hicann.synapses[synapse_line_top].weights[:] = w_top
         self.hicann.synapses[synapse_line_bottom].weights[:] = w_bottom
@@ -282,7 +299,7 @@ class StHALContainer(object):
 
         driver = self.hicann.synapses[driver_c]
         driver.disable()
-        synapse_line_top    = Coordinate.SynapseRowOnHICANN(driver_c, top)
+        synapse_line_top = Coordinate.SynapseRowOnHICANN(driver_c, top)
         synapse_line_bottom = Coordinate.SynapseRowOnHICANN(driver_c, bottom)
         weights = [pyhalbe.HICANN.SynapseWeight(0)] * 256
         self.hicann.synapses[synapse_line_top].weights[:] = weights
