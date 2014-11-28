@@ -189,12 +189,12 @@ class StHALContainer(object):
                 self.connect_adc()
         raise RuntimeError("Aborting ADC readout, maximum number of retries exceded")
 
-    def read_status(self):
+    def read_adc_status(self):
         if not self._connected:
             self.connect()
         return self.adc.status()
 
-    def status(self):
+    def read_wafer_status(self):
         if not self._connected:
             self.connect()
         return self.wafer.status()

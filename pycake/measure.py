@@ -194,7 +194,7 @@ class Measurement(object):
                 if not self.traces is None:
                     self.traces[neuron] = np.array([times, trace])
                 # DEBUG stuff
-                self.adc_status.append(self.sthal.read_status())
+                self.adc_status.append(self.sthal.read_adc_status())
                 if np.array_equal(trace, self.last_trace):
                     self.logger.ERROR(
                         "ADC trace didn't change from the last "
