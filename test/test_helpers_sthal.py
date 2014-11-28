@@ -12,6 +12,7 @@ import tempfile
 
 from pycake.helpers.sthal import StHALContainer, UpdateAnalogOutputConfigurator
 from pyhalbe import Coordinate as C
+from PysthalTest import PysthalTest, hardware
 
 
 class TestSthalHelper(unittest.TestCase):
@@ -30,6 +31,8 @@ class TestSthalHelper(unittest.TestCase):
         self.addCleanup(os.remove, filename)
         sthal = StHALContainer(coord_wafer, coord_hicann, dump_file=filename)
         sthal.connect()
+        sthal.read_adc_status()
+        sthal.read_wafer_status()
         sthal.write_config()
         sthal.disconnect()
 
@@ -38,5 +41,18 @@ class TestSthalHelper(unittest.TestCase):
         del configurator
 
 
+class TestSthalWithHardware(PysthalTest):
+    @hardware
+    def test_connect(self):
+        coord_wafer = C.Wafer(self.WAFER)
+        coord_hicann = C.HICANNOnWafer(self.HICANN)
+        sthal = StHALContainer(coord_wafer, coord_hicann)
+        sthal.connect()
+        #sthal.read_adc_status()
+        #sthal.read_wafer_status()
+        #sthal.write_config()
+        sthal.disconnect()
+
+
 if __name__ == "__main__":
-    unittest.main()
+    PysthalTest.main()
