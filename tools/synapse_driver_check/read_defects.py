@@ -44,6 +44,8 @@ if __name__ == "__main__":
     parser.add_argument('--verbose', action="store_true", default=False)
     parser.add_argument('--ignore_neurons', type=int, nargs="*", default=[])
     parser.add_argument('--clim', type=int, nargs=2, default=None)
+    parser.add_argument('--diff', action="store_true", default=False)
+    parser.add_argument('--print_bad', action="store_true", default=False)
     args = parser.parse_args()
 
     xs = []
@@ -53,20 +55,33 @@ if __name__ == "__main__":
 
     l_n_good_drv = []
 
+    if args.diff and args.files_are_plotdata:
+        print "options diff and files_are_plotdata clash"
+        exit(1)
+
+    if args.diff:
+        if len(args.files) != 2:
+            print "diff needs exactly two files"
+            exit(1)
+
+    to_be_diffed = [ [], [] ]
+
     # one file per voltage setting
-    for f in args.files:
+    for n, f in enumerate(args.files):
 
         if args.files_are_plotdata == False:
 
             fdir = f.name.split('/')[0]
 
-            if os.path.isdir(os.path.join(fdir, "good")):
-                shutil.rmtree(os.path.join(fdir, "good"))
-            if os.path.isdir(os.path.join(fdir, "bad")):
-                shutil.rmtree(os.path.join(fdir, "bad"))
+            if not args.diff:
 
-            mkdir_p(os.path.join(fdir, "good"))
-            mkdir_p(os.path.join(fdir, "bad"))
+                if os.path.isdir(os.path.join(fdir, "good")):
+                    shutil.rmtree(os.path.join(fdir, "good"))
+                if os.path.isdir(os.path.join(fdir, "bad")):
+                    shutil.rmtree(os.path.join(fdir, "bad"))
+
+                mkdir_p(os.path.join(fdir, "good"))
+                mkdir_p(os.path.join(fdir, "bad"))
 
             try:
                 reader = NeoHdf5IO(filename=f.name)
@@ -97,6 +112,12 @@ if __name__ == "__main__":
             vols_board_1 = []
             vohs_board_1 = []
 
+            vols_DAC_board_0 = []
+            vohs_DAC_board_0 = []
+
+            vols_DAC_board_1 = []
+            vohs_DAC_board_1 = []
+
             green_to_reds = []
 
             is_good = []
@@ -118,6 +139,12 @@ if __name__ == "__main__":
 
                 vols_board_1.append(voltages["V9"][1])
                 vohs_board_1.append(voltages["V10"][1])
+
+                vols_DAC_board_0.append(voltages["DAC_V9"][0])
+                vohs_DAC_board_0.append(voltages["DAC_V10"][0])
+
+                vols_DAC_board_1.append(voltages["DAC_V9"][1])
+                vohs_DAC_board_1.append(voltages["DAC_V10"][1])
 
                 drv_correct = 0
                 drv_incorrect = 0
@@ -142,20 +169,24 @@ if __name__ == "__main__":
                     is_good.append(True)
                     if args.verbose:
                         print "driver {:03d} is good".format(driver)
-                    try:
-                        os.symlink("../driver_{:03d}.pdf".format(driver), os.path.join(fdir,"good/driver_{:03d}.pdf".format(driver)))
-                    except OSError as e:
-                        #print e
-                        pass
+                    if not args.diff:
+                        try:
+                            os.symlink("../driver_{:03d}.pdf".format(driver), os.path.join(fdir,"good/driver_{:03d}.pdf".format(driver)))
+                        except OSError as e:
+                            #print e
+                            pass
                 else:
                     is_good.append(False)
                     if args.verbose:
                         print "driver {:03d} is bad".format(driver)
-                    try:
-                        os.symlink("../driver_{:03d}.pdf".format(driver), os.path.join(fdir,"bad/driver_{:03d}.pdf".format(driver)))
-                    except OSError as e:
-                        #print e
-                        pass
+                    if not args.diff:
+                        try:
+                            os.symlink("../driver_{:03d}.pdf".format(driver), os.path.join(fdir,"bad/driver_{:03d}.pdf".format(driver)))
+                        except OSError as e:
+                            #print e
+                            pass
+
+                to_be_diffed[n].append([fdir, driver, is_good[-1], green_to_reds[-1], vols_board_0[-1], vohs_board_0[-1], vols_board_1[-1], vohs_board_1[-1], vols_DAC_board_0[-1], vohs_DAC_board_0[-1], vols_DAC_board_1[-1], vohs_DAC_board_1[-1]])
 
             mean_vols_board_0 = np.mean(vols_board_0)
             std_vols_board_0  = np.std(vols_board_0)
@@ -167,7 +198,19 @@ if __name__ == "__main__":
             mean_vohs_board_1 = np.mean(vohs_board_1)
             std_vohs_board_1  = np.std(vohs_board_1)
 
+            mean_vols_DAC_board_0 = np.mean(vols_DAC_board_0)
+            std_vols_DAC_board_0  = np.std(vols_DAC_board_0)
+            mean_vohs_DAC_board_0 = np.mean(vohs_DAC_board_0)
+            std_vohs_DAC_board_0  = np.std(vohs_DAC_board_0)
+
+            mean_vols_DAC_board_1 = np.mean(vols_DAC_board_1)
+            std_vols_DAC_board_1  = np.std(vols_DAC_board_1)
+            mean_vohs_DAC_board_1 = np.mean(vohs_DAC_board_1)
+            std_vohs_DAC_board_1  = np.std(vohs_DAC_board_1)
+
             print fdir, n_good_drv, mean_vols_board_0, std_vols_board_0, mean_vols_board_1, std_vols_board_1, mean_vohs_board_0, std_vohs_board_0, mean_vohs_board_1, std_vohs_board_1
+            if args.verbose:
+                print "DAC", mean_vols_DAC_board_0, std_vols_DAC_board_0, mean_vols_DAC_board_1, std_vols_DAC_board_1, mean_vohs_DAC_board_0, std_vohs_DAC_board_0, mean_vohs_DAC_board_1, std_vohs_DAC_board_1
 
             xs.append(np.mean([mean_vols_board_0, mean_vols_board_1]))
             ys.append(np.mean([mean_vohs_board_0, mean_vohs_board_1]))
@@ -254,6 +297,20 @@ if __name__ == "__main__":
                     freqs.append(0)
                     bkgisis.append(0)
 
+    if args.diff:
+        for entry_0, entry_1 in zip(to_be_diffed[0], to_be_diffed[1]):
+            if entry_0[2] != entry_1[2]:
+                print entry_0[1:]
+                print entry_1[1:]
+                print
+
+    if args.print_bad:
+
+        print "bad: "
+        # reuse list for diffing
+        bad = sorted([entry_0[1] for entry_0 in to_be_diffed[0] if entry_0[2] == False])
+        print "[" + ", ".join([str(b) for b in bad]) +"]"
+
     if len(xs) > 1:
 
         fig, ax = plt.subplots(figsize=(12, 10))
@@ -322,6 +379,36 @@ if __name__ == "__main__":
 
         plt.close()
 
+        fig, ax = plt.subplots(figsize=(12, 10))
+        margins={"left":0.11, "right":0.95, "top":0.95, "bottom":0.11}
+        plt.subplots_adjust(**margins)
+
+        mean_vo = [(x+y)/2 for x,y in zip(xs,ys)]
+        diff_vo = [(y-x) for x,y in zip(xs,ys)]
+
+        plt.scatter(diff_vo, mean_vo, c=l_n_good_drv,s=500, cmap=plt.cm.jet)
+
+        for vol, voh, n_good in zip(xs,ys,l_n_good_drv):
+            mean = (voh+vol)/2
+            diff = (voh-vol)
+            ax.annotate("{}".format(int(n_good)), (diff, mean), ha="center", va="center", size="xx-small")
+
+        cbar = plt.colorbar()
+
+        plt.xlim(0,0.5)
+        # plt.ylim(0.95,1.25)
+        plt.ylim(1,1.3)
+
+        plt.xlabel("VOH-VOL [V]")
+        plt.ylabel("(VOH+VOL)/2 [V]")
+
+        plt.grid(True)
+
+        if args.clim:
+            plt.clim(*args.clim)
+
+        if args.plotfilename:
+            fig.savefig(args.plotfilename+"_mean_vs_diff.pdf")
 
         if args.plotfilename:
 
@@ -427,6 +514,24 @@ if __name__ == "__main__":
             plt.ylabel("# good drivers")
 
             fig.savefig(args.plotfilename + "_vs_vol.pdf")
+
+            #--------------------------------------------------------------------------------
+
+            fig, ax = plt.subplots(figsize=(12, 10))
+            margins={"left":0.11, "right":0.95, "top":0.95, "bottom":0.11}
+            plt.subplots_adjust(**margins)
+
+            plt.plot(l_n_good_drv)
+
+            plt.ylim(*args.clim)
+
+            plt.grid(True)
+
+            plt.xlabel("index")
+            plt.ylabel("# good drivers")
+
+            fig.savefig(args.plotfilename + "_vs_order.pdf")
+
 
     #        corr = np.zeros([64, 64])
     #
