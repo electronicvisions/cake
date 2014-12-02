@@ -137,10 +137,10 @@ class StHALContainer(object):
         """Connect to the hardware."""
         if self.dump_file is None:
             db = pysthal.MagicHardwareDatabase()
+            self.wafer.connect(db)
         else:
             # do not actually connect, write to file
-            db = pysthal.DumpHardwareDatabase(self.dump_file, False)
-        self.wafer.connect(db)
+            self.dump_connect(self.dump_file, False)
         self.connect_adc()
         self._connected = True
 
@@ -350,10 +350,10 @@ class StHALContainer(object):
         driver_line = driver.line()
         repeater_data = self.hicann.repeater[repeater]
         repeater_data.setOutput(Coordinate.right, True)
-        if driver.side() == Coordinate.left:
+        if driver.toSideHorizontal() == Coordinate.left:
             v_line_value = 31 - out_line.value()/2
             v_line_value += 32 * route
-        if driver.side() == Coordinate.right:
+        if driver.toSideHorizontal() == Coordinate.right:
             v_line_value = 128 + out_line.value()/2
             v_line_value += 32 * route
         v_line = Coordinate.VLineOnHICANN(v_line_value)
