@@ -54,6 +54,33 @@ class UpdateParameter(pysthal.HICANNConfigurator):
                 HICANN.set_fg_row_values(handle, block, row, data, write_down)
 
 
+class FakeAnalogRecorder(object):
+    """Fake AnalogRecorder for testing purposes.
+
+    Mimics API from StHAL::AnalogRecorder.
+    """
+    def __init__(self):
+        pass
+
+    def freeHandle(self):
+        pass
+
+    def record(self):
+        pass
+
+    def trace(self):
+        pass
+
+    def setRecordingTime(self, time):
+        pass
+
+    def getTimestamps(self):
+        pass
+
+    def status(self):
+        pass
+
+
 class StHALContainer(object):
     """Contains StHAL objects for hardware access. Multiple experiments can share one container."""
     def __getstate__(self):
@@ -134,7 +161,12 @@ class StHALContainer(object):
 
         if coord_analog is None:
             coord_analog = self.coord_analog
-        adc = self.hicann.analogRecorder(coord_analog)
+
+        if self.dump_file is None:
+            adc = self.hicann.analogRecorder(coord_analog)
+        else:
+            # do not actually connect
+            adc = FakeAnalogRecorder()
         adc.setRecordingTime(self.recording_time)
         self.adc = adc
 
