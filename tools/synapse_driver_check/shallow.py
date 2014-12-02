@@ -332,6 +332,9 @@ class Hardware(object):
         self.hicann.clear_l1_routing()
         self.hicann.clear_l1_switches()
         self.hicann.synapses.clear_drivers()
+
+        self.hicann.clear_complete_l1_routing()
+
         #self.hicann.synapses.clear_synapses() # make me configurable
 
         for nrn in Coordinate.iter_all(Coordinate.NeuronOnHICANN):
