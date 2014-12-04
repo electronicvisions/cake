@@ -43,6 +43,9 @@ parser.add_argument('--extrasuffix', type=str, default=None)
 parser.add_argument('--dumpwafercfg', action="store_true", default=False)
 parser.add_argument('--ana', action="store_true", default=False)
 parser.add_argument('--drivers', type=int, nargs="+", default=range(224))
+parser.add_argument('--ninputspikes', type=int, default=200)
+parser.add_argument('--inputspikeisi', type=float, default=0.1e-6)
+parser.add_argument('--addroffset', type=float, default=50e-6)
 args = parser.parse_args()
 
 WAFER = args.wafer
@@ -181,9 +184,9 @@ def aquire(seg, driver):
     # Create input spike trains
 
     start_offset = 5e-6
-    addr_offset = 50e-6
-    n_input_spikes = 200
-    input_spike_isi = 0.1e-6
+    addr_offset = args.addroffset
+    n_input_spikes = args.ninputspikes
+    input_spike_isi = args.inputspikeisi
 
     seg.annotations["start_offset"] = start_offset
     seg.annotations["addr_offset"] = addr_offset
