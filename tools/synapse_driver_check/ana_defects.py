@@ -66,6 +66,7 @@ def ana(seg, plotpath=None):
     addr_offset = seg.annotations["addr_offset"]*quantities.s
     addr_spikes_map = {spikes.annotations["addr"]: spikes.times for spikes in seg.spiketrains}
     addr_neuron_map = seg.annotations["addr_neuron_map"]
+    duration = seg.annotations["duration"]
 
     plot = True if plotpath else False
 
@@ -77,7 +78,7 @@ def ana(seg, plotpath=None):
 
         plt.grid(False)
         plt.ylim((-1, 64))
-        plt.xlim((0, 4e-3))
+        plt.xlim((0, duration))
         plt.yticks(range(0, 64, 1))
 
         yticklabels=["{:.0f} ({:.0f}, {})".format(yt, addr_neuron_map[yt], int((addr_neuron_map[yt] % 256) / 32)) for yt in ax1.get_yticks()]

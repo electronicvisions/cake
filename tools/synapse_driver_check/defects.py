@@ -194,13 +194,16 @@ def aquire(seg, driver):
     seg.annotations["n_input_spikes"] = n_input_spikes
     seg.annotations["input_spike_isi"] = input_spike_isi
 
+    duration = 4e-3
+
     for i in range(max_index+1):
         train = np.arange(n_input_spikes) * input_spike_isi + start_offset + addr_offset*i
+        duration=max(train)+0.001
         hardware.add_spike_train(bus, i, train)
 
     #print hardware.hicann
+    seg.annotations["duration"] = duration
 
-    duration = 4e-3
 
     record_membrane = False
 
