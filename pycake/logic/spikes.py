@@ -2,11 +2,12 @@
 
 import numpy as np
 from functools import partial
-import pickle
 
 
 def detect_spikes(time, voltage):
-    """Detect spikes from a voltage trace."""
+    """DEPRECATED. Use pycake.helpers.peakdetect instead.
+
+    Detect spikes from a voltage trace."""
 
     # make sure we have numpy arrays
     t = np.array(time)
@@ -39,28 +40,23 @@ def spikes_to_freqency(spikes):
 
 def partition_by_2(seq):
     result = []
-    for i in range(0,len(seq)-1):
-        result.append([seq[i],seq[i+1]])
+    for i in range(0, len(seq) - 1):
+        result.append([seq[i], seq[i+1]])
     return result
 
 
-def min_in_part(v,p):
+def min_in_part(v, p):
     start = p[0]
     end = p[1]
     return start + np.argmin(v[start:end])
 
-def detect_min_pos(time,voltage):
-    t = np.array(time)
+
+def detect_min_pos(time, voltage):
     v = np.array(voltage)
 
-    spikes = detect_spikes(time,voltage)
-#    pickle.dump(spikes, open("spikes","w"))
+    spikes = detect_spikes(time, voltage)
     partitions = partition_by_2(spikes)
     # minimums in each partition between spikes
-#    pickle.dump(spikes, open("partitions","w"))
     mins = map(partial(min_in_part, v), partitions)
-#    pickle.dump(mins, open("mins","w"))
 
     return mins
-
-
