@@ -77,13 +77,13 @@ mkdir_p(fig_dir)
 try:
     reader = Reader(args.runner)
 except Exception as e:
-    print "Cannot instantiate reader because:", e
+    print "Cannot instantiate reader {} because: {}".format(args.runner, e)
     reader = None
 
 try:
     test_reader = Reader(args.testrunner)
 except Exception as e:
-    print "Cannot instantiate test reader because:", e
+    print "Cannot instantiate test reader {} because: {}".format(args.testrunner, e)
     test_reader = None
 
 def uncalibrated_hist(xlabel, reader, **reader_kwargs):
@@ -227,7 +227,14 @@ fig = plt.figure()
 
 c = calibtic.Calibtic(args.backenddir,C.Wafer(C.Enum(args.wafer)),C.HICANNOnWafer(C.Enum(args.hicann)))
 
-offsets = [c.nc.at(n).at(21).apply(0) * 1000 for n in xrange(512)]
+def get_offset(cal, nrnidx):
+    try:
+        return cal.nc.at(nrnidx).at(21).apply(0)
+    except IndexError:
+        return 0
+
+
+offsets = [get_offset(c, n) * 1000 for n in xrange(512)]
 plt.hist(offsets, bins=100);
 plt.xlabel("offset [mV]")
 plt.ylabel("#")
