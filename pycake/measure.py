@@ -122,7 +122,7 @@ class Measurement(object):
             if isinstance(parameter, neuron_parameter):
                 values.append(fgs.getNeuron(neuron, parameter))
             elif isinstance(parameter, shared_parameter):
-                block = neuron.sharedFGBlock()
+                block = neuron.toSharedFGBlockOnHICANN()
                 values.append(fgs.getShared(block, parameter))
             else:
                 raise TypeError("invalid parameter type {}".format(type(parameter)))
