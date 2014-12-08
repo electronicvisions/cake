@@ -10,11 +10,11 @@ shared_parameter = pyhalbe.HICANN.shared_parameter
 class E_l_I_gl_fixed_Calibrator(object):
     target_parameters = (neuron_parameter.E_l, neuron_parameter.I_gl)
 
-    def __init__(self, experiment):
+    def __init__(self, experiment, config):
         self.experiment = experiment
         self.neurons = self.experiment.measurements[0].neurons
         # TODO from config? perhaps later
-        self.target = 700.0
+        self.target = config.get_config_with_default('E_l_target', 700.0)
         self.min_distance = 50.0
 
     def fit_neuron(self, neuron):

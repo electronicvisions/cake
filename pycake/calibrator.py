@@ -29,7 +29,7 @@ class BaseCalibrator(object):
     """
     logger = pylogging.get("pycake.calibrator")
 
-    def __init__(self, experiments):
+    def __init__(self, experiments, config):
         if not isinstance(experiments, list):
             experiments = [experiments]
         self.experiments = experiments
@@ -168,7 +168,7 @@ class BaseCalibrator(object):
 class V_reset_Calibrator(BaseCalibrator):
     target_parameter = shared_parameter.V_reset
 
-    def __init__(self, experiment):
+    def __init__(self, experiment, config):
         self.experiment = experiment
 
     def get_key(self):
@@ -184,7 +184,7 @@ class V_reset_Calibrator(BaseCalibrator):
     def mean_over_blocks(self, neuron_results):
         blocks = defaultdict(list)
         for neuron, value in neuron_results.iteritems():
-            blocks[neuron.sharedFGBlock()].append(value)
+            blocks[neuron.toSharedFGBlockOnHICANN()].append(value)
         return dict((k, np.mean(v, axis=0)) for k, v in blocks.iteritems())
 
     def get_neurons(self):
@@ -201,7 +201,8 @@ class V_reset_Calibrator(BaseCalibrator):
 
         neuron_shifts = {}
         for neuron, value in neuron_results.iteritems():
-            diffs = value[:,2] - block_means[neuron.sharedFGBlock()][:,2]
+            block_mean = block_means[neuron.toSharedFGBlockOnHICANN()][:, 2]
+            diffs = value[:, 2] - block_mean
             neuron_shifts[neuron] = [np.mean(diffs)]
         return neuron_shifts
 
@@ -267,7 +268,7 @@ class V_syntc_psp_max_BaseCalibrator(BaseCalibrator):
     # to be set in derived class
     target_parameter = None
 
-    def __init__(self, experiment):
+    def __init__(self, experiment, config):
         self.experiment = experiment
         self.neurons = self.experiment.measurements[0].neurons
 
