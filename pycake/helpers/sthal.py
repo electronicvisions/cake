@@ -191,7 +191,7 @@ class StHALContainer(object):
 
     def switch_analog_output(self, coord_neuron, l1address=None):
         """Write analog output configuration (only).
-           If l1address is None, firing is disabled.
+           If l1address is None, l1 output is disabled.
 
            Using write_config() after this function will result
            in errors like
@@ -201,6 +201,7 @@ class StHALContainer(object):
         if not self._connected:
             self.connect()
         self.hicann.disable_aout()
+        self.hicann.disable_l1_output()
         self.hicann.disable_current_stimulus()
         if not self.wafer_cfg and l1address is not None:
             self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(l1address))
