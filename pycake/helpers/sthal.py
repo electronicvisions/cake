@@ -4,7 +4,9 @@ import math
 import pyhalbe
 import pysthal
 import pylogging
-from pyhalbe import Coordinate, HICANN
+import Coordinate
+from pyhalbe import HICANN
+from Coordinate import Enum
 
 
 class UpdateAnalogOutputConfigurator(pysthal.HICANNConfigurator):
@@ -240,6 +242,13 @@ class StHALContainer(object):
         pll frequency of the hicann, musst be 50.0e6, 100.0e6, 150.0e6, 200.0e6 or 250.0e6
         """
         return self.wafer.commonFPGASettings().setPLL(freq)
+
+    def set_fg_biasn(self, biasn):
+        fg = self.hicann.floating_gates
+        for ii in range(fg.getNoProgrammingPasses()):
+            cfg = fg.getFGConfig(Enum(ii))
+            cfg.fg_biasn = 0
+            fg.setFGConfig(Enum(ii), cfg)
 
     def stimulateNeurons(self, rate, no_generators, excitatory=True):
         """Stimulate neurons via background generators
