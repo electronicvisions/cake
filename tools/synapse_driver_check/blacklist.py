@@ -15,12 +15,16 @@ import shallow
 import pylogging
 pylogging.default_config(date_format='absolute')
 pylogging.set_loglevel(pylogging.get("shallow"), pylogging.LogLevel.DEBUG)
+pylogging.set_loglevel(pylogging.get("sthal"), pylogging.LogLevel.INFO)
+pylogging.set_loglevel(pylogging.get("sthal.HICANNConfigurator.Time"), pylogging.LogLevel.DEBUG)
+pylogging.set_loglevel(pylogging.get("Default"), pylogging.LogLevel.INFO)
 
 import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('hicann', type=int)
 parser.add_argument('--wafer', type=int, default=0)
+parser.add_argument('--calibpath', type=str, default="/wang/data/calibration/")
 args = parser.parse_args()
 
 WAFER = args.wafer
@@ -46,7 +50,7 @@ for i in range(512):
 params.shared.V_reset = 200
 
 hardware = shallow.Hardware(WAFER, HICANN,
-        '/wang/data/calibration/wafer_{0}'.format(WAFER))
+                            os.path.join(args.calibpath,'wafer_{0}').format(WAFER))
 hardware.connect()
 
 blacklist_file = open('blacklist_w{}_h{}.csv'.format(WAFER,HICANN), 'w')
