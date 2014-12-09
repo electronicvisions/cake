@@ -87,7 +87,7 @@ def get_neurons(driver):
 
     bus = shallow.get_bus_from_driver(driver)
 
-    neurons = np.delete(neurons, neuron_blacklist)
+    neurons = np.array([n for n in neurons if n not in neuron_blacklist])
 
     random.seed(driver)
     random.shuffle(neurons)
