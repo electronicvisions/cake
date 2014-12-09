@@ -92,6 +92,8 @@ def uncalibrated_hist(xlabel, reader, **reader_kwargs):
 
     print "uncalibrated hist for", reader_kwargs["parameter"]
 
+    reader_kwargs["alpha"] = 0.8
+
     for include_defects in [True, False]:
 
         reader.include_defects = include_defects
@@ -118,6 +120,8 @@ def calibrated_hist(xlabel, reader, **reader_kwargs):
     if not reader: return
 
     print "calibrated hist for", reader_kwargs["parameter"]
+
+    reader_kwargs["alpha"] = 0.8
 
     for include_defects in [True, False]:
 
