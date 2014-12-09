@@ -326,6 +326,7 @@ class Hardware(object):
 
     def assign_address(self, neuron, address):
         self.hicann.enable_l1_output(Coordinate.NeuronOnHICANN(Coordinate.Enum(neuron)), HICANN.L1Address(address))
+        self.hicann.neurons[Coordinate.NeuronOnHICANN(Coordinate.Enum(neuron))].activate_firing(True)
 
     @reset_configuration()
     def clear_routes(self):
