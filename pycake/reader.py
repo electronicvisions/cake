@@ -104,6 +104,38 @@ class Reader(object):
             plt.axvline(target_value, linestyle='dashed', color='k', linewidth=1)
         return hist
 
+    def plot_vs_neuron_number(self, parameter, key, step, repetition=0, draw_target_line=True, **kwargs):
+        neurons = self.get_neurons()
+        results = self.get_results(parameter, self.get_neurons(), key, repetition)
+
+        results_list = np.array(results.values())[:,step]
+
+        p = plt.plot([int(n.id()) for n in neurons], results_list) 
+
+        config = self.runner.config.copy(parameter)
+
+        target_value = config.get_steps()[step]
+
+        if draw_target_line and len(target_value) == 1:
+            target_value = target_value.values()[0].value / 1000.0
+            plt.axhline(target_value, linestyle='dashed', color='k', linewidth=1)
+
+        return p
+
+    def plot_vs_neuron_number_s(self, parameter, key, repetition=0, show_legend=False, **kwargs):
+
+        nsteps = len(self.runner.config.copy(parameter).get_steps())
+
+        fig = plt.figure()
+
+        ps = [self.plot_vs_neuron_number(parameter, key, step, repetition, **kwargs) for step in xrange(nsteps)]
+
+        if show_legend:
+            #plt.legend()
+            pass
+
+        return fig, ps
+
     def plot_hists(self, parameter, key, repetition=0, show_legend=False, **kwargs):
         """ Returns figure and histograms for all steps
         """
