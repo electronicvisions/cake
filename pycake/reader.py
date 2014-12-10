@@ -108,7 +108,7 @@ class Reader(object):
         neurons = self.get_neurons()
         results = self.get_results(parameter, self.get_neurons(), key, repetition)
 
-        results_list = np.array(results.values())[:,step]
+        results_list = np.array([results[n] for n in neurons])[:,step]
 
         p = plt.plot([int(n.id()) for n in neurons], results_list) 
 
