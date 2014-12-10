@@ -21,6 +21,11 @@ class TestSpikes(unittest.TestCase):
             ## hard assertion
             #self.assertEqual(voltage[t], 99.)
 
+    def test_frequency(self):
+        spikes = np.array([1, 2, 3, 4, 5, 6, 7, 8])
+        self.assertEqual(sp.spikes_to_frequency(spikes), 1)
+        self.assertEqual(sp.spikes_to_frequency(2*spikes), 0.5)
+
 
 if __name__ == "__main__":
     unittest.main()
