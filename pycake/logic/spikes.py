@@ -27,7 +27,7 @@ def detect_spikes(time, voltage):
     return spikes
 
 
-def spikes_to_freqency(spikes):
+def spikes_to_frequency(spikes):
     """Calculate the spiking frequency from spikes."""
 
     # inter spike interval
