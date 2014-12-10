@@ -159,25 +159,50 @@ class Reader(object):
 
         return hist
 
-    def plot_result(self, parameter, key, neurons=None, yfactor=1000, **kwargs):
+    def plot_result(self, parameter, key, neurons=None, yfactor=1000, mark_top_bottom=True, **kwargs):
 
         fig = plt.figure()
 
         if neurons == None:
             neurons = self.get_neurons()
 
-        results = self.get_results(parameter, neurons, key, repetition=0)
+        coord_neurons = []
+        for n in neurons:
+            if isinstance(n, C.NeuronOnHICANN):
+                coord_neurons.append(n)
+            elif isinstance(n, int):
+                coord_neurons.append(C.NeuronOnHICANN(C.Enum(n)))
+            else:
+                raise RuntimeError("unexpected type {} for neuron".format(type(n)))
+
+        neurons = coord_neurons
 
         config = self.runner.config.copy(parameter)
 
-        xs = []
-        ys = []
+        if mark_top_bottom:
+            # http://stackoverflow.com/a/17210030/1350789
+            colors = ['b','g']
+            labels = ["top", "bottom"]
+            [plt.plot(None,None,ls='-',marker='o',c=c,label=l) for c,l in zip(colors,labels)]
+            plt.legend(labels)
 
-        for step, step_value in enumerate(config.get_steps()):
+        for vertical, color in zip([C.Y(0), C.Y(1)], ['b', 'g']):
 
-            xs.append(step_value.values()[0].value)
-            ys.append((np.array(results.values())*yfactor)[:,step])
+            results = self.get_results(parameter, [n for n in neurons if n.y() == vertical], key, repetition=0)
 
-        plot = plt.plot(xs, ys, **kwargs)
+            if results:
+
+                xs = []
+                ys = []
+
+                for step, step_value in enumerate(config.get_steps()):
+
+                    xs.append(step_value.values()[0].value)
+                    ys.append((np.array(results.values())*yfactor)[:,step])
+
+                if mark_top_bottom:
+                    plot = plt.plot(xs, ys, color=color, marker='o', **kwargs)
+                else:
+                    plot = plt.plot(xs, ys, **kwargs)
 
         return fig, plot
