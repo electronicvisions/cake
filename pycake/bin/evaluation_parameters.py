@@ -34,28 +34,42 @@ eval_parameters = {
 
         "I_pl_range":   [{neuron_parameter.I_pl : Current(1.0/v)} for v in [10, 30, 50, 70, 90, 2500]],
 
+        "spikes_range" : [{neuron_parameter.V_t : Voltage(500)}],
+
         # How many repetitions?
         # Each repetition will take about 1 minute per step!
         "repetitions":  1,
 
         # Set which calibrations you want to run
-        "run_V_reset":  True,
-        "run_E_synx":   True,
-        "run_E_syni":   True,
-        "run_E_l":      True,
+        "run_V_reset":  False,
+        "run_E_synx":   False,
+        "run_E_syni":   False,
+        "run_E_l":      False,
         "run_V_t":      True,
         "run_I_gl":     False,
-        "run_I_pl":     True,
+        "run_I_pl":     False,
         "run_V_syntcx": False,
         "run_V_syntci": False,
         "run_V_syntci_psp_max": False,
         "run_V_syntcx_psp_max": False,
         "run_E_l_I_gl_fixed":  False,
+        "run_spikes" : False,
 
         # Measurement runs twice by default: first to generate calibration data, and a second time to measure the success of calibration
         # Here you can turn either of these runs on or off
         "calibrate":    False,
         "measure":      True,
+
+        "spikes_parameters": {
+            neuron_parameter.E_l: Voltage(E_l_target, apply_calibration=True),
+            neuron_parameter.E_syni:     Voltage(E_syni_target, apply_calibration=True),
+            neuron_parameter.E_synx:     Voltage(E_synx_target, apply_calibration=True),
+            neuron_parameter.I_gl:       Current(1000, apply_calibration=True),
+            neuron_parameter.V_syntcx: Voltage(1440, apply_calibration=True),  # dummy
+            neuron_parameter.V_syntci: Voltage(1440, apply_calibration=True),  # dummy
+            shared_parameter.V_reset:    Voltage(500, apply_calibration=True),
+        },
+
 
 }
 

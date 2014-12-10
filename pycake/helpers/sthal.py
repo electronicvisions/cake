@@ -16,12 +16,15 @@ class UpdateAnalogOutputConfigurator(pysthal.HICANNConfigurator):
         - analog current input
         - current stimulus strength/duration etc.
     """
-    def config_fpga(self, *args):
-        """do not reset FPGA"""
-        pass
+    #def config_fpga(self, *args):
+    #    """do not reset FPGA"""
+    #    pass
 
     def config(self, fpga_handle, h, hicann):
         """Call analog output related configuration functions."""
+
+	self.config_gbitlink(h, hicann);
+
         self.config_neuron_config(h, hicann)
         self.config_neuron_quads(h, hicann)
         self.config_analog_readout(h, hicann)
@@ -182,8 +185,23 @@ class StHALContainer(object):
     # TODO fix after dominiks thesis
     def write_config(self, program_floating_gates=True, configurator=None):
         """Write full configuration."""
+
+        print "write_config, merger tree et. al."
+
+        mergertree = self.hicann.layer1.getMergerTree()
+        mergertree.set_eight_on_one()
+        self.hicann.layer1.setMergerTree(mergertree)
+
+        print self.hicann.layer1.getMergerTree()
+
+        for channel in Coordinate.iter_all(Coordinate.GbitLinkOnHICANN):
+            self.hicann.layer1[channel] = pyhalbe.HICANN.GbitLink.Direction.TO_DNC
+
+        #self.hicann.layer1[Coordinate.GbitLinkOnHICANN(3)] = pyhalbe.HICANN.GbitLink.Direction.TO_DNC
+
         if not self._connected:
             self.connect()
+
         if configurator is None:
             if program_floating_gates:
                 configurator = pysthal.HICANNConfigurator()
@@ -206,9 +224,15 @@ class StHALContainer(object):
         self.hicann.disable_l1_output()
         self.hicann.disable_current_stimulus()
         if not self.wafer_cfg and l1address is not None:
+
+            print "enabling l1 output", coord_neuron, l1address
+
             self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(l1address))
+            self.hicann.neurons[coord_neuron].activate_firing(True)
+
         self.hicann.enable_aout(coord_neuron, self.coord_analog)
         self.wafer.configure(UpdateAnalogOutputConfigurator())
+        #self.wafer.configure(pysthal.DontProgramFloatingGatesHICANNConfigurator())
 
     def read_adc(self):
         if not self._connected:

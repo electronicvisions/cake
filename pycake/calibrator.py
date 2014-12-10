@@ -242,6 +242,9 @@ class E_l_Calibrator(BaseCalibrator):
         return defect
     """
 
+class spikes_Calibrator(BaseCalibrator):
+    target_parameter = None
+
 class V_t_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.V_t
     def get_key(self):

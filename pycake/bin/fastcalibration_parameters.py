@@ -259,5 +259,6 @@ parameters = {
                              neuron_parameter.I_pl.name,
                              neuron_parameter.V_syntcx.name,
                              neuron_parameter.V_syntci.name,
+                             "spikes"
                              ],
 }

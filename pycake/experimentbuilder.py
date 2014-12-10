@@ -166,6 +166,9 @@ class BaseExperimentBuilder(object):
 class E_l_Experimentbuilder(BaseExperimentBuilder):
     pass
 
+class spikes_Experimentbuilder(BaseExperimentBuilder):
+    pass
+
 class V_reset_Experimentbuilder(BaseExperimentBuilder):
     def get_readout_shifts(self, neurons):
         if self.test:

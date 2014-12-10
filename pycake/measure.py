@@ -1,8 +1,10 @@
 import numpy as np
 import pylogging
-from Coordinate import NeuronOnHICANN, FGBlockOnHICANN, iter_all
+from Coordinate import NeuronOnHICANN, FGBlockOnHICANN, iter_all, GbitLinkOnHICANN
+import Coordinate
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
 import pyhalbe
+import pysthal
 
 from helpers.WorkerPool import WorkerPool
 from helpers.TracesOnDiskDict import TracesOnDiskDict
@@ -172,7 +174,7 @@ class Measurement(object):
         self.sthal.write_config(configurator=configurator)
 
     def pre_measure(self, neuron):
-        self.sthal.switch_analog_output(neuron)
+        self.sthal.switch_analog_output(neuron, l1address=42)
 
     def _measure(self, analyzer):
         """ Measure traces and correct each value for readout shift.
@@ -182,11 +184,16 @@ class Measurement(object):
                 self.traces = {neuron: trace}
                 self.spikes = {neuron: spikes} #TODO this is not yet implemented
         """
+
         self.last_trace = np.array([])
         self.adc_status = []
         self.logger.INFO("Measuring.")
+
         with WorkerPool(analyzer) as worker:
             for neuron in self.neurons:
+
+                self.sthal.wafer.clearSpikes()
+
                 self.pre_measure(neuron)
                 times, trace = self.sthal.read_adc()
                 worker.do(
@@ -205,6 +212,28 @@ class Measurement(object):
                         "log messages)")
                 self.last_trace = trace
                 # DEBUG stuff end
+
+                # SPIKES
+                # Collect data
+
+                runner = pysthal.ExperimentRunner(4e-3)
+                self.sthal.wafer.start(runner)
+
+                no_spikes = []
+                spiketimes = []
+                spikeaddresses = []
+                for ii, channel in enumerate(iter_all(GbitLinkOnHICANN)):
+                    received = self.sthal.hicann.receivedSpikes(channel)
+                    times, addresses = received.T
+
+                    print channel, len(received)
+
+                    no_spikes.append(len(received))
+                    spiketimes.append(times)
+                    spikeaddresses.append(addresses)
+
+                print neuron, no_spikes, spiketimes, spikeaddresses
+
             self.last_trace = None
 
             self.logger.INFO("Wait for analysis to complete.")
