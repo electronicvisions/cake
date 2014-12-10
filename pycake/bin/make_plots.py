@@ -626,12 +626,10 @@ if r_v_syntcx:
     """
 
     # In[222]:
-
-    r_v_syntcx.plot_hists("V_syntcx_psp_max", "std", bins=100, range=(0,0.03), draw_target_line=False);
+    #r_v_syntcx.plot_hists("V_syntcx_psp_max", "std", bins=100, range=(0,0.03), draw_target_line=False);
 
     # In[223]:
-
-    r_v_syntcx.plot_result("V_syntcx_psp_max","mean", color='b', alpha=0.1);
+    #r_v_syntcx.plot_result("V_syntcx_psp_max","mean", color='b', alpha=0.1);
 
     # In[310]:
 
