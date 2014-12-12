@@ -2,6 +2,7 @@
 
 import os
 import time
+import shutil
 
 import argparse
 
@@ -21,6 +22,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from collections import defaultdict
+
+import json
+
+# http://stackoverflow.com/a/600612/1350789
+def mkdir_p(path):
+    try:
+        os.makedirs(path)
+    except OSError as exc: # Python >2.5
+        if exc.errno == errno.EEXIST and os.path.isdir(path):
+            pass
+        else: raise
 
 def categorize(addr, spikes, start_offset, addr_offset):
 
@@ -139,8 +151,11 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('file', type=argparse.FileType('r'))
-    parser.add_argument('--plotpath', default=None)
+    parser.add_argument('--ignore_neurons', type=int, nargs="*", default=[])
+    parser.add_argument('--verbose', action="store_true", default=False)
     args = parser.parse_args()
+
+    fdir, filename = os.path.split(os.path.abspath(args.file.name))
 
     ############################################################################
     print "opening file"
@@ -152,22 +167,229 @@ if __name__ == "__main__":
 
     ############################################################################
     print "starting analysis"
-    start = time.time()
-    # take last block from file for now
+
+    if False:
+
+        start = time.time()
+        # take last block from file for now
+        blk = blks[-1]
+        #print "blk.annotations", blk.annotations
+        segments = blk.segments
+        # one driver per segment
+        augmented_segments = [ana(seg, plotpath=fdir) for seg in segments]
+        print "done"
+        print "it took {} s".format(time.time()-start)
+
+        ############################################################################
+        print "storing results"
+        start = time.time()
+        for seg in augmented_segments:
+            reader.save(seg)
+        print "done"
+        print "it took {} s".format(time.time()-start)
+
+    ana_file = os.path.join(fdir, os.path.splitext(filename)[0]+".json")
+
+    if os.path.isdir(os.path.join(fdir, "good")):
+        shutil.rmtree(os.path.join(fdir, "good"))
+    if os.path.isdir(os.path.join(fdir, "bad")):
+        shutil.rmtree(os.path.join(fdir, "bad"))
+
+    mkdir_p(os.path.join(fdir, "good"))
+    mkdir_p(os.path.join(fdir, "bad"))
+
     blk = blks[-1]
-    #print "blk.annotations", blk.annotations
-    segments = blk.segments
-    # one driver per segment
-    augmented_segments = [ana(seg, plotpath=args.plotpath) for seg in segments]
-    print "done"
-    print "it took {} s".format(time.time()-start)
 
-    ############################################################################
-    print "storing results"
-    start = time.time()
-    for seg in augmented_segments:
-        reader.save(seg)
-    print "done"
-    print "it took {} s".format(time.time()-start)
+    bkgisi = blk.annotations["bkgisi"]
+    freq   = blk.annotations["freq"]
+    wafer   = blk.annotations["wafer"]
+    hicann   = blk.annotations["hicann"]
 
+    # use first block, assuming that all FG blocks have same value
+    V_ccas = blk.annotations["shared_parameters"][0]["V_ccas"]
+    V_dllres = blk.annotations["shared_parameters"][0]["V_dllres"]
 
+    addr_n_silent = defaultdict(int)
+    addr_n_bad = defaultdict(int)
+
+    n_good_drv = 0
+
+    # list for results per driver
+    vols_board_0 = []
+    vohs_board_0 = []
+
+    vols_board_1 = []
+    vohs_board_1 = []
+
+    vols_DAC_board_0 = []
+    vohs_DAC_board_0 = []
+
+    vols_DAC_board_1 = []
+    vohs_DAC_board_1 = []
+
+    green_to_reds = []
+
+    is_good = []
+
+    for seg in blk.segments:
+
+        driver = seg.annotations["driver"]
+
+        if args.verbose:
+            print "classifying driver {}".format(driver)
+
+#        print "driver", driver
+
+#        if driver != 10:
+#            continue
+#
+        addr_result_map = seg.annotations["addr_result_map"]
+        addr_neuron_map = seg.annotations["addr_neuron_map"]
+        voltages = seg.annotations["voltages"]
+
+        vols_board_0.append(voltages["V9"][0])
+        vohs_board_0.append(voltages["V10"][0])
+
+        vols_board_1.append(voltages["V9"][1])
+        vohs_board_1.append(voltages["V10"][1])
+
+        vols_DAC_board_0.append(voltages["DAC_V9"][0])
+        vohs_DAC_board_0.append(voltages["DAC_V10"][0])
+
+        vols_DAC_board_1.append(voltages["DAC_V9"][1])
+        vohs_DAC_board_1.append(voltages["DAC_V10"][1])
+
+        drv_correct = 0
+        drv_incorrect = 0
+
+        for addr, (correct, incorrect, addr_correlation_map) in addr_result_map.iteritems():
+            # address 0 will always see "false" background events
+            if addr != 0 and addr_neuron_map[addr] not in args.ignore_neurons:
+                drv_correct += correct
+                drv_incorrect += incorrect
+
+        threshold = 0.8
+
+        try:
+            green_to_red = float(drv_correct)/float(drv_incorrect)
+        except Exception:
+            if drv_correct != 0:  # it may be that there are no incorrect events at all
+                green_to_red = threshold + 1 # -> push green_to_red over threshold in that case
+
+        #print "green_to_red", green_to_red
+        green_to_reds.append(green_to_red)
+
+        if green_to_red > threshold:
+            n_good_drv += 1
+            is_good.append(True)
+            if args.verbose:
+                print "driver {:03d} is good".format(driver)
+
+            try:
+                os.symlink("../driver_{:03d}.pdf".format(driver), os.path.join(fdir,"good/driver_{:03d}.pdf".format(driver)))
+            except OSError as e:
+                #print e
+                pass
+        else:
+            is_good.append(False)
+            if args.verbose:
+                print "driver {:03d} is bad".format(driver)
+
+            try:
+                os.symlink("../driver_{:03d}.pdf".format(driver), os.path.join(fdir,"bad/driver_{:03d}.pdf".format(driver)))
+            except OSError as e:
+                #print e
+                pass
+
+    mean_vols_board_0 = np.mean(vols_board_0)
+    std_vols_board_0  = np.std(vols_board_0)
+    mean_vohs_board_0 = np.mean(vohs_board_0)
+    std_vohs_board_0  = np.std(vohs_board_0)
+
+    mean_vols_board_1 = np.mean(vols_board_1)
+    std_vols_board_1  = np.std(vols_board_1)
+    mean_vohs_board_1 = np.mean(vohs_board_1)
+    std_vohs_board_1  = np.std(vohs_board_1)
+
+    mean_vols_DAC_board_0 = np.mean(vols_DAC_board_0)
+    std_vols_DAC_board_0  = np.std(vols_DAC_board_0)
+    mean_vohs_DAC_board_0 = np.mean(vohs_DAC_board_0)
+    std_vohs_DAC_board_0  = np.std(vohs_DAC_board_0)
+
+    mean_vols_DAC_board_1 = np.mean(vols_DAC_board_1)
+    std_vols_DAC_board_1  = np.std(vols_DAC_board_1)
+    mean_vohs_DAC_board_1 = np.mean(vohs_DAC_board_1)
+    std_vohs_DAC_board_1  = np.std(vohs_DAC_board_1)
+
+    mean_vol = np.mean([mean_vols_board_0, mean_vols_board_1])
+    mean_voh = np.mean([mean_vohs_board_0, mean_vohs_board_1])
+
+    vol_diffs = [(vol_b_1 - vol_b_0)*1000 for vol_b_0, vol_b_1 in zip(vols_board_0, vols_board_1)]
+    nbins = 100
+    bins = np.linspace(-20, 20, nbins+1)
+    plt.hist([vol_diff for vol_diff, good in zip(vol_diffs, is_good) if good], bins, histtype='bar', rwidth=0.8, color='g')
+    plt.hist([vol_diff for vol_diff, good in zip(vol_diffs, is_good) if not good], bins, histtype='bar', rwidth=0.6, color='r', alpha=0.8)
+    plt.xlabel("VOL board 1 - VOL board 0 [mV]")
+    plt.ylabel("#")
+    plt.xlim(-20,20)
+    plt.savefig(os.path.join(fdir, "vol_diffs.pdf"))
+    plt.close()
+
+    voh_diffs = [(voh_b_1 - voh_b_0)*1000 for voh_b_0, voh_b_1 in zip(vohs_board_0, vohs_board_1)]
+    nbins = 100
+    bins = np.linspace(-20, 20, nbins+1)
+    plt.hist([voh_diff for voh_diff, good in zip(voh_diffs, is_good) if good], bins, histtype='bar', rwidth=0.8, color='g')
+    plt.hist([voh_diff for voh_diff, good in zip(voh_diffs, is_good) if not good], bins, histtype='bar', rwidth=0.6, color='r', alpha=0.8)
+    plt.xlabel("VOH board 1 - VOH board 0 [mV]")
+    plt.ylabel("#")
+    plt.xlim(-20,20)
+    plt.savefig(os.path.join(fdir, "voh_diffs.pdf"))
+    plt.close()
+
+    nbins = 100
+    bins = np.linspace((mean_vohs_board_0-2*std_vohs_board_0)*1000, (mean_vohs_board_0+2*std_vohs_board_0)*1000, nbins+1)
+    plt.hist([voh_board_0 for voh_board_0, good in zip(np.array(vohs_board_0)*1000, is_good) if good], bins, histtype='bar', rwidth=0.8, color='g')
+    plt.hist([voh_board_0 for voh_board_0, good in zip(np.array(vohs_board_0)*1000, is_good) if not good], bins, histtype='bar', rwidth=0.6, color='r', alpha=0.8)
+    plt.xlabel("VOH board 0 [mV]")
+    plt.ylabel("#")
+    #plt.xlim(0,1200)
+    plt.savefig(os.path.join(fdir, "voh_board_0.pdf"))
+    plt.close()
+
+    nbins = 100
+    bins = np.linspace((mean_vols_board_0-2*std_vols_board_0)*1000, (mean_vols_board_0+2*std_vols_board_0)*1000, nbins+1)
+    plt.hist([vol_board_0 for vol_board_0, good in zip(np.array(vols_board_0)*1000, is_good) if good], bins, histtype='bar', rwidth=0.8, color='g')
+    plt.hist([vol_board_0 for vol_board_0, good in zip(np.array(vols_board_0)*1000, is_good) if not good], bins, histtype='bar', rwidth=0.6, color='r', alpha=0.8)
+    plt.xlabel("VOL board 0 [mV]")
+    plt.ylabel("#")
+    #plt.xlim(0,1200)
+    plt.savefig(os.path.join(fdir, "vol_board_0.pdf"))
+    plt.close()
+
+    nbins = 100
+    bins = np.linspace((mean_vohs_board_1-2*std_vohs_board_1)*1000, (mean_vohs_board_1+2*std_vohs_board_1)*1000, nbins+1)
+    plt.hist([voh_board_1 for voh_board_1, good in zip(np.array(vohs_board_1)*1000, is_good) if good], bins, histtype='bar', rwidth=0.8, color='g')
+    plt.hist([voh_board_1 for voh_board_1, good in zip(np.array(vohs_board_1)*1000, is_good) if not good], bins, histtype='bar', rwidth=0.6, color='r', alpha=0.8)
+    plt.xlabel("VOH board 1 [mV]")
+    plt.ylabel("#")
+    #plt.xlim(0,1200)
+    plt.savefig(os.path.join(fdir, "voh_board_1.pdf"))
+    plt.close()
+
+    nbins = 100
+    bins = np.linspace((mean_vols_board_1-2*std_vols_board_1)*1000, (mean_vols_board_1+2*std_vols_board_1)*1000, nbins+1)
+    plt.hist([vol_board_1 for vol_board_1, good in zip(np.array(vols_board_1)*1000, is_good) if good], bins, histtype='bar', rwidth=0.8, color='g')
+    plt.hist([vol_board_1 for vol_board_1, good in zip(np.array(vols_board_1)*1000, is_good) if not good], bins, histtype='bar', rwidth=0.6, color='r', alpha=0.8)
+    plt.xlabel("VOL board 1 [mV]")
+    plt.ylabel("#")
+    #plt.xlim(0,1200)
+    plt.savefig(os.path.join(fdir, "vol_board_1.pdf"))
+    plt.close()
+
+    ana_results = {"VOL":mean_vol, "VOH":mean_voh, "n_good_driver" : n_good_drv, "wafer": wafer, "hicann": hicann, "freq": freq, "bkgisi": bkgisi, "V_ccas" : V_ccas, "V_dllres" : V_dllres}
+
+    with open(ana_file, 'w') as fana:
+        json.dump(ana_results, fana)
+
+    #blk.annotations["ana"] = ana_results
+    #reader.save(blk) # takes 2 minutes -> too long
