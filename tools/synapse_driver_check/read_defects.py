@@ -25,6 +25,8 @@ from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from scipy import interpolate
 from scipy.interpolate import griddata
 
+import json
+
 # http://stackoverflow.com/a/600612/1350789
 def mkdir_p(path):
     try:
@@ -52,6 +54,8 @@ if __name__ == "__main__":
     ys = []
     freqs = []
     bkgisis = []
+    Vccas = []
+    Vdllres = []
 
     l_n_good_drv = []
 
@@ -69,35 +73,57 @@ if __name__ == "__main__":
     # one file per voltage setting
     for n, f in enumerate(args.files):
 
-        if args.files_are_plotdata == False:
+        print "processing {} {}".format(n, f.name)
 
-            fdir = f.name.split('/')[0]
+        fdir, filename = os.path.split(os.path.abspath(f.name))
 
-            if not args.diff:
+        ana_file = os.path.join(fdir, os.path.splitext(filename)[0]+".json")
 
-                if os.path.isdir(os.path.join(fdir, "good")):
-                    shutil.rmtree(os.path.join(fdir, "good"))
-                if os.path.isdir(os.path.join(fdir, "bad")):
-                    shutil.rmtree(os.path.join(fdir, "bad"))
+        if not args.diff and not args.files_are_plotdata:
 
-                mkdir_p(os.path.join(fdir, "good"))
-                mkdir_p(os.path.join(fdir, "bad"))
+            if os.path.isdir(os.path.join(fdir, "good")):
+                shutil.rmtree(os.path.join(fdir, "good"))
+            if os.path.isdir(os.path.join(fdir, "bad")):
+                shutil.rmtree(os.path.join(fdir, "bad"))
+
+            mkdir_p(os.path.join(fdir, "good"))
+            mkdir_p(os.path.join(fdir, "bad"))
+
+        try:
+            reader = NeoHdf5IO(filename=f.name)
+            blks = reader.read(lazy=True, cascade='lazy')
+            blk = blks[-1]
 
             try:
-                reader = NeoHdf5IO(filename=f.name)
-                blks = reader.read(lazy=True, cascade='lazy')
-                blk = blks[-1]
-            except:
-                print f.name, "is bad, continue with next"
+                #print blk.annotations['shared_parameters']
+                pass
+            except KeyError:
+                print "no shared parameters stored in block annotations"
+                pass
+
+        except:
+            print f.name, "is bad, continue with next"
+            continue
+
+        if args.files_are_plotdata:
+            try:
+                with open(ana_file) as fana:
+                    ana_results = json.load(fana)
+            except IOError as e:
+                print ana_file, "is bad, continue with next"
                 continue
 
-            #print "blk.annotations", blk.annotations
+        #print "blk.annotations", blk.annotations
 
-            bkgisi = blk.annotations["bkgisi"]
-            freq   = blk.annotations["freq"]
+        bkgisi = blk.annotations["bkgisi"]
+        freq   = blk.annotations["freq"]
 
-            bkgisis.append(bkgisi)
-            freqs.append(freq)
+        bkgisis.append(bkgisi)
+        freqs.append(freq)
+        Vccas.append(blk.annotations["shared_parameters"][0]["V_ccas"])
+        Vdllres.append(blk.annotations["shared_parameters"][0]["V_dllres"])
+
+        if args.files_are_plotdata == False:
 
             segments = blk.segments
 
@@ -216,7 +242,15 @@ if __name__ == "__main__":
             ys.append(np.mean([mean_vohs_board_0, mean_vohs_board_1]))
             l_n_good_drv.append(n_good_drv)
 
-            print "for plot", xs[-1], ys[-1], l_n_good_drv[-1], freqs[-1], bkgisis[-1]
+            print "for plot", xs[-1], ys[-1], l_n_good_drv[-1], freqs[-1], bkgisis[-1], Vccas[-1], Vdllres[-1]
+
+            ana_results = {"VOL":xs[-1], "VOH":ys[-1], "n_good_driver" : l_n_good_drv[-1]}
+
+            with open(ana_file, 'w') as fana:
+                json.dump(ana_results, fana)
+
+            #blk.annotations["ana"] = ana_results
+            #reader.save(blk) # takes 2 minutes -> too long
 
             vol_diffs = [(vol_b_1 - vol_b_0)*1000 for vol_b_0, vol_b_1 in zip(vols_board_0, vols_board_1)]
             nbins = 100
@@ -280,22 +314,13 @@ if __name__ == "__main__":
             plt.savefig(os.path.join(fdir, "vol_board_1.pdf"))
             plt.close()
 
-
             sys.stdout.flush()
 
         else:
-            for line in f:
-                ls = [float(x) for x in line.split()]
-                xs.append(ls[0])
-                ys.append(ls[1])
-                l_n_good_drv.append(ls[2])
 
-                try:
-                    freqs.append(ls[3])
-                    bkgisis.append(ls[4])
-                except:
-                    freqs.append(0)
-                    bkgisis.append(0)
+            xs.append(ana_results["VOL"])
+            ys.append(ana_results["VOH"])
+            l_n_good_drv.append(ana_results["n_good_driver"])
 
     if args.diff:
         for entry_0, entry_1 in zip(to_be_diffed[0], to_be_diffed[1]):
@@ -464,6 +489,44 @@ if __name__ == "__main__":
             plt.ylabel("# good drivers")
 
             fig.savefig(args.plotfilename + "_vs_bkgisi.pdf")
+
+            # ---
+
+            fig, ax = plt.subplots(figsize=(12, 10))
+            margins={"left":0.11, "right":0.95, "top":0.95, "bottom":0.11}
+            plt.subplots_adjust(**margins)
+
+            plt.plot(Vccas, l_n_good_drv, 'bo')
+            plt.xlim(min(Vccas)*0.9, max(Vccas)*1.1)
+            plt.ylim(min(l_n_good_drv)*0.9, max(l_n_good_drv)*1.1)
+
+            plt.grid(True)
+
+            plt.xlabel("V_ccas [DAC]")
+            plt.ylabel("# good drivers")
+
+            fig.savefig(args.plotfilename + "_vs_Vcca.pdf")
+
+            plt.close()
+
+            # ---
+
+            fig, ax = plt.subplots(figsize=(12, 10))
+            margins={"left":0.11, "right":0.95, "top":0.95, "bottom":0.11}
+            plt.subplots_adjust(**margins)
+
+            plt.plot(Vdllres, l_n_good_drv, 'bo')
+            plt.xlim(min(Vdllres)*0.9, max(Vdllres)*1.1)
+            plt.ylim(min(l_n_good_drv)*0.9, max(l_n_good_drv)*1.1)
+
+            plt.grid(True)
+
+            plt.xlabel("V_dllres [DAC]")
+            plt.ylabel("# good drivers")
+
+            fig.savefig(args.plotfilename + "_vs_Vdllres.pdf")
+
+            plt.close()
 
             # ---
 

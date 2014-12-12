@@ -76,7 +76,7 @@ for neurons in [range(i, i+32) for i in range(0, 512, 32)]:
     # comment assert if driver is manually tweaked
     assert bus == shallow.get_bus_from_driver(driver)
 
-    sending_addr = 1
+    sending_addr = 42
 
     for addr, neuron in enumerate(neurons):
         hardware.add_route(

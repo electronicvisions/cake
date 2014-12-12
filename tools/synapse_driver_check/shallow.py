@@ -32,20 +32,23 @@ class Parameters(ValueStorage):
             'shared': ValueStorage({
                 'V_fac': 1023,
                 'V_dep': 0,
-                'V_stdf': 400,
-                'V_reset': 200,
+                'V_stdf': 0,
+                'V_reset': 284,
                 'V_dtc': 0,
                 'V_gmax0': 50,
-                'V_bstdf': 800
+                'V_gmax1': 50,
+                'V_gmax2': 50,
+                'V_gmax3': 50,
+                'V_bstdf': 0
                 }),
             'neuron': {i : ValueStorage({
-                'V_t': 500,
-                'I_gl': 1023,
-                'V_syntcx': 800,
-                'V_syntci': 800,
+                #'V_t': 1023,
+                #'I_gl': 1023,
+                #'V_syntcx': 800,
+                #'V_syntci': 800,
                 'V_synx': 511,
                 'V_syni': 511,
-                'E_l': 100
+                #'E_l': 100
                 }) for i in range(512)},
             'synapse_driver': ValueStorage({
                 'stp': None,
@@ -111,12 +114,14 @@ class FastHICANNConfigurator(pysthal.HICANNConfigurator):
         if self._reset:
             pyhalbe.HICANN.init(handle, False)
 
+        #pyhalbe.Support.Power.set_L1_voltages(handle,1.05,1.25)
+
         self.config_floating_gates(handle, data);
         self.config_fg_stimulus(handle, data);
 
         # if floating gates are configured we also configure synapses
         # should be disentangled
-        if self._configure_floating_gates:
+        if self._configure_floating_gates: # FIXME blacklist
             self.config_synapse_array(handle, data);
 
         self.config_neuron_quads(handle, data)
@@ -156,7 +161,7 @@ class Hardware(object):
         self.params = Parameters()
 
         self._not_reset_count = 0
-        self._max_without_reset = 15
+        self._max_without_reset = 1500
         self._configured = False
         self._fg_written = False
 
@@ -408,6 +413,7 @@ class Hardware(object):
                                 neuron_c
                                 )
                         #log.debug("Calibrating neuron parameter {0} ({1} → {2}).".format(k, v_old, v))
+                        print k,v,v_old
                     fg.setNeuron(neuron_c, getattr(HICANN, k), v)
 
                 # Minimize influence of exponential term
