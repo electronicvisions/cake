@@ -481,7 +481,8 @@ if __name__ == "__main__":
                 plt.plot([y for x,y in zip(xs,ys) if x > ra_low and x < ra_high] , [n_good for n_good, x in zip(l_n_good_drv,xs) if x > ra_low and x < ra_high], 'o')
 
             plt.xlim(min(ys)*0.9, max(ys)*1.1)
-            plt.ylim(*args.clim)
+            if args.clim:
+                plt.ylim(*args.clim)
 
             plt.grid(True)
 
@@ -506,7 +507,8 @@ if __name__ == "__main__":
                 plt.plot([x for x,y in zip(xs,ys) if y > ra_low and y < ra_high] , [n_good for n_good, y in zip(l_n_good_drv,ys) if y > ra_low and y < ra_high], 'o')
 
             plt.xlim(min(xs)*0.9, max(xs)*1.1)
-            plt.ylim(*args.clim)
+            if args.clim:
+                plt.ylim(*args.clim)
 
             plt.grid(True)
 
@@ -523,7 +525,8 @@ if __name__ == "__main__":
 
             plt.plot(l_n_good_drv)
 
-            plt.ylim(*args.clim)
+            if args.clim:
+                plt.ylim(*args.clim)
 
             plt.grid(True)
 
