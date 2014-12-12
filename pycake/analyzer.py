@@ -7,6 +7,7 @@ import scipy.signal
 from scipy.optimize import curve_fit
 from pycake.helpers.TraceAverager import createTraceAverager
 from pycake.helpers.peakdetect import peakdet
+from pycake.logic.spikes import spikes_to_frequency
 
 # Import everything needed for saving:
 
@@ -59,7 +60,7 @@ class PeakAnalyzer(Analyzer):
         maxtab, mintab = self.get_peaks(t, v)
         mean_max, mean_min = self.get_mean_peak(t, v)
         spikes = self.detect_spikes(t, v)
-        freq = self.spikes_to_freqency(spikes)
+        freq = spikes_to_frequency(spikes)
         try:
             mean_dt = 1/freq
         except ZeroDivisionError:
@@ -133,7 +134,7 @@ class PeakAnalyzer(Analyzer):
 
     def get_mean_dt(self, t, v):
         maxtab, mintab = self.get_peaks(t, v)
-        spike_indices = np.array(maxtab[:,0], dtype=int)
+        spike_indices = np.array(maxtab[:, 0], dtype=int)
         spiketimes = t[spike_indices]
         dts = np.roll(spiketimes, -1) - spiketimes
         dts = dts[0:-1]
@@ -193,7 +194,7 @@ class PeakAnalyzer(Analyzer):
             except FloatingPointError as e:
                 baseline = np.min(v)
                 delta_t = 0
-                self.logger.WARN("Baseline finding failed because of {}. Returning minimum of trace: {}.".format(e,baseline))
+                self.logger.WARN("Baseline finding failed because of {}. Returning minimum of trace: {}.".format(e, baseline))
 
             #-------------------------------------------------------------------
 
@@ -218,17 +219,6 @@ class PeakAnalyzer(Analyzer):
         spikes = t[1:-2][pos]
 
         return spikes
-
-
-    def spikes_to_freqency(self, spikes):
-        """Calculate the spiking frequency from spikes."""
-
-        # inter spike interval
-        isi = spikes[1:] - spikes[:-1]
-        if (len(isi) == 0) or (np.mean(isi) == 0):
-            return 0
-        else:
-            return 1./np.mean(isi)
 
 
 class V_reset_Analyzer(PeakAnalyzer):
