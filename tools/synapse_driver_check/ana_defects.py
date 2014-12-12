@@ -88,6 +88,10 @@ def ana(seg, plotpath=None):
 
     addr_result_map = {}
 
+    n_spikes_in_total = sum([len(spikes) for spikes in addr_spikes_map.values()])
+
+    early_abort = n_spikes_in_total > 30000
+
     for i in range(64):
 
         if plot:
@@ -95,7 +99,12 @@ def ana(seg, plotpath=None):
 
         spikes = addr_spikes_map[i]
 
-        correct, incorrect, addr_correlation_map = categorize(i, spikes, start_offset, addr_offset)
+        if not early_abort:
+            correct, incorrect, addr_correlation_map = categorize(i, spikes, start_offset, addr_offset)
+        else:
+            correct = []
+            incorrect = spikes
+            addr_correlation_map = {}
 
         if plot:
             right_yticklabels.append("{},{}".format(len(correct),len(incorrect)))
