@@ -298,6 +298,7 @@ if __name__ == "__main__":
 
     hardware = shallow.Hardware(WAFER, HICANN, os.path.join(args.calibpath,'wafer_{0}').format(WAFER), FREQ*1e6, BKGISI)
 
+    fgc = hardware.hicann.floating_gates
     hardware.connect()
 
     # one block per voltage setting
@@ -327,6 +328,17 @@ if __name__ == "__main__":
             ana_defects.ana(seg, plotpath=PATH)
 
         print "it took {} s".format(time.time()-start)
+
+    sp = shallow.HICANN.shared_parameter
+    shared = {0:{}, 1:{}, 2:{}, 3:{}}
+    for block in shallow.Coordinate.iter_all(shallow.Coordinate.FGBlockOnHICANN):
+        for name, param in sp.names.iteritems():
+            try:
+                shared[int(block.id())][name] = fgc.getShared(block, param)
+            except IndexError:
+                pass
+
+    blk.annotations['shared_parameters'] = shared
 
     if not args.nooutput:
         reader.write(blk)
