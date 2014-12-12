@@ -43,6 +43,7 @@ parser.add_argument('--extrasuffix', type=str, default=None)
 parser.add_argument('--dumpwafercfg', action="store_true", default=False)
 parser.add_argument('--ana', action="store_true", default=False)
 parser.add_argument('--drivers', type=int, nargs="+", default=range(224))
+parser.add_argument('--nooutput', action="store_true", default=False)
 parser.add_argument('--ninputspikes', type=int, default=200)
 parser.add_argument('--inputspikeisi', type=float, default=0.1e-6)
 parser.add_argument('--addroffset', type=float, default=50e-6)
@@ -306,7 +307,8 @@ if __name__ == "__main__":
 
     prepare_drivers(drivers)
 
-    reader = NeoHdf5IO(filename=os.path.join(PATH,suffix+".hdf5"))
+    if not args.nooutput:
+        reader = NeoHdf5IO(filename=os.path.join(PATH,suffix+".hdf5"))
     # create a new block
     blk = Block(time=time.time(),wafer=WAFER,hicann=HICANN,freq=FREQ,bkgisi=BKGISI)
 
@@ -326,4 +328,5 @@ if __name__ == "__main__":
 
         print "it took {} s".format(time.time()-start)
 
-    reader.write(blk)
+    if not args.nooutput:
+        reader.write(blk)
