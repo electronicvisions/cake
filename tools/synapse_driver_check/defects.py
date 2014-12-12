@@ -43,6 +43,8 @@ parser.add_argument('--extrasuffix', type=str, default=None)
 parser.add_argument('--dumpwafercfg', action="store_true", default=False)
 parser.add_argument('--ana', action="store_true", default=False)
 parser.add_argument('--drivers', type=int, nargs="+", default=range(224))
+parser.add_argument('--V_ccas', type=int, default=800)
+parser.add_argument('--V_dllres', type=int, default=200)
 parser.add_argument('--nooutput', action="store_true", default=False)
 parser.add_argument('--ninputspikes', type=int, default=200)
 parser.add_argument('--inputspikeisi', type=float, default=0.1e-6)
@@ -54,7 +56,7 @@ HICANN = args.hicann
 FREQ = args.freq
 BKGISI = args.bkgisi
 
-suffix='_'.join(["w{}","h{}","f{}","bkgisi{}"]).format(WAFER,HICANN,FREQ,BKGISI)
+suffix='_'.join(["w{}","h{}","f{}","bkgisi{}","Vccas{}","Vdllres{}","ninputspikes{}","inputspikeisi{}","addroffset{}"]).format(WAFER,HICANN,FREQ,BKGISI,args.V_ccas,args.V_dllres,args.ninputspikes,args.inputspikeisi,args.addroffset)
 if args.extrasuffix:
     suffix += "_"+args.extrasuffix
 
@@ -76,6 +78,8 @@ for i in range(512):
     params.neuron[i].I_gl = 409
 
 params.shared.V_reset = 200
+params.shared.V_ccas = args.V_ccas
+params.shared.V_dllres = args.V_dllres
 
 import resource
 
