@@ -10,7 +10,8 @@ import sys
 # maximum number of iterations for setting a voltage given in volts
 MAX_ITERATIONS = 50
 MAX_DAC_STEP = 10
-# 
+MAX_DIFF = 0.15
+#
 V_OL = 9
 V_OH = 10
 
@@ -118,7 +119,7 @@ def set_DAC(board, v, new_DAC, stop_after_first_step=False, first_step=True):
 
         v0, v1 = get_voltage(v, unit=VOLT)
         diff_v = v0-v1
-        if abs(diff_v) > 0.1:
+        if abs(diff_v) > MAX_DIFF:
             reset_voltages()
             raise Exception("large difference of {} V between boards, resetting to default settings".format(diff_v))
 
