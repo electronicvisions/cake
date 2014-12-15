@@ -15,6 +15,9 @@ from collections import defaultdict
 
 import numpy as np
 
+import pyhalbe
+import pysthal
+
 import pylogging
 pylogging.default_config(date_format='absolute')
 pylogging.set_loglevel(pylogging.get("sthal"), pylogging.LogLevel.INFO)
@@ -43,6 +46,9 @@ parser.add_argument('--extrasuffix', type=str, default=None)
 parser.add_argument('--dumpwafercfg', action="store_true", default=False)
 parser.add_argument('--ana', action="store_true", default=False)
 parser.add_argument('--drivers', type=int, nargs="+", default=range(224))
+parser.add_argument('--V_ccas', type=int, default=800)
+parser.add_argument('--V_dllres', type=int, default=200)
+parser.add_argument('--nooutput', action="store_true", default=False)
 parser.add_argument('--ninputspikes', type=int, default=200)
 parser.add_argument('--inputspikeisi', type=float, default=0.1e-6)
 parser.add_argument('--addroffset', type=float, default=50e-6)
@@ -53,7 +59,7 @@ HICANN = args.hicann
 FREQ = args.freq
 BKGISI = args.bkgisi
 
-suffix='_'.join(["w{}","h{}","f{}","bkgisi{}"]).format(WAFER,HICANN,FREQ,BKGISI)
+suffix='_'.join(["w{}","h{}","f{}","bkgisi{}","Vccas{}","Vdllres{}","ninputspikes{}","inputspikeisi{}","addroffset{}"]).format(WAFER,HICANN,FREQ,BKGISI,args.V_ccas,args.V_dllres,args.ninputspikes,args.inputspikeisi,args.addroffset)
 if args.extrasuffix:
     suffix += "_"+args.extrasuffix
 
@@ -67,7 +73,7 @@ params = shallow.Parameters()
 for i in range(512):
 
     params.neuron[i].E_l = Voltage(700).toDAC().value
-    params.neuron[i].V_t = Voltage(740).toDAC().value
+    params.neuron[i].V_t = Voltage(745).toDAC().value
     params.neuron[i].E_synx = Voltage(800).toDAC().value
     params.neuron[i].E_syni = Voltage(600).toDAC().value
     params.neuron[i].V_syntcx = 800
@@ -75,6 +81,8 @@ for i in range(512):
     params.neuron[i].I_gl = 409
 
 params.shared.V_reset = 200
+params.shared.V_ccas = args.V_ccas
+params.shared.V_dllres = args.V_dllres
 
 import resource
 
@@ -201,17 +209,17 @@ def aquire(seg, driver):
         duration=max(train)+0.001
         hardware.add_spike_train(bus, i, train)
 
-    #print hardware.hicann
     seg.annotations["duration"] = duration
 
+    #print hardware.hicann
 
     record_membrane = False
 
     filename_stub = '_'.join(["bus",str(bus),"hline", str(hline.value()), "vline", str(vline.value()), "drv",str(driver), suffix])
 
-    #record_addr = 56
+    record_addr = 44
 
-    #params.neuron[addr_neuron_map[record_addr]].V_t = 1023
+    params.neuron[addr_neuron_map[record_addr]].V_t = 1023
 
     # Configure floating gates and synapse drivers
     hardware.set_parameters(params)
@@ -244,6 +252,8 @@ def aquire(seg, driver):
             print "PROBLEM(?)"
 
     spikes = np.vstack([hardware.get_spikes(rl) for rl in recording_links])
+
+    print "len(spikes):", len(spikes)
 
     for i in range(64):
 
@@ -297,7 +307,18 @@ if __name__ == "__main__":
 
     hardware = shallow.Hardware(WAFER, HICANN, os.path.join(args.calibpath,'wafer_{0}').format(WAFER), FREQ*1e6, BKGISI)
 
+    fgc = hardware.hicann.floating_gates
+
+#    for p in range(0,int(fgc.getNoProgrammingPasses())):
+#
+#        f_p = fgc.getFGConfig(shallow.Coordinate.Enum(p))
+#        f_p.fg_biasn = 0
+#        fgc.setFGConfig(shallow.Coordinate.Enum(p), f_p)
+#        print fgc.getFGConfig(shallow.Coordinate.Enum(p))
+
     hardware.connect()
+
+
 
     # one block per voltage setting
     # think about indexing all spiketrains, maybe just empty for not-scanned drivers
@@ -306,7 +327,8 @@ if __name__ == "__main__":
 
     prepare_drivers(drivers)
 
-    reader = NeoHdf5IO(filename=os.path.join(PATH,suffix+".hdf5"))
+    if not args.nooutput:
+        reader = NeoHdf5IO(filename=os.path.join(PATH,suffix+".hdf5"))
     # create a new block
     blk = Block(time=time.time(),wafer=WAFER,hicann=HICANN,freq=FREQ,bkgisi=BKGISI)
 
@@ -326,4 +348,35 @@ if __name__ == "__main__":
 
         print "it took {} s".format(time.time()-start)
 
-    reader.write(blk)
+    sp = shallow.HICANN.shared_parameter
+    shared = {0:{}, 1:{}, 2:{}, 3:{}}
+    for block in shallow.Coordinate.iter_all(shallow.Coordinate.FGBlockOnHICANN):
+        for name, param in sp.names.iteritems():
+            try:
+                shared[int(block.id())][name] = fgc.getShared(block, param)
+            except IndexError:
+                pass
+
+    print shared
+
+    blk.annotations['shared_parameters'] = shared
+
+#    for p in range(0,int(fgc.getNoProgrammingPasses())):
+#        print fgc.getFGConfig(shallow.Coordinate.Enum(p))
+
+    if not args.nooutput:
+        reader.write(blk)
+
+#    readout_wafer = pysthal.Wafer()
+#
+#    HRC = pysthal.HICANNReadoutConfigurator(readout_wafer)
+#
+#    hardware.wafer.configure(HRC)
+#
+#    readout_hicann = readout_wafer[shallow.Coordinate.HICANNOnWafer(shallow.Coordinate.Enum(HICANN))]
+#
+#    print hardware.hicann
+#    print readout_hicann
+#
+#    print hardware.hicann.repeater
+#    print readout_hicann.repeater

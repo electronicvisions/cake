@@ -83,6 +83,9 @@ class Config(object):
     def get_wafer_cfg(self):
         return self.parameters.get("wafer_cfg", "")
 
+    def get_PLL(self):
+        return self.parameters.get("PLL", 100e6)
+
     def get_parameters(self):
         """ Returns the parameter dictionary.
         """

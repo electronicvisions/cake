@@ -703,7 +703,7 @@ if r_v_syntci:
            mark_top_bottom=False,
            alpha=0.5)
 
-    trace("$V_{mem}$ [mV]", r_v_syntcx, "V_syntci_psp_max", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510)
+    trace("$V_{mem}$ [mV]", r_v_syntci, "V_syntci_psp_max", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510)
 
     # In[319]:
 
