@@ -37,6 +37,8 @@ if __name__ == "__main__":
 
     xs = []
     ys = []
+    wafers = []
+    hicanns = []
     freqs = []
     bkgisis = []
     Vccas = []
@@ -54,6 +56,8 @@ if __name__ == "__main__":
 
         bkgisis.append(ana_results["bkgisi"])
         freqs.append(ana_results["freq"])
+        hicanns.append(ana_results["hicann"])
+        wafers.append(ana_results["wafer"])
         Vccas.append(ana_results["V_ccas"])
         Vdllres.append(ana_results["V_dllres"])
         xs.append(ana_results["VOL"])
@@ -314,6 +318,30 @@ if __name__ == "__main__":
         plt.ylabel("# good drivers")
 
         fig.savefig(args.plotfilename + "_vs_order.pdf")
+
+        #--------------------------------------------------------------------------------
+
+        fig, ax = plt.subplots(figsize=(12, 10))
+        margins={"left":0.11, "right":0.95, "top":0.95, "bottom":0.11}
+        plt.subplots_adjust(**margins)
+
+        plt.plot(hicanns, l_n_good_drv)
+
+        majorLocator   = MultipleLocator(1)
+        majorFormatter = FormatStrFormatter('%.2f')
+
+        ax.xaxis.set_major_locator(majorLocator)
+        ax.xaxis.set_major_formatter(majorFormatter)
+
+        if args.clim:
+            plt.ylim(*args.clim)
+
+        plt.grid(True)
+
+        plt.xlabel("HICANN")
+        plt.ylabel("# good drivers")
+
+        fig.savefig(args.plotfilename + "_vs_hicann.pdf")
 
 
     #        corr = np.zeros([64, 64])
