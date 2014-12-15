@@ -51,12 +51,13 @@ class BaseExperimentBuilder(object):
         readout_shifts = self.get_readout_shifts(self.neurons)
 
         wafer_cfg = self.config.get_wafer_cfg()
+        PLL = self.config.get_PLL()
 
         # Create one sthal container for each step
         # order is step 1, step 2, step 3, ..., step 1, step 2, step 3, ...
         for rep, step in product(range(repetitions), steps):
             self.logger.INFO("Building step {}, repetition {}".format(step,rep))
-            sthal = StHALContainer(coord_wafer, coord_hicann, wafer_cfg=wafer_cfg)
+            sthal = StHALContainer(coord_wafer, coord_hicann, wafer_cfg=wafer_cfg, PLL=PLL)
             # TODO maybe find better solution
             if self.test:
                 step = step.copy()

@@ -235,6 +235,7 @@ class StHALContainer(object):
         return self.wafer.status()
 
     def getPLL(self):
+        self.logger.info("Setting PLL to {} MHz".format(PLL/1e6))
         return self.wafer.commonFPGASettings().getPLL()
 
     def setPLL(self, freq):
