@@ -58,7 +58,7 @@ class PeakAnalyzer(Analyzer):
 
     def __call__(self, t, v, neuron):
         maxtab, mintab = self.get_peaks(t, v)
-        mean_max, mean_min = self.get_mean_peak(t, v)
+        mean_max, mean_min, std_max, std_min = self.get_mean_peak(t, v)
         spikes = self.detect_spikes(t, v)
         freq = spikes_to_frequency(spikes)
         try:
@@ -125,12 +125,16 @@ class PeakAnalyzer(Analyzer):
         try:
             maxtab, mintab = self.get_peaks(t, v)
             mean_max = np.mean(maxtab[:, 1])
+            std_max = np.std(maxtab[:, 1])
             mean_min = np.mean(mintab[:, 1])
+            std_min = np.std(mintab[:, 1])
         except IndexError:
             self.logger.INFO("No mean min/max found. Using hard min/max.")
             mean_max = np.max(v)
             mean_min = np.min(v)
-        return mean_max, mean_min
+            std_max = 0
+            std_min = 0
+        return mean_max, mean_min, std_max, std_min
 
     def get_mean_dt(self, t, v):
         maxtab, mintab = self.get_peaks(t, v)
@@ -232,7 +236,7 @@ class V_reset_Analyzer(PeakAnalyzer):
     """
     def __call__(self, t, v, neuron):
         baseline, delta_t = self.find_baseline(t, v)
-        mean_max, mean_min = self.get_mean_peak(t, v)
+        mean_max, mean_min, std_max, std_min = self.get_mean_peak(t, v)
 
         return {"mean_min": mean_min,
                 "mean_max": mean_max,
@@ -249,9 +253,10 @@ class V_t_Analyzer(PeakAnalyzer):
                 old_max: hard maximum of complete trace
     """
     def __call__(self, t, v, neuron):
-        mean_max, mean_min = self.get_mean_peak(t, v)
+        mean_max, mean_min, std_max, std_min = self.get_mean_peak(t, v)
 
         return {"max": mean_max,
+                "std_max": std_max,
                 "old_max": np.max(v)}
 
 
