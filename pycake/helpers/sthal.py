@@ -235,13 +235,13 @@ class StHALContainer(object):
         return self.wafer.status()
 
     def getPLL(self):
-        self.logger.info("Setting PLL to {} MHz".format(PLL/1e6))
         return self.wafer.commonFPGASettings().getPLL()
 
     def setPLL(self, freq):
         """
         pll frequency of the hicann, musst be 50.0e6, 100.0e6, 150.0e6, 200.0e6 or 250.0e6
         """
+        self.logger.info("Setting PLL to {} MHz".format(freq/1e6))
         return self.wafer.commonFPGASettings().setPLL(freq)
 
     def set_fg_biasn(self, biasn):
