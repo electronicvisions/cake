@@ -173,8 +173,17 @@ class Measurement(object):
         """
         self.sthal.write_config(configurator=configurator)
 
-    def pre_measure(self, neuron):
-        self.sthal.switch_analog_output(neuron, l1address=42)
+    def pre_measure(self, neuron, l1address=None):
+        self.sthal.switch_analog_output(neuron, l1address=l1address)
+
+    def get_readout_hicann(self):
+
+        readout_wafer = pysthal.Wafer()
+        HRC = pysthal.HICANNReadoutConfigurator(readout_wafer)
+        self.sthal.wafer.configure(HRC)
+        readout_hicann = readout_wafer[self.sthal.coord_hicann]
+
+        return readout_hicann
 
     def _measure(self, analyzer):
         """ Measure traces and correct each value for readout shift.
@@ -189,12 +198,25 @@ class Measurement(object):
         self.adc_status = []
         self.logger.INFO("Measuring.")
 
+        #print "at start of _measure"
+        #print self.get_readout_hicann().layer1.getMergerTree()
+
         with WorkerPool(analyzer) as worker:
-            for neuron in self.neurons:
+            for n, neuron in enumerate(self.neurons):
 
                 self.sthal.wafer.clearSpikes()
 
-                self.pre_measure(neuron)
+                spikes = pysthal.Vector_Spike()
+                for t in [1e-3]:
+                    spikes.append(pysthal.Spike(pyhalbe.HICANN.L1Address(1), t))
+                sending_link = Coordinate.GbitLinkOnHICANN(0)
+                self.sthal.hicann.sendSpikes(sending_link, spikes)
+
+                #print "right before pre_measure"
+                #print self.get_readout_hicann().layer1.getMergerTree()
+                self.pre_measure(neuron, n%64)
+                #print "after pre_measure"
+                #print self.get_readout_hicann().layer1.getMergerTree()
                 times, trace = self.sthal.read_adc()
                 worker.do(
                     neuron, times, self.readout_shifts(neuron, trace), neuron)
@@ -233,6 +255,8 @@ class Measurement(object):
                     spikeaddresses.append(addresses)
 
                 print neuron, no_spikes, spiketimes, spikeaddresses
+
+                time.sleep(0.01)
 
             self.last_trace = None
 

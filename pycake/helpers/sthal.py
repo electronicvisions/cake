@@ -16,14 +16,34 @@ class UpdateAnalogOutputConfigurator(pysthal.HICANNConfigurator):
         - analog current input
         - current stimulus strength/duration etc.
     """
-    #def config_fpga(self, *args):
-    #    """do not reset FPGA"""
-    #    pass
+    def config_fpga(self, fpga_handle, fpga):
+        """do not reset FPGA"""
+
+        #self.config_dnc_link(fpga_handle, fpga)
+
+        pass
 
     def config(self, fpga_handle, h, hicann):
         """Call analog output related configuration functions."""
 
-	self.config_gbitlink(h, hicann);
+        #self.config_floating_gates(h, hicann);
+
+
+        #self.config_neuron_quads(h, hicann)
+        #self.config_phase(h, hicann)
+        #self.config_gbitlink(h, hicann)
+
+        #self.config_synapse_drivers(h, hicann)
+        #self.config_synapse_switch(h, hicann)
+        #self.config_stdp(h, hicann);
+        #self.config_crossbar_switches(h, hicann)
+        #self.config_repeater(h, hicann)
+        #self.config_merger_tree(h, hicann)
+        #self.config_dncmerger(h, hicann)
+        #self.config_background_generators(h, hicann)
+
+        #self.flush_fpga(fpga_handle)
+        #self.lock_repeater(h, hicann)
 
         self.config_neuron_config(h, hicann)
         self.config_neuron_quads(h, hicann)
@@ -189,7 +209,7 @@ class StHALContainer(object):
         print "write_config, merger tree et. al."
 
         mergertree = self.hicann.layer1.getMergerTree()
-        mergertree.set_eight_on_one()
+        #mergertree.set_eight_on_one()
         self.hicann.layer1.setMergerTree(mergertree)
 
         print self.hicann.layer1.getMergerTree()
