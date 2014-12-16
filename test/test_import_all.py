@@ -24,7 +24,6 @@ import pycake.calibration.vsyntc
 
 # helpers submodule
 import pycake.helpers
-import pycake.helpers.cakepickle
 import pycake.helpers.peakdetect
 import pycake.helpers.SignalToNoise
 import pycake.helpers.TracesOnDiskDict
