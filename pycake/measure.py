@@ -201,6 +201,8 @@ class Measurement(object):
         #print "at start of _measure"
         #print self.get_readout_hicann().layer1.getMergerTree()
 
+        self.spikes_one_after_the_other = {}
+
         with WorkerPool(analyzer) as worker:
             for n, neuron in enumerate(self.neurons):
 
@@ -214,7 +216,10 @@ class Measurement(object):
 
                 #print "right before pre_measure"
                 #print self.get_readout_hicann().layer1.getMergerTree()
-                self.pre_measure(neuron, n%64)
+
+                addr = n%64
+
+                self.pre_measure(neuron, addr)
                 #print "after pre_measure"
                 #print self.get_readout_hicann().layer1.getMergerTree()
                 times, trace = self.sthal.read_adc()
@@ -241,6 +246,8 @@ class Measurement(object):
                 runner = pysthal.ExperimentRunner(4e-3)
                 self.sthal.wafer.start(runner)
 
+                self.spikes_one_after_the_other[neuron] = []
+
                 no_spikes = []
                 spiketimes = []
                 spikeaddresses = []
@@ -254,9 +261,16 @@ class Measurement(object):
                     spiketimes.append(times)
                     spikeaddresses.append(addresses)
 
+                    for t, a in zip(times, addresses):
+                        if a == addr:
+                            self.spikes_one_after_the_other[neuron].append(t) 
+
                 print neuron, no_spikes, spiketimes, spikeaddresses
 
                 time.sleep(0.01)
+
+            for neuron, spikes in self.spikes_one_after_the_other.iteritems():
+                print neuron, len(spikes)
 
             self.last_trace = None
 
