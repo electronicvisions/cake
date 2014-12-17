@@ -5,12 +5,15 @@ import Coordinate
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
 import pyhalbe
 import pysthal
+import pycake
 
 from helpers.WorkerPool import WorkerPool
 from helpers.TracesOnDiskDict import TracesOnDiskDict
 
 import time
 import os
+
+from collections import defaultdict
 
 def no_shift(neuron, v):
     return v
@@ -201,25 +204,14 @@ class Measurement(object):
         #print "at start of _measure"
         #print self.get_readout_hicann().layer1.getMergerTree()
 
-        self.spikes_one_after_the_other = {}
-
+        """
         with WorkerPool(analyzer) as worker:
             for n, neuron in enumerate(self.neurons):
-
-                self.sthal.wafer.clearSpikes()
-
-                spikes = pysthal.Vector_Spike()
-                for t in [1e-3]:
-                    spikes.append(pysthal.Spike(pyhalbe.HICANN.L1Address(1), t))
-                sending_link = Coordinate.GbitLinkOnHICANN(0)
-                self.sthal.hicann.sendSpikes(sending_link, spikes)
 
                 #print "right before pre_measure"
                 #print self.get_readout_hicann().layer1.getMergerTree()
 
-                addr = n%64
-
-                self.pre_measure(neuron, addr)
+                self.pre_measure(neuron)
                 #print "after pre_measure"
                 #print self.get_readout_hicann().layer1.getMergerTree()
                 times, trace = self.sthal.read_adc()
@@ -243,39 +235,72 @@ class Measurement(object):
                 # SPIKES
                 # Collect data
 
-                runner = pysthal.ExperimentRunner(4e-3)
-                self.sthal.wafer.start(runner)
-
-                self.spikes_one_after_the_other[neuron] = []
-
-                no_spikes = []
-                spiketimes = []
-                spikeaddresses = []
-                for ii, channel in enumerate(iter_all(GbitLinkOnHICANN)):
-                    received = self.sthal.hicann.receivedSpikes(channel)
-                    times, addresses = received.T
-
-                    print channel, len(received)
-
-                    no_spikes.append(len(received))
-                    spiketimes.append(times)
-                    spikeaddresses.append(addresses)
-
-                    for t, a in zip(times, addresses):
-                        if a == addr:
-                            self.spikes_one_after_the_other[neuron].append(t) 
-
-                print neuron, no_spikes, spiketimes, spikeaddresses
-
-                time.sleep(0.01)
-
-            for neuron, spikes in self.spikes_one_after_the_other.iteritems():
-                print neuron, len(spikes)
-
             self.last_trace = None
 
             self.logger.INFO("Wait for analysis to complete.")
-            return worker.join()
+        """
+
+        self.sthal.wafer.clearSpikes()
+
+        #spikes = pysthal.Vector_Spike()
+        #for t in [1e-3]:
+        #    spikes.append(pysthal.Spike(pyhalbe.HICANN.L1Address(1), t))
+        #sending_link = Coordinate.GbitLinkOnHICANN(0)
+        #self.sthal.hicann.sendSpikes(sending_link, spikes)
+
+        for n, neuron in enumerate(self.neurons):
+
+            if n%5 == 0:
+                nonb = neuron.toNeuronOnNeuronBlock()
+                addr = neuron.toNeuronOnNeuronBlock().x().value() + neuron.toNeuronOnNeuronBlock().y().value()*32
+
+                print "enable", neuron, addr
+
+                self.sthal.hicann.enable_l1_output(neuron, pyhalbe.HICANN.L1Address(addr))
+                self.sthal.hicann.neurons[neuron].activate_firing(True)
+
+        for channel in Coordinate.iter_all(Coordinate.GbitLinkOnHICANN):
+            self.sthal.hicann.layer1[channel] = pyhalbe.HICANN.GbitLink.Direction.TO_DNC
+
+        # self.sthal.wafer.configure(pycake.helpers.sthal.UpdateAnalogOutputConfigurator())
+        self.sthal.wafer.configure(pysthal.DontProgramFloatingGatesHICANNConfigurator())
+
+        runner = pysthal.ExperimentRunner(4e-3)
+        self.sthal.wafer.start(runner)
+
+        no_spikes = []
+        spiketimes = []
+        spikeaddresses = []
+
+        addr_spikes = defaultdict(list)
+
+        for ii, channel in enumerate(iter_all(GbitLinkOnHICANN)):
+            received = self.sthal.hicann.receivedSpikes(channel)
+            times, addresses = received.T
+
+            print channel, len(received)
+
+            no_spikes.append(len(received))
+            spiketimes.append(times)
+            spikeaddresses.append(addresses)
+
+            for t, a in zip(times, addresses):
+                if a < 32:
+                    n = a + ii*32
+                else:
+                    n = 256 + (a-32) + ii*32
+
+                #print n, a, ii
+                addr_spikes[Coordinate.NeuronOnHICANN(Coordinate.Enum(int(n)))].append(t)
+
+        for neuron, spikes in addr_spikes.iteritems():
+            self.spikes[neuron] = spikes
+
+            print neuron, len(spikes)
+
+        print self.get_readout_hicann().layer1
+
+        #return worker.join()
 
     def run_measurement(self, analyzer, configurator=None):
         """ First configure, then measure

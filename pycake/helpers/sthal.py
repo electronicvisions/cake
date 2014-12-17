@@ -212,10 +212,10 @@ class StHALContainer(object):
         #mergertree.set_eight_on_one()
         self.hicann.layer1.setMergerTree(mergertree)
 
-        print self.hicann.layer1.getMergerTree()
-
         for channel in Coordinate.iter_all(Coordinate.GbitLinkOnHICANN):
             self.hicann.layer1[channel] = pyhalbe.HICANN.GbitLink.Direction.TO_DNC
+
+        print self.hicann.layer1
 
         #self.hicann.layer1[Coordinate.GbitLinkOnHICANN(3)] = pyhalbe.HICANN.GbitLink.Direction.TO_DNC
 
