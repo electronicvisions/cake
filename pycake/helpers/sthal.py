@@ -8,6 +8,43 @@ import Coordinate
 from pyhalbe import HICANN
 from Coordinate import Enum
 
+class FooHICANNConfigurator(pysthal.HICANNConfigurator):
+
+    def config_fpga(self, fpga_handle, fpga):
+
+        #self.config_dnc_link(fpga_handle, fpga)
+
+        pass
+
+    def config(self, fpga, handle, data):
+
+        pyhalbe.HICANN.init(handle, False)
+
+        #self.config_floating_gates(handle, data);
+        self.config_fg_stimulus(handle, data);
+
+        #self.config_synapse_array(handle, data);
+
+        self.config_neuron_quads(handle, data)
+        self.config_phase(handle, data)
+        self.config_gbitlink(handle, data)
+
+        #self.config_synapse_drivers(handle, data)
+        self.config_synapse_switch(handle, data)
+        self.config_stdp(handle, data);
+        self.config_crossbar_switches(handle, data)
+        self.config_repeater(handle, data)
+        self.config_merger_tree(handle, data)
+        self.config_dncmerger(handle, data)
+        self.config_background_generators(handle, data)
+        self.flush_fpga(fpga)
+        self.lock_repeater(handle, data)
+
+        self.config_neuron_config(handle, data)
+        self.config_neuron_quads(handle, data)
+        self.config_analog_readout(handle, data)
+        self.flush_fpga(fpga)
+
 
 class UpdateAnalogOutputConfigurator(pysthal.HICANNConfigurator):
     """ Configures the following things from sthal container:

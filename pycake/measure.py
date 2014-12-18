@@ -188,6 +188,95 @@ class Measurement(object):
 
         return readout_hicann
 
+    def get_spikes(self, nbs):
+        """
+
+        nbs: neuron blocks to be enabled
+
+        """
+
+        print "enabling neurons on nbs {}".format(nbs)
+
+        self.sthal.wafer.clearSpikes()
+
+        spikes = pysthal.Vector_Spike()
+        for t in [1e-3]:
+            spikes.append(pysthal.Spike(pyhalbe.HICANN.L1Address(1), t))
+        sending_link = Coordinate.GbitLinkOnHICANN(0)
+        self.sthal.hicann.sendSpikes(sending_link, spikes)
+
+        #shuffled_neurons = self.neurons[:]
+        #random.shuffle(shuffled_neurons)
+
+        self.sthal.hicann.disable_aout()
+        self.sthal.hicann.disable_l1_output()
+        self.sthal.hicann.disable_firing()
+
+        activated_neurons = []
+
+        for n, neuron in enumerate(self.neurons):
+
+            for i in nbs:
+
+                if neuron.id().value() >= 32*i and neuron.id().value() < 32*(i+1):
+
+                    nonb = neuron.toNeuronOnNeuronBlock()
+                    addr = neuron.toNeuronOnNeuronBlock().x().value() + neuron.toNeuronOnNeuronBlock().y().value()*32
+
+                    #print "enable", neuron, addr
+
+                    self.sthal.hicann.enable_l1_output(neuron, pyhalbe.HICANN.L1Address(addr))
+                    self.sthal.hicann.neurons[neuron].activate_firing(True)
+
+                    activated_neurons.append(neuron)
+
+        for channel in Coordinate.iter_all(Coordinate.GbitLinkOnHICANN):
+            self.sthal.hicann.layer1[channel] = pyhalbe.HICANN.GbitLink.Direction.TO_DNC
+
+        #self.sthal.wafer.configure(pycake.helpers.sthal.UpdateAnalogOutputConfigurator())
+        self.sthal.wafer.configure(pycake.helpers.sthal.FooHICANNConfigurator())
+        #self.sthal.wafer.configure(pysthal.DontProgramFloatingGatesHICANNConfigurator())
+
+        runner = pysthal.ExperimentRunner(0.1e-3)
+        self.sthal.wafer.start(runner)
+
+        no_spikes = []
+        spiketimes = []
+        spikeaddresses = []
+
+        addr_spikes = defaultdict(list)
+
+        for ii, channel in enumerate(iter_all(GbitLinkOnHICANN)):
+            received = self.sthal.hicann.receivedSpikes(channel)
+            times, addresses = received.T
+
+            print channel, len(received)
+
+            no_spikes.append(len(received))
+            spiketimes.append(times)
+            spikeaddresses.append(addresses)
+
+            for t, a in zip(times, addresses):
+                if a < 32:
+                    n = a + ii*32
+                else:
+                    n = 256 + (a-32) + ii*32
+
+                #print n, a, ii
+                addr_spikes[Coordinate.NeuronOnHICANN(Coordinate.Enum(int(n)))].append(t)
+
+        for neuron, spikes in addr_spikes.iteritems():
+
+            if neuron in activated_neurons:
+                self.spikes[neuron] = spikes
+
+            if neuron not in activated_neurons and len(spikes) != 0:
+                print "neuron {} was not activated, but spiked {} times".format(neuron, len(spikes))
+
+            #print neuron, len(spikes)
+
+        #print self.get_readout_hicann().layer1
+
     def _measure(self, analyzer):
         """ Measure traces and correct each value for readout shift.
             Changes traces to numpy arrays
@@ -240,75 +329,14 @@ class Measurement(object):
             self.logger.INFO("Wait for analysis to complete.")
         """
 
-        self.sthal.wafer.clearSpikes()
+        for nb in xrange(0,16):
+            self.get_spikes([nb])
 
-        #spikes = pysthal.Vector_Spike()
-        #for t in [1e-3]:
-        #    spikes.append(pysthal.Spike(pyhalbe.HICANN.L1Address(1), t))
-        #sending_link = Coordinate.GbitLinkOnHICANN(0)
-        #self.sthal.hicann.sendSpikes(sending_link, spikes)
-
-        self.sthal.hicann.disable_aout()
-        self.sthal.hicann.disable_l1_output()
-        self.sthal.hicann.disable_firing()
-
-        # neuron blocks
-        # nbs = [0,1,2,3,4,5,6,7]
-        nbs = [8,9,10,11,12,13,14,15]
-
-        for n, neuron in enumerate(self.neurons):
-
-            for i in nbs:
-                if n >= 32*i and n < 32*(i+1):
-
-                    nonb = neuron.toNeuronOnNeuronBlock()
-                    addr = neuron.toNeuronOnNeuronBlock().x().value() + neuron.toNeuronOnNeuronBlock().y().value()*32
-
-                    print "enable", neuron, addr
-
-                    self.sthal.hicann.enable_l1_output(neuron, pyhalbe.HICANN.L1Address(addr))
-                    self.sthal.hicann.neurons[neuron].activate_firing(True)
-
-        for channel in Coordinate.iter_all(Coordinate.GbitLinkOnHICANN):
-            self.sthal.hicann.layer1[channel] = pyhalbe.HICANN.GbitLink.Direction.TO_DNC
-
-        self.sthal.wafer.configure(pycake.helpers.sthal.UpdateAnalogOutputConfigurator())
-        #self.sthal.wafer.configure(pysthal.DontProgramFloatingGatesHICANNConfigurator())
-
-        runner = pysthal.ExperimentRunner(0.1e-3)
-        self.sthal.wafer.start(runner)
-
-        no_spikes = []
-        spiketimes = []
-        spikeaddresses = []
-
-        addr_spikes = defaultdict(list)
-
-        for ii, channel in enumerate(iter_all(GbitLinkOnHICANN)):
-            received = self.sthal.hicann.receivedSpikes(channel)
-            times, addresses = received.T
-
-            print channel, len(received)
-
-            no_spikes.append(len(received))
-            spiketimes.append(times)
-            spikeaddresses.append(addresses)
-
-            for t, a in zip(times, addresses):
-                if a < 32:
-                    n = a + ii*32
-                else:
-                    n = 256 + (a-32) + ii*32
-
-                #print n, a, ii
-                addr_spikes[Coordinate.NeuronOnHICANN(Coordinate.Enum(int(n)))].append(t)
-
-        for neuron, spikes in addr_spikes.iteritems():
-            self.spikes[neuron] = spikes
-
+        for neuron, spikes in self.spikes.iteritems():
             print neuron, len(spikes)
 
-        #print self.get_readout_hicann().layer1
+        #for nb in xrange(0,17):
+        #    self.get_spikes(range(nb))
 
         #return worker.join()
 
