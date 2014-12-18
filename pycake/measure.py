@@ -248,24 +248,34 @@ class Measurement(object):
         #sending_link = Coordinate.GbitLinkOnHICANN(0)
         #self.sthal.hicann.sendSpikes(sending_link, spikes)
 
+        self.sthal.hicann.disable_aout()
+        self.sthal.hicann.disable_l1_output()
+        self.sthal.hicann.disable_firing()
+
+        # neuron blocks
+        # nbs = [0,1,2,3,4,5,6,7]
+        nbs = [8,9,10,11,12,13,14,15]
+
         for n, neuron in enumerate(self.neurons):
 
-            if n%5 == 0:
-                nonb = neuron.toNeuronOnNeuronBlock()
-                addr = neuron.toNeuronOnNeuronBlock().x().value() + neuron.toNeuronOnNeuronBlock().y().value()*32
+            for i in nbs:
+                if n >= 32*i and n < 32*(i+1):
 
-                print "enable", neuron, addr
+                    nonb = neuron.toNeuronOnNeuronBlock()
+                    addr = neuron.toNeuronOnNeuronBlock().x().value() + neuron.toNeuronOnNeuronBlock().y().value()*32
 
-                self.sthal.hicann.enable_l1_output(neuron, pyhalbe.HICANN.L1Address(addr))
-                self.sthal.hicann.neurons[neuron].activate_firing(True)
+                    print "enable", neuron, addr
+
+                    self.sthal.hicann.enable_l1_output(neuron, pyhalbe.HICANN.L1Address(addr))
+                    self.sthal.hicann.neurons[neuron].activate_firing(True)
 
         for channel in Coordinate.iter_all(Coordinate.GbitLinkOnHICANN):
             self.sthal.hicann.layer1[channel] = pyhalbe.HICANN.GbitLink.Direction.TO_DNC
 
-        # self.sthal.wafer.configure(pycake.helpers.sthal.UpdateAnalogOutputConfigurator())
-        self.sthal.wafer.configure(pysthal.DontProgramFloatingGatesHICANNConfigurator())
+        self.sthal.wafer.configure(pycake.helpers.sthal.UpdateAnalogOutputConfigurator())
+        #self.sthal.wafer.configure(pysthal.DontProgramFloatingGatesHICANNConfigurator())
 
-        runner = pysthal.ExperimentRunner(4e-3)
+        runner = pysthal.ExperimentRunner(0.1e-3)
         self.sthal.wafer.start(runner)
 
         no_spikes = []
@@ -298,7 +308,7 @@ class Measurement(object):
 
             print neuron, len(spikes)
 
-        print self.get_readout_hicann().layer1
+        #print self.get_readout_hicann().layer1
 
         #return worker.join()
 
