@@ -91,9 +91,9 @@ def run_configuration(func):
 def get_bus_from_driver(driver):
         top = driver < 112
         if top:
-            return (i/2)%8
+            return (driver/2)%8
         else:
-            return 7 - (i/2)%8
+            return 7 - (driver/2)%8
 
 class FastHICANNConfigurator(pysthal.HICANNConfigurator):
     def __init__(self, configure_floating_gates=True, reset=True):
