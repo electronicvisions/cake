@@ -39,7 +39,9 @@ class Measurement(object):
 
     logger = pylogging.get("pycake.measurement")
 
-    def __init__(self, sthal, neurons, readout_shifts=None):
+    def __init__(self, sthal, neurons, readout_shifts=None,
+                 trace_readout_enabled=True,
+                 spike_readout_enabled=False):
         for neuron in neurons:
             if not isinstance(neuron, NeuronOnHICANN):
                 raise TypeError("Expected list of integers")
@@ -48,8 +50,10 @@ class Measurement(object):
         self.sthal = sthal
         self.neurons = neurons
         self.time_created = time.time()
+        self.spike_readout_enabled = spike_readout_enabled
         self.spikes = {}
         self.done = False
+        self.trace_readout_enabled = trace_readout_enabled
         self.traces = None
         # Debug for repeated ADC traces
         self.last_trace = None
@@ -195,7 +199,7 @@ class Measurement(object):
 
         """
 
-        print "enabling neurons on nbs {}".format(nbs)
+        self.logger.info("Enabling L1 output for neurons on NeuronBlock {}".format(nbs))
 
         self.sthal.wafer.clearSpikes()
 
@@ -204,9 +208,6 @@ class Measurement(object):
             spikes.append(pysthal.Spike(pyhalbe.HICANN.L1Address(1), t))
         sending_link = Coordinate.GbitLinkOnHICANN(0)
         self.sthal.hicann.sendSpikes(sending_link, spikes)
-
-        #shuffled_neurons = self.neurons[:]
-        #random.shuffle(shuffled_neurons)
 
         self.sthal.hicann.disable_aout()
         self.sthal.hicann.disable_l1_output()
@@ -223,8 +224,6 @@ class Measurement(object):
                     nonb = neuron.toNeuronOnNeuronBlock()
                     addr = neuron.toNeuronOnNeuronBlock().x().value() + neuron.toNeuronOnNeuronBlock().y().value()*32
 
-                    #print "enable", neuron, addr
-
                     self.sthal.hicann.enable_l1_output(neuron, pyhalbe.HICANN.L1Address(addr))
                     self.sthal.hicann.neurons[neuron].activate_firing(True)
 
@@ -233,9 +232,7 @@ class Measurement(object):
         for channel in Coordinate.iter_all(Coordinate.GbitLinkOnHICANN):
             self.sthal.hicann.layer1[channel] = pyhalbe.HICANN.GbitLink.Direction.TO_DNC
 
-        #self.sthal.wafer.configure(pycake.helpers.sthal.UpdateAnalogOutputConfigurator())
-        self.sthal.wafer.configure(pycake.helpers.sthal.FooHICANNConfigurator())
-        #self.sthal.wafer.configure(pysthal.DontProgramFloatingGatesHICANNConfigurator())
+        self.sthal.wafer.configure(pycake.helpers.sthal.SpikeReadoutHICANNConfigurator())
 
         runner = pysthal.ExperimentRunner(0.1e-3)
         self.sthal.wafer.start(runner)
@@ -262,7 +259,6 @@ class Measurement(object):
                 else:
                     n = 256 + (a-32) + ii*32
 
-                #print n, a, ii
                 addr_spikes[Coordinate.NeuronOnHICANN(Coordinate.Enum(int(n)))].append(t)
 
         for neuron, spikes in addr_spikes.iteritems():
@@ -271,11 +267,7 @@ class Measurement(object):
                 self.spikes[neuron] = spikes
 
             if neuron not in activated_neurons and len(spikes) != 0:
-                print "neuron {} was not activated, but spiked {} times".format(neuron, len(spikes))
-
-            #print neuron, len(spikes)
-
-        #print self.get_readout_hicann().layer1
+                self.logger.warn("Neuron {} was not activated, but spiked {} time(s)".format(neuron, len(spikes)))
 
     def _measure(self, analyzer):
         """ Measure traces and correct each value for readout shift.
@@ -285,60 +277,46 @@ class Measurement(object):
                 self.traces = {neuron: trace}
                 self.spikes = {neuron: spikes} #TODO this is not yet implemented
         """
-
         self.last_trace = np.array([])
         self.adc_status = []
         self.logger.INFO("Measuring.")
 
-        #print "at start of _measure"
-        #print self.get_readout_hicann().layer1.getMergerTree()
+        if self.spike_readout_enabled:
 
-        """
-        with WorkerPool(analyzer) as worker:
-            for n, neuron in enumerate(self.neurons):
+            self.logger.INFO("Reading out spikes")
 
-                #print "right before pre_measure"
-                #print self.get_readout_hicann().layer1.getMergerTree()
+            for nb in xrange(0,16):
+                self.get_spikes([nb])
 
-                self.pre_measure(neuron)
-                #print "after pre_measure"
-                #print self.get_readout_hicann().layer1.getMergerTree()
-                times, trace = self.sthal.read_adc()
-                worker.do(
-                    neuron, times, self.readout_shifts(neuron, trace), neuron)
-                if not self.traces is None:
-                    self.traces[neuron] = np.array([times, trace])
-                # DEBUG stuff
-                self.adc_status.append(self.sthal.read_adc_status())
-                if np.array_equal(trace, self.last_trace):
-                    self.logger.ERROR(
-                        "ADC trace didn't change from the last "
-                        "readout, printing status information of all ADC "
-                        "previous readouts:\n" + "\n".join(self.adc_status))
-                    raise RuntimeError(
-                        "Broken ADC readout abort measurement (details see "
-                        "log messages)")
-                self.last_trace = trace
-                # DEBUG stuff end
+        if self.trace_readout_enabled:
 
-                # SPIKES
-                # Collect data
+            self.logger.INFO("Reading out traces")
 
-            self.last_trace = None
+            with WorkerPool(analyzer) as worker:
+                for neuron in self.neurons:
+                    self.pre_measure(neuron)
+                    times, trace = self.sthal.read_adc()
+                    worker.do(
+                        neuron, times, self.readout_shifts(neuron, trace), neuron)
+                    if not self.traces is None:
+                        self.traces[neuron] = np.array([times, trace])
+                    # DEBUG stuff
+                    self.adc_status.append(self.sthal.read_adc_status())
+                    if np.array_equal(trace, self.last_trace):
+                        self.logger.ERROR(
+                            "ADC trace didn't change from the last "
+                            "readout, printing status information of all ADC "
+                            "previous readouts:\n" + "\n".join(self.adc_status))
+                        raise RuntimeError(
+                            "Broken ADC readout abort measurement (details see "
+                            "log messages)")
+                    self.last_trace = trace
+                    # DEBUG stuff end
+                self.last_trace = None
 
-            self.logger.INFO("Wait for analysis to complete.")
-        """
+                self.logger.INFO("Wait for analysis to complete.")
 
-        for nb in xrange(0,16):
-            self.get_spikes([nb])
-
-        for neuron, spikes in self.spikes.iteritems():
-            print neuron, len(spikes)
-
-        #for nb in xrange(0,17):
-        #    self.get_spikes(range(nb))
-
-        #return worker.join()
+                return worker.join()
 
     def run_measurement(self, analyzer, configurator=None):
         """ First configure, then measure

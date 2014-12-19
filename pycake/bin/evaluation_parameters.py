@@ -53,21 +53,22 @@ eval_parameters = {
         "run_V_syntci_psp_max": False,
         "run_V_syntcx_psp_max": False,
         "run_E_l_I_gl_fixed":  False,
-        "run_spikes" : False,
+        "run_Spikes" : False,
 
         # Measurement runs twice by default: first to generate calibration data, and a second time to measure the success of calibration
         # Here you can turn either of these runs on or off
         "calibrate":    False,
         "measure":      True,
 
-        "spikes_parameters": {
+        "Spikes_parameters": {
             neuron_parameter.E_l: Voltage(E_l_target, apply_calibration=True),
             neuron_parameter.E_syni:     Voltage(E_syni_target, apply_calibration=True),
             neuron_parameter.E_synx:     Voltage(E_synx_target, apply_calibration=True),
             neuron_parameter.I_gl:       Current(1000, apply_calibration=True),
+            neuron_parameter.I_pl:       Current(5.),
             neuron_parameter.V_syntcx: Voltage(1440, apply_calibration=True),  # dummy
             neuron_parameter.V_syntci: Voltage(1440, apply_calibration=True),  # dummy
-            shared_parameter.V_reset:    Voltage(500, apply_calibration=True),
+            shared_parameter.V_reset:    Voltage(200, apply_calibration=True),
         },
 
 
