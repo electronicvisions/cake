@@ -34,17 +34,17 @@ eval_parameters = {
 
         "I_pl_range":   [{neuron_parameter.I_pl : Current(1.0/v)} for v in [10, 30, 50, 70, 90, 2500]],
 
-        "spikes_range" : [{neuron_parameter.V_t : Voltage(500)}],
+        "Spikes_range" : [{neuron_parameter.V_t : Voltage(v)} for v in np.concatenate([[650, 660, 670], np.linspace(680, 720, 11), [730, 740, 750]])],
 
         # How many repetitions?
         # Each repetition will take about 1 minute per step!
         "repetitions":  1,
 
         # Set which calibrations you want to run
-        "run_V_reset":  False,
-        "run_E_synx":   False,
-        "run_E_syni":   False,
-        "run_E_l":      False,
+        "run_V_reset":  True,
+        "run_E_synx":   True,
+        "run_E_syni":   True,
+        "run_E_l":      True,
         "run_V_t":      True,
         "run_I_gl":     False,
         "run_I_pl":     False,
