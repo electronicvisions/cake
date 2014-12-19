@@ -393,9 +393,10 @@ class StHALContainer(object):
         """
 
         assert(route >= 0 and route <= 4)
-        repeater = output_buffer.repeater().horizontal()
-        out_line = output_buffer.repeater().horizontal().line()
+        repeater = output_buffer.toSendingRepeaterOnHICANN().toHRepeaterOnHICANN()
+        out_line = output_buffer.toSendingRepeaterOnHICANN().toHRepeaterOnHICANN().toHLineOnHICANN()
         driver_line = driver.line()
+
         repeater_data = self.hicann.repeater[repeater]
         repeater_data.setOutput(Coordinate.right, True)
         if driver.toSideHorizontal() == Coordinate.left:
