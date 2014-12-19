@@ -12,6 +12,7 @@ from gzip import GzipFile
 class Reader(object):
     def __init__(self, runner, include_defects = True):
         """
+        @param runner is either a CalibrationRunner instance or a CalibrationRunner pickled to a file (bz2 or gz)
         @param include_defects, if true, include neurons classified as defect
         """
 
