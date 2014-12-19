@@ -25,7 +25,7 @@ class Reader(object):
                 f_open = GzipFile
             else:
                 f_open = open
-            with f_open(runner, 'rb') as infile:
+            with f_open(os.path.expanduser(runner), 'rb') as infile:
                 self.runner = cPickle.load(infile)
 
         self.include_defects = include_defects
