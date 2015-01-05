@@ -45,6 +45,9 @@ class TestAnalyzers(unittest.TestCase):
         """
         a = pycake.analyzer.PeakAnalyzer()
         time = np.linspace(0, 10, 50, False)
+        # time = 0..10, 5 spikes:
+        dt = 10./5
+        frequency = 1./dt
         voltage = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]*5)
 
         # array index of minimum/maximum
@@ -65,10 +68,28 @@ class TestAnalyzers(unittest.TestCase):
         self.assertEqual(res["mean"], 5.5)
         self.assertEqualNumpyArrays(res["mintab"][:, 0], minindex)
         self.assertEqualNumpyArrays(res["maxtab"][:, 0], maxindex)
-        # TODO test remaining functionality
+        self.assertAlmostEqual(res["std"], 2.87, places=2)
+        self.assertAlmostEqual(res["frequency"], frequency)
+        self.assertAlmostEqual(res["mean_dt"], dt)
 
         a = pycake.analyzer.PeakAnalyzer(True)
         res = a(time, voltage, neuron)
+        # as above
+        self.assertEqual(res["hard_min"], 1)
+        self.assertEqual(res["hard_max"], 10)
+        self.assertEqual(res["mean_min"], 1)
+        self.assertEqual(res["mean_max"], 10)
+        self.assertEqual(res["mean"], 5.5)
+        self.assertEqualNumpyArrays(res["mintab"][:, 0], minindex)
+        self.assertEqualNumpyArrays(res["maxtab"][:, 0], maxindex)
+        self.assertAlmostEqual(res["std"], 2.87, places=2)
+        self.assertAlmostEqual(res["frequency"], frequency)
+        self.assertAlmostEqual(res["mean_dt"], dt)
+
+        # TODO test remaining functionality
+        # additional assertions
+        # res["slopes_rising"]
+        # res["slopes_falling"]
 
     def test_I_gl_Analyzer(self):
         #a = pycake.analyzer.I_gl_Analyzer()
