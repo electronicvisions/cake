@@ -13,6 +13,13 @@ class TestAnalyzers(unittest.TestCase):
             message = "{} is not equal to {}".format(str(A), str(B))
         self.assertTrue(np.array_equal(A, B), message)
 
+    def assertArrayElementsAlmostEqual(self, A, value, message=None):
+        """compares every array element to value"""
+        res = np.allclose(A, value)
+        if message is None:
+            message = "{} is not element-wise almost equal to {}".format(str(A), str(value))
+        self.assertTrue(res, message)
+
     def test_mean_analyzer(self):
         """
         Test MeanOfTraceAnalyzer using a fixed voltage dataset.
@@ -49,6 +56,8 @@ class TestAnalyzers(unittest.TestCase):
         dt = 10./5
         frequency = 1./dt
         voltage = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]*5)
+        slope_rising = (voltage.max()-voltage.min())/dt  # linear
+        slope_falling = -(voltage.max()-voltage.min())/time[1]
 
         # array index of minimum/maximum
         minindex = np.array([0, 10, 20, 30, 40])
@@ -86,10 +95,9 @@ class TestAnalyzers(unittest.TestCase):
         self.assertAlmostEqual(res["frequency"], frequency)
         self.assertAlmostEqual(res["mean_dt"], dt)
 
-        # TODO test remaining functionality
         # additional assertions
-        # res["slopes_rising"]
-        # res["slopes_falling"]
+        self.assertArrayElementsAlmostEqual(res["slopes_falling"], slope_falling)
+        self.assertArrayElementsAlmostEqual(res["slopes_rising"], slope_rising)
 
     def test_I_gl_Analyzer(self):
         #a = pycake.analyzer.I_gl_Analyzer()
