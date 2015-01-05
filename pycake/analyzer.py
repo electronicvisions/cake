@@ -7,7 +7,7 @@ import scipy.signal
 from scipy.optimize import curve_fit
 from pycake.helpers.TraceAverager import createTraceAverager
 from pycake.helpers.peakdetect import peakdet
-from pycake.logic.spikes import spikes_to_frequency
+from pycake.logic.spikes import spikes_to_frequency, detect_spikes
 
 # Import everything needed for saving:
 
@@ -59,7 +59,7 @@ class PeakAnalyzer(Analyzer):
     def __call__(self, t, v, neuron):
         maxtab, mintab = self.get_peaks(t, v)
         mean_max, mean_min, std_max, std_min = self.get_mean_peak(t, v)
-        spikes = self.detect_spikes(t, v)
+        spikes = detect_spikes(t, v)
         freq = spikes_to_frequency(spikes)
         try:
             mean_dt = 1/freq
@@ -203,26 +203,6 @@ class PeakAnalyzer(Analyzer):
             #-------------------------------------------------------------------
 
             return baseline, delta_t
-
-    def detect_spikes(self, time, voltage):
-        """Detect spikes from a voltage trace."""
-
-        # make sure we have numpy arrays
-        t = np.array(time)
-        v = np.array(voltage)
-
-        # Derivative of voltages
-        dv = v[1:] - v[:-1]
-        # Take average over 3 to reduce noise and increase spikes
-        smooth_dv = dv[:-2] + dv[1:-1] + dv[2:]
-        threshhold = -2.5 * np.std(smooth_dv)
-
-        # Detect positions of spikes
-        tmp = smooth_dv < threshhold
-        pos = np.logical_and(tmp[1:] != tmp[:-1], tmp[1:])
-        spikes = t[1:-2][pos]
-
-        return spikes
 
 
 class V_reset_Analyzer(PeakAnalyzer):
