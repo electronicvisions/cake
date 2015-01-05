@@ -7,7 +7,7 @@ import scipy.signal
 from scipy.optimize import curve_fit
 from pycake.helpers.TraceAverager import createTraceAverager
 from pycake.helpers.peakdetect import peakdet
-from pycake.logic.spikes import spikes_to_frequency, detect_spikes
+from pycake.logic.spikes import spikes_to_frequency
 
 # Import everything needed for saving:
 
@@ -58,8 +58,10 @@ class PeakAnalyzer(Analyzer):
 
     def __call__(self, t, v, neuron):
         maxtab, mintab = self.get_peaks(t, v)
+        # FIXME get_peaks is called by most following functions, wasting CPU time
         mean_max, mean_min, std_max, std_min = self.get_mean_peak(t, v)
-        spikes = detect_spikes(t, v)
+        maxindex = maxtab[:,0]
+        spikes = t[maxindex]
         freq = spikes_to_frequency(spikes)
         try:
             mean_dt = 1/freq
