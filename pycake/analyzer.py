@@ -60,7 +60,7 @@ class PeakAnalyzer(Analyzer):
         maxtab, mintab = self.get_peaks(t, v)
         # FIXME get_peaks is called by most following functions, wasting CPU time
         mean_max, mean_min, std_max, std_min = self.get_mean_peak(t, v)
-        maxindex = maxtab[:,0]
+        maxindex = maxtab[:, 0]
         spikes = t[maxindex]
         freq = spikes_to_frequency(spikes)
         try:
@@ -116,9 +116,9 @@ class PeakAnalyzer(Analyzer):
 
         dv_down = np.array(dv_down)
         dt_down = np.array(dt_down)
-        slopes_falling = dv_down/dt_down
         dv_up = np.array(dv_up)
         dt_up = np.array(dt_up)
+        slopes_falling = dv_down/dt_down
         slopes_rising = dv_up/dt_up
 
         return slopes_rising, slopes_falling
