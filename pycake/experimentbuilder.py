@@ -1,4 +1,3 @@
-import numpy as np
 import pylogging
 import Coordinate
 import pyhalbe
@@ -6,17 +5,20 @@ import pysthal
 import copy
 from itertools import product
 
-from pycake.helpers.units import Current, Voltage, DAC
 from pycake.helpers.sthal import StHALContainer
 from pycake.helpers.calibtic import Calibtic
 from pycake.measure import Measurement, I_gl_Measurement
 from pycake.experiment import SequentialExperiment
 import pycake.analyzer
 
+from calibration.vsyntc import V_syntci_Experimentbuilder
+from calibration.vsyntc import V_syntcx_Experimentbuilder
+
 # shorter names
 Enum = Coordinate.Enum
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
+
 
 class BaseExperimentBuilder(object):
     """ Builds a list of measurements from a config object.
@@ -59,7 +61,7 @@ class BaseExperimentBuilder(object):
         # Create one sthal container for each step
         # order is step 1, step 2, step 3, ..., step 1, step 2, step 3, ...
         for rep, step in product(range(repetitions), steps):
-            self.logger.INFO("Building step {}, repetition {}".format(step,rep))
+            self.logger.INFO("Building step {}, repetition {}".format(step, rep))
             sthal = StHALContainer(coord_wafer, coord_hicann, wafer_cfg=wafer_cfg, PLL=PLL)
             # TODO maybe find better solution
             if self.test:
@@ -113,7 +115,7 @@ class BaseExperimentBuilder(object):
                 if isinstance(param, neuron_parameter) or param.name[0] == '_':
                     continue
                 # Check if parameter exists for this block
-                even = block.id().value()%2
+                even = block.id().value() % 2
                 if even and param.name in ['V_clra', 'V_bout']:
                     continue
                 if not even and param.name in ['V_clrc', 'V_bexp']:
@@ -170,8 +172,10 @@ class BaseExperimentBuilder(object):
                            self.trace_readout_enabled,
                            self.spike_readout_enabled)
 
+
 class E_l_Experimentbuilder(BaseExperimentBuilder):
     pass
+
 
 class Spikes_Experimentbuilder(BaseExperimentBuilder):
     def __init__(self, *args, **kwargs):
@@ -180,22 +184,24 @@ class Spikes_Experimentbuilder(BaseExperimentBuilder):
         self.trace_readout_enabled = False
         self.spike_readout_enabled = True
 
+
 class V_reset_Experimentbuilder(BaseExperimentBuilder):
     def get_readout_shifts(self, neurons):
         if self.test:
-            return super(V_reset_Experimentbuilder, self).get_readout_shifts(
-                    neurons)
+            return super(V_reset_Experimentbuilder, self).get_readout_shifts(neurons)
         else:
-           return dict(((n, 0) for n in neurons))
+            return dict(((n, 0) for n in neurons))
 
     def get_analyzer(self):
         "get analyzer"
         return pycake.analyzer.V_reset_Analyzer()
 
+
 class V_t_Experimentbuilder(BaseExperimentBuilder):
     def get_analyzer(self):
         "get analyzer"
         return pycake.analyzer.V_t_Analyzer()
+
 
 class I_pl_Experimentbuilder(BaseExperimentBuilder):
     def prepare_specific_config(self, sthal):
@@ -206,15 +212,18 @@ class I_pl_Experimentbuilder(BaseExperimentBuilder):
         "get analyzer"
         return pycake.analyzer.I_pl_Analyzer()
 
+
 class E_syni_Experimentbuilder(BaseExperimentBuilder):
     def prepare_specific_config(self, sthal):
         sthal.stimulateNeurons(5.0e6, 1, excitatory=False)
         return sthal
 
+
 class E_synx_Experimentbuilder(BaseExperimentBuilder):
     def prepare_specific_config(self, sthal):
         sthal.stimulateNeurons(5.0e6, 1, excitatory=True)
         return sthal
+
 
 class I_gl_Experimentbuilder(BaseExperimentBuilder):
     def __init__(self, *args, **kwargs):
@@ -235,19 +244,19 @@ class I_gl_Experimentbuilder(BaseExperimentBuilder):
         save_traces = self.config.get_save_traces()
         return pycake.analyzer.I_gl_Analyzer(c_w, c_h, save_traces)
 
+
 class E_l_I_gl_fixed_Experimentbuilder(E_l_Experimentbuilder):
     def get_analyzer(self):
         """ Get the appropriate analyzer for a specific parameter.
         """
         return pycake.analyzer.MeanOfTraceAnalyzer()
 
-from calibration.vsyntc import V_syntci_Experimentbuilder
-from calibration.vsyntc import V_syntcx_Experimentbuilder
 
 class V_syntci_psp_max_Experimentbuilder(BaseExperimentBuilder):
     def prepare_specific_config(self, sthal):
         sthal.stimulateNeurons(0.1e6, 1, excitatory=False)
         return sthal
+
 
 class V_syntcx_psp_max_Experimentbuilder(BaseExperimentBuilder):
     def prepare_specific_config(self, sthal):
