@@ -53,11 +53,11 @@ class TestAnalyzers(unittest.TestCase):
         a = pycake.analyzer.PeakAnalyzer()
         time = np.linspace(0, 10, 50, False)
         # time = 0..9.8, 5 spikes:
-        dt = 9.8/5
+        dt = 10./5
         frequency = 1./dt
         voltage = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]*5)
         slope_falling = -(voltage.max()-voltage.min())/time[1]
-        slope_rising = (voltage.max()-voltage.min())/dt  # linear
+        slope_rising = (voltage.max()-voltage.min())/(dt-time[1])  # linear
 
         # array index of minimum/maximum
         minindex = np.array([0, 10, 20, 30, 40])
