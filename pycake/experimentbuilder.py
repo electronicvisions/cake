@@ -225,7 +225,8 @@ class I_gl_Experimentbuilder(BaseExperimentBuilder):
         return sthal
 
     def make_measurement(self, sthal, neurons, readout_shifts):
-        return I_gl_Measurement(sthal, neurons, readout_shifts)
+        pll = sthal.getPLL()
+        return I_gl_Measurement(sthal, neurons, readout_shifts, pll_freq=pll)
 
     def get_analyzer(self):
         """ Get the appropriate analyzer for a specific parameter.
