@@ -11,9 +11,6 @@ from pycake.measure import Measurement, I_gl_Measurement
 from pycake.experiment import SequentialExperiment
 import pycake.analyzer
 
-from calibration.vsyntc import V_syntci_Experimentbuilder
-from calibration.vsyntc import V_syntcx_Experimentbuilder
-
 # shorter names
 Enum = Coordinate.Enum
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
@@ -250,6 +247,10 @@ class E_l_I_gl_fixed_Experimentbuilder(E_l_Experimentbuilder):
         """ Get the appropriate analyzer for a specific parameter.
         """
         return pycake.analyzer.MeanOfTraceAnalyzer()
+
+
+from calibration.vsyntc import V_syntci_Experimentbuilder
+from calibration.vsyntc import V_syntcx_Experimentbuilder
 
 
 class V_syntci_psp_max_Experimentbuilder(BaseExperimentBuilder):
