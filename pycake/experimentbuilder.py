@@ -7,6 +7,7 @@ from itertools import product
 
 from pycake.helpers.sthal import StHALContainer
 from pycake.helpers.calibtic import Calibtic
+from pycake.helpers.TraceAverager import createTraceAverager
 from pycake.measure import Measurement, I_gl_Measurement
 from pycake.experiment import SequentialExperiment
 import pycake.analyzer
@@ -237,9 +238,11 @@ class I_gl_Experimentbuilder(BaseExperimentBuilder):
     def get_analyzer(self):
         """ Get the appropriate analyzer for a specific parameter.
         """
-        c_w, c_h = self.config.get_coordinates()
+        coord_wafer, coord_hicann = self.config.get_coordinates()
+        # not ideal place to call createTraceAverager, connects to hardware
+        trace_averager = createTraceAverager(coord_wafer, coord_hicann)
         save_traces = self.config.get_save_traces()
-        return pycake.analyzer.I_gl_Analyzer(c_w, c_h, save_traces)
+        return pycake.analyzer.I_gl_Analyzer(trace_averager, save_traces)
 
 
 class E_l_I_gl_fixed_Experimentbuilder(E_l_Experimentbuilder):

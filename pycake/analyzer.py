@@ -5,11 +5,8 @@ import pylab
 import pylogging
 import scipy.signal
 from scipy.optimize import curve_fit
-from pycake.helpers.TraceAverager import createTraceAverager
 from pycake.helpers.peakdetect import peakdet
 from pycake.logic.spikes import spikes_to_frequency
-
-# Import everything needed for saving:
 
 
 class Analyzer(object):
@@ -243,12 +240,12 @@ class V_t_Analyzer(PeakAnalyzer):
 
 
 class I_gl_Analyzer(Analyzer):
-    def __init__(self, coord_wafer, coord_hicann, save_mean=True, pll_freq=100e6):
+    def __init__(self, trace_averager, save_mean=True, pll_freq=100e6):
         super(I_gl_Analyzer, self).__init__()
         self.logger.INFO("I_gl_Analyzer is using pll={}".format(pll_freq))
         self.logger.INFO("Initializing I_gl_analyzer by measuring ADC sampling frequency.")
-        self.trace_averager = createTraceAverager(coord_wafer, coord_hicann)
-        self.logger.INFO("TraceAverager created with ADC frequency {} Hz.".format(self.trace_averager.adc_freq))
+        self.trace_averager = trace_averager
+        self.logger.INFO("TraceAverager created with ADC frequency {} Hz.".format(trace_averager.adc_freq))
         self.dt = 129 * 4 * 16 / pll_freq
         # TODO implement different capacitors
         self.C = 2.16456e-12  # Capacitance when bigcap is turned on
