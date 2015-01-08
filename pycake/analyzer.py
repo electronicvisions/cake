@@ -243,15 +243,16 @@ class V_t_Analyzer(PeakAnalyzer):
 
 
 class I_gl_Analyzer(Analyzer):
-    def __init__(self, coord_wafer, coord_hicann, save_mean=True):
+    def __init__(self, coord_wafer, coord_hicann, save_mean=True, pll_freq=100e6):
         super(I_gl_Analyzer, self).__init__()
-        pll_freq = 100e6
+        self.logger.INFO("I_gl_Analyzer is using pll={}".format(pll_freq))
         self.logger.INFO("Initializing I_gl_analyzer by measuring ADC sampling frequency.")
         self.trace_averager = createTraceAverager(coord_wafer, coord_hicann)
         self.logger.INFO("TraceAverager created with ADC frequency {} Hz.".format(self.trace_averager.adc_freq))
         self.dt = 129 * 4 * 16 / pll_freq
         # TODO implement different capacitors
         self.C = 2.16456e-12  # Capacitance when bigcap is turned on
+        self.logger.INFO("Initializing I_gl_analyzer using C={} (bigcap).".format(self.C))
         self.save_mean = save_mean
 
     def __call__(self, t, v, neuron, std, V_rest_init=0.7, used_current=None):
