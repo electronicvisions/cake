@@ -4,6 +4,7 @@ import unittest
 import numpy as np
 
 import pycake.analyzer
+from pycake.helpers.TraceAverager import TraceAverager
 
 
 class TestAnalyzers(unittest.TestCase):
@@ -99,14 +100,39 @@ class TestAnalyzers(unittest.TestCase):
         self.assertArrayElementsAlmostEqual(res["slopes_falling"], slope_falling)
         self.assertArrayElementsAlmostEqual(res["slopes_rising"], slope_rising)
 
+    @unittest.skip("WIP")
     def test_I_gl_Analyzer(self):
-        #a = pycake.analyzer.I_gl_Analyzer()
-        # TODO
-        pass
+        """analyze exponentially decaying trace"""
 
+        time = np.linspace(0, 10, 150, False)
+        single_voltage = np.exp(np.linspace(100, 0, 50))
+        voltage = np.repeat(single_voltage, 3)
+
+        # coordinates should not matter, thus false
+        coord_neuron = False
+
+        adc_freq = 1./time[1]
+        trace_averager = TraceAverager(adc_freq)
+        a = pycake.analyzer.I_gl_Analyzer(trace_averager)
+
+        std = 0.1
+        res = a(time, voltage, coord_neuron, std)
+        print res
+        # TODO continue test
+
+    @unittest.skip("WIP")
     def test_I_pl_Analyzer(self):
         a = pycake.analyzer.I_pl_Analyzer()
-        # TODO
+        time = np.linspace(0, 10, 50, False)
+        dt = time[1]
+        voltage = np.array([1, 2, 4, 8, 16, 32, 0, 0, 0, 0]*5)
+        tau_ref = 4*dt
+
+        # neuron should not matter, thus false
+        neuron = False
+
+        res = a(time, voltage, neuron)
+        self.assertAlmostEqual(res["tau_refrac"], tau_ref)
 
 
 if __name__ == '__main__':
