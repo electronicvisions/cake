@@ -9,6 +9,12 @@ from pycake.helpers.sthal import StHALContainer
 
 logger = pylogging.get("pycake.helper.TraceAverager")
 
+
+def hardware(func):
+    """decorator for functions which connect to hardware"""
+    return func
+
+
 class Configurator(pysthal.HICANNConfigurator):
     def hicann_init(self, h):
         pyhalbe.HICANN.init(h, False)
@@ -28,7 +34,7 @@ def _find_spikes_in_preout(trace):
     th = 0.5
     tmp = np.where((trace >= th)[:-1] != (trace >= th)[1:])[0]
     tmp = tmp[:len(tmp)/2*2]
-    spike_pos = tmp.reshape((len(tmp)/2,2))
+    spike_pos = tmp.reshape((len(tmp)/2, 2))
     positions = []
     for begin, end in spike_pos:
         begin, end = begin - 1, end + 1
@@ -38,6 +44,7 @@ def _find_spikes_in_preout(trace):
     return np.array(positions)
 
 
+@hardware
 def _get_preout_trace(coord_wafer, coord_hicann, bg_rate, recording_time):
     """
     Read preout of upper (debug) synapse driver.
@@ -52,7 +59,7 @@ def _get_preout_trace(coord_wafer, coord_hicann, bg_rate, recording_time):
     sthal.hicann.analog.set_preout(analog)
     # TODO skip floating gates to speed up
     sthal.write_config(configurator=Configurator())
-    time.sleep(1) # Settle driver locking
+    time.sleep(1)  # Settle driver locking
     times, trace = sthal.read_adc()
     sthal.disconnect()
     return trace
@@ -68,8 +75,7 @@ def createTraceAverager(coord_wafer, coord_hicann):
         analog, coord_hicann))
     bg_rate = 100.0e3
     recording_time = 1000.0 / bg_rate
-    trace = _get_preout_trace(
-            coord_wafer, coord_hicann, bg_rate, recording_time)
+    trace = _get_preout_trace(coord_wafer, coord_hicann, bg_rate, recording_time)
     pos = _find_spikes_in_preout(trace)
     n = len(pos)
     expected_t = np.arange(n) / bg_rate
@@ -86,24 +92,20 @@ class TraceAverager(object):
         msg = "Initialized TraceAverager with adc frequency of {} MHz"
         logger.INFO(msg.format(self.adc_freq))
 
-    def _get_chunks(self, trace, dt):
+    def get_chunks(self, trace, dt):
+        """Splits trace in chunks of lenght dt"""
         n = len(trace)
         dpos = dt * self.adc_freq
         chunks = int(np.floor(n / dpos))
         window_size = int(dpos)
-        result = np.empty( (chunks, window_size ) )
+        result = np.empty((chunks, window_size))
         # Starting position of chunks
         positions = np.arange(chunks, dtype=np.float) * dpos
         for ii, pos in enumerate(positions):
             result[ii] = trace[pos:pos+window_size]
         return result
 
-    def get_chunks(self, trace, dt):
-        """Splits trace in chunks of lenght dt"""
-        return self._get_chunks(trace, dt)
-
     def get_average(self, trace, dt):
         """Gives mean and std of trace slices with length dt"""
         chunks = self.get_chunks(trace, dt)
-        return np.mean(chunks, axis = 0), np.std(chunks, axis = 0, ddof = 1), chunks.shape[0]
-
+        return np.mean(chunks, axis=0), np.std(chunks, axis=0, ddof=1), chunks.shape[0]
