@@ -120,19 +120,26 @@ class TestAnalyzers(unittest.TestCase):
         print res
         # TODO continue test
 
-    @unittest.skip("WIP")
-    def test_I_pl_Analyzer(self):
-        a = pycake.analyzer.I_pl_Analyzer()
-        time = np.linspace(0, 10, 50, False)
-        dt = time[1]
-        voltage = np.array([1, 2, 4, 8, 16, 32, 0, 0, 0, 0]*5)
-        tau_ref = 4*dt
+    def test_ISI_Analyzer(self):
+        a = pycake.analyzer.ISI_Analyzer()
 
         # neuron should not matter, thus false
         neuron = False
 
+        time = np.linspace(0, 10, 50, False)
+        dt = time[1]
+
+        voltage = np.array([1, 2, 4, 8, 16, 32]*10)
         res = a(time, voltage, neuron)
-        self.assertAlmostEqual(res["tau_refrac"], tau_ref)
+        isi0 = res["mean_isi"]
+        self.assertAlmostEqual(isi0, 6*dt)
+
+        voltage = np.array([1, 2, 4, 8, 16, 32, 0, 0, 0, 0, 0, 0]*5)
+        actual_tau_ref = 6*dt
+        res = a(time, voltage, neuron)
+        isi_with_tau = res["mean_isi"]
+        tau_ref = isi_with_tau - isi0
+        self.assertAlmostEqual(tau_ref, actual_tau_ref)
 
 
 if __name__ == '__main__':
