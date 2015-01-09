@@ -6,15 +6,14 @@ import pylogging
 from collections import defaultdict
 import pyhalbe
 import Coordinate
-from scipy.optimize import curve_fit
 from pycake.helpers.trafos import HWtoDAC
 
-import time
 
 # shorter names
 Enum = Coordinate.Enum
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
+
 
 # TODO find better name
 class BaseCalibrator(object):
@@ -43,13 +42,14 @@ class BaseCalibrator(object):
         """ Checks if measurements have the same config.
             Only the target parameter is allowed to be different.
         """
-        return True # TODO implement this
+        # TODO implement checking
+        return True
 
     def get_step_parameters(self, measurement):
         """
         """
         step_parameters = measurement.get_parameter(
-                self.target_parameter, measurement.neurons)
+            self.target_parameter, measurement.neurons)
         return step_parameters
 
     def merge_experiments(self):
@@ -99,7 +99,8 @@ class BaseCalibrator(object):
             neuron_mean = []
             neuron_std = []
             for step, results in all_results:
-                if len(results) == 0: # If no result at all is found, None should be returned
+                if len(results) == 0:
+                    # If no result at all is found, None should be returned
                     neuron_mean.append((step, None))
                     neuron_std.append((step, None))
                     continue
@@ -119,7 +120,9 @@ class BaseCalibrator(object):
         for neuron, results in average.iteritems():
             # Need to switch y and x in order to get the right fit
             # (y-axis: configured parameter, x-axis: measurement)
-            ys_raw, xs_raw = zip(*results) # 'unzip' results, e.g.: (100,0.1),(200,0.2) -> (100,200), (0.1,0.2)
+
+            # 'unzip' results, e.g.: (100,0.1),(200,0.2) -> (100,200), (0.1,0.2)
+            ys_raw, xs_raw = zip(*results)
             xs = self.prepare_x(xs_raw)
             ys = self.prepare_y(ys_raw)
             coeffs[neuron] = self.do_fit(xs, ys)
@@ -178,7 +181,7 @@ class V_reset_Calibrator(BaseCalibrator):
         key = self.get_key()
         for neuron in self.get_neurons():
             baseline, = self.experiment.get_mean_results(
-                    neuron, self.target_parameter, (key, ))
+                neuron, self.target_parameter, (key, ))
             yield neuron, baseline
 
     def mean_over_blocks(self, neuron_results):
@@ -214,24 +217,29 @@ class V_reset_Calibrator(BaseCalibrator):
 
         coeffs = {}
         for coord, mean in block_means.iteritems():
-            coeffs[coord] = self.do_fit(mean[:,2], mean[:,0])
+            coeffs[coord] = self.do_fit(mean[:, 2], mean[:, 0])
 
         coeffs.update(self.get_neuron_shifts(neuron_results, block_means))
         return [(self.target_parameter, coeffs)]
+
 
 class E_synx_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.E_synx
 
     def is_defect(self, coeffs):
-        defect = (abs(coeffs[0]) - 1) > 1 or abs(coeffs[1]) > 500 # Defect if slope of the fit is too high or offset is significantly positive
+        # Defect if slope of the fit is too high or offset is significantly positive
+        defect = (abs(coeffs[0]) - 1) > 1 or abs(coeffs[1]) > 500
         return defect
+
 
 class E_syni_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.E_syni
 
     def is_defect(self, coeffs):
-        defect = (abs(coeffs[0]) - 1) > 1 or abs(coeffs[1]) > 500 # Defect if slope of the fit is too high
+        # Defect if slope of the fit is too high
+        defect = (abs(coeffs[0]) - 1) > 1 or abs(coeffs[1]) > 500
         return defect
+
 
 class E_l_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.E_l
@@ -242,20 +250,26 @@ class E_l_Calibrator(BaseCalibrator):
         return defect
     """
 
+
 class spikes_Calibrator(BaseCalibrator):
     target_parameter = None
 
+
 class V_t_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.V_t
+
     def get_key(self):
         return 'max'
 
     def is_defect(self, coeffs):
-        defect = abs(coeffs[0] - 1) > 1 # Defect if slope of the fit is too high
+        # Defect if slope of the fit is too high
+        defect = abs(coeffs[0] - 1) > 1
         return defect
+
 
 class I_gl_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.I_gl
+
     def prepare_x(self, x):
         xs = [HWtoDAC(val, self.target_parameter) for val in x]
         xs = np.array(xs)
@@ -265,6 +279,7 @@ class I_gl_Calibrator(BaseCalibrator):
         return 'g_l'
 
 from pycake.calibration.E_l_I_gl_fixed import E_l_I_gl_fixed_Calibrator
+
 
 class V_syntc_psp_max_BaseCalibrator(BaseCalibrator):
 
@@ -285,14 +300,14 @@ class V_syntc_psp_max_BaseCalibrator(BaseCalibrator):
         index_V_syntc = 0
         index_std = 1
 
-        V_syntc_steps = np.unique(data[:,index_V_syntc])
+        V_syntc_steps = np.unique(data[:, index_V_syntc])
 
         V_syntc_psp_max = 0
         max_std = 0
 
         for step in V_syntc_steps:
-            selected = data[data[:,index_V_syntc] == step]
-            V_syntc, std = selected[:,(index_V_syntc, index_std)].T
+            selected = data[data[:, index_V_syntc] == step]
+            V_syntc, std = selected[:, (index_V_syntc, index_std)].T
 
             #V_syntc = V_syntc[0]
             #std = std[0]
@@ -319,11 +334,14 @@ class V_syntc_psp_max_BaseCalibrator(BaseCalibrator):
         print xs, np.max(xs), defect
     """
 
+
 class V_syntci_psp_max_Calibrator(V_syntc_psp_max_BaseCalibrator):
     target_parameter = neuron_parameter.V_syntci
 
+
 class V_syntcx_psp_max_Calibrator(V_syntc_psp_max_BaseCalibrator):
     target_parameter = neuron_parameter.V_syntcx
+
 
 class I_pl_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.I_pl
