@@ -365,21 +365,29 @@ V_syntci_psp_max_Analyzer = MeanOfTraceAnalyzer
 V_syntcx_psp_max_Analyzer = MeanOfTraceAnalyzer
 
 
-class I_pl_Analyzer(Analyzer):
+class ISI_Analyzer(Analyzer):
+    """Calculate ISIs from trace.
+
+    Neuron is set to constant-spiking state with constant refractory period.
+    Afterwards, neuron is set to constant-spiking state without refractory
+    period.
+
+    Refractory time is measured as difference between ISI with and without refractory
+    period.
+    """
     def __call__(self, t, v, neuron):
 
         delta = np.std(v)
 
         try:
             maxtab, mintab = peakdet(v, delta)
+            # indices of maxima
             maxs = maxtab[:, 0]
-            #print maxs
-            mean = np.mean([x - maxs[i - 1] for i, x in enumerate(maxs[1:])])
-            #print mean
-            tau_refrac = t[mean]-t[0]
-            #print tau_refrac
+            ISIidxs = maxs[1:]-maxs[:-1]
+            mean_isi_idx = np.mean(ISIidxs)
+            isi_dt = t[mean_isi_idx]-t[0]
         except Exception as e:
             self.logger.ERROR(e)
-            tau_refrac = None
+            isi_dt = None
 
-        return {"tau_refrac": tau_refrac}
+        return {"mean_isi": isi_dt}

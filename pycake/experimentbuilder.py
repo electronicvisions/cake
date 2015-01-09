@@ -208,7 +208,7 @@ class I_pl_Experimentbuilder(BaseExperimentBuilder):
 
     def get_analyzer(self):
         "get analyzer"
-        return pycake.analyzer.I_pl_Analyzer()
+        return pycake.analyzer.ISI_Analyzer()
 
 
 class E_syni_Experimentbuilder(BaseExperimentBuilder):

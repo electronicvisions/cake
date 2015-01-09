@@ -54,7 +54,7 @@ class BaseCalibrator(object):
 
     def merge_experiments(self):
         """ Merges all experiments into one result dictionary.
-            Returns: 
+            Returns:
                 dictionary containing merged results
                 The structure is as follows:
                 {neuron1: [(step1, [result1, result2, ...]), (step2, [result1, result2, ...]), ...],
@@ -73,7 +73,7 @@ class BaseCalibrator(object):
                 step_id += 1
 
         ordered = {}
-        for neuron, result_list in merged.iteritems(): 
+        for neuron, result_list in merged.iteritems():
             neuron_results = defaultdict(list)
             for step, result in result_list:
                 neuron_results[step].append(result[self.get_key()])
@@ -159,7 +159,7 @@ class BaseCalibrator(object):
         return fit_coeffs
 
     def is_defect(self, coeffs):
-        return False 
+        return False
 
     def get_neurons(self):
         return self.experiments[0].measurements[0].neurons
@@ -221,7 +221,7 @@ class V_reset_Calibrator(BaseCalibrator):
 
 class E_synx_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.E_synx
-    
+
     def is_defect(self, coeffs):
         defect = (abs(coeffs[0]) - 1) > 1 or abs(coeffs[1]) > 500 # Defect if slope of the fit is too high or offset is significantly positive
         return defect
@@ -329,7 +329,7 @@ class I_pl_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.I_pl
 
     def get_key(self):
-        return 'tau_refrac'
+        return 'mean_isi'
 
     def prepare_x(self, x):
         """ Prepares x values for fit
