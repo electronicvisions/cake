@@ -1,11 +1,12 @@
 import imp
 import os
-from pycake.helpers.units import Voltage, Current, DAC
-from pyhalbe.HICANN import neuron_parameter, shared_parameter
 import copy
 
+
 class Config(object):
+    """Stores all calibration run configuration."""
     def __init__(self, name, parameters):
+        """Load configuration from dictionary or parameter file."""
         self.config_name = name
         if isinstance(parameters, dict):
             self.parameters = copy.deepcopy(parameters)
@@ -13,6 +14,7 @@ class Config(object):
             self.parameters = self.read_parameter_file(parameters)
 
     def copy(self, config_name):
+        """Create copy of current instance for modification."""
         return Config(config_name, self.parameters)
 
     def read_parameter_file(self, parameters_file):
@@ -138,7 +140,7 @@ class Config(object):
         """
         try:
             return self.get_config("save_traces")
-        except KeyError, AttributeError:
+        except (KeyError, AttributeError):
             return self.parameters["save_traces"]
 
     def get_clear(self):
@@ -149,7 +151,7 @@ class Config(object):
     def get_clear_defects(self):
         """ Returns if calibration should be cleared.
         """
-        return self.parameters.get('clear_defects',False)
+        return self.parameters.get('clear_defects', False)
 
     def get_run_calibration(self):
         return self.parameters["calibrate"]
