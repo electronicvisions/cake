@@ -4,12 +4,13 @@ try:
     import pyfftw.interfaces
     fft = pyfftw.interfaces.numpy_fft.rfft
     fftfreq = pyfftw.interfaces.numpy_fft.fftfreq
-except ImportError as exc:
+except ImportError as exc:  # pragma: no cover
     print exc
     print "FFT will not work!"
     print "use: pip install --upgrade --user pyFFTW"
     fft = None
     fftfreq = None
+
 
 class SignalToNoise(object):
     """Utility class to determine the signal to noise ratio of the neuron membrane
@@ -32,7 +33,7 @@ class SignalToNoise(object):
         dt = 1.0/adc_freq
         freq = fftfreq(self.n, dt)
         peak = np.searchsorted(freq[:len(freq) / 2], bg_freq)
-        self.window = np.array( (-2, -1, 0, 1, 2) ) + peak
+        self.window = np.array((-2, -1, 0, 1, 2)) + peak
         spec = fft(control, n=self.n)[self.window]
         self.noise = np.sum(np.abs(spec))
 
