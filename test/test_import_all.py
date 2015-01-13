@@ -41,7 +41,6 @@ import pycake.helpers.WorkerPool
 
 # logic submodule
 import pycake.logic
-import pycake.logic.helpers
 import pycake.logic.psps
 import pycake.logic.spikes
 import pycake.logic.taum_fit
