@@ -383,7 +383,7 @@ class ISI_Analyzer(Analyzer):
             maxtab, mintab = peakdet(v, delta)
             # indices of maxima
             maxs = maxtab[:, 0]
-            ISIidxs = maxs[1:]-maxs[:-1]
+            ISIidxs = np.diff(maxs)
             mean_isi_idx = np.mean(ISIidxs)
             isi_dt = t[mean_isi_idx]-t[0]
         except Exception as e:
