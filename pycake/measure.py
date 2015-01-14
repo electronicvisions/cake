@@ -284,6 +284,9 @@ class Measurement(object):
         self.adc_status = []
         self.logger.INFO("Measuring.")
 
+        if self.spike_readout_enabled and self.trace_readout_enabled:
+            raise RuntimeError("Traces and spikes simultaneously are not supported at the moment.")
+
         if self.spike_readout_enabled:
 
             self.logger.INFO("Reading out spikes")
