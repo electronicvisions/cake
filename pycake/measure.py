@@ -289,10 +289,19 @@ class Measurement(object):
 
         if self.spike_readout_enabled:
 
+            results = {}
+
             self.logger.INFO("Reading out spikes")
 
             for nb in xrange(0,16):
                 self.get_spikes([nb])
+
+            for neuron in self.neurons:
+
+                spikes = self.spikes.get(neuron, [])
+                results[neuron] = analyzer(spikes, neuron)
+
+            return results
 
         if self.trace_readout_enabled:
 
