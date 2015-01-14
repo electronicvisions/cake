@@ -247,7 +247,7 @@ class Measurement(object):
             received = self.sthal.hicann.receivedSpikes(channel)
             times, addresses = received.T
 
-            print channel, len(received)
+            self.logger.info("received {} spike(s) on channel {}".format(len(received), channel))
 
             no_spikes.append(len(received))
             spiketimes.append(times)
