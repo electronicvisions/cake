@@ -269,6 +269,9 @@ class Measurement(object):
             if neuron not in activated_neurons and len(spikes) != 0:
                 self.logger.warn("Neuron {} was not activated, but spiked {} time(s)".format(neuron, len(spikes)))
 
+        self.sthal.hicann.disable_aout()
+        self.sthal.hicann.disable_l1_output()
+
     def _measure(self, analyzer):
         """ Measure traces and correct each value for readout shift.
             Changes traces to numpy arrays
