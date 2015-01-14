@@ -391,3 +391,23 @@ class ISI_Analyzer(Analyzer):
             isi_dt = None
 
         return {"mean_isi": isi_dt}
+
+class Spikes_Analyzer(Analyzer):
+    def __call__(self, spikes, neuron):
+
+        n_spikes = len(spikes)
+
+        if n_spikes > 1:
+            isis = np.diff(spikes)
+            try:
+                mean_isi = np.mean(isis)
+            except Exception as e:
+                print e
+                print spikes
+                print isis
+                raise(e)
+        else:
+            mean_isi = None
+
+        return {"spikes_mean_isi": mean_isi,
+                "spikes_n_spikes": n_spikes}

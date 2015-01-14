@@ -194,6 +194,9 @@ class Spikes_Experimentbuilder(BaseExperimentBuilder):
         self.trace_readout_enabled = False
         self.spike_readout_enabled = True
 
+    def get_analyzer(self):
+        "get analyzer"
+        return pycake.analyzer.Spikes_Analyzer()
 
 class V_reset_Experimentbuilder(BaseExperimentBuilder):
     def get_readout_shifts(self, neurons):
