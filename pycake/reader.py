@@ -199,7 +199,11 @@ class Reader(object):
                 for step, step_value in enumerate(config.get_steps()):
 
                     xs.append(step_value.values()[0].value)
-                    ys.append((np.array(results.values())*yfactor)[:,step])
+
+                    if yfactor != 1:
+                        ys.append((np.array(results.values())*yfactor)[:,step])
+                    else:
+                        ys.append((np.array(results.values()))[:,step])
 
                 if mark_top_bottom:
                     plot = plt.plot(xs, ys, color=color, marker='o', **kwargs)
