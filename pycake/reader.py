@@ -160,7 +160,7 @@ class Reader(object):
 
         return hist
 
-    def plot_result(self, parameter, key, neurons=None, yfactor=1000, mark_top_bottom=True, **kwargs):
+    def plot_result(self, parameter, key, neurons=None, yfactor=1000, mark_top_bottom=True, average=False, **kwargs):
 
         fig = plt.figure()
 
@@ -201,9 +201,14 @@ class Reader(object):
                     xs.append(step_value.values()[0].value)
 
                     if yfactor != 1:
-                        ys.append((np.array(results.values())*yfactor)[:,step])
+                        ys_tmp = (np.array(results.values())*yfactor)[:,step]
                     else:
-                        ys.append((np.array(results.values()))[:,step])
+                        ys_tmp = (np.array(results.values()))[:,step]
+
+                    if average:
+                        ys.append(np.mean(ys_tmp))
+                    else:
+                        ys.append(ys_tmp)
 
                 if mark_top_bottom:
                     plot = plt.plot(xs, ys, color=color, marker='o', **kwargs)
