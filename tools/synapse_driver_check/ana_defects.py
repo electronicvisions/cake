@@ -54,7 +54,7 @@ def categorize(addr, spikes, start_offset, addr_offset):
 
             pos = start_offset + o_addr*addr_offset
 
-            if np.abs(t - pos - addr_offset/2*safety) <= addr_offset/2*safety:
+            if np.abs(t - pos) <= addr_offset*safety:
                 if o_addr == addr:
                     correct.append(t)
                 if o_addr in addr_correlation_map:
