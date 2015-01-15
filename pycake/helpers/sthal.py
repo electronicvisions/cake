@@ -5,12 +5,12 @@ import pyhalbe
 import pysthal
 import pylogging
 import Coordinate
-import numpy
 from pyhalbe import HICANN
-from Coordinate import Enum, X, Y
+from Coordinate import Enum, X
 from Coordinate import NeuronOnHICANN
 
 from sims.sim_denmem_lib import TBParameters, run_remote_simulation
+
 
 class SpikeReadoutHICANNConfigurator(pysthal.HICANNConfigurator):
 
@@ -24,10 +24,10 @@ class SpikeReadoutHICANNConfigurator(pysthal.HICANNConfigurator):
 
         pyhalbe.HICANN.init(handle, False)
 
-        #self.config_floating_gates(handle, data);
-        self.config_fg_stimulus(handle, data);
+        #self.config_floating_gates(handle, data)
+        self.config_fg_stimulus(handle, data)
 
-        #self.config_synapse_array(handle, data);
+        #self.config_synapse_array(handle, data)
 
         self.config_neuron_quads(handle, data)
         self.config_phase(handle, data)
@@ -35,7 +35,7 @@ class SpikeReadoutHICANNConfigurator(pysthal.HICANNConfigurator):
 
         #self.config_synapse_drivers(handle, data)
         self.config_synapse_switch(handle, data)
-        self.config_stdp(handle, data);
+        self.config_stdp(handle, data)
         self.config_crossbar_switches(handle, data)
         self.config_repeater(handle, data)
         self.config_merger_tree(handle, data)
@@ -466,8 +466,8 @@ class SimStHALContainer(StHALContainer):
                  wafer_cfg="",
                  PLL=100e6,
                  dump_file=None,
-                 remote_host = None,
-                 remote_port = None):
+                 remote_host=None,
+                 remote_port=None):
         """Initialize StHAL. kwargs default to vertical setup configuration.
 
         Args:
@@ -491,6 +491,7 @@ class SimStHALContainer(StHALContainer):
         # 10 times simulation reset
         self.simulation_init_time = 10.0e-07
         self.recording_time = recording_time + self.simulation_init_time
+        # FIXME implement line above in set_recording_time
 
     def connect(self):
         """Connect to the hardware."""
