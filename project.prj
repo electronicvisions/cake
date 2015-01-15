@@ -65,7 +65,7 @@ sw = SoftwareJob([
     queue       : false,    // if the job should be queued after the generator
 ])
 
-cov = CoverageJob([]
+cov = CoverageJob([
     enabled : true,
     buildshell : custom_covshell,
     artifacts : [ "cake/htmlcov/" ],
