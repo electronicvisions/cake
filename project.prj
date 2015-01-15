@@ -32,6 +32,17 @@ module load pynn
 ./waf install --test-exec pycake_tests
 """
 
+custom_covshell = """\
+# workaround for "module: command not found"
+source /afs/kip.uni-heidelberg.de/projects/vision/definst_software/shrc
+
+module load pynn
+
+./waf configure
+./waf install --test-execnone
+(cd cake/ && python check-coverage.py)
+"""
+
 sw = SoftwareJob([
     debug       : false,    // if true, the jobname is postfixed with '-dsldbg' and the job is disabled
     enabled     : true,     // if the job should be enabled (will be overridden if debug is true)
@@ -52,6 +63,12 @@ sw = SoftwareJob([
     distribution            : true,     // create artifacts for lib and bin folder
     
     queue       : false,    // if the job should be queued after the generator
+])
+
+cov = CoverageJob([]
+    enabled : true,
+    buildshell : custom_covshell,
+    artifacts : [ "cake/htmlcov/" ],
 ])
 
 return "Done."
