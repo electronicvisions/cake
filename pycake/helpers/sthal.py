@@ -523,10 +523,11 @@ class SimStHALContainer(StHALContainer):
     def read_adc(self):
         """Fake ADC readout by evaluating a denmem_sim run"""
 
-        json = self.get_TBParameters_json()
+        param = self.build_TBParameters(self.current_neuron)
+        json = param.to_json()
         key = (self.current_neuron, json)
         if key not in self.recorded_traces:
-            self.run_simulation(self.current_neuron)
+            self.run_simulation(self.current_neuron, param)
         return self.recorded_traces[key]
 
     def get_simulation_neurons(self, neuron):
@@ -536,19 +537,17 @@ class SimStHALContainer(StHALContainer):
         else:
             return NeuronOnHICANN(X(int(neuron.x()) - 1), neuron.y()), neuron
 
-    def get_TBParameters_json(self):
+    def build_TBParameters(self, neuron):
         """Returns the serialized TBParameters for self.current_neuron"""
-        left, right = self.get_simulation_neurons(self.current_neuron)
-        param = TBParameters.from_sthal(self.wafer, self.coord_hicann, left)
-        return param.to_json()
-
-    def run_simulation(self, neuron):
-        """Execute a remote simulation for the given json set"""
-        left, right = self.get_simulation_neurons(self.current_neuron)
+        left, right = self.get_simulation_neurons(neuron)
         param = TBParameters.from_sthal(self.wafer, self.coord_hicann, left)
         param.simulator_settings.simulation_time = self.recording_time
-        json = param.to_json()
+        return param
+
+    def run_simulation(self, neuron, param):
+        """Execute a remote simulation for the given json set"""
         # TODO Error handling
+        json = param.to_json()
         time, left_membrane, right_membrane = run_remote_simulation(
             param, self.remote_host, self.remote_port)
 
@@ -557,6 +556,7 @@ class SimStHALContainer(StHALContainer):
         left_membrane = left_membrane[cut:]
         right_membrane = right_membrane[cut:]
 
+        left, right = self.get_simulation_neurons(neuron)
         self.recorded_traces[(left, json)] = (time, left_membrane)
         self.recorded_traces[(right, json)] = (time, right_membrane)
 
