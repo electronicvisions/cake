@@ -66,9 +66,9 @@ sw = SoftwareJob([
 ])
 
 cov = CoverageJob([
-    enabled : true,
+    enabled : false,
     buildshell : custom_covshell,
-    artifacts : [ "cake/htmlcov/" ],
+    //artifacts : [ "cake/htmlcov/" ],  // not supported by CoverageJob
 ])
 
 return "Done."
