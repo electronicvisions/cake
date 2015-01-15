@@ -33,7 +33,8 @@ def peakdet(v, delta, x=None):
         raise TypeError('Input vectors v and x must have same length')
 
     if not isscalar(delta):
-        raise TypeError('Input argument delta must be a scalar')
+        raise TypeError(
+            'Input argument delta must be a scalar, not "{}"'.format(delta))
 
     if delta <= 0:
         raise ValueError('Input argument delta must be positive')

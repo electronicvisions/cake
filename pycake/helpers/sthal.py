@@ -552,10 +552,11 @@ class SimStHALContainer(StHALContainer):
         time, left_membrane, right_membrane = run_remote_simulation(
             param, self.remote_host, self.remote_port)
 
+        # Cut simulation init phase and transform to regular numpy array
         cut = time.searchsorted(self.simulation_init_time)
-        time = time[cut:]
-        left_membrane = left_membrane[cut:]
-        right_membrane = right_membrane[cut:]
+        time = numpy.array(time[cut:])
+        left_membrane = numpy.array(left_membrane[cut:])
+        right_membrane = numpy.array(right_membrane[cut:])
 
         left, right = self.get_simulation_neurons(neuron)
         self.recorded_traces[(left, json)] = (time, left_membrane)
