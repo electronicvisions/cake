@@ -6,6 +6,7 @@ import copy
 from itertools import product
 
 from pycake.helpers.sthal import StHALContainer
+from pycake.helpers.sthal import SimStHALContainer
 from pycake.helpers.calibtic import Calibtic
 from pycake.helpers.TraceAverager import createTraceAverager
 from pycake.measure import Measurement, I_gl_Measurement
@@ -59,8 +60,19 @@ class BaseExperimentBuilder(object):
         # Create one sthal container for each step
         # order is step 1, step 2, step 3, ..., step 1, step 2, step 3, ...
         for rep, step in product(range(repetitions), steps):
-            self.logger.INFO("Building step {}, repetition {}".format(step, rep))
-            sthal = StHALContainer(coord_wafer, coord_hicann, wafer_cfg=wafer_cfg, PLL=PLL)
+            self.logger.INFO(
+                "Building step {}, repetition {}".format(step, rep))
+            sim_denmem_cfg = self.config.get_sim_denmem()
+            if sim_denmem_cfg:
+                host, port = sim_denmem_cfg.split(':')
+                self.logger.INFO(
+                    "Using sim_denmem on {}:{}".format(host, port))
+                sthal = SimStHALContainer(
+                    coord_wafer, coord_hicann, wafer_cfg=wafer_cfg, PLL=PLL,
+                    remote_host=host, remote_port=port)
+            else:
+                sthal = StHALContainer(
+                    coord_wafer, coord_hicann, wafer_cfg=wafer_cfg, PLL=PLL)
             # TODO maybe find better solution
             if self.test:
                 step = step.copy()

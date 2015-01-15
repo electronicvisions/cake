@@ -158,3 +158,6 @@ class Config(object):
 
     def get_run_test(self):
         return self.parameters["measure"]
+
+    def get_sim_denmem(self):
+        return self.parameters.get("sim_denmem", None)

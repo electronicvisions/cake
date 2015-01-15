@@ -5,8 +5,12 @@ import pyhalbe
 import pysthal
 import pylogging
 import Coordinate
+import numpy
 from pyhalbe import HICANN
-from Coordinate import Enum
+from Coordinate import Enum, X, Y
+from Coordinate import NeuronOnHICANN
+
+from sims.sim_denmem_lib import TBParameters, run_remote_simulation
 
 class SpikeReadoutHICANNConfigurator(pysthal.HICANNConfigurator):
 
@@ -221,6 +225,7 @@ class StHALContainer(object):
         """Write full configuration."""
         if not self._connected:
             self.connect()
+        # self.set_fg_biasn(0)
         if configurator is None:
             if program_floating_gates:
                 configurator = pysthal.HICANNConfigurator()
@@ -237,15 +242,13 @@ class StHALContainer(object):
            HostALController: FPGA expected sequence number 00000000 instead of the current 000xxxxx. Cannot correct this.
            HostALController::sendSingleFrame: did not get an answer from FPGA.
         """
-        if not self._connected:
-            self.connect()
         self.hicann.disable_aout()
         self.hicann.disable_l1_output()
         self.hicann.disable_current_stimulus()
         if not self.wafer_cfg and l1address is not None:
             self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(l1address))
         self.hicann.enable_aout(coord_neuron, self.coord_analog)
-        self.wafer.configure(UpdateAnalogOutputConfigurator())
+        self.write_config(configurator=UpdateAnalogOutputConfigurator())
 
     def read_adc(self):
         if not self._connected:
@@ -450,3 +453,115 @@ class StHALContainer(object):
             self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(l1address))
         self.hicann.enable_aout(coord_neuron, self.coord_analog)
         self.wafer.configure(UpdateAnalogOutputConfigurator())
+
+
+class SimStHALContainer(StHALContainer):
+    """Contains StHAL objects for hardware access. Multiple experiments can share one container."""
+    logger = pylogging.get("pycake.helper.simsthal")
+
+    def __init__(self, coord_wafer,
+                 coord_hicann,
+                 coord_analog=Coordinate.AnalogOnHICANN(0),
+                 recording_time=0.1e-6,
+                 wafer_cfg="",
+                 PLL=100e6,
+                 dump_file=None,
+                 remote_host = None,
+                 remote_port = None):
+        """Initialize StHAL. kwargs default to vertical setup configuration.
+
+        Args:
+            coord_hicann: HICANN Coordinate
+            coord_analog: AnalogOnHICANN Coordinate
+            recording_time: ADC recording time in seconds
+            wafer_cfg: ?
+            PLL: HICANN PLL frequency in Hz
+            dump_file: filename for StHAL dump handle instead of hardware
+            remote_host: host
+            remote_port: port
+        """
+        super(SimStHALContainer, self).__init__(
+            coord_wafer, coord_hicann, coord_analog, recording_time,
+            wafer_cfg, PLL, dump_file)
+        self.current_neuron = Coordinate.NeuronOnHICANN()
+        self.recorded_traces = {}
+        self.remote_host = remote_host
+        self.remote_port = remote_port
+
+        # 10 times simulation reset
+        self.simulation_init_time = 10.0e-07
+        self.recording_time = recording_time + self.simulation_init_time
+
+    def connect(self):
+        """Connect to the hardware."""
+        pass
+
+    def dump_connect(self, filename, append):
+        raise NotImplementedError()
+
+    def connect_adc(self, coord_analog=None):
+        """Gets ADC handle.
+
+        Args:
+            coord_analog: Coordinate.AnalogOnHICANN to override default behavior
+        """
+        pass
+
+    def disconnect(self):
+        """Free handles."""
+        pass
+
+    def write_config(self, program_floating_gates=True, configurator=None):
+        """Write full configuration."""
+        pass
+
+    def switch_analog_output(self, coord_neuron, l1address=None):
+        super(SimStHALContainer, self).switch_analog_output(
+            coord_neuron, l1address)
+        self.current_neuron = coord_neuron
+
+    def read_adc(self):
+        """Fake ADC readout by evaluating a denmem_sim run"""
+
+        json = self.get_TBParameters_json()
+        key = (self.current_neuron, json)
+        if key not in self.recorded_traces:
+            self.run_simulation(self.current_neuron)
+        return self.recorded_traces[key]
+
+    def get_simulation_neurons(self, neuron):
+        """Returns the two neurons, that will be simulated for a given neuron"""
+        if int(neuron.x()) % 2 == 0:
+            return neuron, NeuronOnHICANN(X(int(neuron.x()) + 1), neuron.y())
+        else:
+            return NeuronOnHICANN(X(int(neuron.x()) - 1), neuron.y()), neuron
+
+    def get_TBParameters_json(self):
+        """Returns the serialized TBParameters for self.current_neuron"""
+        left, right = self.get_simulation_neurons(self.current_neuron)
+        param = TBParameters.from_sthal(self.wafer, self.coord_hicann, left)
+        return param.to_json()
+
+    def run_simulation(self, neuron):
+        """Execute a remote simulation for the given json set"""
+        left, right = self.get_simulation_neurons(self.current_neuron)
+        param = TBParameters.from_sthal(self.wafer, self.coord_hicann, left)
+        param.simulator_settings.simulation_time = self.recording_time
+        json = param.to_json()
+        # TODO Error handling
+        time, left_membrane, right_membrane = run_remote_simulation(
+            param, self.remote_host, self.remote_port)
+
+        cut = time.searchsorted(self.simulation_init_time)
+        time = time[cut:]
+        left_membrane = left_membrane[cut:]
+        right_membrane = right_membrane[cut:]
+
+        self.recorded_traces[(left, json)] = (time, left_membrane)
+        self.recorded_traces[(right, json)] = (time, right_membrane)
+
+    def read_adc_status(self):
+        return "FAKE ADC :P"
+
+    def read_wafer_status(self):
+        return self.wafer.status()
