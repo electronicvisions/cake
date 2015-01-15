@@ -1,6 +1,7 @@
 """Helper classes for StHAL."""
 
 import math
+import numpy
 import pyhalbe
 import pysthal
 import pylogging
