@@ -11,6 +11,7 @@ import os
 import tempfile
 
 from pycake.helpers.sthal import StHALContainer
+from pycake.helpers.sthal import SimStHALContainer
 from pyhalbe import Coordinate as C
 from pyhalbe.HICANN import L1Address
 from PysthalTest import PysthalTest, hardware
@@ -68,6 +69,38 @@ class TestSthalWithHardware(PysthalTest):
         #sthal.read_wafer_status()
         #sthal.write_config()
         sthal.disconnect()
+
+
+class TestSimSthal(unittest.TestCase):
+    def setUp(self):
+        """initialize SimStHAL container"""
+        coord_wafer = C.Wafer(4)
+        self.coord_hicann = coord_hicann = C.HICANNOnWafer(C.Enum(365))
+        self.sthal = SimStHALContainer(coord_wafer, coord_hicann)
+
+    def test_pickle(self):
+        """Try pickling and unpickling"""
+        p = pickle.dumps(self.sthal)
+        s2 = pickle.loads(p)
+        self.assertIsInstance(s2, SimStHALContainer)
+
+    def test_empty_functions(self):
+        """These functions should do nothing."""
+        sthal = self.sthal
+        sthal.connect()
+        sthal.disconnect()
+        sthal.connect_adc()
+        sthal.write_config()
+        sthal.read_adc_status()
+
+    def test_raising(self):
+        """These functions should raise."""
+        sthal = self.sthal
+        self.assertRaises(NotImplementedError, sthal.dump_connect, "foo", "bar")
+
+    def test_wafer_status(self):
+        status = self.sthal.read_wafer_status()
+        self.assertEqual(list(status.hicanns)[0], self.coord_hicann)
 
 
 if __name__ == "__main__":
