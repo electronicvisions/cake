@@ -10,6 +10,7 @@ def depends(ctx):
     ctx('calibtic', 'pycalibtic')  # sthal does not depend on pycalibtic
     ctx('redman', 'pyredman')
     ctx('redman', 'backends')
+    ctx('cd-denmem-sim')
 
 
 def options(opt):
