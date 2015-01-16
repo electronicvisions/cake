@@ -18,6 +18,7 @@ def options(opt):
 
     opt.recurse('test')
 
+
 def configure(cfg):
     cfg.load('post_task')
 
@@ -41,7 +42,7 @@ def build(bld):
         source=bld.path.ant_glob('pycake/**/*.py'),
         features='post_task',
         post_task=['pycalibtic', 'pysthal', 'pyhalbe', 'pylogging', 'pyredman',
-                   'redman_xml', 'redman_mongo'],
+                   'redman_xml', 'redman_mongo', 'sim_denmem_ts', ],
         pythonpath=['.'],
         install_from='.',
         install_path='lib',
