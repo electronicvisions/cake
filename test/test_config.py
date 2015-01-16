@@ -21,7 +21,33 @@ class TestConfig(unittest.TestCase):
 
     def test_example(self):
         config_dir = os.path.dirname(os.path.realpath(__file__))
-        cfg = Config("random-name", os.path.join(config_dir, "example_config.py"))
+        cfg = Config("random-name",
+                     os.path.join(config_dir, "example_config.py"))
+
+        # preset values
+        self.assertEqual(cfg.get_target(), "random-name")
+        self.assertEqual(cfg.get_blocks(), "blocks-value")
+        self.assertEqual(cfg.get_config("foo"), "foo-value")
+        self.assertEqual(cfg.get_config_with_default("foo", "other-value"), "foo-value")
+        self.assertEqual(cfg.get_config_with_default("missing", "default-value"), "default-value")
+        self.assertEqual(cfg.get_neurons(), "neurons-value")
+        self.assertEqual(cfg.get_steps(), "steps-value")
+        self.assertEqual(cfg.get_folder(), "folder-value")
+        self.assertEqual(cfg.get_calibtic_backend(), ("backend-value", "w17-h222"))
+
+        # set-get values
+        cfg.set_config("foo-set", "set-value")
+        self.assertEqual(cfg.get_config("foo-set"), "set-value")
+        cfg.set_config("foo-set", "set-value2")
+        self.assertEqual(cfg.get_config("foo-set"), "set-value2")
+
+        # default values
+        # TODO test another config with non-defaults
+        self.assertEqual(cfg.get_wafer_cfg(), "")
+        self.assertEqual(cfg.get_enabled_calibrations(), [])
+        self.assertEqual(cfg.get_sim_denmem(), None)
+        self.assertEqual(cfg.get_PLL(), 100e6)
+
 
 if __name__ == '__main__':
     unittest.main()
