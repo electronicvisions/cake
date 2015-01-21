@@ -286,23 +286,6 @@ def result(label, xlabel=None, ylabel=None, reader=None, suffix="", ylim=None, *
                                                    defects_string,
                                                    "result"+suffix+".png"])))
 
-## V reset
-
-r_v_reset = reader if args.v_reset_runner == None else Reader(args.v_reset_runner)
-
-if r_v_reset:
-
-    uncalibrated_hist("$V_{reset}$ [V]",
-                      r_v_reset,
-                      parameter="V_reset",
-                      key="baseline",
-                      bins=100,
-                      range=(0.4,0.8),
-                      show_legend=False)
-
-    trace("$V_{mem}$ [mV]", r_v_reset, "V_reset", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=2000, suffix="_uncalibrated")
-
-
 # offset
 
 fig = plt.figure()
@@ -325,7 +308,23 @@ plt.subplots_adjust(**margins)
 plt.savefig(os.path.join(fig_dir,"analog_readout_offset.pdf"))
 plt.savefig(os.path.join(fig_dir,"analog_readout_offset.png"))
 
-result("$V_{{reset}}$ {inout} [mV]", reader=r_v_reset, parameter="V_reset",key="baseline",alpha=0.05)
+## V reset
+
+r_v_reset = reader if args.v_reset_runner == None else Reader(args.v_reset_runner)
+
+if r_v_reset:
+
+    uncalibrated_hist("$V_{reset}$ [V]",
+                      r_v_reset,
+                      parameter="V_reset",
+                      key="baseline",
+                      bins=100,
+                      range=(0.4,0.8),
+                      show_legend=False)
+
+    trace("$V_{mem}$ [mV]", r_v_reset, "V_reset", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=2000, suffix="_uncalibrated")
+
+    result("$V_{{reset}}$ {inout} [mV]", reader=r_v_reset, parameter="V_reset",key="baseline",alpha=0.05)
 
 r_test_v_reset = test_reader if args.v_reset_testrunner == None else Reader(args.v_reset_testrunner)
 
