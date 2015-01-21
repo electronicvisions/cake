@@ -205,6 +205,7 @@ class Reader(object):
 
                 xs = []
                 ys = []
+                yerrs = []
 
                 for step, step_value in enumerate(config.get_steps()):
 
@@ -217,12 +218,19 @@ class Reader(object):
 
                     if average:
                         ys.append(np.mean(ys_tmp))
+                        yerrs.append(np.std(ys_tmp))
                     else:
                         ys.append(ys_tmp)
 
                 if mark_top_bottom:
-                    plot = plt.plot(xs, ys, color=color, marker='o', **kwargs)
+                    if average:
+                        plot = plt.errorbar(xs, ys, yerr=yerrs, color=color, marker='o', **kwargs)
+                    else:
+                        plot = plt.plot(xs, ys, color=color, marker='o', **kwargs)
                 else:
-                    plot = plt.plot(xs, ys, **kwargs)
+                    if average:
+                        plot = plt.errorbar(xs, ys, yerr=yerrs, **kwargs)
+                    else:
+                        plot = plt.plot(xs, ys, **kwargs)
 
         return fig, plot
