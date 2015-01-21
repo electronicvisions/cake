@@ -311,10 +311,11 @@ c = calibtic.Calibtic(args.backenddir,C.Wafer(C.Enum(args.wafer)),C.HICANNOnWafe
 
 def get_offset(cal, nrnidx):
     try:
-        return cal.nc.at(nrnidx).at(21).apply(0)
+        offset = cal.nc.at(nrnidx).at(21).apply(0)
+        return offset
     except IndexError:
+        print "No offset found for Neuron {}. Is the wafer and hicann enum correct? (w{}, h{})".format(nrnidx,args.wafer,args.hicann)
         return 0
-
 
 offsets = [get_offset(c, n) * 1000 for n in xrange(512)]
 plt.hist(offsets, bins=100);
