@@ -8,6 +8,7 @@ import Coordinate as C
 import pyhalbe
 from bz2 import BZ2File
 from gzip import GzipFile
+from operator import itemgetter
 
 class Reader(object):
     def __init__(self, runner, include_defects = True):
@@ -105,13 +106,22 @@ class Reader(object):
             plt.axvline(target_value, linestyle='dashed', color='k', linewidth=1)
         return hist
 
-    def plot_vs_neuron_number(self, parameter, key, step, repetition=0, draw_target_line=True, **kwargs):
+    def plot_vs_neuron_number(self, parameter, key, step, repetition=0, draw_target_line=True, sort_by_shared_FG_block=False, **kwargs):
         neurons = self.get_neurons()
         results = self.get_results(parameter, self.get_neurons(), key, repetition)
 
-        results_list = np.array([results[n] for n in neurons])[:,step]
+        x_values = []
+        results_list = []
 
-        p = plt.plot([int(n.id()) for n in neurons], results_list) 
+        for n in neurons:
+            if not sort_by_shared_FG_block:
+                x_values.append(n.id().value())
+            else:
+                x_values.append(n.id().value()%256/2 + n.toSharedFGBlockOnHICANN().id().value()*128)
+
+            results_list.append(results[n])
+
+        p = plt.plot(*zip(*sorted(zip(x_values, results_list), key=itemgetter(0))))
 
         config = self.runner.config.copy(parameter)
 

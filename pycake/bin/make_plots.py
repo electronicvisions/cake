@@ -134,6 +134,25 @@ def uncalibrated_hist(xlabel, reader, **reader_kwargs):
                                                     defects_string,
                                                     "uncalibrated_vs_neuron_number.png"])))
 
+        #--------------------------------------------------------------------------------
+
+        fig, foos = reader.plot_vs_neuron_number_s(sort_by_shared_FG_block=True, **reader_kwargs)
+        plt.title("uncalibrated", x=0.125, y=0.9)
+        plt.xlabel("Shared FG block*128 + Neuron%256/2")
+        plt.ylabel(xlabel)
+        plt.xlim(0, 512)
+        plt.subplots_adjust(**margins)
+
+        defects_string = "with_defects" if include_defects else "without_defects"
+
+        fig.savefig(os.path.join(fig_dir, "_".join([reader_kwargs["parameter"],
+                                                    defects_string,
+                                                    "uncalibrated_vs_shared_FG_block.pdf"])))
+
+        fig.savefig(os.path.join(fig_dir, "_".join([reader_kwargs["parameter"],
+                                                    defects_string,
+                                                    "uncalibrated_vs_shared_FG_block.png"])))
+
 
 def calibrated_hist(xlabel, reader, **reader_kwargs):
 
@@ -183,6 +202,24 @@ def calibrated_hist(xlabel, reader, **reader_kwargs):
                                                     defects_string,
                                                     "calibrated_vs_neuron_number.png"])))
 
+        #--------------------------------------------------------------------------------
+
+        fig, foos = reader.plot_vs_neuron_number_s(sort_by_shared_FG_block=True, **reader_kwargs)
+        plt.title("uncalibrated", x=0.125, y=0.9)
+        plt.xlabel("Shared FG block*128 + Neuron%256/2")
+        plt.ylabel(xlabel)
+        plt.xlim(0, 512)
+        plt.subplots_adjust(**margins)
+
+        defects_string = "with_defects" if include_defects else "without_defects"
+
+        fig.savefig(os.path.join(fig_dir, "_".join([reader_kwargs["parameter"],
+                                                    defects_string,
+                                                    "calibrated_vs_shared_FG_block.pdf"])))
+
+        fig.savefig(os.path.join(fig_dir, "_".join([reader_kwargs["parameter"],
+                                                    defects_string,
+                                                    "calibrated_vs_shared_FG_block.png"])))
 
 
 def trace(ylabel, reader, parameter, neuron, steps=None, start=0, end=-1, suffix=""):
