@@ -67,6 +67,8 @@ parser.add_argument("--v_syntcx_testrunner", help="path to V syntcx test runner 
 parser.add_argument("--v_syntci_runner", help="path to V syntci runner (if different from 'runner')", default=None)
 parser.add_argument("--v_syntci_testrunner", help="path to V syntci test runner (if different from 'testrunner')", default=None)
 
+parser.add_argument("--spikes_testrunner", help="path to spikes test runner (if different from 'testrunner')", default=None)
+
 parser.add_argument("--neuron_enum", help="neuron used for plots", default=0, type=int)
 
 args = parser.parse_args()
@@ -773,6 +775,52 @@ if r_v_syntci:
 
     set(bad_syntcx).intersection(bad_syntci)
 """
+
+r_test_spikes = reader if args.spikes_testrunner == None else Reader(args.spikes_testrunner)
+
+if r_test_spikes:
+
+    for include_defects in [True, False]:
+
+        defects_string = "with_defects" if include_defects else "without_defects"
+
+        r_test_spikes.include_defects = include_defects
+
+        fig = plt.figure()
+
+        n_spikes = np.array(r_test_spikes.get_results("Spikes",r_test_spikes.get_neurons(), "spikes_n_spikes").values())
+
+        plt.plot([v[pyhalbe.HICANN.neuron_parameter.V_t].value for v in r_test_spikes.runner.config.copy("Spikes").get_steps()], np.sum(np.greater(n_spikes,1), axis=0), label="measured")
+        #plt.plot(V_ts, np.array(n_spikes_est), label="estimated")
+        plt.axhline(len(r_test_spikes.get_neurons()), color='black', linestyle="dotted")
+        plt.legend(loc="lower left")
+        plt.ylabel("# spiking neurons")
+        plt.xlabel("$V_t$ [mV]")
+
+        plt.subplots_adjust(**margins)
+        plt.savefig(os.path.join(fig_dir,"n_spiking_neurons_"+defects_string+"_calibrated.png"))
+
+        # number of spikes
+
+        r_test_spikes.include_defects = include_defects
+
+        fig = r_test_spikes.plot_result("Spikes","spikes_n_spikes",yfactor=1,average=True,mark_top_bottom=True)
+
+        plt.ylabel("average number of recorded spikes per neuron")
+        plt.xlabel("$V_t$ [mV]")
+
+        plt.subplots_adjust(**margins)
+
+        defects_string = "with_defects" if include_defects else "without_defects"
+
+        plt.savefig(os.path.join(fig_dir,"_".join(["n_spikes",
+                                                   defects_string,
+                                                   "result_calibrated.pdf"])))
+
+        plt.savefig(os.path.join(fig_dir,"_".join(["n_spikes",
+                                                   defects_string,
+                                                   "result_calibrated.png"])))
+
 
 exit(0)
 
