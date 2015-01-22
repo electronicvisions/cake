@@ -27,7 +27,7 @@ def build(bld):
         features='pytest post_task',
         use=['pycalibtic', 'calibtic_xml', 'calibtic_mongo',
              'pyredman', 'redman_xml', 'redman_mongo',
-             'pyhalbe_tests', 'pysthal_tests'],
+             'pyhalbe_tests', 'pysthal_tests', 'sim_denmem_ts'],
         pythonpath=['..'],
         install_path=os.path.join('bin', 'tests', 'cake')
     )
