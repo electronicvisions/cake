@@ -14,7 +14,7 @@ class Analyzer(object):
     """
     logger = pylogging.get("pycake.analyzer")
 
-    def __call__(self, t, v, neuron):
+    def __call__(self, neuron, **traces):
         """ Returns a dictionary of results:
             {neuron: value}
         """
@@ -25,7 +25,7 @@ class Analyzer(object):
 class MeanOfTraceAnalyzer(Analyzer):
     """ Analyzes traces for E_l measurement.
     """
-    def __call__(self, t, v, neuron):
+    def __call__(self, neuron, t, v, **traces):
         return {"mean": np.mean(v),
                 "std": np.std(v),
                 "max": np.max(v),
@@ -53,7 +53,7 @@ class PeakAnalyzer(Analyzer):
         super(PeakAnalyzer, self).__init__()
         self.analyze_slopes = analyze_slopes
 
-    def __call__(self, t, v, neuron):
+    def __call__(self, neuron, t, v, **traces):
         maxtab, mintab = self.get_peaks(t, v)
         # FIXME get_peaks is called by most following functions, wasting CPU time
         mean_max, mean_min, std_max, std_min = self.get_mean_peak(t, v)
@@ -213,7 +213,7 @@ class V_reset_Analyzer(PeakAnalyzer):
                 baseline: baseline of trace. use only if refractory period is non-zero!
                 delta_t : time between spikes
     """
-    def __call__(self, t, v, neuron):
+    def __call__(self, neuron, t, v, **traces):
         baseline, delta_t = self.find_baseline(t, v)
         mean_max, mean_min, std_max, std_min = self.get_mean_peak(t, v)
 
@@ -231,7 +231,7 @@ class V_t_Analyzer(PeakAnalyzer):
                 max: mean maximum of spikes
                 old_max: hard maximum of complete trace
     """
-    def __call__(self, t, v, neuron):
+    def __call__(self, neuron, t, v, **traces):
         mean_max, mean_min, std_max, std_min = self.get_mean_peak(t, v)
 
         return {"max": mean_max,
@@ -252,7 +252,7 @@ class I_gl_Analyzer(Analyzer):
         self.logger.INFO("Initializing I_gl_analyzer using C={} (bigcap).".format(self.C))
         self.save_mean = save_mean
 
-    def __call__(self, t, v, neuron, std, V_rest_init=0.7, used_current=None):
+    def __call__(self, neuron, t, v, std, V_rest_init=0.7, used_current=None, **traces):
         mean_trace, std_trace, n_chunks = self.trace_averager.get_average(v, self.dt)
         t, v = None, None
         mean_trace = np.array(mean_trace)
@@ -375,7 +375,7 @@ class ISI_Analyzer(Analyzer):
     Refractory time is measured as difference between ISI with and without refractory
     period.
     """
-    def __call__(self, t, v, neuron):
+    def __call__(self, neuron, t, v, **traces):
 
         delta = np.std(v)
 

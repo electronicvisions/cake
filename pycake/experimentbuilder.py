@@ -9,7 +9,9 @@ from pycake.helpers.sthal import StHALContainer
 from pycake.helpers.sthal import SimStHALContainer
 from pycake.helpers.calibtic import Calibtic
 from pycake.helpers.TraceAverager import createTraceAverager
-from pycake.measure import Measurement, I_gl_Measurement
+from pycake.measure import ADCMeasurement
+from pycake.measure import SpikeMeasurement
+from pycake.measure import I_gl_Measurement
 from pycake.experiment import SequentialExperiment
 import pycake.analyzer
 
@@ -30,7 +32,7 @@ class BaseExperimentBuilder(object):
     """
     logger = pylogging.get("pycake.experimentbuilder")
 
-    def __init__(self, config, test=False, trace_readout_enabled=True, spike_readout_enabled=False):
+    def __init__(self, config, test=False):
         self.config = config
 
         path, name = self.config.get_calibtic_backend()
@@ -40,9 +42,6 @@ class BaseExperimentBuilder(object):
         self.neurons = self.config.get_neurons()
         self.blocks = self.config.get_blocks()
         self.test = test
-
-        self.trace_readout_enabled = trace_readout_enabled
-        self.spike_readout_enabled = spike_readout_enabled
 
     def generate_measurements(self):
         self.logger.INFO("Building experiment {}".format(self.config.get_target()))
@@ -178,9 +177,7 @@ class BaseExperimentBuilder(object):
         Overwrite in subclass, when required.
         """
 
-        return Measurement(sthal, neurons, readout_shifts,
-                           self.trace_readout_enabled,
-                           self.spike_readout_enabled)
+        return ADCMeasurement(sthal, neurons, readout_shifts)
 
 
 class E_l_Experimentbuilder(BaseExperimentBuilder):
@@ -188,15 +185,18 @@ class E_l_Experimentbuilder(BaseExperimentBuilder):
 
 
 class Spikes_Experimentbuilder(BaseExperimentBuilder):
-    def __init__(self, *args, **kwargs):
-        super(Spikes_Experimentbuilder, self).__init__(*args, **kwargs)
-
-        self.trace_readout_enabled = False
-        self.spike_readout_enabled = True
 
     def get_analyzer(self):
         "get analyzer"
         return pycake.analyzer.Spikes_Analyzer()
+
+    def make_measurement(self, sthal, neurons, readout_shifts):
+        """
+        Create a measurement object.
+        Overwrite in subclass, when required.
+        """
+
+        return SpikeMeasurement(sthal, neurons)
 
 class V_reset_Experimentbuilder(BaseExperimentBuilder):
     def get_readout_shifts(self, neurons):

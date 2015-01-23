@@ -32,11 +32,11 @@ class WorkerPool(object):
     def is_alive(self):
         return all(w.is_alive() for w in self.workers)
 
-    def do(self, key, *args):
+    def do(self, key, *args, **kwargs):
         if not self.is_alive():
             self.terminate()
             raise RuntimeError("Worker process died unexpeted.")
-        self.q_in.put_nowait((key, args))
+        self.q_in.put_nowait((key, args, kwargs))
 
     def join(self):
         for w in self.workers:
@@ -72,9 +72,9 @@ class WorkerPool(object):
 
     @staticmethod
     def _process(f, q_in, out_list):
-        for key, args in iter(q_in.get, None):
+        for key, args, kwargs in iter(q_in.get, None):
             try:
-                out_list[key] = f(*args)
+                out_list[key] = f(*args, **kwargs)
             except Exception as e:
                 import traceback
                 print "{}\nERROR in worker thread:\n{} ({})\n{}\n{}".format(

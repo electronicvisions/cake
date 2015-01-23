@@ -25,7 +25,7 @@ class V_syntc_PrerunAnalyzer(Analyzer):
         self.averager = averager
         self.bg_period = bg_period
 
-    def __call__(self, t, v, neuron):
+    def __call__(self, neuron, t, v, **kwargs):
         # FFT seems much (10-100x) faster on arrays for size n**2
         sn = SignalToNoise(v, self.averager.adc_freq, 1.0/self.bg_period)
         mean, std, n = self.averager.get_average(v, self.bg_period)
@@ -62,7 +62,7 @@ class PSPAnalyzer(Analyzer):
         self.prerun = prerun
         self.save_mean = save_mean
 
-    def __call__(self, t, v, neuron, *args):
+    def __call__(self, neuron, t, v, *args, **kwargs):
         """
         Performs a fit on a membrane trace
 

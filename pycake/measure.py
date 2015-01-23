@@ -8,7 +8,7 @@ import pysthal
 import pycake
 
 from helpers.WorkerPool import WorkerPool
-from helpers.TracesOnDiskDict import TracesOnDiskDict
+from helpers.TracesOnDiskDict import RecordsOnDiskDict
 
 import time
 import os
@@ -25,23 +25,16 @@ class ReadoutShift(object):
         return v - self.shifts[neuron]
 
 class Measurement(object):
-    """ This class takes a sthal container, writes the configuration to
-        the hardware and measures traces. Also, the time of measurement is saved.
+    """ Base class for the measurement protocol
 
         Args:
             sthal: fully configured StHALContainer as found in pycake.helpers.sthal
             neurons: list of NeuronOnHICANN coordinates
-            readout_shifts (optional): Dictionary {neuron: shift} in V that contains
-                the individual readout shifts extracted from V_reset measurements.
-                Note: Every voltage value from the trace is shifted back by -shift!
-                If None is given, the shifts are set to 0.
     """
 
     logger = pylogging.get("pycake.measurement")
 
-    def __init__(self, sthal, neurons, readout_shifts=None,
-                 trace_readout_enabled=True,
-                 spike_readout_enabled=False):
+    def __init__(self, sthal, neurons, readout_shifts=None):
         for neuron in neurons:
             if not isinstance(neuron, NeuronOnHICANN):
                 raise TypeError("Expected list of integers")
@@ -50,28 +43,15 @@ class Measurement(object):
         self.sthal = sthal
         self.neurons = neurons
         self.time_created = time.time()
-        self.spike_readout_enabled = spike_readout_enabled
-        self.spikes = {}
-        self.done = False
-        self.trace_readout_enabled = trace_readout_enabled
         self.traces = None
-        # Debug for repeated ADC traces
-        self.last_trace = None
-        self.adc_status = []
-
-
-        if readout_shifts is None:
-            self.logger.WARN("No readout shifts found. Shifts are set to 0")
-            self.readout_shifts = no_shift
-        else:
-            self.readout_shifts = ReadoutShift(readout_shifts)
+        self.done = False
 
     def save_traces(self, storage_path):
         """Enabling saving of traces to the given file"""
         dirname, filename = os.path.split(storage_path)
         if self.traces is None:
             self.logger.info("Storing traces at '{}'".format(storage_path))
-            self.traces = TracesOnDiskDict(dirname, filename)
+            self.traces = RecordsOnDiskDict(dirname, filename)
         else:
             self.logger.warn("traces are already stored, ignoring second call")
 
@@ -140,40 +120,6 @@ class Measurement(object):
     def get_neurons(self):
         return self.neurons
 
-    def get_trace(self, neuron, apply_readout_shift=True):
-        """ Get the voltage trace of a neuron.
-            Other than in the measurement.trace dictionary,
-            these traces are shifted by the readout shift.
-
-            Args:
-                neuron: neuron coordinate
-
-            Returns:
-                tuple (t, v)
-        """
-        if self.traces is None:
-            return None
-            # TODO rethink raise KeyError(neuron)
-
-        t, v = self.traces[neuron]
-        if apply_readout_shift:
-            return t, self.readout_shifts(neuron, v)
-        else:
-            return t, v
-
-    def iter_traces(self):
-        """
-        Iterate over neuron traces
-
-        Returns:
-            ([numpy array] times, [numpy array] voltages [mV],
-             [NeuronOnHICANN] neuronId)
-        """
-        for neuron in self.traces:
-            t, v = self.get_trace(neuron)
-            yield t, v, neuron
-        return
-
     def configure(self, configurator):
         """ Write StHALContainer configuration to the hardware.
             This connects to the hardware.
@@ -188,15 +134,38 @@ class Measurement(object):
         readout_wafer = pysthal.Wafer()
         HRC = pysthal.HICANNReadoutConfigurator(readout_wafer)
         self.sthal.wafer.configure(HRC)
-        readout_hicann = readout_wafer[self.sthal.coord_hicann]
+        return readout_wafer[self.sthal.coord_hicann]
 
-        return readout_hicann
+    def _measure(self, analyzer):
+        """ Measure traces and correct each value for readout shift.
+            Changes traces to numpy arrays
 
+            This will set:
+                self.traces = {neuron: trace}
+        """
+        raise NotImplementedError("Not implemented in {}".format(
+            type(self).__name__))
+
+    def run_measurement(self, analyzer, configurator=None):
+        """ First configure, then measure
+        """
+        self.logger.INFO("Connecting to hardware and configuring.")
+        self.configure(configurator)
+        self.logger.INFO("Measuring.")
+        result = self._measure(analyzer)
+        self.logger.INFO("Measurement done, disconnecting from hardware.")
+        self.finish()
+        self.sthal.disconnect()
+        return result
+
+
+class SpikeMeasurement(Measurement):
     def get_spikes(self, nbs):
         """
 
         nbs: neuron blocks to be enabled
 
+        TODO: this would better fit into the StHALContainer, like read_adc
         """
 
         self.logger.info("Enabling L1 output for neurons on NeuronBlock {}".format(nbs))
@@ -273,79 +242,124 @@ class Measurement(object):
         self.sthal.hicann.disable_l1_output()
 
     def _measure(self, analyzer):
+        """ Spikes
+            Changes traces to numpy arrays
+        """
+        self.adc_status = []
+        self.logger.INFO("Measuring.")
+
+        results = {}
+        self.logger.INFO("Reading out spikes")
+
+        for nb in xrange(0,16):
+            self.get_spikes([nb])
+
+        for neuron in self.neurons:
+            spikes = self.spikes.get(neuron, [])
+            results[neuron] = analyzer(spikes, neuron)
+
+        return results
+
+
+class ADCMeasurement(Measurement):
+    """ This implements the Measurment protocol for a ADCS
+
+        Args:
+            sthal: fully configured StHALContainer as found in pycake.helpers.sthal
+            neurons: list of NeuronOnHICANN coordinates
+            readout_shifts (optional): Dictionary {neuron: shift} in V that contains
+                the individual readout shifts extracted from V_reset measurements.
+                Note: Every voltage value from the trace is shifted back by -shift!
+                If None is given, the shifts are set to 0.
+    """
+    def __init__(self, sthal, neurons, readout_shifts=None):
+        super(ADCMeasurement, self).__init__(sthal, neurons)
+
+        # Debug for repeated ADC traces
+        self.last_trace = None
+        self.adc_status = []
+
+        if readout_shifts is None:
+            self.logger.WARN("No readout shifts found. Shifts are set to 0")
+            self.readout_shifts = no_shift
+        else:
+            self.readout_shifts = ReadoutShift(readout_shifts)
+
+    def get_trace(self, neuron, apply_readout_shift=True):
+        """ Get the voltage trace of a neuron.
+            Other than in the measurement.trace dictionary,
+            these traces are shifted by the readout shift.
+
+            Args:
+                neuron: neuron coordinate
+
+            Returns:
+                tuple (t, v)
+        """
+        if self.traces is None:
+            return None
+            # TODO rethink raise KeyError(neuron)
+
+        data = self.traces[neuron]
+        if apply_readout_shift:
+            data['v'] = self.readout_shifts(neuron, data['v'])
+        return data['t'], data['v']
+
+    def iter_traces(self):
+        """
+        Iterate over neuron traces
+
+        Returns:
+            ([numpy array] times, [numpy array] voltages [mV],
+             [NeuronOnHICANN] neuronId)
+        """
+        for neuron in self.traces:
+            t, v = self.get_trace(neuron)
+            yield t, v, neuron
+        return
+
+    def _measure(self, analyzer):
         """ Measure traces and correct each value for readout shift.
             Changes traces to numpy arrays
 
             This will set:
                 self.traces = {neuron: trace}
-                self.spikes = {neuron: spikes} #TODO this is not yet implemented
         """
         self.last_trace = np.array([])
         self.adc_status = []
         self.logger.INFO("Measuring.")
 
-        if self.spike_readout_enabled and self.trace_readout_enabled:
-            raise RuntimeError("Traces and spikes simultaneously are not supported at the moment.")
-
-        if self.spike_readout_enabled:
-
-            results = {}
-
-            self.logger.INFO("Reading out spikes")
-
-            for nb in xrange(0,16):
-                self.get_spikes([nb])
-
+        self.logger.INFO("Reading out traces")
+        with WorkerPool(analyzer) as worker:
             for neuron in self.neurons:
+                self.pre_measure(neuron)
+                readout = self.sthal.read_adc()
+                if not self.traces is None:
+                    self.traces[neuron] = readout
+                readout['v'] = self.readout_shifts(neuron, readout['v'])
+                worker.do(neuron, neuron=neuron, **readout)
 
-                spikes = self.spikes.get(neuron, [])
-                results[neuron] = analyzer(spikes, neuron)
+                # DEBUG stuff
+                self.adc_status.append(self.sthal.read_adc_status())
+                if np.array_equal(readout['v'], self.last_trace):
+                    self.logger.ERROR(
+                        "ADC trace didn't change from the last "
+                        "readout, printing status information of all ADC "
+                        "previous readouts:\n" + "\n".join(self.adc_status))
+                    raise RuntimeError(
+                        "Broken ADC readout abort measurement (details see "
+                        "log messages)")
+                self.last_readout = readout['v']
+                # DEBUG stuff end
+            self.last_trace = None
 
-            return results
+            self.logger.INFO("Wait for analysis to complete.")
 
-        if self.trace_readout_enabled:
-
-            self.logger.INFO("Reading out traces")
-
-            with WorkerPool(analyzer) as worker:
-                for neuron in self.neurons:
-                    self.pre_measure(neuron)
-                    times, trace = self.sthal.read_adc()
-                    worker.do(
-                        neuron, times, self.readout_shifts(neuron, trace), neuron)
-                    if not self.traces is None:
-                        self.traces[neuron] = np.array([times, trace])
-                    # DEBUG stuff
-                    self.adc_status.append(self.sthal.read_adc_status())
-                    if np.array_equal(trace, self.last_trace):
-                        self.logger.ERROR(
-                            "ADC trace didn't change from the last "
-                            "readout, printing status information of all ADC "
-                            "previous readouts:\n" + "\n".join(self.adc_status))
-                        raise RuntimeError(
-                            "Broken ADC readout abort measurement (details see "
-                            "log messages)")
-                    self.last_trace = trace
-                    # DEBUG stuff end
-                self.last_trace = None
-
-                self.logger.INFO("Wait for analysis to complete.")
-
-                return worker.join()
-
-    def run_measurement(self, analyzer, configurator=None):
-        """ First configure, then measure
-        """
-        self.logger.INFO("Connecting to hardware and configuring.")
-        self.configure(configurator)
-        result = self._measure(analyzer)
-        self.logger.INFO("Measurement done, disconnecting from hardware.")
-        self.finish()
-        self.sthal.disconnect()
-        return result
+            return worker.join()
 
 
-class I_gl_Measurement(Measurement):
+
+class I_gl_Measurement(ADCMeasurement):
     """ This measurement is done in three steps:
 
         1) Measure V_rest without injecting current
@@ -369,8 +383,8 @@ class I_gl_Measurement(Measurement):
         self.pre_measure(neuron, current=None)
         old_recording_time = self.sthal.recording_time
         self.sthal.adc.setRecordingTime(1e-4)
-        times, trace = self.sthal.read_adc()
-        trace = self.readout_shifts(neuron, trace)
+        readout = self.sthal.read_adc()
+        trace = self.readout_shifts(neuron, readout['v'])
         V_rest = np.mean(trace)
         std    = np.std(trace)
         self.logger.TRACE("Measured V_rest of neuron {0}: {1:.3f} V".format(neuron, V_rest))
@@ -400,8 +414,8 @@ class I_gl_Measurement(Measurement):
         highest_trace_max = None
         for current in currents:
             self.pre_measure(neuron, current=current)
-            times, trace = self.sthal.read_adc()
-            trace = self.readout_shifts(neuron, trace)
+            readout = self.sthal.read_adc()
+            trace = self.readout_shifts(neuron, readout['v'])
             trace_max = np.max(trace)
             if (trace_max - V_rest) < threshold: # Don't go higher than 150 mV above V_rest
                 highest_trace_max = trace_max
@@ -426,10 +440,14 @@ class I_gl_Measurement(Measurement):
             current = self.find_best_current(neuron, V_rest, currents=self.currents, skip_I_gl=self.skip_I_gl)
             self.logger.TRACE("Measuring neuron {} with current {}".format(neuron, current))
             self.pre_measure(neuron, current=current)
-            times, trace = self.sthal.read_adc()
-            worker.do(neuron, times, self.readout_shifts(neuron, trace), neuron, std, V_rest, current)
+            readout = self.sthal.read_adc()
+            readout['current'] = current
+            readout['std'] = std
+            readout['V_rest'] = V_rest
             if not self.traces is None:
-                self.traces[neuron] = np.array([times, trace])
+                self.traces[neuron] = readout
+            readout['v'] = self.readout_shifts(neuron, readout['v'])
+            worker.do(neuron, neuron=neuron, **readout)
         self.logger.INFO("Wait for analysis to complete.")
         return worker.join()
 
@@ -461,9 +479,13 @@ class I_gl_Measurement_multiple_currents(I_gl_Measurement):
             for current in self.currents:
                 self.logger.TRACE("Measuring neuron {} with current {}".format(neuron, current))
                 self.pre_measure(neuron, current)
-                times, trace = self.sthal.read_adc()
-                worker.do((neuron, current), times, self.readout_shifts(neuron, trace), neuron, std, V_rest)
+                readout = self.sthal.read_adc()
+                readout['current'] = current
+                readout['std'] = std
+                readout['V_rest'] = V_rest
                 if not self.traces is None:
-                    self.traces[neuron].append((current, np.array([times, trace])))
+                    self.traces[neuron] = readout
+                readout['v'] = self.readout_shifts(neuron, readout['v'])
+                worker.do(neuron, neuron=neuron, **readout)
         self.logger.INFO("Wait for analysis to complete.")
         return worker.join()

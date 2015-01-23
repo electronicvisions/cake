@@ -258,7 +258,7 @@ class StHALContainer(object):
         for ii in range(max_tries):
             try:
                 self.adc.record()
-                return self.adc.getTimestamps(), self.adc.trace()
+                return {'t': self.adc.getTimestamps(), 'v': self.adc.trace()}
             except RuntimeError as e:
                 print e
                 print "retry"
@@ -560,8 +560,8 @@ class SimStHALContainer(StHALContainer):
         right_membrane = numpy.array(right_membrane[cut:])
 
         left, right = self.get_simulation_neurons(neuron)
-        self.recorded_traces[(left, json)] = (time, left_membrane)
-        self.recorded_traces[(right, json)] = (time, right_membrane)
+        self.recorded_traces[(left, json)] = {'t': time, 'v': left_membrane}
+        self.recorded_traces[(right, json)] = {'t': time, 'v': right_membrane}
 
     def read_adc_status(self):
         return "FAKE ADC :P"
