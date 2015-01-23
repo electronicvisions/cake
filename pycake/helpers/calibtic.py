@@ -4,7 +4,8 @@ import pylogging
 import os
 
 import Coordinate
-from pyhalbe.HICANN import neuron_parameter, shared_parameter
+from pyhalbe.HICANN import shared_parameter
+
 
 def create_pycalibtic_polynomial(coefficients):
     """Create a pycalibtic.Polynomial from a list of coefficients.
@@ -105,7 +106,7 @@ class Calibtic(object):
 
         name = self.get_calibtic_name()
 
-        # Delete all standard entries. 
+        # Delete all standard entries.
         #TODO: fix calibtic to use proper standard entries
         for nid in range(512):
             nc.erase(nid)
@@ -145,7 +146,7 @@ class Calibtic(object):
 
         for coord, coeffs in data.iteritems():
 
-            if coeffs == None:
+            if coeffs is None:
                 continue
 
             if isinstance(parameter, shared_parameter) and isinstance(coord, Coordinate.FGBlockOnHICANN):
@@ -156,9 +157,9 @@ class Calibtic(object):
                 cal = pycalibtic.NeuronCalibration()
 
             # If parameter is V_reset, BUT coordinate is not a block, it is assumed that you want to store readout shifts
-            # Readout shifts are stored as 21st parameter
+            # Readout shifts are stored as parameter
             if parameter is shared_parameter.V_reset and isinstance(coord, Coordinate.NeuronOnHICANN):
-                param_id = 21
+                param_id = pycalibtic.NeuronCalibration.VResetShift
             else:
                 param_id = parameter
 
@@ -198,8 +199,8 @@ class Calibtic(object):
         if not calib:
             return 0.0
 
-        if calib.exists(21):
-            shift = calib.at(21).apply(0.0)
+        if calib.exists(pycalibtic.NeuronCalibration.VResetShift):
+            shift = calib.at(pycalibtic.NeuronCalibration.VResetShift).apply(0.0)
             self.logger.TRACE("Readout shift for neuron {0}:{1:.2f}".format(neuron, shift))
         else:
             shift = 0.0
