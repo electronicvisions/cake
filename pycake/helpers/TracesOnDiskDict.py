@@ -94,3 +94,34 @@ class TracesOnDiskDict(collections.MutableMapping):
     def __len__(self):
         return self.root._v_nchildren
 
+
+class RecordsOnDiskDict(TracesOnDiskDict):
+    """A dictonary that stores traces on disc.
+
+    The expected key is a neuron Coordinte, the expected value is a dictonary
+    holding the traces as numpy arrays, e.g.: {
+        't': numpy.array([0,1]),
+        'v': numpy.array([0.9,1.0]),
+        'spikes': numpy.array()
+    }
+    """
+
+    def __getitem__(self, key):
+        try:
+            group = getattr(self.root, self.get_key(key))
+            return {'v': np.array(group.v), 't': np.array(group.t)}
+            return dict((v.name, np.array(v)) for v in group)
+        except tables.NoSuchNodeError:
+            raise KeyError(key)
+
+    def __setitem__(self, key, arrays):
+        key = self.get_key(key)
+        if getattr(self.root, key, None):
+            self.h5file.removeNode(getattr(self.root, key), recursive=True)
+        group = self.h5file.createGroup(self.root, key)
+        for dkey, arr in arrays.iteritems():
+            assert isinstance(arr, np.ndarray)
+            atom = tables.Atom.from_dtype(arr.dtype)
+            tarr = self.h5file.createCArray(group, dkey, atom, arr.shape)
+            tarr[:] = arr
+
