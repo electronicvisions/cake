@@ -35,7 +35,7 @@ class TestAnalyzers(unittest.TestCase):
         neuron = False
 
         a = pycake.analyzer.MeanOfTraceAnalyzer()
-        res = a(time, voltage, neuron)
+        res = a(neuron=neuron, t=time, v=voltage)
 
         # make sure analyzer returns all values
         for key in ["std", "max", "min", "mean"]:
@@ -70,7 +70,7 @@ class TestAnalyzers(unittest.TestCase):
         # neuron should not matter, thus false
         neuron = False
 
-        res = a(time, voltage, neuron)
+        res = a(neuron=neuron, t=time, v=voltage)
         self.assertEqual(res["hard_min"], 1)
         self.assertEqual(res["hard_max"], 10)
         self.assertEqual(res["mean_min"], 1)
@@ -83,7 +83,7 @@ class TestAnalyzers(unittest.TestCase):
         self.assertAlmostEqual(res["mean_dt"], dt)
 
         a = pycake.analyzer.PeakAnalyzer(True)
-        res = a(time, voltage, neuron)
+        res = a(neuron=neuron, t=time, v=voltage)
         # as above
         self.assertEqual(res["hard_min"], 1)
         self.assertEqual(res["hard_max"], 10)
@@ -116,7 +116,7 @@ class TestAnalyzers(unittest.TestCase):
         a = pycake.analyzer.I_gl_Analyzer(trace_averager)
 
         std = 0.1
-        res = a(time, voltage, coord_neuron, std)
+        res = a(neuron=neuron, t=time, v=voltage)
         print res
         # TODO continue test
 
@@ -130,13 +130,13 @@ class TestAnalyzers(unittest.TestCase):
         dt = time[1]
 
         voltage = np.array([1, 2, 4, 8, 16, 32]*10)
-        res = a(time, voltage, neuron)
+        res = a(neuron=neuron, t=time, v=voltage)
         isi0 = res["mean_isi"]
         self.assertAlmostEqual(isi0, 6*dt)
 
         voltage = np.array([1, 2, 4, 8, 16, 32, 0, 0, 0, 0, 0, 0]*5)
         actual_tau_ref = 6*dt
-        res = a(time, voltage, neuron)
+        res = a(neuron=neuron, t=time, v=voltage)
         isi_with_tau = res["mean_isi"]
         tau_ref = isi_with_tau - isi0
         self.assertAlmostEqual(tau_ref, actual_tau_ref)
