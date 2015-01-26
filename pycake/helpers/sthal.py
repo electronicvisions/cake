@@ -226,20 +226,26 @@ class StHALContainer(object):
         """Write full configuration."""
         if not self._connected:
             self.connect()
-        for ii in range(3):
+        if configurator is None:
+            if program_floating_gates:
+                configurator = pysthal.HICANNConfigurator()
+            else:
+                configurator = pysthal.DontProgramFloatingGatesHICANNConfigurator()
+
+        for _ in range(3):
             try:
                 # self.set_fg_biasn(0)
-                if configurator is None:
-                    if program_floating_gates:
-                        configurator = pysthal.HICANNConfigurator()
-                    else:
-                        configurator = pysthal.DontProgramFloatingGatesHICANNConfigurator()
                 self.wafer.configure(configurator)
+                return
             except RuntimeError as err:
                 if err.message == 'fg_log_error timeout':
+                    self.logger.warn("Error configuring floating gates, retry")
                     continue
-            finally:
-                return
+                else:
+                    raise
+        msg = "Maximum retry count for configuration exceded"
+        self.logger.error(msg)
+        raise RuntimeError(msg)
 
     def switch_analog_output(self, coord_neuron, l1address=None):
         """Write analog output configuration (only).
