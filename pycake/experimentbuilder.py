@@ -198,6 +198,7 @@ class Spikes_Experimentbuilder(BaseExperimentBuilder):
 
         return SpikeMeasurement(sthal, neurons)
 
+
 class V_reset_Experimentbuilder(BaseExperimentBuilder):
     def get_readout_shifts(self, neurons):
         if self.test:
@@ -216,14 +217,24 @@ class V_t_Experimentbuilder(BaseExperimentBuilder):
         return pycake.analyzer.V_t_Analyzer()
 
 
-class I_pl_Experimentbuilder(BaseExperimentBuilder):
+class I_pl_short_Experimentbuilder(BaseExperimentBuilder):
+    """For calibrating I_pl in simulation and hardware"""
     def prepare_specific_config(self, sthal):
-        sthal.recording_time = 1e-3
+        sthal.recording_time = 1e-4
         return sthal
 
     def get_analyzer(self):
         "get analyzer"
         return pycake.analyzer.ISI_Analyzer()
+
+
+class I_pl_Experimentbuilder(I_pl_short_Experimentbuilder):
+    """Longer recording time than parent class.
+
+    To be used with hardware."""
+    def prepare_specific_config(self, sthal):
+        sthal.recording_time = 1e-3
+        return sthal
 
 
 class E_syni_Experimentbuilder(BaseExperimentBuilder):
