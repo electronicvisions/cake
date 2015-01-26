@@ -41,7 +41,8 @@ parameters = {
     "V_syntcx_psp_max_range": [{neuron_parameter.V_syntcx : v} for v in linspace_voltage(1350, 1700, 10)],
     "V_syntci_psp_max_range": [{neuron_parameter.V_syntci : v} for v in linspace_voltage(1350, 1700, 10)],
 
-    "I_pl_range":   [{neuron_parameter.I_pl : Current(v)} for v in 1/np.array([10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 2500])],
+    # values between 10 and 100 can be used, 2500 is for zero refractory time
+    "I_pl_range":   [{neuron_parameter.I_pl : Current(v)} for v in np.array([10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 2500])],
 
     # How many repetitions?
     # Each repetition will take about 1 minute per step!
