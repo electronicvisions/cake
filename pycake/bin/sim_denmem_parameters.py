@@ -13,7 +13,6 @@ from pycake.helpers.units import linspace_voltage
 from pyhalbe.HICANN import neuron_parameter
 from pyhalbe.HICANN import shared_parameter
 
-
 folder = "/tmp"
 
 # target resting potential
@@ -41,6 +40,9 @@ parameters = {
 
     "coord_wafer": Wafer(0),  # required, determines MC seed
     "coord_hicann": HICANNOnWafer(Enum(0)),  # required, determines MC seed
+
+    # HICANN version to use
+    "hicann_version" : 4,
 
     "parameter_order": [
         shared_parameter.V_reset.name,

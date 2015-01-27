@@ -166,3 +166,6 @@ class Config(object):
 
     def get_sim_denmem_cache(self):
         return self.parameters.get("sim_denmem_cache", None)
+
+    def get_hicann_version(self):
+        return self.parameters["hicann_version"]

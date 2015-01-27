@@ -12,8 +12,9 @@ import Coordinate
 from pyhalbe import HICANN
 from Coordinate import Enum, X
 from Coordinate import NeuronOnHICANN
-
-from sims.sim_denmem_lib import TBParameters, run_remote_simulation
+from sims.sim_denmem_lib import NETS_AND_PINS
+from sims.sim_denmem_lib import TBParameters
+from sims.sim_denmem_lib import run_remote_simulation
 
 
 class SpikeReadoutHICANNConfigurator(pysthal.HICANNConfigurator):
@@ -516,6 +517,7 @@ class SimStHALContainer(StHALContainer):
         self.simulation_cache = config.get_sim_denmem_cache()
         if self.simulation_cache and not os.path.isdir(self.simulation_cache):
             raise RuntimeError("simulation_cache must be a folder")
+        self.hicann_version = config.get_hicann_version()
 
     def connect(self):
         """Connect to the hardware."""
@@ -567,6 +569,7 @@ class SimStHALContainer(StHALContainer):
         left, right = self.get_simulation_neurons(neuron)
         param = TBParameters.from_sthal(self.wafer, self.coord_hicann, left)
         param.simulator_settings.simulation_time = self.recording_time
+        param.simulator_settings.nets_to_save = NETS_AND_PINS.ALL
         # HACK, enable analog output for both neurons, if no current input
         # is enabled. Otherwise caching would not work as expected.
         if param.digital_parameters["iout"][2] == False:
