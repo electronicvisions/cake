@@ -63,12 +63,9 @@ class BaseExperimentBuilder(object):
                 "Building step {}, repetition {}".format(step, rep))
             sim_denmem_cfg = self.config.get_sim_denmem()
             if sim_denmem_cfg:
-                host, port = sim_denmem_cfg.split(':')
-                self.logger.INFO(
-                    "Using sim_denmem on {}:{}".format(host, port))
                 sthal = SimStHALContainer(
                     coord_wafer, coord_hicann, wafer_cfg=wafer_cfg, PLL=PLL,
-                    remote_host=host, remote_port=port)
+                    config=self.config)
             else:
                 sthal = StHALContainer(
                     coord_wafer, coord_hicann, wafer_cfg=wafer_cfg, PLL=PLL)

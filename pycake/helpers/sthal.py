@@ -1,7 +1,10 @@
 """Helper classes for StHAL."""
 
 import math
+import os
+import hashlib
 import numpy
+import cPickle
 import pyhalbe
 import pysthal
 import pylogging
@@ -480,8 +483,7 @@ class SimStHALContainer(StHALContainer):
                  wafer_cfg="",
                  PLL=100e6,
                  dump_file=None,
-                 remote_host=None,
-                 remote_port=None):
+                 config=None):
         """Initialize StHAL. kwargs default to vertical setup configuration.
 
         Args:
@@ -499,13 +501,21 @@ class SimStHALContainer(StHALContainer):
             wafer_cfg, PLL, dump_file)
         self.current_neuron = Coordinate.NeuronOnHICANN()
         self.recorded_traces = {}
-        self.remote_host = remote_host
-        self.remote_port = remote_port
+        host, port = config.get_sim_denmem().split(':')
+        self.remote_host = host
+        self.remote_port = int(port)
 
         # 10 times simulation reset
         self.simulation_init_time = 10.0e-07
         self.recording_time = recording_time + self.simulation_init_time
         # FIXME implement line above in set_recording_time
+
+        self.logger.INFO("Using sim_denmem on {}:{}".format(
+            self.remote_host, self.remote_port))
+
+        self.simulation_cache = config.get_sim_denmem_cache()
+        if self.simulation_cache and not os.path.isdir(self.simulation_cache):
+            raise RuntimeError("simulation_cache must be a folder")
 
     def connect(self):
         """Connect to the hardware."""
@@ -557,24 +567,40 @@ class SimStHALContainer(StHALContainer):
         left, right = self.get_simulation_neurons(neuron)
         param = TBParameters.from_sthal(self.wafer, self.coord_hicann, left)
         param.simulator_settings.simulation_time = self.recording_time
+        # HACK, enable analog output for both neurons, if no current input
+        # is enabled. Otherwise caching would not work as expected.
+        if param.digital_parameters["iout"][2] == False:
+            param.digital_parameters["iout"] = (True, True, False)
         return param
 
     def run_simulation(self, neuron, param):
         """Execute a remote simulation for the given json set"""
         # TODO Error handling
         json = param.to_json()
-        time, left_membrane, right_membrane = run_remote_simulation(
-            param, self.remote_host, self.remote_port)
-
-        # Cut simulation init phase and transform to regular numpy array
-        cut = time.searchsorted(self.simulation_init_time)
-        time = numpy.array(time[cut:])
-        left_membrane = numpy.array(left_membrane[cut:])
-        right_membrane = numpy.array(right_membrane[cut:])
-
+        json_hash = None
         left, right = self.get_simulation_neurons(neuron)
-        self.recorded_traces[(left, json)] = {'t': time, 'v': left_membrane}
-        self.recorded_traces[(right, json)] = {'t': time, 'v': right_membrane}
+
+        if self.simulation_cache:
+            json_hash = hashlib.new('sha256')
+            json_hash.update(json)
+            json_hash = os.path.join(
+                self.simulation_cache, json_hash.hexdigest())
+
+        if json_hash and os.path.isfile(json_hash):
+            with open(json_hash) as infile:
+                json_loaded, lresult, rresult = cPickle.load(infile)
+                assert json_loaded == json
+        else:
+            lresult, rresult = run_remote_simulation(
+                param, self.remote_host, self.remote_port)
+
+            if json_hash:
+                with open(json_hash, 'w') as outfile:
+                    data = (json, lresult, rresult)
+                    cPickle.dump(data, outfile, cPickle.HIGHEST_PROTOCOL)
+
+        self.recorded_traces[(left, json)] = lresult
+        self.recorded_traces[(right, json)] = rresult
 
     def read_adc_status(self):
         return "FAKE ADC :P"

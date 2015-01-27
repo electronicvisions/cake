@@ -52,12 +52,14 @@ class Config(object):
         self.config_name = parameter
 
     def get_enabled_calibrations(self):
-        """ Returns a list of parameters which have their "run" setting to True
+        """
+        Returns a list of calibrations, which are in 'parameter_order' and do
+        not have set run_NAME=False.
         """
         run = []
         for config_name in self.parameters['parameter_order']:
             try:
-                if self.parameters["run_{}".format(config_name)]:
+                if self.parameters.get("run_{}".format(config_name), True):
                     run.append(config_name)
             except KeyError:
                 continue
@@ -161,3 +163,6 @@ class Config(object):
 
     def get_sim_denmem(self):
         return self.parameters.get("sim_denmem", None)
+
+    def get_sim_denmem_cache(self):
+        return self.parameters.get("sim_denmem_cache", None)
