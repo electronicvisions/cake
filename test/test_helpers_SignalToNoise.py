@@ -9,7 +9,16 @@ import numpy as np
 from pycake.helpers.SignalToNoise import SignalToNoise
 
 
+def skip_if_fftfreq_missing():
+    from pycake.helpers.SignalToNoise import fftfreq
+    if fftfreq is None:
+        return unittest.skip("pyfftw is not installed (issue #1513)")
+
+    return lambda func: func
+
+
 class TestNoiseHelper(unittest.TestCase):
+    @skip_if_fftfreq_missing()
     def test_call(self):
         control = np.array([1, ]*100)
         adc_freq = 96e6
