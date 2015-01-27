@@ -9,35 +9,47 @@ from Coordinate import Wafer
 from pycake.helpers.units import Current
 from pycake.helpers.units import DAC
 from pycake.helpers.units import Voltage
-from pycake.helpers.units import linspace_voltage, linspace_current
+from pycake.helpers.units import linspace_voltage
 from pyhalbe.HICANN import neuron_parameter
 from pyhalbe.HICANN import shared_parameter
 
+
 folder = "/tmp"
+
+# target resting potential
+E_l_target = 700
+
+# synaptic reversal potentials are symmetric around
+# target resting potential
+E_syn_distance = 100
+
+E_syni_target = E_l_target - E_syn_distance
+E_synx_target = E_l_target + E_syn_distance
+
 
 parameters = {
     # host and port of your simulator server
     "sim_denmem": "vtitan:8123",  # host and port of your simulator
 
     # Cache folder, please use with care, changes on server side (e.g. switching
-    # HICANN version, or pull) are not detected. Use None to deactivate, 
-    # folder must exits
+    # HICANN version, or pull) are not detected. Use None to deactivate,
+    # folder must exist
     "sim_denmem_cache": None,
 
-    # Use this seed for monte-carlos simulations of neurons, None disables MC
+    # Use this seed for Monte Carlo simulations of neurons, None disables MC
     "sim_denmem_mc_seed" : None,
 
-    "coord_wafer": Wafer(0),  # required, determines monte-carlo seed
-    "coord_hicann": HICANNOnWafer(Enum(0)),  # required, determines monte-carlo seed
+    "coord_wafer": Wafer(0),  # required, determines MC seed
+    "coord_hicann": HICANNOnWafer(Enum(0)),  # required, determines MC seed
 
     "parameter_order": [
         shared_parameter.V_reset.name,
         neuron_parameter.V_t.name,
         neuron_parameter.E_syni.name,
         neuron_parameter.E_synx.name,
-        ],
+        "I_pl_short",
+    ],
 
-    # empty tempdirs, TODO: delete afterwards
     "folder":       folder,
     "backend_c":    os.path.join(folder, "backends"),
     "backend_r":    os.path.join(folder, "backends"),
@@ -58,10 +70,11 @@ parameters = {
     "clear":        True,
 
     # Set the ranges within which you want to calibrate
-    "V_reset_range":  [{shared_parameter.V_reset : v} for v in linspace_voltage(600, 800, 5)],
-    "E_syni_range":   [{neuron_parameter.E_syni : v} for v in linspace_voltage(550, 850, 5)],
-    "E_synx_range":   [{neuron_parameter.E_synx : v} for v in linspace_voltage(650, 950, 5)],
-    "V_t_range":      [{neuron_parameter.V_t : v} for v in linspace_voltage(600, 900, 4)],
+    "V_reset_range": [{shared_parameter.V_reset : v} for v in linspace_voltage(600, 800, 5)],
+    "E_syni_range": [{neuron_parameter.E_syni : v} for v in linspace_voltage(550, 850, 5)],
+    "E_synx_range": [{neuron_parameter.E_synx : v} for v in linspace_voltage(650, 950, 5)],
+    "V_t_range": [{neuron_parameter.V_t : v} for v in linspace_voltage(600, 900, 4)],
+    "I_pl_short_range": [{neuron_parameter.I_pl : Current(v)} for v in [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 500, 1000, 1500, 2500]],
 
     # HICANN PLL
     "PLL": 125e6,
@@ -113,7 +126,7 @@ parameters = {
         shared_parameter.V_bstdf:       DAC(0),         # Bias for short-term plasticity
         shared_parameter.V_dtc:         DAC(0),         # Bias for DTC in short-term plasticity circuit
         shared_parameter.V_br:          DAC(0),         # Bias for STDP readout circuit
-        },
+    },
 
     "V_reset_parameters":  {
         neuron_parameter.E_l:    Voltage(1300),
@@ -149,4 +162,13 @@ parameters = {
         #neuron_parameter.V_syntcx: Voltage(1440, apply_calibration=True), # dummy
         #neuron_parameter.V_syntci: Voltage(1440, apply_calibration=True), # dummy
     },
+
+    "I_pl_short_parameters": {
+        neuron_parameter.E_l: Voltage(1200),
+        neuron_parameter.V_t: Voltage(800),
+        neuron_parameter.E_syni: Voltage(E_syni_target, apply_calibration=True),
+        neuron_parameter.E_synx: Voltage(E_synx_target, apply_calibration=True),
+        shared_parameter.V_reset: Voltage(500, apply_calibration=True),
+    },
+
 }
