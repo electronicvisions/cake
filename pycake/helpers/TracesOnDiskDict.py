@@ -109,7 +109,6 @@ class RecordsOnDiskDict(TracesOnDiskDict):
     def __getitem__(self, key):
         try:
             group = getattr(self.root, self.get_key(key))
-            return {'v': np.array(group.v), 't': np.array(group.t)}
             return dict((v.name, np.array(v)) for v in group)
         except tables.NoSuchNodeError:
             raise KeyError(key)
