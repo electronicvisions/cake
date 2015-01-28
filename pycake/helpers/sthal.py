@@ -480,7 +480,7 @@ class SimStHALContainer(StHALContainer):
     def __init__(self, coord_wafer,
                  coord_hicann,
                  coord_analog=Coordinate.AnalogOnHICANN(0),
-                 recording_time=0.1e-6,
+                 recording_time=30.0e-6,
                  wafer_cfg="",
                  PLL=100e6,
                  dump_file=None,
@@ -518,6 +518,7 @@ class SimStHALContainer(StHALContainer):
         if self.simulation_cache and not os.path.isdir(self.simulation_cache):
             raise RuntimeError("simulation_cache must be a folder")
         self.hicann_version = config.get_hicann_version()
+        self.mc_seed = config.get_sim_denmem_mc_seed()
 
     def connect(self):
         """Connect to the hardware."""
@@ -570,10 +571,17 @@ class SimStHALContainer(StHALContainer):
         param = TBParameters.from_sthal(self.wafer, self.coord_hicann, left)
         param.simulator_settings.simulation_time = self.recording_time
         param.simulator_settings.nets_to_save = NETS_AND_PINS.ALL
+        param.simulator_settings.hicann_version = self.hicann_version
+
         # HACK, enable analog output for both neurons, if no current input
         # is enabled. Otherwise caching would not work as expected.
         if param.digital_parameters["iout"][2] == False:
             param.digital_parameters["iout"] = (True, True, False)
+
+        if self.mc_seed is not None:
+            mc_run = int(neuron.id())/2 + 1
+            param.simulator_settings.set_mc_run(self.mc_seed, mc_run)
+
         return param
 
     def run_simulation(self, neuron, param):
@@ -595,7 +603,8 @@ class SimStHALContainer(StHALContainer):
                 assert json_loaded == json
         else:
             lresult, rresult = run_remote_simulation(
-                param, self.remote_host, self.remote_port)
+                param, self.remote_host, self.remote_port,
+                init_time=self.simulation_init_time)
 
             if json_hash:
                 with open(json_hash, 'w') as outfile:

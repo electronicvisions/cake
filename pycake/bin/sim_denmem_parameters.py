@@ -57,7 +57,7 @@ parameters = {
     "backend_r":    os.path.join(folder, "backends"),
 
     "neurons": [NeuronOnHICANN(Enum(i)) for i in range(2)],
-    "blocks":  [FGBlockOnHICANN(Enum(i)) for i in range(1)],
+    "blocks":  [FGBlockOnHICANN(Enum(i)) for i in range(2)],
     "repetitions": 1,
     "save_traces": True,
 
@@ -131,7 +131,7 @@ parameters = {
     },
 
     "V_reset_parameters":  {
-        neuron_parameter.E_l:    Voltage(1300),
+        neuron_parameter.E_l:    Voltage(1400),
         neuron_parameter.I_convi: Current(0),
         neuron_parameter.I_convx: Current(0),
         neuron_parameter.I_gl:   Current(1100),
