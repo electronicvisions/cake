@@ -161,6 +161,7 @@ if __name__ == "__main__":
 
         plt.xlabel("VOH-VOL [V]")
         plt.ylabel("(VOH+VOL)/2 [V]")
+        cbar.set_label("# good drivers")
 
         plt.grid(True)
 
