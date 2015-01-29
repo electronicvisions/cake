@@ -321,8 +321,13 @@ if __name__ == "__main__":
     mean_vohs_DAC_board_1 = np.mean(vohs_DAC_board_1)
     std_vohs_DAC_board_1  = np.std(vohs_DAC_board_1)
 
-    mean_vol = np.mean([mean_vols_board_0, mean_vols_board_1])
-    mean_voh = np.mean([mean_vohs_board_0, mean_vohs_board_1])
+    # mean_vol = np.mean([mean_vols_board_0, mean_vols_board_1])
+    mean_vol = mean_vols_board_0
+    std_vol = std_vols_board_0
+
+    # mean_voh = np.mean([mean_vohs_board_0, mean_vohs_board_1])
+    mean_voh = mean_vohs_board_0
+    std_voh = std_vohs_board_0
 
     vol_diffs = [(vol_b_1 - vol_b_0)*1000 for vol_b_0, vol_b_1 in zip(vols_board_0, vols_board_1)]
     nbins = 100
@@ -386,7 +391,7 @@ if __name__ == "__main__":
     plt.savefig(os.path.join(fdir, "vol_board_1.pdf"))
     plt.close()
 
-    ana_results = {"VOL":mean_vol, "VOH":mean_voh, "n_good_driver" : n_good_drv, "wafer": wafer, "hicann": hicann, "freq": freq, "bkgisi": bkgisi, "V_ccas" : V_ccas, "V_dllres" : V_dllres}
+    ana_results = {"VOL":mean_vol, "VOH":mean_voh, "STD_VOL":std_vol, "STD_VOH":std_voh, "n_good_driver" : n_good_drv, "wafer": wafer, "hicann": hicann, "freq": freq, "bkgisi": bkgisi, "V_ccas" : V_ccas, "V_dllres" : V_dllres}
 
     with open(ana_file, 'w') as fana:
         json.dump(ana_results, fana)
