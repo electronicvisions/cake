@@ -53,7 +53,7 @@ init_logger(pylogging.LogLevel.WARN, [
     ("pycake.helper.sthal", pylogging.LogLevel.INFO),
     ("sthal", pylogging.LogLevel.INFO),
     ("sthal.AnalogRecorder", pylogging.LogLevel.WARN),
-    ("sthal.HICANNConfigurator.Time", pylogging.LogLevel.DEBUG)
+    ("sthal.HICANNConfigurator.Time", pylogging.LogLevel.INFO)
     ])
 
 parser = argparse.ArgumentParser(description='HICANN Calibration tool. Takes a parameter file as input. See pycake/bin/parameters.py to see an example.')
