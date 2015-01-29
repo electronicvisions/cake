@@ -3,6 +3,7 @@
 import os
 import errno
 import sys
+import math
 
 import argparse
 
@@ -37,6 +38,8 @@ if __name__ == "__main__":
 
     xs = []
     ys = []
+    x_stds = []
+    y_stds = []
     wafers = []
     hicanns = []
     freqs = []
@@ -62,6 +65,11 @@ if __name__ == "__main__":
         Vdllres.append(ana_results["V_dllres"])
         xs.append(ana_results["VOL"])
         ys.append(ana_results["VOH"])
+
+        x_stds.append(ana_results["STD_VOL"])
+        y_stds.append(ana_results["STD_VOH"])
+
+
         l_n_good_drv.append(ana_results["n_good_driver"])
 
     if len(xs) > 1:
@@ -135,7 +143,9 @@ if __name__ == "__main__":
         mean_vo = [(x+y)/2 for x,y in zip(xs,ys)]
         diff_vo = [(y-x) for x,y in zip(xs,ys)]
 
-        plt.scatter(diff_vo, mean_vo, c=l_n_good_drv,s=500, cmap=plt.cm.jet)
+        size = [math.sqrt(x_std**2+y_std**2)*1e5 for x_std, y_std in zip(x_stds, y_stds)]
+
+        plt.scatter(diff_vo, mean_vo, c=l_n_good_drv, s=size, cmap=plt.cm.jet)
 
         for vol, voh, n_good in zip(xs,ys,l_n_good_drv):
             mean = (voh+vol)/2
