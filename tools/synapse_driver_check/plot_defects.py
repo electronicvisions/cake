@@ -52,6 +52,7 @@ if __name__ == "__main__":
 
         try:
             with f as fana:
+                print "loading {}".format(f.name)
                 ana_results = json.load(fana)
         except IOError as e:
             print ana_file, "is bad, continue with next"
