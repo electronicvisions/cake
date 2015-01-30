@@ -403,7 +403,7 @@ class ISI_Analyzer2(Analyzer):
         delta = np.std(v)
         maxtab, mintab = peakdet(v, delta)
 
-        max_idx = maxtab[:, 0]  # indices of maxima
+        max_idx = maxtab[:, 0].astype(int)  # indices of maxima
         spike_times = t[max_idx]
         isi = np.diff(spike_times)
         mean_isi = np.mean(isi)
