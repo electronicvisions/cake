@@ -366,7 +366,7 @@ V_syntcx_psp_max_Analyzer = MeanOfTraceAnalyzer
 
 
 class ISI_Analyzer(Analyzer):
-    """Calculate ISIs from trace.
+    """Calculate ISIs from trace and their standard deviation.
 
     Neuron is set to constant-spiking state with constant refractory period.
     Afterwards, neuron is set to constant-spiking state without refractory
@@ -374,29 +374,6 @@ class ISI_Analyzer(Analyzer):
 
     Refractory time is measured as difference between ISI with and without refractory
     period.
-    """
-    def __call__(self, neuron, t, v, **traces):
-
-        delta = np.std(v)
-
-        try:
-            maxtab, mintab = peakdet(v, delta)
-            # indices of maxima
-            maxs = maxtab[:, 0]
-            ISIidxs = np.diff(maxs)
-            mean_isi_idx = np.mean(ISIidxs)
-            isi_dt = t[mean_isi_idx]-t[0]
-        except Exception as e:
-            self.logger.ERROR(e)
-            isi_dt = None
-
-        return {"mean_isi": isi_dt}
-
-
-class ISI_Analyzer2(Analyzer):
-    """Calculate ISIs with std.
-
-    See ISI_Analyzer.
     """
 
     def __call__(self, neuron, t, v, **traces):

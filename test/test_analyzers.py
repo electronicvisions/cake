@@ -122,7 +122,6 @@ class TestAnalyzers(unittest.TestCase):
 
     def test_ISI_Analyzer(self):
         a = pycake.analyzer.ISI_Analyzer()
-        a2 = pycake.analyzer.ISI_Analyzer2()
 
         # neuron should not matter, thus false
         neuron = False
@@ -132,24 +131,17 @@ class TestAnalyzers(unittest.TestCase):
 
         voltage = np.array([1, 2, 4, 8, 16, 32]*10)
         res = a(neuron=neuron, t=time, v=voltage)
-        res2 = a2(neuron=neuron, t=time, v=voltage)
         isi0 = res["mean_isi"]
-        isi2_0 = res2["mean_isi"]
         self.assertAlmostEqual(isi0, 6*dt)
-        self.assertAlmostEqual(isi2_0, 6*dt)
-        self.assertAlmostEqual(res2["std_isi"], 0)
+        self.assertAlmostEqual(res["std_isi"], 0)
 
         voltage = np.array([1, 2, 4, 8, 16, 32, 0, 0, 0, 0, 0, 0]*5)
         actual_tau_ref = 6*dt
         res = a(neuron=neuron, t=time, v=voltage)
-        res2 = a2(neuron=neuron, t=time, v=voltage)
         isi_with_tau = res["mean_isi"]
-        isi_with_tau2 = res2["mean_isi"]
         tau_ref = isi_with_tau - isi0
-        tau_ref2 = isi_with_tau2 - isi2_0
         self.assertAlmostEqual(tau_ref, actual_tau_ref)
-        self.assertAlmostEqual(tau_ref2, actual_tau_ref)
-        self.assertAlmostEqual(res2["std_isi"], 0)
+        self.assertAlmostEqual(res["std_isi"], 0)
 
 
 if __name__ == '__main__':
