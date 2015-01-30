@@ -392,6 +392,28 @@ class ISI_Analyzer(Analyzer):
 
         return {"mean_isi": isi_dt}
 
+
+class ISI_Analyzer2(Analyzer):
+    """Calculate ISIs with std.
+
+    See ISI_Analyzer.
+    """
+
+    def __call__(self, neuron, t, v, **traces):
+        delta = np.std(v)
+        maxtab, mintab = peakdet(v, delta)
+
+        max_idx = maxtab[:, 0]  # indices of maxima
+        spike_times = t[max_idx]
+        isi = np.diff(spike_times)
+        mean_isi = np.mean(isi)
+        std_isi = np.std(isi)
+
+        return {"mean_isi": mean_isi,
+                "std_isi": std_isi,
+                }
+
+
 class Spikes_Analyzer(Analyzer):
     def __call__(self, spikes, neuron):
 
