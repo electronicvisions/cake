@@ -2,6 +2,7 @@
 
 #from waflib.extras import symwaf2ic
 #from waflib.extras.gtest import summary
+from waflib import Utils
 
 
 def depends(ctx):
@@ -45,6 +46,14 @@ def build(bld):
                    'redman_xml', 'redman_mongo', 'sim_denmem_ts', ],
         pythonpath=['.'],
         install_from='.',
-        install_path='lib',
+        install_path='${PREFIX}/lib',
+    )
+
+    tools = ['pycake/bin/run_calibration.py']
+    bld.install_files(
+        '${PREFIX}/bin/tools',
+        tools,
+        chmod=Utils.O755,
+        relative_trick=False
     )
     bld.recurse('test')
