@@ -15,14 +15,18 @@ import os
 
 from collections import defaultdict
 
+
 def no_shift(neuron, v):
     return v
+
 
 class ReadoutShift(object):
     def __init__(self, shifts):
         self.shifts = shifts
+
     def __call__(self, neuron, v):
         return v - self.shifts[neuron]
+
 
 class Measurement(object):
     """ Base class for the measurement protocol
@@ -189,8 +193,6 @@ class SpikeMeasurement(Measurement):
             for i in nbs:
 
                 if neuron.id().value() >= 32*i and neuron.id().value() < 32*(i+1):
-
-                    nonb = neuron.toNeuronOnNeuronBlock()
                     addr = neuron.toNeuronOnNeuronBlock().x().value() + neuron.toNeuronOnNeuronBlock().y().value()*32
 
                     self.sthal.hicann.enable_l1_output(neuron, pyhalbe.HICANN.L1Address(addr))
@@ -251,7 +253,7 @@ class SpikeMeasurement(Measurement):
         results = {}
         self.logger.INFO("Reading out spikes")
 
-        for nb in xrange(0,16):
+        for nb in xrange(0, 16):
             self.get_spikes([nb])
 
         for neuron in self.neurons:
@@ -262,7 +264,7 @@ class SpikeMeasurement(Measurement):
 
 
 class ADCMeasurement(Measurement):
-    """ This implements the Measurment protocol for a ADCS
+    """ This implements the Measurement protocol for an ADC
 
         Args:
             sthal: fully configured StHALContainer as found in pycake.helpers.sthal
@@ -358,7 +360,6 @@ class ADCMeasurement(Measurement):
             return worker.join()
 
 
-
 class I_gl_Measurement(ADCMeasurement):
     """ This measurement is done in three steps:
 
@@ -386,7 +387,7 @@ class I_gl_Measurement(ADCMeasurement):
         readout = self.sthal.read_adc()
         trace = self.readout_shifts(neuron, readout['v'])
         V_rest = np.mean(trace)
-        std    = np.std(trace)
+        std = np.std(trace)
         self.logger.TRACE("Measured V_rest of neuron {0}: {1:.3f} V".format(neuron, V_rest))
         self.sthal.adc.setRecordingTime(old_recording_time)
         return V_rest, std
@@ -405,7 +406,7 @@ class I_gl_Measurement(ADCMeasurement):
         """
         old_recording_time = self.sthal.recording_time
         I_gl = self.get_parameter(neuron_parameter.I_gl, neuron).values()[0]*2500/1023.
-        if I_gl > skip_I_gl: # Experience shows that for a large enough I_gl, a current of 30 nA is good
+        if I_gl > skip_I_gl:  # Experience shows that for a large enough I_gl, a current of 30 nA is good
             self.logger.TRACE("I_gl of {0:.1f} large enough. Setting current to 30 nA".format(I_gl))
             return 30
         self.sthal.adc.setRecordingTime(old_recording_time/recording_time_divider)
@@ -417,7 +418,8 @@ class I_gl_Measurement(ADCMeasurement):
             readout = self.sthal.read_adc()
             trace = self.readout_shifts(neuron, readout['v'])
             trace_max = np.max(trace)
-            if (trace_max - V_rest) < threshold: # Don't go higher than 150 mV above V_rest
+            if (trace_max - V_rest) < threshold:
+                # Don't go higher than 150 mV above V_rest
                 highest_trace_max = trace_max
                 best_current = current
             else:
@@ -453,14 +455,15 @@ class I_gl_Measurement(ADCMeasurement):
 
     def pre_measure(self, neuron, current, stim_length=65):
         if current is None:
-            self.sthal.switch_analog_output(neuron, l1address=None) # No firing activated
+            # No firing activated
+            self.sthal.switch_analog_output(neuron, l1address=None)
         else:
             self.sthal.set_current_stimulus(int(current), stim_length)
             self.sthal.switch_current_stimulus_and_output(neuron, l1address=None)
 
 
 class I_gl_Measurement_multiple_currents(I_gl_Measurement):
-    def __init__(self, sthal, neurons, readout_shifts=None, currents=[10,35,70]):
+    def __init__(self, sthal, neurons, readout_shifts=None, currents=[10, 35, 70]):
         super(I_gl_Measurement, self).__init__(sthal, neurons, readout_shifts)
         self.currents = currents
 
@@ -472,8 +475,7 @@ class I_gl_Measurement_multiple_currents(I_gl_Measurement):
         worker = WorkerPool(analyzer)
         for neuron in self.neurons:
             V_rest, std = self.measure_V_rest(neuron)
-            self.logger.INFO("Measuring neuron {0} with currents {1}. V_rest = {2:.2f}+-{3:.2f}".format(neuron,
-                                                                                    self.currents, V_rest, std))
+            self.logger.INFO("Measuring neuron {0} with currents {1}. V_rest = {2:.2f}+-{3:.2f}".format(neuron, self.currents, V_rest, std))
             if not self.traces is None:
                 self.traces[neuron] = []
             for current in self.currents:
