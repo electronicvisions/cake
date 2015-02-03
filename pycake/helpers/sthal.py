@@ -3,7 +3,6 @@
 import math
 import os
 import hashlib
-import numpy
 import cPickle
 import pyhalbe
 import pysthal
@@ -12,6 +11,7 @@ import Coordinate
 from pyhalbe import HICANN
 from Coordinate import Enum, X
 from Coordinate import NeuronOnHICANN
+from Coordinate import GbitLinkOnHICANN
 from sims.sim_denmem_lib import NETS_AND_PINS
 from sims.sim_denmem_lib import TBParameters
 from sims.sim_denmem_lib import run_remote_simulation
@@ -180,6 +180,7 @@ class StHALContainer(object):
         self.recording_time = recording_time
         self.coord_analog = coord_analog
         self._connected = False
+        self.input_spikes = {}
 
     def connect(self):
         """Connect to the hardware."""
@@ -268,7 +269,12 @@ class StHALContainer(object):
         self.hicann.enable_aout(coord_neuron, self.coord_analog)
         self.write_config(configurator=UpdateAnalogOutputConfigurator())
 
+    def set_input_spikes(self, spike_dict):
+        self.input_spikes = spike_dict
+
     def read_adc(self):
+        """Run experiment, read out ADC.
+        """
         if not self._connected:
             self.connect()
         max_tries = 10
@@ -281,6 +287,54 @@ class StHALContainer(object):
                 print "retry"
                 self.connect_adc()
         raise RuntimeError("Aborting ADC readout, maximum number of retries exceded")
+
+    def read_adc_and_spikes(self):
+        """Run pysthal.ExperimentRunner, read back ADC trace and spikes"""
+        max_tries = 10
+        for ii in range(max_tries):
+            try:
+                self._sendSpikes(self.input_spikes)
+                runtime = self.adc.getRecordingTime() + 1.e-5
+                runner = pysthal.ExperimentRunner(runtime)
+                self.wafer.start(runner)
+                self.adc.record()  # TODO triggered
+                recv_spikes = {}
+                for link in Coordinate.iter_all(GbitLinkOnHICANN):
+                    recv_spikes[link] = self.hicann.receivedSpikes(link)
+                return {'t': self.adc.getTimestamps(),
+                        'v': self.adc.trace(),
+                        's': recv_spikes}
+            except RuntimeError as e:
+                print e
+                print "retry"
+                self.connect_adc()
+        raise RuntimeError("Aborting ADC readout, maximum number of retries exceded")
+
+    def _sendSpikes(self, spike_dict):
+        """Iterate over spike dict and call StHAL's sendSpikes"""
+        self.wafer.clearSpikes()
+        l1_link = self.hicann.layer1.getGbitLink()
+
+        for gbitlink in spike_dict:
+            if type(gbitlink) is not GbitLinkOnHICANN:
+                raise TypeError
+            l1_link[gbitlink] = l1_link.TO_HICANN
+            spikes = spike_dict[gbitlink]
+
+            # convert nested dict to Vector_Spike
+            if type(spikes) is dict:
+                vspikes = pysthal.Vector_Spike()
+                for l1addr in spikes:
+                    for timestamp in spikes[l1addr]:
+                        vspikes.append(pysthal.Spike(l1addr, timestamp))
+                spikes = vspikes
+
+            if type(spikes) is not pysthal.Vector_Spike:
+                raise TypeError
+
+            self.hicann.sendSpikes(gbitlink, spikes)
+
+        self.hicann.layer1.setGbitLink(l1_link)
 
     def read_adc_status(self):
         if not self._connected:
@@ -549,7 +603,7 @@ class SimStHALContainer(StHALContainer):
         self.current_neuron = coord_neuron
 
     def read_adc(self):
-        """Fake ADC readout by evaluating a denmem_sim run"""
+        """Fake ADC readout by evaluating a denmem_sim run."""
 
         param = self.build_TBParameters(self.current_neuron)
         json = param.to_json()
@@ -557,6 +611,10 @@ class SimStHALContainer(StHALContainer):
         if key not in self.recorded_traces:
             self.run_simulation(self.current_neuron, param)
         return self.recorded_traces[key]
+
+    def read_adc_and_spikes(self):
+        self._sendSpikes(self.input_spikes)
+        return self.read_adc()
 
     def get_simulation_neurons(self, neuron):
         """Returns the two neurons, that will be simulated for a given neuron"""
@@ -575,7 +633,7 @@ class SimStHALContainer(StHALContainer):
 
         # HACK, enable analog output for both neurons, if no current input
         # is enabled. Otherwise caching would not work as expected.
-        if param.digital_parameters["iout"][2] == False:
+        if param.digital_parameters["iout"][2] is False:
             param.digital_parameters["iout"] = (True, True, False)
 
         if self.mc_seed is not None:

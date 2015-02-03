@@ -320,6 +320,10 @@ class ADCMeasurement(Measurement):
             yield t, v, neuron
         return
 
+    def read_adc(self):
+        """Read ADC. Override for spikes."""
+        return self.sthal.read_adc()
+
     def _measure(self, analyzer):
         """ Measure traces and correct each value for readout shift.
             Changes traces to numpy arrays
@@ -335,7 +339,7 @@ class ADCMeasurement(Measurement):
         with WorkerPool(analyzer) as worker:
             for neuron in self.neurons:
                 self.pre_measure(neuron)
-                readout = self.sthal.read_adc()
+                readout = self.read_adc()
                 if not self.traces is None:
                     self.traces[neuron] = readout
                 readout['v'] = self.readout_shifts(neuron, readout['v'])
@@ -358,6 +362,12 @@ class ADCMeasurement(Measurement):
             self.logger.INFO("Wait for analysis to complete.")
 
             return worker.join()
+
+
+class ADCMeasurementWithSpikes(ADCMeasurement):
+    def read_adc(self):
+        """Read ADC. Override for spikes."""
+        return self.sthal.read_adc_and_spikes()
 
 
 class I_gl_Measurement(ADCMeasurement):
@@ -384,7 +394,7 @@ class I_gl_Measurement(ADCMeasurement):
         self.pre_measure(neuron, current=None)
         old_recording_time = self.sthal.recording_time
         self.sthal.adc.setRecordingTime(1e-4)
-        readout = self.sthal.read_adc()
+        readout = self.read_adc()
         trace = self.readout_shifts(neuron, readout['v'])
         V_rest = np.mean(trace)
         std = np.std(trace)
@@ -415,7 +425,7 @@ class I_gl_Measurement(ADCMeasurement):
         highest_trace_max = None
         for current in currents:
             self.pre_measure(neuron, current=current)
-            readout = self.sthal.read_adc()
+            readout = self.read_adc()
             trace = self.readout_shifts(neuron, readout['v'])
             trace_max = np.max(trace)
             if (trace_max - V_rest) < threshold:
@@ -442,7 +452,7 @@ class I_gl_Measurement(ADCMeasurement):
             current = self.find_best_current(neuron, V_rest, currents=self.currents, skip_I_gl=self.skip_I_gl)
             self.logger.TRACE("Measuring neuron {} with current {}".format(neuron, current))
             self.pre_measure(neuron, current=current)
-            readout = self.sthal.read_adc()
+            readout = self.read_adc()
             readout['current'] = current
             readout['std'] = std
             readout['V_rest'] = V_rest
@@ -481,7 +491,7 @@ class I_gl_Measurement_multiple_currents(I_gl_Measurement):
             for current in self.currents:
                 self.logger.TRACE("Measuring neuron {} with current {}".format(neuron, current))
                 self.pre_measure(neuron, current)
-                readout = self.sthal.read_adc()
+                readout = self.read_adc()
                 readout['current'] = current
                 readout['std'] = std
                 readout['V_rest'] = V_rest

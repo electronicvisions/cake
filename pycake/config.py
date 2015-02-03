@@ -103,6 +103,16 @@ class Config(object):
         except KeyError:
             return ""
 
+    def get_input_spikes(self):
+        """Get configured input spikes.
+
+        Format is dict(GbitLinkOnHICANN: dict(L1Address: list(spikes)))
+        """
+        if "input_spikes" in self.parameters:
+            return self.parameters["input_spikes"]
+        else:
+            return {}
+
     def get_step_parameters(self, stepvalue):
         """ Returns parameter dict where the target parameter
             is updated with the given stepvalue.
@@ -172,4 +182,3 @@ class Config(object):
 
     def get_sim_denmem_mc_seed(self):
         return self.parameters.get("sim_denmem_mc_seed", None)
-
