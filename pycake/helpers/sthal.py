@@ -419,12 +419,22 @@ class StHALContainer(object):
         driver.set_l1()
         driver[top].set_decoder(top, driver_decoder)
         driver[top].set_decoder(bottom, driver_decoder)
+
+        # set weight divider
         driver[top].set_gmax_div(left, 1)
         driver[top].set_gmax_div(right, 1)
+
+        # set left in (??)
         driver[top].set_syn_in(left, 1)  # Esynx
         driver[top].set_syn_in(right, 0)  # Esyni, perhaps
+
+        # choose synaptic weight floating gate (V_gmax0,1,2,3)
         driver[top].set_gmax(0)
+
+        # copy config above
         driver[bottom] = driver[top]
+
+        # set right in
         driver[bottom].set_syn_in(left, 0)
         driver[bottom].set_syn_in(right, 1)
 
