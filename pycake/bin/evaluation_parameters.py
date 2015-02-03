@@ -32,7 +32,7 @@ eval_parameters = {
         "V_syntcx_range": [{neuron_parameter.V_syntcx : Voltage(1440)} ], # dummy
         "V_syntci_range": [{neuron_parameter.V_syntci : Voltage(1440)} ], # dummy
 
-        "I_pl_range":   [{neuron_parameter.I_pl : Current(1.0/v)} for v in [10, 30, 50, 70, 90, 2500]],
+        "I_pl_range":   [{neuron_parameter.I_pl : Current(c)} for c in [10, 30, 50, 70, 90, 2500]],
 
         "Spikes_range" : [{neuron_parameter.V_t : Voltage(v)} for v in np.concatenate([[650, 660, 670], np.linspace(680, 720, 11), [730, 740, 750]])],
 
