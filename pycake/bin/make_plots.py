@@ -290,27 +290,29 @@ def result(label, xlabel=None, ylabel=None, reader=None, suffix="", ylim=None, *
                                                    defects_string,
                                                    "result"+suffix+".png"])))
 
-# offset
+if args.backenddir:
 
-fig = plt.figure()
+    # offset
 
-c = calibtic.Calibtic(args.backenddir,C.Wafer(C.Enum(args.wafer)),C.HICANNOnWafer(C.Enum(args.hicann)))
+    fig = plt.figure()
 
-def get_offset(cal, nrnidx):
-    try:
-        offset = cal.nc.at(nrnidx).at(21).apply(0)
-        return offset
-    except IndexError:
-        print "No offset found for Neuron {}. Is the wafer and hicann enum correct? (w{}, h{})".format(nrnidx,args.wafer,args.hicann)
-        return 0
+    c = calibtic.Calibtic(args.backenddir,C.Wafer(C.Enum(args.wafer)),C.HICANNOnWafer(C.Enum(args.hicann)))
 
-offsets = [get_offset(c, n) * 1000 for n in xrange(512)]
-plt.hist(offsets, bins=100);
-plt.xlabel("offset [mV]")
-plt.ylabel("#")
-plt.subplots_adjust(**margins)
-plt.savefig(os.path.join(fig_dir,"analog_readout_offset.pdf"))
-plt.savefig(os.path.join(fig_dir,"analog_readout_offset.png"))
+    def get_offset(cal, nrnidx):
+        try:
+            offset = cal.nc.at(nrnidx).at(21).apply(0)
+            return offset
+        except IndexError:
+            print "No offset found for Neuron {}. Is the wafer and hicann enum correct? (w{}, h{})".format(nrnidx,args.wafer,args.hicann)
+            return 0
+
+    offsets = [get_offset(c, n) * 1000 for n in xrange(512)]
+    plt.hist(offsets, bins=100);
+    plt.xlabel("offset [mV]")
+    plt.ylabel("#")
+    plt.subplots_adjust(**margins)
+    plt.savefig(os.path.join(fig_dir,"analog_readout_offset.pdf"))
+    plt.savefig(os.path.join(fig_dir,"analog_readout_offset.png"))
 
 ## V reset
 
