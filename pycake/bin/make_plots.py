@@ -778,7 +778,7 @@ if r_v_syntci:
     set(bad_syntcx).intersection(bad_syntci)
 """
 
-r_test_spikes = reader if args.spikes_testrunner == None else Reader(args.spikes_testrunner)
+r_test_spikes = test_reader if args.spikes_testrunner == None else Reader(args.spikes_testrunner)
 
 if r_test_spikes:
 
