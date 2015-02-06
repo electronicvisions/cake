@@ -39,10 +39,10 @@ matplotlib.rc('font', **font)
 margins={"left":0.11, "right":0.95, "top":0.95, "bottom":0.11}
 
 parser = argparse.ArgumentParser()
-parser.add_argument("runner", help="path to calibration runner")
-parser.add_argument("testrunner", help="path to test runner (evaluation of calibration)")
+parser.add_argument("runner", help="path to calibration runner (can be empty)")
+parser.add_argument("testrunner", help="path to test runner (evaluation of calibration) (can be empty)")
 parser.add_argument("hicann", help="HICANNOnWafer enum", type=int)
-parser.add_argument("backenddir", help="path to backends directory")
+parser.add_argument("backenddir", help="path to backends directory (can be empty)")
 parser.add_argument("--wafer", help="Wafer enum", default=0, type=int)
 parser.add_argument("--outdir", help="path of output directory for plots", default="./figures")
 
