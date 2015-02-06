@@ -80,12 +80,14 @@ try:
     reader = Reader(args.runner)
 except Exception as e:
     print "Cannot instantiate reader {} because: {}".format(args.runner, e)
+    print "Ok, if other runners are specified."
     reader = None
 
 try:
     test_reader = Reader(args.testrunner)
 except Exception as e:
     print "Cannot instantiate test reader {} because: {}".format(args.testrunner, e)
+    print "Ok, if other runners are specified."
     test_reader = None
 
 def uncalibrated_hist(xlabel, reader, **reader_kwargs):
