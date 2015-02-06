@@ -25,6 +25,7 @@ from pycake.helpers.peakdetect import peakdet
 import pycake.helpers.calibtic as calibtic
 import Coordinate as C
 import pyhalbe
+import pycalibtic
 from pycake.calibration.E_l_I_gl_fixed import E_l_I_gl_fixed_Calibrator
 import numpy as np
 import os
@@ -259,7 +260,7 @@ def trace(ylabel, reader, parameter, neuron, steps=None, start=0, end=-1, suffix
     plt.savefig(os.path.join(fig_dir,parameter+"_trace"+suffix+".png"))
 
 def result(label, xlabel=None, ylabel=None, reader=None, suffix="", ylim=None, **reader_kwargs):
-    """ label must have placeholder 'inout' for 'in' and 'out' x and y labels, 
+    """ label must have placeholder 'inout' for 'in' and 'out' x and y labels,
         like: '$E_{{synx}}$ {inout} [mV]'
     """
 
@@ -300,7 +301,7 @@ if args.backenddir:
 
     def get_offset(cal, nrnidx):
         try:
-            offset = cal.nc.at(nrnidx).at(21).apply(0)
+            offset = cal.nc.at(nrnidx).at(pycalibtic.NeuronCalibration.VResetShift).apply(0)
             return offset
         except IndexError:
             print "No offset found for Neuron {}. Is the wafer and hicann enum correct? (w{}, h{})".format(nrnidx,args.wafer,args.hicann)
@@ -456,7 +457,7 @@ if r_e_l:
     for n in neurons:
         #print len(coeffs), len(coeffs[0]), len(coeffs[0][1])
         c = coeffs[0][1][n]
-        if c == None: 
+        if c == None:
             #print c
             #continue
             pass
@@ -552,7 +553,7 @@ if  r_test_v_t:
     #for n in neurons:
     #    #print len(coeffs), len(coeffs[0]), len(coeffs[0][1])
     #    c = coeffs[0][1][n]
-    #    if c == None: 
+    #    if c == None:
     #        #print c
     #        continue
     #        pass
@@ -594,7 +595,7 @@ if r_v_syntcx:
 
     for m in [e.measurements[idx] for idx in [0,-1,3]]:
         t = m.get_trace(neuron)
-        plt.plot(np.array(t[0][:x])*1e6,t[1][:x], label="$V_{{syntcx}}$ {:.0f} [mV]".format(#np.std(t[1]), 
+        plt.plot(np.array(t[0][:x])*1e6,t[1][:x], label="$V_{{syntcx}}$ {:.0f} [mV]".format(#np.std(t[1]),
                  m.sthal.hicann.floating_gates.getNeuron(neuron, pyhalbe.HICANN.neuron_parameter.V_syntcx)/1023.*1800))
     plt.legend()
     plt.ylabel("$V_{mem}$ [mV]")
@@ -723,7 +724,7 @@ if r_v_syntci:
 
     for m in [e.measurements[idx] for idx in [0,3,-1]]:
         t = m.get_trace(neuron)
-        plt.plot(np.array(t[0][:x])*1e6,t[1][:x], label="$V_{{syntci}}$ {:.0f} [mV]".format(#np.std(t[1]), 
+        plt.plot(np.array(t[0][:x])*1e6,t[1][:x], label="$V_{{syntci}}$ {:.0f} [mV]".format(#np.std(t[1]),
                  m.sthal.hicann.floating_gates.getNeuron(neuron, pyhalbe.HICANN.neuron_parameter.V_syntci)/1023.*1800))
     plt.legend()
     plt.ylabel("$V_{mem}$ [mV]")
@@ -859,8 +860,8 @@ fg.getNeuron(C.NeuronOnHICANN(C.Enum(0)), pyhalbe.HICANN.neuron_parameter.I_gl)
 
 # In[320]:
 
-plt.plot(np.array(range(len(neurons_means_stds_e_l)))/float(len(neurons_means_stds_e_l)), 
-         [fg.getNeuron(l[0], 
+plt.plot(np.array(range(len(neurons_means_stds_e_l)))/float(len(neurons_means_stds_e_l)),
+         [fg.getNeuron(l[0],
                     pyhalbe.HICANN.neuron_parameter.I_gl) for l in sorted(neurons_means_stds_e_l, key=lambda l: l[2])])
 plt.grid(True)
 plt.locator_params(nbins=10)
@@ -886,7 +887,7 @@ plt.savefig(os.path.join(fig_dir,"V_rest_ttt_cummulative.png"))
 
 # In[12]:
 
-plt.plot(np.array(range(len(neurons_means_stds_e_l)))/float(len(neurons_means_stds_e_l)), 
+plt.plot(np.array(range(len(neurons_means_stds_e_l)))/float(len(neurons_means_stds_e_l)),
          [l[0].id().value() for l in sorted(neurons_means_stds_e_l, key=lambda l: l[2])])
 plt.grid(True)
 plt.locator_params(nbins=10)
@@ -1124,13 +1125,13 @@ results = defaultdict(list)
 for n,meas in enumerate(e.measurements):
     if n == 0: continue
     I_pl = meas.sthal.hicann.floating_gates.getNeuron(C.NeuronOnHICANN(C.Enum(0)),pyhalbe.HICANN.neuron_parameter.I_pl)
-    
+
     print I_pl
-    
+
     for key, value in e.results[n].iteritems():
         ref_tau_refrac = ref[key]['tau_refrac']
         step_tau_refrac = e.results[n][key]['tau_refrac']
-    
+
         if ref_tau_refrac != None and step_tau_refrac != None:
             tau_refrac = (step_tau_refrac-ref_tau_refrac)*1e6
             if tau_refrac > 10:

@@ -94,7 +94,7 @@ To configure the calibration, you have to edit parameters.py to match whatever y
 There you can edit the calibrated ranges, step length and number of repetitions (which will increase accuracy but also linearly increase experiment time).
 After calibration of a parameter, you should keep that variable within the range in which you calibrated -- outside of the range, the accuracy can decrease.
 
-\subsection{Readout shift (21st parameter)}
+\subsection{Readout shift (last parameter in NeuronCalibration)}
 
 \begin{figure}
   \centering
@@ -112,7 +112,7 @@ For this purpose, we make use of the fact that one value of $V_\text{reset}$ is 
 First, $V_\text{reset}$ is measured for all neurons and averaged over each blocks.
 This mean $V_\text{reset}$ is considered to be the "real" $V_\text{reset}$.
 The readout shift is then calculated by taking each neuron's mean variation from that "real" value.
-This shift is stored in calibtic as the 21st parameter.
+This shift is stored in calibtic as {pycalibtic.NeuronCalibration.VResetShift}.
 
 \subsection{Reset Potential (\vreset)}
 
