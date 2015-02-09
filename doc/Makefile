@@ -1,4 +1,4 @@
-all: calibration.pdf
+all: calibration.pdf sd3t.pdf
 
 %.pdf: %.tex
 	pdflatex $*
