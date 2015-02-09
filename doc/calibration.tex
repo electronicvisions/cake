@@ -8,6 +8,30 @@
 \usepackage{siunitx}
 \usepackage{cleveref}
 
+\usepackage{color}
+\definecolor{darkgreen}{rgb}{0,0.5,0}
+
+% https://groups.google.com/forum/#!topic/tufte-latex/o-8GHqRg30M
+\usepackage{hyperref}
+
+\hypersetup{%
+  pdfborder = {0 0 0},
+  % jdc bookmarksdepth = section,
+  bookmarksdepth = 0,
+  hyperfootnotes=false,
+  % jdc
+  citecolor=darkgreen,
+  linkcolor=blue,
+  pagecolor=blue,
+  urlcolor=darkgreen,
+  letterpaper,
+  bookmarks=false,
+  colorlinks,
+  backref,
+  pdftex,
+  pdfview=Fit
+}%
+
 \usepackage{listings}
 \author{Dominik Schmidt, Sebastian Schmitt}
 \title{Calibration documentation}
