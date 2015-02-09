@@ -1,0 +1,10 @@
+build/
+
+# LaTeX
+*.aux
+*.toc
+*.log
+*.out
+
+# Generated files
+*.pdf
