@@ -85,17 +85,20 @@ class Reader(object):
             if isinstance(neuron, int):
                 neuron = C.NeuronOnHICANN(C.Enum(neuron))
 
-            results[neuron] = [r[neuron].get(key, None) for r in ex.results]
+            results[neuron] = np.array([r[neuron].get(key, None) for r in ex.results])
             if repetition != None:
-                results[neuron] = list(np.array(results[neuron])[:,[nsteps*repetition + step for step in range(nsteps)]])
-                #                                                   ^^^^^^^^^^^^^^^^^^^^^^^^
-                # FIXME: the indexing above is wrong for multi-dimensional parameter scans
+                if np.ndim(results[neuron]) > 1:
+                    results[neuron] = list(results[neuron][:,[nsteps*repetition + step for step in range(nsteps)]])
+                    #                                         ^^^^^^^^^^^^^^^^^^^^^^^^
+                    # FIXME: the indexing above is wrong for multi-dimensional parameter scans
+                else:
+                    results[neuron] = list(results[neuron][[nsteps*repetition + step for step in range(nsteps)]])
 
         return results
 
     def plot_hist(self, parameter, key, step, repetition=0, draw_target_line=True, **kwargs):
         neurons = self.get_neurons()
-        results = self.get_results(parameter, self.get_neurons(), key, repetition)
+        results = self.get_results(parameter, neurons, key, repetition)
         results_list = np.array(results.values())[:,step]
         hist = plt.hist(results_list, label="{:.2f} +- {:.2f}, {}".format(np.mean(results_list)*1000, np.std(results_list)*1000, len(neurons)), **kwargs)
         config = self.runner.config.copy(parameter)
