@@ -71,4 +71,9 @@ cov = CoverageJob([
     //artifacts : [ "cake/htmlcov/" ],  // not supported by CoverageJob
 ])
 
+doc = DocumentationJob(
+    docshell  : "cd cake/doc; make",
+    artifacts : [ "cake/doc/*.pdf" ]
+)
+
 return "Done."
