@@ -88,9 +88,7 @@ class Reader(object):
             results[neuron] = np.array([r[neuron].get(key, None) for r in ex.results])
             if repetition != None:
                 if np.ndim(results[neuron]) > 1:
-                    results[neuron] = list(results[neuron][:,[nsteps*repetition + step for step in range(nsteps)]])
-                    #                                         ^^^^^^^^^^^^^^^^^^^^^^^^
-                    # FIXME: the indexing above is wrong for multi-dimensional parameter scans
+                    raise RuntimeError("retrieval of results is not implemented for multi-dimensional sweeps")
                 else:
                     results[neuron] = list(results[neuron][[nsteps*repetition + step for step in range(nsteps)]])
 
