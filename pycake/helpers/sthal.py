@@ -388,9 +388,12 @@ class StHALContainer(object):
             generator.address(l1address)
             self.logger.DEBUG("activate {!s} with period {}".format(bg, bg_period))
 
+        links = []
         for ii in range(4):
             bg_top = Coordinate.OutputBufferOnHICANN(2*ii+1)
             bg_bottom = Coordinate.OutputBufferOnHICANN(2*ii)
+            links.append(GbitLinkOnHICANN(2 * ii + 1))
+            links.append(GbitLinkOnHICANN(2 * ii))
 
             drv_top = Coordinate.SynapseDriverOnHICANN(
                 Coordinate.Enum(99 + ii * 4))
@@ -404,6 +407,7 @@ class StHALContainer(object):
             else:
                 self.disable_synapse_line(drv_top)
                 self.disable_synapse_line(drv_bottom)
+        return links
 
     def enable_synapse_line(self, driver_c, l1address, excitatory=True):
         """
@@ -536,6 +540,16 @@ class StHALContainer(object):
         self.hicann.enable_aout(coord_neuron, self.coord_analog)
         self.wafer.configure(UpdateAnalogOutputConfigurator())
 
+    def set_recording_time(self, recording_time, repeations):
+        """Sets the recording time of the ADC.
+
+        The recording_time should be as small as theoretical required for the
+        measurement. And the repeations factor should be the amount you need
+        to cope with readout noise. This is to speed up simulations
+        """
+
+        self.recording_time = recording_time * repeations
+
 
 class SimStHALContainer(StHALContainer):
     """Contains StHAL objects for hardware access. Multiple experiments can share one container."""
@@ -572,8 +586,7 @@ class SimStHALContainer(StHALContainer):
 
         # 10 times simulation reset
         self.simulation_init_time = 10.0e-07
-        self.recording_time = recording_time + self.simulation_init_time
-        # FIXME implement line above in set_recording_time
+        self.set_recording_time(recording_time, 1)
 
         self.logger.INFO("Using sim_denmem on {}:{}".format(
             self.remote_host, self.remote_port))
@@ -666,6 +679,7 @@ class SimStHALContainer(StHALContainer):
                 self.simulation_cache, json_hash.hexdigest())
 
         if json_hash and os.path.isfile(json_hash):
+            self.logger.info("load result from cache: {}".format(json_hash))
             with open(json_hash) as infile:
                 json_loaded, lresult, rresult = cPickle.load(infile)
                 assert json_loaded == json
@@ -675,6 +689,7 @@ class SimStHALContainer(StHALContainer):
                 init_time=self.simulation_init_time)
 
             if json_hash:
+                self.logger.info("cache result in {}".format(json_hash))
                 with open(json_hash, 'w') as outfile:
                     data = (json, lresult, rresult)
                     cPickle.dump(data, outfile, cPickle.HIGHEST_PROTOCOL)
@@ -687,3 +702,14 @@ class SimStHALContainer(StHALContainer):
 
     def read_wafer_status(self):
         return self.wafer.status()
+
+    def set_recording_time(self, recording_time, _):
+        """Sets the recording time of the ADC.
+
+        The recording_time should be as small as theoretical required for the
+        measurement. And the repeations factor should be the amount you need
+        to cope with readout noise. This is to speed up simulations.
+
+        To speed up simulations this implementation ignores repeations factor!
+        """
+        self.recording_time = recording_time + self.simulation_init_time
