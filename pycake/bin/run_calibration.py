@@ -32,10 +32,10 @@ def load_config(parsed_args):
     if parsed_args.wafer:
         cfg.parameters['coord_wafer'] = parsed_args.wafer
     if parsed_args.parameter:
-        for key in cfg.parameters:
-            if key.startswith('run_'):
-                cfg.parameters[key] = False
-        cfg.parameters['run_' + parsed_args.parameter] = True
+        remove = [key for key in cfg.parameters if key.startswith('run_')]
+        for key in remove:
+            del cfg.parameters[key]
+        cfg.parameters['parameter_order'] = parsed_args.parameter
     return cfg
 
 
@@ -63,8 +63,8 @@ parser.add_argument('parameter_file', type=check_file, help='parameterfile conta
 parser.add_argument('--outdir', type=str, default=None, help="output folder. default is the one specified in the config file.")
 parser.add_argument('--logfile', default=None,
                         help="Specify a logfile where all the logger output will be stored (any LogLevel!)")
-parser.add_argument('--parameter', type=str, default=None,
-                    help='Spezifiy paramter to calibrate')
+parser.add_argument('--parameter', type=str, default=None, action='append',
+                    help='Runs the specified calibrations in the given order')
 args = parser.parse_args()
 
 if args.logfile is not None:
