@@ -49,7 +49,7 @@ def build(bld):
         install_path='${PREFIX}/lib',
     )
 
-    tools = ['pycake/bin/run_calibration.py']
+    tools = ['pycake/bin/run_calibration.py', 'pycake/bin/resume.py']
     bld.install_files(
         '${PREFIX}/bin/tools',
         tools,
