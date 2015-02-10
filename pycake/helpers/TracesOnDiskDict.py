@@ -29,9 +29,16 @@ class TracesOnDiskDict(collections.MutableMapping):
         """file object, will be lazy opened"""
         if self.__h5file is None:
             filters = tables.Filters(**self.h5file_filter_args)
-            self.__h5file = tables.openFile(
-                    self.fullpath, mode="a", title="TracesOnDisk",
-                    filters=filters)
+            try:
+                self.__h5file = tables.openFile(
+                        self.fullpath, mode="a", title="TracesOnDisk",
+                        filters=filters)
+            except IOError:
+                # The file might be only read only, in this case try to open
+                # as read only
+                self.__h5file = tables.openFile(
+                        self.fullpath, mode="r", title="TracesOnDisk",
+                        filters=filters)
         return self.__h5file
 
     def close(self):
