@@ -255,6 +255,10 @@ class spikes_Calibrator(BaseCalibrator):
     target_parameter = None
 
 
+class InputSpike_Calibrator(BaseCalibrator):
+    target_parameter = None
+
+
 class V_t_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.V_t
 

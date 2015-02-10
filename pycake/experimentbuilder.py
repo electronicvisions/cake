@@ -10,6 +10,7 @@ from pycake.helpers.sthal import SimStHALContainer
 from pycake.helpers.calibtic import Calibtic
 from pycake.helpers.TraceAverager import createTraceAverager
 from pycake.measure import ADCMeasurement
+from pycake.measure import ADCMeasurementWithSpikes
 from pycake.measure import SpikeMeasurement
 from pycake.measure import I_gl_Measurement
 from pycake.experiment import SequentialExperiment
@@ -175,6 +176,18 @@ class BaseExperimentBuilder(object):
         """
 
         return ADCMeasurement(sthal, neurons, readout_shifts)
+
+
+class InputSpike_Experimentbuilder(BaseExperimentBuilder):
+    """Send input spikes to neurons"""
+    def prepare_specific_config(self, sthal):
+        spikes = self.config.get_input_spikes()
+        sthal.set_input_spikes(spikes)
+        sthal.stimulateNeurons(100000., 4)
+        return sthal
+
+    def make_measurement(self, sthal, neurons, readout_shifts):
+        return ADCMeasurementWithSpikes(sthal, neurons, readout_shifts)
 
 
 class E_l_Experimentbuilder(BaseExperimentBuilder):
