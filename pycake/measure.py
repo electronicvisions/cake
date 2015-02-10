@@ -131,7 +131,8 @@ class Measurement(object):
         self.sthal.write_config(configurator=configurator)
 
     def pre_measure(self, neuron, l1address=None):
-        self.sthal.switch_analog_output(neuron, l1address=l1address)
+        """Hook to be execute before a measurement is taken"""
+        pass
 
     def get_readout_hicann(self):
 
@@ -324,6 +325,10 @@ class ADCMeasurement(Measurement):
         """Read ADC. Override for spikes."""
         return self.sthal.read_adc()
 
+    def pre_measure(self, neuron, l1address=None):
+        """Hook to be execute before a measurement is taken"""
+        self.sthal.switch_analog_output(neuron, l1address=l1address)
+
     def _measure(self, analyzer):
         """ Measure traces and correct each value for readout shift.
             Changes traces to numpy arrays
@@ -487,7 +492,7 @@ class I_gl_Measurement_multiple_currents(I_gl_Measurement):
             V_rest, std = self.measure_V_rest(neuron)
             self.logger.INFO("Measuring neuron {0} with currents {1}. V_rest = {2:.2f}+-{3:.2f}".format(neuron, self.currents, V_rest, std))
             if not self.traces is None:
-                self.traces[neuron] = []
+                self.traces[neuron] = {}
             for current in self.currents:
                 self.logger.TRACE("Measuring neuron {} with current {}".format(neuron, current))
                 self.pre_measure(neuron, current)
