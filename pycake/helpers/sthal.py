@@ -150,7 +150,8 @@ class StHALContainer(object):
                  recording_time=1.e-4,
                  wafer_cfg="",
                  PLL=100e6,
-                 dump_file=None):
+                 dump_file=None,
+                 neuron_size=1):
         """Initialize StHAL. kwargs default to vertical setup configuration.
 
         Args:
@@ -550,6 +551,9 @@ class StHALContainer(object):
 
         self.recording_time = recording_time * repeations
 
+    def set_neuron_size(self, n):
+        self.logger.INFO("Setting neuron size to {}".format(n))
+        self.firing_denmems = list(self.hicann.set_neuron_size(n))
 
 class SimStHALContainer(StHALContainer):
     """Contains StHAL objects for hardware access. Multiple experiments can share one container."""
@@ -562,7 +566,8 @@ class SimStHALContainer(StHALContainer):
                  wafer_cfg="",
                  PLL=100e6,
                  dump_file=None,
-                 config=None):
+                 config=None,
+                 neuron_size=1):
         """Initialize StHAL. kwargs default to vertical setup configuration.
 
         Args:
@@ -577,7 +582,7 @@ class SimStHALContainer(StHALContainer):
         """
         super(SimStHALContainer, self).__init__(
             coord_wafer, coord_hicann, coord_analog, recording_time,
-            wafer_cfg, PLL, dump_file)
+            wafer_cfg, PLL, dump_file, neuron_size)
         self.current_neuron = Coordinate.NeuronOnHICANN()
         self.recorded_traces = {}
         host, port = config.get_sim_denmem().split(':')
@@ -713,3 +718,6 @@ class SimStHALContainer(StHALContainer):
         To speed up simulations this implementation ignores repeations factor!
         """
         self.recording_time = recording_time + self.simulation_init_time
+
+    def set_neuron_size(self, n):
+        self.logger.ERROR("Neuron size other than 1 not supported! Using size 1")
