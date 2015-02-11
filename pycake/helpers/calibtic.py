@@ -4,7 +4,7 @@ import pylogging
 import os
 
 import Coordinate
-from pyhalbe.HICANN import shared_parameter
+from pyhalbe.HICANN import neuron_parameter, shared_parameter
 
 
 def create_pycalibtic_polynomial(coefficients):
@@ -226,6 +226,10 @@ class Calibtic(object):
         if not self._loaded:
             self._load_calibration()
 
+        lower_boundary = 0
+        if parameter is neuron_parameter.I_pl:
+            lower_boundary = 4
+
         calib = self.get_calibration(coord)
         if not calib:
             return int(round(dac_value))
@@ -237,9 +241,9 @@ class Calibtic(object):
             self.logger.WARN("Applying calibration failed: Nothing found for {} parameter {}. Using uncalibrated value {}".format(coord, parameter.name, dac_value))
             calib_dac_value = dac_value
 
-        if calib_dac_value < 0:
-            self.logger.WARN("Coord {} Parameter {} DAC-Value {} Calibrated to {} is lower than 0. Clipping.".format(coord, parameter, dac_value, calib_dac_value))
-            calib_dac_value = 0
+        if calib_dac_value < lower_boundary:
+            self.logger.WARN("Coord {} Parameter {} DAC-Value {} Calibrated to {} is lower than {}. Clipping.".format(coord, parameter, dac_value, calib_dac_value, lower_boundary))
+            calib_dac_value = lower_boundary
         if calib_dac_value > 1023:
             self.logger.WARN("Coord {} Parameter {} DAC-Value {} Calibrated to {} is larger than 1023. Clipping.".format(coord, parameter, dac_value, calib_dac_value))
             calib_dac_value = 1023
