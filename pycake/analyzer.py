@@ -254,71 +254,59 @@ class I_gl_Analyzer(Analyzer):
 
     def __call__(self, neuron, t, v, std, V_rest_init=0.7, used_current=None, **traces):
         mean_trace, std_trace, n_chunks = self.trace_averager.get_average(v, self.dt)
-        t, v = None, None
-        mean_trace = np.array(mean_trace)
-        # TODO take std of an independent measurement (see CKs method)
-        trace_cut, fittimes = self.get_decay_fit_range(mean_trace)
-        tau_m, V_rest, height, red_chi2, pcov, infodict, ier = self.fit_exponential(trace_cut, fittimes, std, V_rest_init, n_chunks)
-        if tau_m is not None:
-            g_l = self.C / tau_m
-        else:
-            g_l = None
+        cut_v, fittimes = self.get_decay_fit_range(mean_trace, fwidth=64)
 
-        result = {"tau_m": tau_m,
-                  "g_l": g_l,
-                  "reduced_chi2": red_chi2,
-                  "V_rest": V_rest,
-                  "height": height,
-                  "pcov": pcov,
-                  "std": std,
-                  "n_chunks": n_chunks,
-                  "used_current": used_current,
-                  "ier": ier}
+        V_rest_init = cut_v[-1]
+
+        if len(cut_v) < (len(mean_trace)/4): # sanity check: if cut trace too short, something failed
+            tau_m, V_rest, height, std_tau = np.nan, V_rest_init, np.nan, np.nan
+            red_chi2, pcov, infodict, ier = np.nan, np.nan, {'error': "cut trace length {} too short".format(len(cut_v))}, 0
+        else:
+            tau_m, V_rest, height, std_tau, red_chi2, pcov, infodict, ier = self.fit_exponential(fittimes, cut_v, std,
+                                                                                            V_rest_init, n_chunks)
+        g_l = self.C / tau_m
+
+        result = {'tau_m': tau_m,
+                  'std_tau': std_tau,
+                  'V_rest': V_rest,
+                  'height': height,
+                  'red_chi2': red_chi2,
+                  'pcov': pcov,
+                  'ier': ier}
+
+        if np.isnan(tau_m): # If fit failed, also return info dict
+            result['infodict'] = infodict
+
         if self.save_mean:
             result["mean"] = mean_trace
         return result
 
-    def get_decay_fit_range(self, trace, stim_length=65):
+    def get_decay_fit_range(self, trace, fwidth=64):
         """Cuts the trace for the exponential fit. This is done by calculating the second derivative.
+        Args:
+            trace: the averaged trace
+            fwidth: filter width for smoothing
+
         Returns:
-            trace_cut, std_cut, fittimes"""
-        filter_width = 250e-9  # Magic number that was carefully tuned to give best results
+            trace_cut, fittimes"""
         dt = 1/self.trace_averager.adc_freq
-
-        kernel = scipy.signal.gaussian(len(trace), filter_width / dt)
-        kernel /= pylab.sum(kernel)
-        kernel = pylab.roll(kernel, int(len(trace) / 2))
-
-        diff = pylab.roll(trace, -1) - trace
-        diff_smooth = pylab.real(pylab.ifft(pylab.fft(kernel) * pylab.fft(diff)))
-
-        diff2_smooth = pylab.roll(diff_smooth, -1) - diff_smooth
-        diff2_smooth /= (dt ** 2)
-
-        # For fit start, check if first derivative is really negative.
-        # This should make the fit more robust
-        diff2_with_negative_diff = np.zeros(len(diff2_smooth))
-        for i, j in enumerate(diff_smooth < 0):
-            if j:
-                diff2_with_negative_diff[i] = diff2_smooth[i]
-
-        fitstart = np.argmin(diff2_with_negative_diff)
-        fitstop = np.argmax(diff2_smooth)
-
-        trace = pylab.roll(trace, -fitstart)
+        vsmooth = ndimage.gaussian_filter(trace, fwidth)
+        # Sobel filter finds edges
+        edges = ndimage.sobel(vsmooth, axis=-1, mode='nearest')
+        fitstart, fitstop = np.argmin(edges), np.argmax(edges)
 
         fitstop = fitstop - fitstart
+
         if fitstop < 0:
             fitstop += len(trace)
 
-        fitstart = 0
+        trace = pylab.roll(trace, -fitstart)
 
+        fitstart = 0
         trace_cut = trace[fitstart:fitstop]
         fittimes = np.arange(fitstart, fitstop)*dt
 
-        self.logger.TRACE("Cut trace from length {} to length {}.".format(len(trace), len(trace_cut)))
-
-        return trace_cut, fittimes
+        return trace_cut[:-80], fittimes[:-80] #sobel tends to make trace too long --> cutoff
 
     def get_initial_parameters(self, times, trace, V_rest):
         height = trace[0] - V_rest
@@ -330,7 +318,7 @@ class I_gl_Analyzer(Analyzer):
             tau = 1e-5
         return [tau, height, V_rest]
 
-    def fit_exponential(self, trace_cut, fittimes, std, V_rest_init, n_chunks, stim_length=65):
+    def fit_exponential(self, fittimes, trace_cut, std, V_rest_init, n_chunks):
         """ Fit an exponential function to the mean trace. """
         def func(t, tau, height, V_rest):
             return height * np.exp(-(t - t[0]) / tau) + V_rest
@@ -340,15 +328,15 @@ class I_gl_Analyzer(Analyzer):
 
         try:
             expf, pcov, infodict, errmsg, ier = curve_fit(
-                func,
-                fittimes,
-                trace_cut,
-                x0,
-                sigma=std,
-                full_output=True)
-        except ValueError as e:
+            func,
+            fittimes,
+            trace_cut,
+            x0,
+            sigma=std,
+            full_output=True)
+        except (ValueError, ZeroDivisionError, FloatingPointError) as e:
             self.logger.WARN("Fit failed: {}".format(e))
-            return None, V_rest_init, None, None, None, None, 0
+            return np.nan, V_rest_init, np.nan, np.nan, np.nan, np.nan, {"error": e}, 0
 
         tau = expf[0]
         height = expf[1]
@@ -357,9 +345,19 @@ class I_gl_Analyzer(Analyzer):
         DOF = len(fittimes) - len(expf)
         red_chisquare = sum(infodict["fvec"] ** 2) / (DOF)
 
-        self.logger.TRACE("Successful fit: tau={0:.2e} s, V_rest={1:.2f} V, height={2:.2f} V, red_chi2={3:.2f}".format(tau, V_rest, height, red_chisquare))
+        # Sanity checks:
+        if not isinstance(pcov, np.ndarray):
+            e = 'pcov not array'
+            return np.nan, V_rest_init, np.nan, np.nan, np.nan, np.nan, {'error': e}, 0
+        if isinstance(pcov, np.ndarray) and pcov[0][0] < 0:
+            e = 'pcov negative'
+            return np.nan, V_rest_init, np.nan, np.nan, np.nan, np.nan, {'error': e}, 0
+        if (ier<1) or (tau >1) or (tau<0):
+            e = 'ier < 1 or tau out of bounds'
+            return np.nan, V_rest_init, np.nan, np.nan, np.nan, np.nan, {'error': e}, 0
 
-        return tau, V_rest, height, red_chisquare, pcov, infodict, ier
+        tau_std = np.sqrt(pcov[0][0])
+        return tau, V_rest, height, tau_std, red_chisquare, pcov, infodict, ier
 
 V_syntci_psp_max_Analyzer = MeanOfTraceAnalyzer
 V_syntcx_psp_max_Analyzer = MeanOfTraceAnalyzer
