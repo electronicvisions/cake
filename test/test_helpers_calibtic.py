@@ -62,7 +62,7 @@ class TestCalibticHelper(unittest.TestCase):
 
         # write readout shift, read
         data = {c: [4] for c in C.iter_all(C.NeuronOnHICANN)}
-        c.write_calibration(shared_parameter.V_reset, data)
+        c.write_calibration("readout_shift", data)
         self.assertEqual(c.get_readout_shift(neuron), 4.0)
 
     def test_clear(self):
