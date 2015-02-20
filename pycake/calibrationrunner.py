@@ -41,8 +41,13 @@ class CalibrationRunner(object):
         self.calibtic = pycake.helpers.calibtic.Calibtic(path, wafer, hicann)
         self.redman =   pycake.helpers.redman.Redman(path, Coordinate.HICANNGlobal(hicann,wafer))
 
-        prefix = self.config.get_filename_prefix()
-        name_details = "_".join([s for s in ["w{}".format(wafer.value()), "h{}".format(hicann.id().value()), prefix, time.strftime('%m%d_%H%M')] if s != ""])
+        name_details = "_".join([s for s in [
+            "w{}".format(wafer.value()),
+            "h{}".format(hicann.id().value()),
+            self.config.get_filename_prefix(),
+            time.strftime('%m%d_%H%M'),
+        ] if s != ""])
+
         self.filename = self.pickle_file_pattern.format(name_details)
         self.measurements_folder = self.pickel_measurements_folder.format(name_details)
 
@@ -175,7 +180,7 @@ class CalibrationRunner(object):
         """
         """
         for parameter, data in coeffs:
-            data = dict((coord, coeff[::-1]) for coord, coeff in data.iteritems() if coeff != None)
+            data = dict((coord, coeff[::-1]) for coord, coeff in data.iteritems() if coeff is not None)
             self.calibtic.write_calibration(parameter, data)
 
     def write_defects(self, coeffs):
