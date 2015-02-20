@@ -11,7 +11,6 @@ import pycake.calibrator
 import pycake.helpers.calibtic
 import pycake.helpers.redman
 import pycake.helpers.misc
-from  pycake.helpers.ReadoutShiftMeasurement import ReadoutShiftMeasurement
 from pycake.helpers.StorageProcess import StorageProcess
 
 # Import everything needed for saving:
@@ -120,8 +119,6 @@ class CalibrationRunner(object):
         if not self.experiments:
             self.logger.WARN("No experiments configured.")
 
-        self.measure_readout_shifts()
-
         for config_name in self.configurations:
             experiment = self.experiments[config_name]
             # Create experiments lazy to apply calibration from previous runs
@@ -190,28 +187,10 @@ class CalibrationRunner(object):
             defects = [coord for coord, coeff in data.iteritems() if coeff == None]
             self.redman.write_defects(defects)
 
-    def measure_readout_shifts(self):
-        """ Measures readout shifts with the 'connected-denmems-method'
-        """
-        self.logger.INFO("Measuring readout shifts")
-        wafer, hicann = self.config.get_coordinates()
-        base_params = self.config.parameters['base_parameters']
-        self.readout_shift_measurement = ReadoutShiftMeasurement(base_params, wafer, hicann)
-        readout_shifts = self.readout_shift_measurement.run_measurement()
-        self.calibtic.write_calibration("readout_shift", readout_shifts)
-        self.logger.INFO("Finished measuring readout shifts. Shifts stored in calibtic backend.")
-
-
-
 class TestRunner(CalibrationRunner):
     logger = pylogging.get("pycake.testrunner")
     pickle_file_pattern = "testrunner_{}.p.gz"
     pickel_measurements_folder = "testrunner_{}_measurements"
-
-    def measure_readout_shifts(self):
-        """ Not necessary
-        """
-        pass
 
     def generate_calibration_data(self, config_name, experiment):
         self.logger.INFO("Skipping calibration fit since this is a test measurement.")
