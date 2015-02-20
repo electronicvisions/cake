@@ -360,7 +360,7 @@ class ADCMeasurement(Measurement):
                     raise RuntimeError(
                         "Broken ADC readout abort measurement (details see "
                         "log messages)")
-                self.last_readout = readout['v']
+                self.last_trace = readout['v']
                 # DEBUG stuff end
             self.last_trace = None
 
