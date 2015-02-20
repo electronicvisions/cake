@@ -94,6 +94,26 @@ class Experiment(object):
                 results[ii-1][row] = (mean[0], count, mean[ii], std[ii])
         return results
 
+    def print_parameters(self, neuron, parameters):
+        """
+        Prints the given parameters in a nice ASCII table.
+
+        Arguments:
+            parameters: iterable containing the parameters
+        Returns:
+            [str] parameters written in table form
+        """
+        t_field = "{{:>{w}}}"
+
+        data = self.get_parameters_and_results(neuron, parameters, tuple())
+        fields = [len(p.name) for p in parameters]
+        header = "|     | " + " | ".join(p.name for p in parameters) + " |"
+        lines = [header, len(header) * '-']
+        for ii, row in enumerate(data):
+            f = [t_field.format(w=3).format(ii)]
+            f.extend(t_field.format(w=w).format(v) for w, v in zip(fields, row))
+            lines.append("| " + " | ".join(f) + " |")
+        return "\n".join(lines)
 
 class SequentialExperiment(Experiment):
     """ Takes a list of measurements and analyzers.
