@@ -7,7 +7,7 @@ from pyhalbe.HICANN import neuron_parameter, shared_parameter
 import pyhalbe
 
 from pycake.helpers.sthal import StHALContainer
-from pycake.measure import ADCMeasurement
+from pycake.measure import Measurement
 
 import Coordinate as C
 
@@ -16,7 +16,7 @@ def nrn(nid):
 def blk(bid):
     return C.FGBlockOnHICANN(C.Enum(bid))
 
-class ReadoutShiftMeasurement(ADCMeasurement):
+class ReadoutShiftMeasurement(Measurement):
     """
     """
     logger = pylogging.get("pycake.ReadoutShiftMeasurement")
@@ -89,32 +89,13 @@ class ReadoutShiftMeasurement(ADCMeasurement):
 
             This will set:
                 self.traces = {neuron: trace}
+                self.spikes = {neuron: spikes} #TODO this is not yet implemented
         """
-        self.last_trace = np.array([])
-        self.adc_status = []
-        self.logger.INFO("Measuring.")
-
-        self.logger.INFO("Reading out traces")
+        self.logger.INFO("Measuring readout shifts.")
         for neuron in self.neurons:
             self.pre_measure(neuron)
-            readout = self.read_adc()
-            if not self.traces is None:
-                self.traces[neuron] = readout
-            self.V_rests[neuron] = np.mean(readout['v'])
-
-            # DEBUG stuff
-            self.adc_status.append(self.sthal.read_adc_status())
-            if np.array_equal(readout['v'], self.last_trace):
-                self.logger.ERROR(
-                    "ADC trace didn't change from the last "
-                    "readout, printing status information of all ADC "
-                    "previous readouts:\n" + "\n".join(self.adc_status))
-                raise RuntimeError(
-                    "Broken ADC readout abort measurement (details see "
-                    "log messages)")
-            self.last_readout = readout['v']
-            # DEBUG stuff end
-        self.last_trace = None
+            times, trace = self.sthal.read_adc()
+            self.V_rests[neuron] = np.mean(trace)
 
     def get_neuron_block(self, block_id, size):
         if block_id * size > 512:
@@ -142,7 +123,7 @@ class ReadoutShiftMeasurement(ADCMeasurement):
         """ First configure, then measure
         """
         self.logger.INFO("Connecting to hardware and configuring.")
-        self.configure(None)
+        self.configure()
         self._measure()
         self.logger.INFO("Measurement done, disconnecting from hardware.")
         self.finish()
