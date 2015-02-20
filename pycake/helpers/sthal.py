@@ -9,8 +9,10 @@ import pysthal
 import pylogging
 import Coordinate
 from pyhalbe import HICANN
-from Coordinate import Enum, X
+from Coordinate import Enum, X, Y
 from Coordinate import NeuronOnHICANN
+from Coordinate import BackgroundGeneratorOnHICANN
+from Coordinate import SynapseDriverOnHICANN
 from Coordinate import GbitLinkOnHICANN
 from sims.sim_denmem_lib import NETS_AND_PINS
 from sims.sim_denmem_lib import TBParameters
@@ -270,8 +272,38 @@ class StHALContainer(object):
         self.hicann.enable_aout(coord_neuron, self.coord_analog)
         self.write_config(configurator=UpdateAnalogOutputConfigurator())
 
-    def set_input_spikes(self, spike_dict):
-        self.input_spikes = spike_dict
+    def send_spikes_to_all_neurons(self, spike_times, excitatory=True, locking_freq=0.05e6):
+        """Stimulates all neurons with the given spike train"""
+        assert(locking_freq <= 5.0e6)
+
+        self.hicann.clear_complete_l1_routing()
+
+        stim_l1address = pyhalbe.HICANN.L1Address(63)
+        lock_l1address = pyhalbe.HICANN.L1Address(0)
+        top = (GbitLinkOnHICANN(1), SynapseDriverOnHICANN(Enum(99)))
+        bottom = (GbitLinkOnHICANN(0), SynapseDriverOnHICANN(Enum(126)))
+
+        spikes = pysthal.Vector_Spike([
+            pysthal.Spike(stim_l1address, t) for t in spike_times])
+
+        PLL = self.getPLL()
+        bg_period = int(math.floor(PLL/locking_freq) - 1)
+        for link, driver in (top, bottom):
+            bg = BackgroundGeneratorOnHICANN(int(link))
+
+            generator = self.hicann.layer1[bg]
+            generator.enable(True)
+            generator.random(False)
+            generator.period(bg_period)
+            generator.address(lock_l1address)
+            self.logger.DEBUG("activate {!s} with period {}".format(bg, bg_period))
+
+            self.hicann.route(link.toOutputBufferOnHICANN(), driver)
+            self.enable_synapse_line(driver, stim_l1address, excitatory)
+
+            self.hicann.layer1[link] = HICANN.GbitLink.TO_HICANN
+
+            self.hicann.sendSpikes(link, spikes)
 
     def read_adc(self):
         """Run experiment, read out ADC.
@@ -297,7 +329,7 @@ class StHALContainer(object):
                 self._sendSpikes(self.input_spikes)
                 runtime = self.adc.getRecordingTime() + 1.e-5
                 runner = pysthal.ExperimentRunner(runtime)
-                self.wafer.start(runner)
+                self.wafer.restart(runner) # Clears received spikes
                 self.adc.record()  # TODO triggered
                 recv_spikes = {}
                 for link in Coordinate.iter_all(GbitLinkOnHICANN):
@@ -311,31 +343,6 @@ class StHALContainer(object):
                 self.connect_adc()
         raise RuntimeError("Aborting ADC readout, maximum number of retries exceded")
 
-    def _sendSpikes(self, spike_dict):
-        """Iterate over spike dict and call StHAL's sendSpikes"""
-        self.wafer.clearSpikes()
-        l1_link = self.hicann.layer1.getGbitLink()
-
-        for gbitlink in spike_dict:
-            if type(gbitlink) is not GbitLinkOnHICANN:
-                raise TypeError
-            l1_link[gbitlink] = l1_link.TO_HICANN
-            spikes = spike_dict[gbitlink]
-
-            # convert nested dict to Vector_Spike
-            if type(spikes) is dict:
-                vspikes = pysthal.Vector_Spike()
-                for l1addr in spikes:
-                    for timestamp in spikes[l1addr]:
-                        vspikes.append(pysthal.Spike(l1addr, timestamp))
-                spikes = vspikes
-
-            if type(spikes) is not pysthal.Vector_Spike:
-                raise TypeError
-
-            self.hicann.sendSpikes(gbitlink, spikes)
-
-        self.hicann.layer1.setGbitLink(l1_link)
 
     def read_adc_status(self):
         if not self._connected:
