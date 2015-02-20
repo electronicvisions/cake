@@ -619,7 +619,8 @@ class SimStHALContainer(StHALContainer):
 
     def disconnect(self):
         """Free handles."""
-        pass
+        for k in self.recorded_traces.keys():
+            self.recorded_traces[k] = None
 
     def write_config(self, program_floating_gates=True, configurator=None):
         """Write full configuration."""
@@ -636,12 +637,14 @@ class SimStHALContainer(StHALContainer):
         param = self.build_TBParameters(self.current_neuron)
         json = param.to_json()
         key = (self.current_neuron, json)
-        if key not in self.recorded_traces:
+        # After finishing the simulation the recorded traces are set to None
+        # in order to preserve memory and diskspace.
+        # They will be stored by the Measurement class, if save_traces is set
+        if self.recorded_traces.get(key, None) is None:
             self.run_simulation(self.current_neuron, param)
         return self.recorded_traces[key]
 
     def read_adc_and_spikes(self):
-        self._sendSpikes(self.input_spikes)
         return self.read_adc()
 
     def get_simulation_neurons(self, neuron):
