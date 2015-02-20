@@ -272,7 +272,8 @@ class StHALContainer(object):
         self.hicann.enable_aout(coord_neuron, self.coord_analog)
         self.write_config(configurator=UpdateAnalogOutputConfigurator())
 
-    def send_spikes_to_all_neurons(self, spike_times, excitatory=True, locking_freq=0.05e6):
+    def send_spikes_to_all_neurons(self, spike_times, excitatory=True,
+                                   gmax_div=2, locking_freq=0.05e6):
         """Stimulates all neurons with the given spike train"""
         assert(locking_freq <= 5.0e6)
 
@@ -299,7 +300,8 @@ class StHALContainer(object):
             self.logger.DEBUG("activate {!s} with period {}".format(bg, bg_period))
 
             self.hicann.route(link.toOutputBufferOnHICANN(), driver)
-            self.enable_synapse_line(driver, stim_l1address, excitatory)
+            self.enable_synapse_line(
+                driver, stim_l1address, gmax_div, excitatory)
 
             self.hicann.layer1[link] = HICANN.GbitLink.TO_HICANN
 
@@ -417,38 +419,45 @@ class StHALContainer(object):
                 self.disable_synapse_line(drv_bottom)
         return links
 
-    def enable_synapse_line(self, driver_c, l1address, excitatory=True):
+    def configure_synapse_driver(self, driver_c, l1address, gmax_div, gmax=0):
         """
-        """
+        Configures top row of the synapse driver to give exitatory input and
+        bottom row to give inhibitory input
 
-        left = Coordinate.left
-        right = Coordinate.right
-        top = Coordinate.top
-        bottom = Coordinate.bottom
+        Arguments:
+            driver_c: [SynapseDriverOnHICANN] driver to configure
+            address: [HICANN.L1Address] l1 address of spikes
+            gmax_div: Gmax divider in range 2..30
+            gmax: gmax fg value to use, default 0
+        """
+        assert(2 < gmax_div < 30)
+
+        from Coordinate import left, right, top, bottom
 
         driver = self.hicann.synapses[driver_c]
         driver_decoder = l1address.getDriverDecoderMask()
         driver.set_l1()
         driver[top].set_decoder(top, driver_decoder)
         driver[top].set_decoder(bottom, driver_decoder)
-
-        # set weight divider
-        driver[top].set_gmax_div(left, 1)
-        driver[top].set_gmax_div(right, 1)
-
-        # set left in (??)
-        driver[top].set_syn_in(left, 1)  # Esynx
-        driver[top].set_syn_in(right, 0)  # Esyni, perhaps
-
-        # choose synaptic weight floating gate (V_gmax0,1,2,3)
-        driver[top].set_gmax(0)
+        driver[top].set_gmax(gmax)
+        driver[top].set_gmax_div(left, gmax_div / 2)
+        driver[top].set_gmax_div(left, gmax_div / 2 + gmax_div % 2)
 
         # copy config above
         driver[bottom] = driver[top]
 
-        # set right in
+        # Configure top to exictatory inputs and bottom to inhibitory
+        driver[top].set_syn_in(left, 1)  # Esynx
+        driver[top].set_syn_in(right, 0)  # Esyni, perhaps
         driver[bottom].set_syn_in(left, 0)
         driver[bottom].set_syn_in(right, 1)
+
+    def enable_synapse_line(self, driver_c, l1address, gmax_div=2, excitatory=True):
+        """
+        """
+        from Coordinate import top, bottom
+
+        self.configure_synapse_driver(driver_c, l1address, gmax_div, 0)
 
         if excitatory:
             w_top = [pyhalbe.HICANN.SynapseWeight(15)] * 256
@@ -664,7 +673,8 @@ class SimStHALContainer(StHALContainer):
     def build_TBParameters(self, neuron):
         """Returns the serialized TBParameters for self.current_neuron"""
         left, right = self.get_simulation_neurons(neuron)
-        param = TBParameters.from_sthal(self.wafer, self.coord_hicann, left)
+        param = TBParameters.from_sthal(self.wafer, self.coord_hicann, left,
+                                        self.simulation_init_time)
         param.simulator_settings.simulation_time = self.recording_time
         param.simulator_settings.nets_to_save = NETS_AND_PINS.ALL
         param.simulator_settings.hicann_version = self.hicann_version

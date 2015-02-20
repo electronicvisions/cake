@@ -281,12 +281,13 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
         self.init_time = 300.0e-6
         self.recording_time = 60e-6
         self.spikes = numpy.array([20e-6])
+        self.gmax_div = 30
 
     def prepare_specific_config(self, sthal):
         sthal.simulation_init_time = self.init_time
         sthal.set_recording_time(self.recording_time, 1)
         sthal.send_spikes_to_all_neurons(
-            self.spikes + self.init_time, excitatory=self.EXCITATORY)
+            self.spikes, excitatory=self.EXCITATORY, gmax_div=self.gmax_div)
         return sthal
 
     def make_measurement(self, sthal, neurons, readout_shifts):
