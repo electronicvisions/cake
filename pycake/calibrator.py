@@ -1,12 +1,14 @@
 """Manages experiments
 
 """
+import numpy
 import numpy as np
 import pylogging
 from collections import defaultdict
 import pyhalbe
 import Coordinate
 from pycake.helpers.trafos import HWtoDAC
+from pycake.helpers.units import DAC
 
 
 # shorter names
@@ -200,7 +202,12 @@ class V_reset_Calibrator(BaseCalibrator):
         return np.polyfit(xs, ys, 1)
 
     def generate_coeffs(self):
-        """ Takes averaged experiments and does the fits
+        """
+        Default fiting method.
+
+        Returns:
+            List of tuples, each containing the neuron parameter and a
+            dictionary containing polynomial fit coefficients for each neuron
         """
         neuron_results = dict(x for x in self.iter_neuron_results())
         block_means = self.mean_over_blocks(neuron_results)
@@ -279,7 +286,7 @@ class V_syntc_psp_max_BaseCalibrator(BaseCalibrator):
     # to be set in derived class
     target_parameter = None
 
-    def __init__(self, experiment, config):
+    def __init__(self, experiment, config=None):
         self.experiment = experiment
         self.neurons = self.experiment.measurements[0].neurons
 
@@ -334,6 +341,66 @@ class V_syntci_psp_max_Calibrator(V_syntc_psp_max_BaseCalibrator):
 
 class V_syntcx_psp_max_Calibrator(V_syntc_psp_max_BaseCalibrator):
     target_parameter = neuron_parameter.V_syntcx
+
+
+class V_convoff_Calibrator(BaseCalibrator):
+    target_parameter = None
+
+    def __init__(self, experiment, config=None):
+        self.experiment = experiment
+
+    def get_neurons(self):
+        return self.experiment.measurements[0].neurons
+
+    def generate_coeffs(self):
+        """
+        Default fiting method.
+
+        Returns:
+            List of tuples, each containing the neuron parameter and a
+            dictionary containing polynomial fit coefficients for each neuron
+        """
+        coeffs = dict((n, self.find_v_convoff(n)) for n in self.get_neurons())
+        return [(self.target_parameter, coeffs)]
+
+    @staticmethod
+    def normalize(x):
+        a, b = numpy.min(x), numpy.max(x)
+        return (x - a) / (b - a)
+
+    def find_v_convoff(self, neuron):
+        parameters = (self.target_parameter, neuron_parameter.E_synx)
+        data = self.experiment.get_parameters_and_results(
+                neuron, parameters, ('psp_area', 'baseline'))
+        V_convoff, E_synx, area, baseline = data.T
+
+        # normalize area by distance to reversal potential
+        area = area / (E_synx / 1023 * 1.8 - baseline)
+
+        area_n = self.normalize(area) - 1.0
+        baseline_n = self.normalize(baseline)
+        d = baseline_n - area_n
+        w = numpy.max([(-area_n)/(baseline_n - area_n),
+                       (baseline_n)/(baseline_n - area_n)], axis=0)
+
+        # Polynomial 5th degree
+        f = numpy.poly1d(numpy.polyfit(V_convoff, area_n + baseline_n, 5, w=w))
+
+        # Filter real solutions in input range
+        r = f.roots[numpy.isreal(f.roots)]
+        r = r[(V_convoff[0] < r) & (r < V_convoff[-1])]
+        return r.real
+
+    def debug_plot(self, neuron):
+        pass
+
+
+class V_convoffx_Calibrator(V_convoff_Calibrator):
+    target_parameter = neuron_parameter.V_convoffx
+
+
+class V_convoffx_Calibrator(V_convoff_Calibrator):
+    target_parameter = neuron_parameter.V_convoffx
 
 
 class I_pl_Calibrator(BaseCalibrator):

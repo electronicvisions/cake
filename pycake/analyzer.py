@@ -5,9 +5,11 @@ import pylab
 import pylogging
 import scipy.signal
 from scipy.optimize import curve_fit
+from scipy.integrate import simps
 from pycake.helpers.peakdetect import peakdet
 from pycake.logic.spikes import spikes_to_frequency
 
+from sims.sim_denmem_lib import NETS_AND_PINS
 
 class Analyzer(object):
     """ Takes a measurement and analyses it.
@@ -202,6 +204,50 @@ class PeakAnalyzer(Analyzer):
             #-------------------------------------------------------------------
 
             return baseline, delta_t
+
+
+class V_convoff_Analyzer(Analyzer):
+    """
+    Averaging analyzser
+    """
+    NET_SYN_OTA_OUTPUT = ""
+    NET_SYN_CURRENT = ""
+
+    def __init__(self, spiketimes):
+        self.spiketimes = spiketimes
+
+    def __call__(self, neuron, t, v, **traces):
+        t0 = t.searchsorted(0.9 * self.spiketimes[0])
+        baseline = np.mean(v[:t0])
+        baseline_std = np.std(v[:t0])
+        area = simps(v - baseline, t)
+
+        result = {
+            "t0": t0,
+            "stim_spikes": self.spiketimes,
+            "baseline": baseline,
+            "baseline_std": baseline_std,
+            "psp_area": area
+        }
+
+        ota_current = traces.get(self.NET_SYN_OTA_OUTPUT, None)
+        if ota_current is not None:
+            result["ota_resting_current"] = np.mean(ota_current[:t0])
+        syn_current = traces.get(self.NET_SYN_CURRENT, None)
+        if syn_current is not None:
+            result["syn_resting_current"] = np.mean(syn_current[:t0])
+
+        return result
+
+
+class V_convoffi_Analyzer(V_convoff_Analyzer):
+    NET_SYN_OTA_OUTPUT = NETS_AND_PINS.I_syni_ota_output
+    NET_SYN_CURRENT = NETS_AND_PINS.I_membrane_syni
+
+
+class V_convoffx_Analyzer(V_convoff_Analyzer):
+    NET_SYN_OTA_OUTPUT = NETS_AND_PINS.I_synx_ota_output
+    NET_SYN_CURRENT = NETS_AND_PINS.I_membrane_synx
 
 
 class V_reset_Analyzer(PeakAnalyzer):

@@ -1,6 +1,8 @@
 """Simulation parameters for lib_denem_simulations"""
 
 import os
+import numpy
+from itertools import product
 from Coordinate import Enum
 from Coordinate import FGBlockOnHICANN
 from Coordinate import HICANNOnWafer
@@ -9,22 +11,31 @@ from Coordinate import Wafer
 from pycake.helpers.units import Current
 from pycake.helpers.units import DAC
 from pycake.helpers.units import Voltage
+from pycake.helpers.units import linspace_current
 from pycake.helpers.units import linspace_voltage
 from pyhalbe.HICANN import neuron_parameter
 from pyhalbe.HICANN import shared_parameter
 
-folder = "/tmp"
+def pproduct(paramters, ranges):
+    return [dict(zip(paramters, step)) for step in product(*ranges)]
+
+MC = False
+if MC:
+    folder = "/wang/users/koke/cluster_home/calibration/sim_denmem_calib_mc2"
+    MC_SEED = 24011985
+    NEURONS = [NeuronOnHICANN(Enum(i)) for i in range(64)]
+    BLOCKS = [FGBlockOnHICANN(Enum(i)) for i in range(2)]
+else:
+    folder = "/wang/users/koke/cluster_home/calibration/sim_denmem_calib"
+    MC_SEED = None
+    NEURONS = [NeuronOnHICANN(Enum(i)) for i in range(2)]
+    BLOCKS = [FGBlockOnHICANN(Enum(i)) for i in range(2)]
+
 
 # target resting potential
-E_l_target = 700
-
-# synaptic reversal potentials are symmetric around
-# target resting potential
-E_syn_distance = 100
-
-E_syni_target = E_l_target - E_syn_distance
-E_synx_target = E_l_target + E_syn_distance
-
+E_l_target = 900
+E_synx_target = E_l_target + 300
+E_syni_target = E_l_target - 300
 
 parameters = {
     # host and port of your simulator server
@@ -33,10 +44,10 @@ parameters = {
     # Cache folder, please use with care, changes on server side (e.g. switching
     # HICANN version, or pull) are not detected. Use None to deactivate,
     # folder must exist
-    "sim_denmem_cache": None,
+    "sim_denmem_cache": "/fastnbig/home/koke/sim_denmem_cache/",
 
     # Use this seed for Monte Carlo simulations of neurons, None disables MC
-    "sim_denmem_mc_seed" : None,
+    "sim_denmem_mc_seed" : MC_SEED,
 
     "coord_wafer": Wafer(0),  # required, determines MC seed
     "coord_hicann": HICANNOnWafer(Enum(0)),  # required, determines MC seed
@@ -44,20 +55,23 @@ parameters = {
     # HICANN version to use
     "hicann_version" : 4,
 
+    "filename_prefix" : "base",
+
     "parameter_order": [
         shared_parameter.V_reset.name,
         neuron_parameter.V_t.name,
         neuron_parameter.E_syni.name,
         neuron_parameter.E_synx.name,
-        "I_pl_short",
+        neuron_parameter.V_convoffx.name,
+        neuron_parameter.V_convoffi.name,
+#        "I_pl_short",
     ],
 
     "folder":       folder,
     "backend_c":    os.path.join(folder, "backends"),
-    "backend_r":    os.path.join(folder, "backends"),
 
-    "neurons": [NeuronOnHICANN(Enum(i)) for i in range(2)],
-    "blocks":  [FGBlockOnHICANN(Enum(i)) for i in range(2)],
+    "neurons": NEURONS,
+    "blocks":  BLOCKS,
     "repetitions": 1,
     "save_traces": True,
 
@@ -72,10 +86,24 @@ parameters = {
     "clear":        True,
 
     # Set the ranges within which you want to calibrate
-    "V_reset_range": [{shared_parameter.V_reset : v} for v in linspace_voltage(600, 800, 5)],
-    "E_syni_range": [{neuron_parameter.E_syni : v} for v in linspace_voltage(550, 850, 5)],
-    "E_synx_range": [{neuron_parameter.E_synx : v} for v in linspace_voltage(650, 950, 5)],
-    "V_t_range": [{neuron_parameter.V_t : v} for v in linspace_voltage(600, 900, 4)],
+    "V_reset_range": [{shared_parameter.V_reset : Voltage(v),
+                       neuron_parameter.E_l : Voltage(v + 400),
+                       neuron_parameter.V_t : Voltage(v + 200)}
+                      for v in numpy.linspace(500, 900, 5)],
+    "V_t_range": [{shared_parameter.V_reset : Voltage(v-200),
+                   neuron_parameter.E_l : Voltage(v + 200),
+                   neuron_parameter.V_t : Voltage(v)}
+                  for v in numpy.linspace(700, 1100, 5)],
+    "E_syni_range": [{neuron_parameter.E_syni : v, neuron_parameter.E_l : v}
+                     for v in linspace_voltage(400, 800, 5)],
+    "E_synx_range": [{neuron_parameter.E_synx : v, neuron_parameter.E_l : v}
+                     for v in linspace_voltage(1000, 1400, 5)],
+    "V_convoffx_range": [{neuron_parameter.V_convoffx : v}
+                         for v in linspace_voltage(400, 1600, 20)],
+    "V_convoffi_range": [{neuron_parameter.V_convoffi : v}
+                         for v in linspace_voltage(400, 1600, 20)],
+
+    # "V_convoffx_range": [{neuron_parameter.V_convoffx : v} for v in linspace_voltage(300, 1500, 3)],
     "I_pl_short_range": [{neuron_parameter.I_pl : Current(v)} for v in [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 500, 1000, 1500, 2500]],
 
     # HICANN PLL
@@ -88,6 +116,8 @@ parameters = {
         neuron_parameter.E_syni: Voltage(700),     # synapse
         neuron_parameter.E_synx: Voltage(1100),    # synapse
         neuron_parameter.I_bexp: Current(2500),    # turn off exp by setting this to 2500 and see I_rexp and V_bexp
+        neuron_parameter.V_convoffi: Voltage(1000), # Correction shift of internal synaptic integrator voltage
+        neuron_parameter.V_convoffx: Voltage(1000), # Correction shift of internal synaptic integrator voltage
         neuron_parameter.I_convi: Current(2500),   # bias current for synaptic input
         neuron_parameter.I_convx: Current(2500),   # bias current for synaptic input
         neuron_parameter.I_fire: Current(0),       # adaptation term b
@@ -131,39 +161,70 @@ parameters = {
     },
 
     "V_reset_parameters":  {
-        neuron_parameter.E_l:    Voltage(1400),
         neuron_parameter.I_convi: Current(0),
         neuron_parameter.I_convx: Current(0),
         neuron_parameter.I_gl:   Current(1100),
         neuron_parameter.I_pl:  Current(20),
-        neuron_parameter.V_t:    Voltage(900),
+        neuron_parameter.V_convoffi: Voltage(1800),
+        neuron_parameter.V_convoffx: Voltage(1800),
     },
 
     "V_t_parameters": {
-        neuron_parameter.E_l:        Voltage(1200),
         neuron_parameter.I_convi: Current(0),
         neuron_parameter.I_convx: Current(0),
         neuron_parameter.I_gl:       Current(1500),
-        shared_parameter.V_reset:    Voltage(400),
+        neuron_parameter.V_convoffi: Voltage(1800),
+        neuron_parameter.V_convoffx: Voltage(1800),
     },
 
     "E_syni_parameters": {
+        # 35 nA is the actual lowest curren value
         neuron_parameter.I_convi: Current(2500),
-        neuron_parameter.I_convx: Current(0),
-        neuron_parameter.I_gl: Current(0),  # I_gl and I_convx MUST be set to 0
+        neuron_parameter.I_convx: Current(35),
+        neuron_parameter.I_gl: Current(35),
+        neuron_parameter.V_convoffi: Voltage(300),
+        neuron_parameter.V_convoffx: Voltage(1800),
         neuron_parameter.V_t: Voltage(1200),
-        shared_parameter.V_reset:  Voltage(200),
+        shared_parameter.V_reset:  Voltage(900),
     },
 
     "E_synx_parameters": {
-        neuron_parameter.I_convi: Current(0),
+        # I_gl and I_convi MUST be set to min. realistic fg value
+        neuron_parameter.I_convi: Current(35),
         neuron_parameter.I_convx: Current(2500),
-        neuron_parameter.I_gl: Current(0),  # I_gl and I_convi MUST be set to 0
+        neuron_parameter.I_gl: Current(35),
+        neuron_parameter.V_convoffi: Voltage(1800),
+        neuron_parameter.V_convoffx: Voltage(300),
         neuron_parameter.V_t: Voltage(1200),
-        shared_parameter.V_reset:  Voltage(200),
-        #neuron_parameter.V_syntcx: Voltage(1440, apply_calibration=True), # dummy
-        #neuron_parameter.V_syntci: Voltage(1440, apply_calibration=True), # dummy
+        shared_parameter.V_reset:  Voltage(900),
     },
+
+    "V_convoffx_parameters": {
+        # Minimum DAC value is ~30nA
+        neuron_parameter.E_synx: Voltage(1100),
+        neuron_parameter.E_l: Voltage(900),
+        neuron_parameter.I_convi: Current(30),
+        neuron_parameter.I_convx: Current(2500),
+        neuron_parameter.I_gl: Current(1000),
+        neuron_parameter.V_convoffi: Voltage(1800),
+        shared_parameter.V_gmax0: Current(2000), # * max. synaptic weight
+        neuron_parameter.V_t: Voltage(1400),
+        shared_parameter.V_reset: Voltage(900), # Also initial membrane voltage in simulation
+    },
+
+    "V_convoffi_parameters": {
+        # Minimum DAC value is ~30nA
+        neuron_parameter.E_syni: Voltage(700),
+        neuron_parameter.E_l: Voltage(900),
+        neuron_parameter.I_convi: Current(2500),
+        neuron_parameter.I_convx: Current(30),
+        neuron_parameter.I_gl: Current(1000),
+        neuron_parameter.V_convoffx: Voltage(1800),
+        shared_parameter.V_gmax0: Current(2000), # * max. synaptic weight
+        neuron_parameter.V_t: Voltage(1400),
+        shared_parameter.V_reset: Voltage(900), # Also initial membrane voltage in simulation
+    },
+
 
     "I_pl_short_parameters": {
         neuron_parameter.E_l: Voltage(1200),

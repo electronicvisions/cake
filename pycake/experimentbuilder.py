@@ -4,6 +4,7 @@ import pyhalbe
 import pysthal
 import copy
 from itertools import product
+import numpy
 
 from pycake.helpers.sthal import StHALContainer
 from pycake.helpers.sthal import SimStHALContainer
@@ -220,11 +221,19 @@ class V_reset_Experimentbuilder(BaseExperimentBuilder):
         "get analyzer"
         return pycake.analyzer.V_reset_Analyzer()
 
+    def prepare_specific_config(self, sthal):
+        sthal.set_recording_time(25.0e-6, 4)
+        return sthal
+
 
 class V_t_Experimentbuilder(BaseExperimentBuilder):
     def get_analyzer(self):
         "get analyzer"
         return pycake.analyzer.V_t_Analyzer()
+
+    def prepare_specific_config(self, sthal):
+        sthal.set_recording_time(25.0e-6, 4)
+        return sthal
 
 
 class I_pl_short_Experimentbuilder(BaseExperimentBuilder):
@@ -247,16 +256,55 @@ class I_pl_Experimentbuilder(I_pl_short_Experimentbuilder):
         return sthal
 
 
-class E_syni_Experimentbuilder(BaseExperimentBuilder):
-    def prepare_specific_config(self, sthal):
-        sthal.stimulateNeurons(5.0e6, 1, excitatory=False)
-        return sthal
-
-
 class E_synx_Experimentbuilder(BaseExperimentBuilder):
     def prepare_specific_config(self, sthal):
-        sthal.stimulateNeurons(5.0e6, 1, excitatory=True)
+        sthal.simulation_init_time = 100.0e-6
+        sthal.set_recording_time(10e-6, 10)
+        # sthal.stimulateNeurons(5.0e6, 1, excitatory=True)
         return sthal
+
+
+class E_syni_Experimentbuilder(BaseExperimentBuilder):
+    def prepare_specific_config(self, sthal):
+        sthal.simulation_init_time = 100.0e-6
+        sthal.set_recording_time(10e-6, 10)
+        # sthal.stimulateNeurons(5.0e6, 1, excitatory=False)
+        return sthal
+
+
+class V_convoff_Experimentbuilder(BaseExperimentBuilder):
+    EXCITATORY = None
+    ANALYZER = None
+
+    def __init__(self, *args, **kwargs):
+        super(V_convoff_Experimentbuilder, self).__init__(*args, **kwargs)
+        self.init_time = 300.0e-6
+        self.recording_time = 60e-6
+        self.spikes = numpy.array([20e-6])
+
+    def prepare_specific_config(self, sthal):
+        sthal.simulation_init_time = self.init_time
+        sthal.set_recording_time(self.recording_time, 1)
+        sthal.send_spikes_to_all_neurons(
+            self.spikes + self.init_time, excitatory=self.EXCITATORY)
+        return sthal
+
+    def make_measurement(self, sthal, neurons, readout_shifts):
+        return ADCMeasurementWithSpikes(sthal, neurons, readout_shifts)
+
+    def get_analyzer(self):
+        "get analyzer"
+        return self.ANALYZER(self.spikes)
+
+
+class V_convoffi_Experimentbuilder(V_convoff_Experimentbuilder):
+    EXCITATORY = False
+    ANALYZER = pycake.analyzer.V_convoffi_Analyzer
+
+
+class V_convoffx_Experimentbuilder(V_convoff_Experimentbuilder):
+    EXCITATORY = True
+    ANALYZER = pycake.analyzer.V_convoffx_Analyzer
 
 
 class I_gl_Experimentbuilder(BaseExperimentBuilder):
