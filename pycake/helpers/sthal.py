@@ -440,8 +440,11 @@ class StHALContainer(object):
         driver[top].set_decoder(top, driver_decoder)
         driver[top].set_decoder(bottom, driver_decoder)
         driver[top].set_gmax(gmax)
+        # There are to parallel circuits for the divisor in the synapse
+        # driver (left, right), the sum of both divisor values gives the
+        # actual divisor value applied to vgmax
         driver[top].set_gmax_div(left, gmax_div / 2)
-        driver[top].set_gmax_div(left, gmax_div / 2 + gmax_div % 2)
+        driver[top].set_gmax_div(right, gmax_div / 2 + gmax_div % 2)
 
         # copy config above
         driver[bottom] = driver[top]
