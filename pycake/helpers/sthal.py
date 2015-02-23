@@ -412,8 +412,8 @@ class StHALContainer(object):
             if ii < no_generators:
                 self.route(bg_top, drv_top)
                 self.route(bg_bottom, drv_bottom)
-                self.enable_synapse_line(drv_top, l1address, excitatory)
-                self.enable_synapse_line(drv_bottom, l1address, excitatory)
+                self.enable_synapse_line(drv_top, l1address, 2, excitatory)
+                self.enable_synapse_line(drv_bottom, l1address, 2, excitatory)
             else:
                 self.disable_synapse_line(drv_top)
                 self.disable_synapse_line(drv_bottom)
@@ -430,7 +430,7 @@ class StHALContainer(object):
             gmax_div: Gmax divider in range 2..30
             gmax: gmax fg value to use, default 0
         """
-        assert(2 < gmax_div < 30)
+        assert(2 <= gmax_div <= 30)
 
         from Coordinate import left, right, top, bottom
 
