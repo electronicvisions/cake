@@ -156,7 +156,9 @@ class Calibtic(object):
                 collection = self.nc
                 cal = pycalibtic.NeuronCalibration()
 
-            if parameter is "readout_shift":
+            # If parameter is V_reset, BUT coordinate is not a block, it is assumed that you want to store readout shifts
+            # Readout shifts are stored as parameter
+            if parameter is shared_parameter.V_reset and isinstance(coord, Coordinate.NeuronOnHICANN):
                 param_id = pycalibtic.NeuronCalibration.VResetShift
             else:
                 param_id = parameter
