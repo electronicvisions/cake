@@ -16,6 +16,7 @@ from pycake.measure import SpikeMeasurement
 from pycake.measure import I_gl_Measurement
 from pycake.experiment import SequentialExperiment
 import pycake.analyzer
+from pycake.helpers.units import Unit
 
 # shorter names
 Enum = Coordinate.Enum
@@ -75,11 +76,13 @@ class BaseExperimentBuilder(object):
             if self.test:
                 step = step.copy()
                 for value in step.itervalues():
-                    value.apply_calibration = True
+                    if isinstance(value, Unit):
+                        value.apply_calibration = True
 
             step_parameters = self.get_step_parameters(step)
 
             if not wafer_cfg:
+                self.prepare_hicann(sthal.hicann, step_parameters)
                 sthal.hicann.floating_gates = self.prepare_parameters(step_parameters)
             sthal = self.prepare_specific_config(sthal)
 
@@ -93,8 +96,25 @@ class BaseExperimentBuilder(object):
         """
         return self.config.get_step_parameters(step)
 
+    def prepare_hicann(self, hicann, parameters):
+        """Write HICANN configuration from parameters
+        to sthal.hicann."""
+
+        speedup_gl = parameters.get("speedup_gl", None)
+        if speedup_gl is not None:
+            hicann.set_speed_up_gl(speedup_gl)
+
+        speedup_gladapt = parameters.get("speedup_gladapt", None)
+        if speedup_gladapt is not None:
+            hicann.set_speed_up_gladapt(speedup_gladapt)
+
+        speedup_radapt = parameters.get("speedup_radapt", None)
+        if speedup_radapt is not None:
+            hicann.set_speed_up_radapt(speedup_radapt)
+
     def prepare_parameters(self, parameters):
-        """ Writes parameters into a sthal container.
+        """ Writes floating gate parameters into a
+        sthal FloatingGates container.
             This includes calibration and transformation from mV or nA to DAC values.
 
         Returns:
@@ -105,7 +125,8 @@ class BaseExperimentBuilder(object):
         for neuron in self.neurons:
             neuron_params = copy.deepcopy(parameters)
             for param, value in neuron_params.iteritems():
-                if isinstance(param, shared_parameter) or param.name[0] == '_':
+                if (not isinstance(param, neuron_parameter)) or param.name[0] == '_':
+                    # e.g. __last_neuron
                     continue
 
                 value_dac = value.toDAC()
@@ -120,7 +141,8 @@ class BaseExperimentBuilder(object):
         for block in self.blocks:
             block_parameters = copy.deepcopy(parameters)
             for param, value in block_parameters.iteritems():
-                if isinstance(param, neuron_parameter) or param.name[0] == '_':
+                if (not isinstance(param, shared_parameter)) or param.name[0] == '_':
+                    # e.g. __last_*
                     continue
                 # Check if parameter exists for this block
                 even = block.id().value() % 2
