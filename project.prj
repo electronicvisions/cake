@@ -24,7 +24,7 @@ startup()   // list basic information about the project being created
 
 custom_buildshell = """\
 # workaround for "module: command not found"
-source /afs/kip.uni-heidelberg.de/projects/vision/definst_software/shrc
+source /opt/modules/install/Modules/current/init/sh
 
 module load numpy/1.8.0
 module load pyfftw
@@ -32,17 +32,13 @@ module load pynn
 
 ./waf configure --test-timeout=360 --test-xml-summary=test_results
 ./waf install --test-exec pycake_tests
-"""
 
-custom_covshell = """\
-# workaround for "module: command not found"
-source /afs/kip.uni-heidelberg.de/projects/vision/definst_software/shrc
-
-module load pynn
-
-./waf configure
-./waf install --test-execnone
-(cd cake/ && python check-coverage.py)
+# Coverage needs to be included in waflib/extras/pytest.py
+# instead of calling it here.
+(cd cake/ && \
+ LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:../lib PYTHONPATH=\$PYTHONPATH:../lib \
+ python check-coverage.py \
+)
 """
 
 sw = SoftwareJob([
@@ -65,12 +61,7 @@ sw = SoftwareJob([
     distribution : false, // create artifacts for lib and bin folder
     
     queue       : false,    // if the job should be queued after the generator
-])
-
-cov = CoverageJob([
-    enabled : false,
-    buildshell : custom_covshell,
-    //artifacts : [ "cake/htmlcov/" ],  // not supported by CoverageJob
+    htmldir     : "cake/htmlcov/",
 ])
 
 doc = DocumentationJob(
