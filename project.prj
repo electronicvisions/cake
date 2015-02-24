@@ -36,6 +36,7 @@ module load pynn
 # Coverage needs to be included in waflib/extras/pytest.py
 # instead of calling it here.
 (cd cake/ && \
+ rm -rf htmlcov/ && \
  LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:../lib PYTHONPATH=\$PYTHONPATH:../lib \
  python check-coverage.py \
 )
@@ -61,8 +62,15 @@ sw = SoftwareJob([
     distribution : false, // create artifacts for lib and bin folder
     
     queue       : false,    // if the job should be queued after the generator
-    htmldir     : "cake/htmlcov/",
 ])
+
+sw.with {
+    publishers {
+        publishHtml {
+            report("cake/htmlcov/", "Coverage Report")
+        }
+    }
+}
 
 doc = DocumentationJob(
     docshell  : "cd cake/doc; make",
