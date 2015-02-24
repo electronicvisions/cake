@@ -37,7 +37,7 @@ module load pynn
 # instead of calling it here.
 (cd cake/ && \
  rm -rf htmlcov/ && \
- LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:../lib PYTHONPATH=\$PYTHONPATH:../lib \
+ LD_LIBRARY_PATH=\\$LD_LIBRARY_PATH:../lib PYTHONPATH=\\$PYTHONPATH:../lib \
  python check-coverage.py \
 )
 """
