@@ -165,6 +165,12 @@ class Measurement(object):
 
 
 class SpikeMeasurement(Measurement):
+
+    def __init__(self, sthal, neurons, readout_shifts=None):
+        super(SpikeMeasurement, self).__init__(sthal, neurons)
+
+        self.spikes = {}
+
     def get_spikes(self, nbs):
         """
 
