@@ -282,7 +282,7 @@ class E_synx_Experimentbuilder(BaseExperimentBuilder):
     def prepare_specific_config(self, sthal):
         sthal.simulation_init_time = 100.0e-6
         sthal.set_recording_time(10e-6, 10)
-        # sthal.stimulateNeurons(5.0e6, 1, excitatory=True)
+        sthal.stimulateNeurons(5.0e6, 1, excitatory=True)
         return sthal
 
 
@@ -290,7 +290,7 @@ class E_syni_Experimentbuilder(BaseExperimentBuilder):
     def prepare_specific_config(self, sthal):
         sthal.simulation_init_time = 100.0e-6
         sthal.set_recording_time(10e-6, 10)
-        # sthal.stimulateNeurons(5.0e6, 1, excitatory=False)
+        sthal.stimulateNeurons(5.0e6, 1, excitatory=False)
         return sthal
 
 
