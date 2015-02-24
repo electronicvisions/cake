@@ -156,7 +156,6 @@ class Measurement(object):
         """
         self.logger.INFO("Connecting to hardware and configuring.")
         self.configure(configurator)
-        self.logger.INFO("Measuring.")
         result = self._measure(analyzer)
         self.logger.INFO("Measurement done, disconnecting from hardware.")
         self.finish()
