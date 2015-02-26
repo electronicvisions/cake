@@ -356,7 +356,7 @@ class V_syntcx_psp_max_Calibrator(V_syntc_psp_max_BaseCalibrator):
 
 class V_convoff_Calibrator(BaseCalibrator):
     target_parameter = None
-    fbaseline = 0.0
+    MEMBRANE_SHIFT = None
 
     def __init__(self, experiment, config=None):
         self.experiment = experiment
@@ -375,48 +375,46 @@ class V_convoff_Calibrator(BaseCalibrator):
         coeffs = dict((n, self.find_v_convoff(n)) for n in self.get_neurons())
         return [(self.target_parameter, coeffs)]
 
-    @staticmethod
-    def normalize(x, lower, upper):
-        h = numpy.ptp(x) * (upper - lower)
-        return ((x - numpy.min(x)) / h) + lower
-
     def get_fit_data(self, neuron):
-        parameters = (self.target_parameter, neuron_parameter.E_synx)
+        parameters = (self.target_parameter, )
         data = self.experiment.get_parameters_and_results(
-                neuron, parameters, ('psp_area', 'baseline'))
-        V_convoff, E_synx, area, baseline = data.T
+                neuron, parameters, ('baseline', ))
+        V_convoff, baseline = data.T
 
         # normalize area by distance to reversal potential
         # area = area / (E_synx / 1023 * 1.8 - baseline)
 
         return (
             V_convoff,
-            self.normalize_psp_area(area),
-            self.normalize_baseline(baseline),
+            baseline - baseline[-1],
         )
 
-    def do_fit(self, V_convoff, area, baseline):
+    def do_fit(self, V_convoff, baseline):
         """
         Fits a polynomial of the 5th degree to catch strange tails from
         PSPs near the reversale potential...
         """
-        # Filter the left part, where the PSP area is falling to strong
-        d = numpy.abs(baseline) + numpy.abs(area)
-        idx = d <= 1.0
+        # Fit to the linear rising part
+        d = numpy.abs(baseline - baseline[-1])
+        idx = d > 2.0e-3
         x = V_convoff[idx]
-        y = (area + baseline)[idx]
+        y = baseline[idx]
         return x, numpy.poly1d(numpy.polyfit(x, y, 5))
 
     def find_roots(self, V_convoff, f):
         """Filter real solutions in input range"""
+        f -= numpy.poly1d([self.MEMBRANE_SHIFT])
         r = f.roots[numpy.isreal(f.roots)]
         r = r[(V_convoff[0] < r) & (r < V_convoff[-1])]
         return r.real
 
     def find_v_convoff(self, neuron):
-        V_convoff, a, b = self.get_fit_data(neuron)
-        x, f = self.do_fit(V_convoff, a, b)
-        return self.find_roots(x, f)
+        V_convoff, baseline = self.get_fit_data(neuron)
+        try:
+            x, f = self.do_fit(V_convoff, baseline)
+            return self.find_roots(x, f)
+        except TypeError:
+            return None
 
     def debug_plot(self, neuron):
         pass
@@ -424,21 +422,12 @@ class V_convoff_Calibrator(BaseCalibrator):
 
 class V_convoffi_Calibrator(V_convoff_Calibrator):
     target_parameter = neuron_parameter.V_convoffi
+    MEMBRANE_SHIFT = -5.0e-3
 
-    def normalize_baseline(self, baseline):
-        return self.normalize(baseline, -1.0, 0.0)
-
-    def normalize_psp_area(self, area):
-        return self.normalize(area, 0.0, 1.0)
 
 class V_convoffx_Calibrator(V_convoff_Calibrator):
     target_parameter = neuron_parameter.V_convoffx
-
-    def normalize_baseline(self, baseline):
-        return self.normalize(baseline, 0.0, 1.0)
-
-    def normalize_psp_area(self, area):
-        return self.normalize(area, -1.0, 0.0)
+    MEMBRANE_SHIFT = 5.0e-3
 
 
 class I_pl_Calibrator(BaseCalibrator):
