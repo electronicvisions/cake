@@ -51,7 +51,6 @@ parser.add_argument('--V_dllres', type=int, default=200)
 parser.add_argument('--nooutput', action="store_true", default=False)
 parser.add_argument('--ninputspikes', type=int, default=200)
 parser.add_argument('--inputspikeisi', type=float, default=0.1e-6)
-parser.add_argument('--addroffset', type=float, default=50e-6)
 args = parser.parse_args()
 
 WAFER = args.wafer
@@ -59,7 +58,7 @@ HICANN = args.hicann
 FREQ = args.freq
 BKGISI = args.bkgisi
 
-suffix='_'.join(["w{}","h{}","f{}","bkgisi{}","Vccas{}","Vdllres{}","ninputspikes{}","inputspikeisi{}","addroffset{}"]).format(WAFER,HICANN,FREQ,BKGISI,args.V_ccas,args.V_dllres,args.ninputspikes,args.inputspikeisi,args.addroffset)
+suffix='_'.join(["w{}","h{}","f{}","bkgisi{}","Vccas{}","Vdllres{}","ninputspikes{}","inputspikeisi{}"]).format(WAFER,HICANN,FREQ,BKGISI,args.V_ccas,args.V_dllres,args.ninputspikes,args.inputspikeisi)
 if args.extrasuffix:
     suffix += "_"+args.extrasuffix
 
@@ -192,15 +191,16 @@ def aquire(seg, driver):
     # Create input spike trains
 
     start_offset = 5e-6
-    addr_offset = args.addroffset
     n_input_spikes = args.ninputspikes
     input_spike_isi = args.inputspikeisi
 
     seg.annotations["start_offset"] = start_offset
-    seg.annotations["addr_offset"] = addr_offset
     seg.annotations["addr_neuron_map"] = addr_neuron_map
     seg.annotations["n_input_spikes"] = n_input_spikes
     seg.annotations["input_spike_isi"] = input_spike_isi
+
+    addr_offset = 1.2*(n_input_spikes * input_spike_isi)
+    seg.annotations["addr_offset"] = addr_offset
 
     duration = 4e-3
 
