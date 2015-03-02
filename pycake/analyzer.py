@@ -219,6 +219,15 @@ class V_convoff_Analyzer(Analyzer):
         self.spiketimes = spiketimes
 
     def __call__(self, neuron, t, v, **traces):
+
+        spike_counter = traces.get(NETS_AND_PINS.SpikeCounter, None)
+        spikes = -1.0 if spike_counter is None else spike_counter[-1]
+
+        if spikes > 0.0:
+            return {
+                "spikes": spikes
+            }
+
         t0 = t.searchsorted(0.9 * self.spiketimes[0])
         baseline = np.mean(v[:t0])
         baseline_std = np.std(v[:t0])
@@ -229,7 +238,8 @@ class V_convoff_Analyzer(Analyzer):
             "stim_spikes": self.spiketimes,
             "baseline": baseline,
             "baseline_std": baseline_std,
-            "psp_area": area
+            "psp_area": area,
+            "spikes": spikes,
         }
 
         ota_current = traces.get(self.NET_SYN_OTA_OUTPUT, None)

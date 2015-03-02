@@ -133,7 +133,7 @@ class BaseExperimentBuilder(object):
 
                 if value.apply_calibration:
                     self.logger.TRACE("Applying calibration to coord {} value {}".format(neuron, value_dac))
-                    value_dac.value = self.calibtic.apply_calibration(value_dac.value, param, neuron)
+                    value_dac.value = self.calibtic.apply_calibration(value_dac.value, param, neuron) + value_dac.offset
 
                 self.logger.TRACE("Setting FGValue of {} parameter {} to {}.".format(neuron, param, value_dac))
                 floating_gates.setNeuron(neuron, param, value_dac.value)
@@ -156,7 +156,7 @@ class BaseExperimentBuilder(object):
                 # Do not calibrate target parameter except if this is a test measurement
                 if value.apply_calibration:
                     self.logger.TRACE("Applying calibration to coord {} value {}".format(block, value_dac))
-                    value_dac.value = self.calibtic.apply_calibration(value_dac.value, param, block)
+                    value_dac.value = self.calibtic.apply_calibration(value_dac.value, param, block) + value_dac.offset
 
                 self.logger.TRACE("Setting FGValue of {} parameter {} to {}.".format(block, param, value_dac))
                 floating_gates.setShared(block, param, value_dac.value)
@@ -245,6 +245,7 @@ class V_reset_Experimentbuilder(BaseExperimentBuilder):
 
     def prepare_specific_config(self, sthal):
         sthal.set_recording_time(25.0e-6, 4)
+        sthal.maximum_spikes = 3
         return sthal
 
 
@@ -255,27 +256,22 @@ class V_t_Experimentbuilder(BaseExperimentBuilder):
 
     def prepare_specific_config(self, sthal):
         sthal.set_recording_time(25.0e-6, 4)
+        sthal.maximum_spikes = 3
         return sthal
 
 
-class I_pl_short_Experimentbuilder(BaseExperimentBuilder):
-    """For calibrating I_pl in simulation and hardware"""
-    def prepare_specific_config(self, sthal):
-        sthal.recording_time = 1e-4
-        return sthal
-
-    def get_analyzer(self):
-        "get analyzer"
-        return pycake.analyzer.ISI_Analyzer()
-
-
-class I_pl_Experimentbuilder(I_pl_short_Experimentbuilder):
+class I_pl_Experimentbuilder(BaseExperimentBuilder):
     """Longer recording time than parent class.
 
     To be used with hardware."""
     def prepare_specific_config(self, sthal):
         sthal.recording_time = 1e-3
+        sthal.maximum_spikes = 10
         return sthal
+
+    def get_analyzer(self):
+        "get analyzer"
+        return pycake.analyzer.ISI_Analyzer()
 
 
 class E_synx_Experimentbuilder(BaseExperimentBuilder):
@@ -310,6 +306,8 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
         sthal.set_recording_time(self.recording_time, 1)
         sthal.send_spikes_to_all_neurons(
             self.spikes, excitatory=self.EXCITATORY, gmax_div=self.gmax_div)
+        sthal.maximum_spikes = 10
+        sthal.spike_counter_offset = 0.0
         return sthal
 
     def make_measurement(self, sthal, neurons, readout_shifts):
@@ -324,11 +322,29 @@ class V_convoffi_Experimentbuilder(V_convoff_Experimentbuilder):
     EXCITATORY = False
     ANALYZER = pycake.analyzer.V_convoffi_Analyzer
 
+    def __init__(self, *args, **kwargs):
+        super(V_convoffi_Experimentbuilder, self).__init__(*args, **kwargs)
+        self.recording_time = 80e-6
+        self.spikes = numpy.array([50e-6])
+
 
 class V_convoffx_Experimentbuilder(V_convoff_Experimentbuilder):
     EXCITATORY = True
     ANALYZER = pycake.analyzer.V_convoffx_Analyzer
 
+class V_convoffi_Experimentbuilder(BaseExperimentBuilder):
+    EXCITATORY = None
+    ANALYZER = pycake.analyzer.V_convoffx_Analyzer
+
+from calibration.vsyntc import SimplePSPAnalyzer
+
+class V_syntcx_Experimentbuilder(V_convoff_Experimentbuilder):
+    EXCITATORY = True
+    ANALYZER = SimplePSPAnalyzer
+
+class V_syntci_Experimentbuilder(V_convoff_Experimentbuilder):
+    EXCITATORY = False
+    ANALYZER = SimplePSPAnalyzer
 
 class I_gl_Experimentbuilder(BaseExperimentBuilder):
     def __init__(self, *args, **kwargs):
@@ -359,8 +375,8 @@ class E_l_I_gl_fixed_Experimentbuilder(E_l_Experimentbuilder):
         return pycake.analyzer.MeanOfTraceAnalyzer()
 
 
-from calibration.vsyntc import V_syntci_Experimentbuilder
-from calibration.vsyntc import V_syntcx_Experimentbuilder
+#from calibration.vsyntc import V_syntci_Experimentbuilder
+#from calibration.vsyntc import V_syntcx_Experimentbuilder
 
 
 class V_syntci_psp_max_Experimentbuilder(BaseExperimentBuilder):

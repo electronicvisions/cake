@@ -397,6 +397,8 @@ class V_convoff_Calibrator(BaseCalibrator):
         # Fit to the linear rising part
         d = numpy.abs(baseline - baseline[-1])
         idx = d > 2.0e-3
+        # Add leftmoste removed point to fit
+        idx[numpy.where(idx == False)[0][0]] = True
         x = V_convoff[idx]
         y = baseline[idx]
         return x, numpy.poly1d(numpy.polyfit(x, y, 5))
@@ -422,12 +424,12 @@ class V_convoff_Calibrator(BaseCalibrator):
 
 class V_convoffi_Calibrator(V_convoff_Calibrator):
     target_parameter = neuron_parameter.V_convoffi
-    MEMBRANE_SHIFT = -5.0e-3
+    MEMBRANE_SHIFT = -10.0e-3
 
 
 class V_convoffx_Calibrator(V_convoff_Calibrator):
     target_parameter = neuron_parameter.V_convoffx
-    MEMBRANE_SHIFT = 5.0e-3
+    MEMBRANE_SHIFT = 10.0e-3
 
 
 class I_pl_Calibrator(BaseCalibrator):

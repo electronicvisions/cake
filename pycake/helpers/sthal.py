@@ -575,7 +575,18 @@ class StHALContainer(object):
         self.firing_denmems = list(self.hicann.set_neuron_size(n))
 
 class SimStHALContainer(StHALContainer):
-    """Contains StHAL objects for hardware access. Multiple experiments can share one container."""
+    """Contains StHAL objects for hardware access. Multiple experiments can 
+    share one container.
+
+    Attributes:
+        remote_host: hostname of simulation server
+        remote_port: port of simulation server
+        hicann_version: hicann version to simulate (2,4)
+        mc_seed: Monte carlo seed (None disables MC)
+        maximum_spikes: abort simulation after this many spikes (default=200)
+        spike_counter_offset: start counting spikes after this time (default
+                              simulation_init_time)
+    """
     logger = pylogging.get("pycake.helper.simsthal")
 
     def __init__(self, coord_wafer,
@@ -620,6 +631,9 @@ class SimStHALContainer(StHALContainer):
             raise RuntimeError("simulation_cache must be a folder")
         self.hicann_version = config.get_hicann_version()
         self.mc_seed = config.get_sim_denmem_mc_seed()
+
+        self.maximum_spikes = 200
+        self.spike_counter_offset = self.simulation_init_time
 
     def connect(self):
         """Connect to the hardware."""
@@ -677,10 +691,12 @@ class SimStHALContainer(StHALContainer):
         """Returns the serialized TBParameters for self.current_neuron"""
         left, right = self.get_simulation_neurons(neuron)
         param = TBParameters.from_sthal(self.wafer, self.coord_hicann, left,
-                                        self.simulation_init_time)
+                                        self.simulation_init_time,
+                                        self.spike_counter_offset)
         param.simulator_settings.simulation_time = self.recording_time
         param.simulator_settings.nets_to_save = NETS_AND_PINS.ALL
         param.simulator_settings.hicann_version = self.hicann_version
+        param.simulator_settings.max_spike_count = self.maximum_spikes
 
         # HACK, enable analog output for both neurons, if no current input
         # is enabled. Otherwise caching would not work as expected.
@@ -741,6 +757,7 @@ class SimStHALContainer(StHALContainer):
         To speed up simulations this implementation ignores repeations factor!
         """
         self.recording_time = recording_time + self.simulation_init_time
+        self.spike_counter_offset = self.simulation_init_time
 
     def set_neuron_size(self, n):
         self.logger.ERROR("Neuron size other than 1 not supported! Using size 1")
