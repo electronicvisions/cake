@@ -339,8 +339,7 @@ class I_gl_Experimentbuilder(BaseExperimentBuilder):
         return sthal
 
     def make_measurement(self, sthal, neurons, readout_shifts):
-        pll = sthal.getPLL()
-        return I_gl_Measurement(sthal, neurons, readout_shifts, pll_freq=pll)
+        return I_gl_Measurement(sthal, neurons, readout_shifts)
 
     def get_analyzer(self):
         """ Get the appropriate analyzer for a specific parameter.
@@ -349,7 +348,8 @@ class I_gl_Experimentbuilder(BaseExperimentBuilder):
         # not ideal place to call createTraceAverager, connects to hardware
         trace_averager = createTraceAverager(coord_wafer, coord_hicann)
         save_traces = self.config.get_save_traces()
-        return pycake.analyzer.I_gl_Analyzer(trace_averager, save_traces)
+        pll = self.config.get_PLL()
+        return pycake.analyzer.I_gl_Analyzer(trace_averager, save_traces, pll)
 
 
 class E_l_I_gl_fixed_Experimentbuilder(E_l_Experimentbuilder):
