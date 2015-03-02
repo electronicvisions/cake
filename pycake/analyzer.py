@@ -3,13 +3,15 @@ np.seterr(all='raise')
 np.seterr(under='warn')
 import pylab
 import pylogging
-import scipy.signal
+#import scipy.signal
+from scipy import ndimage
 from scipy.optimize import curve_fit
 from scipy.integrate import simps
 from pycake.helpers.peakdetect import peakdet
 from pycake.logic.spikes import spikes_to_frequency
 
 from sims.sim_denmem_lib import NETS_AND_PINS
+
 
 class Analyzer(object):
     """ Takes a measurement and analyses it.
@@ -292,26 +294,34 @@ class I_gl_Analyzer(Analyzer):
         self.logger.INFO("Initializing I_gl_analyzer by measuring ADC sampling frequency.")
         self.trace_averager = trace_averager
         self.logger.INFO("TraceAverager created with ADC frequency {} Hz.".format(trace_averager.adc_freq))
+
+        # stimulation period
+        # FG cell count * 1/(1/4) (pll_freq divider) * (pulse_length + 1)
         self.dt = 129 * 4 * 16 / pll_freq
+
         # TODO implement different capacitors
         self.C = 2.16456e-12  # Capacitance when bigcap is turned on
         self.logger.INFO("Initializing I_gl_analyzer using C={} (bigcap).".format(self.C))
         self.save_mean = save_mean
 
     def __call__(self, neuron, t, v, std, V_rest_init=0.7, used_current=None, **traces):
+        # average over all periods, reduce to one smooth period
         mean_trace, std_trace, n_chunks = self.trace_averager.get_average(v, self.dt)
+
+        # edge detection of decay,
         cut_v, fittimes = self.get_decay_fit_range(mean_trace, fwidth=64)
 
+        # initial value for fitting
         V_rest_init = cut_v[-1]
 
-        if len(cut_v) < (len(mean_trace)/4): # sanity check: if cut trace too short, something failed
+        if len(cut_v) < (len(mean_trace)/4):
+            # sanity check: if cut trace too short, something failed
+            # return empty data and error
             tau_m, V_rest, height, std_tau = np.nan, V_rest_init, np.nan, np.nan
             red_chi2, pcov, infodict, ier = np.nan, np.nan, {'error': "cut trace length {} too short".format(len(cut_v))}, 0
         else:
             tau_m, V_rest, height, std_tau, red_chi2, pcov, infodict, ier = self.fit_exponential(fittimes, cut_v, std,
-                                                                                            V_rest_init, n_chunks)
-        g_l = self.C / tau_m
-
+                                                                                                 V_rest_init, n_chunks)
         result = {'tau_m': tau_m,
                   'std_tau': std_tau,
                   'V_rest': V_rest,
@@ -320,22 +330,27 @@ class I_gl_Analyzer(Analyzer):
                   'pcov': pcov,
                   'ier': ier}
 
-        if np.isnan(tau_m): # If fit failed, also return info dict
+        if np.isnan(tau_m):
+            # if fit failed, also return infodict for debugging
             result['infodict'] = infodict
 
         if self.save_mean:
             result["mean"] = mean_trace
+
         return result
 
     def get_decay_fit_range(self, trace, fwidth=64):
-        """Cuts the trace for the exponential fit. This is done by calculating the second derivative.
+        """Detects decaying part of trace (for exponential fit).
+           Returns subtrace (v, t) in this range.
+
         Args:
             trace: the averaged trace
             fwidth: filter width for smoothing
 
-        Returns:
+        Returns: decaying trace and corresponding times
             trace_cut, fittimes"""
-        dt = 1/self.trace_averager.adc_freq
+
+        dt = 1./self.trace_averager.adc_freq
         vsmooth = ndimage.gaussian_filter(trace, fwidth)
         # Sobel filter finds edges
         edges = ndimage.sobel(vsmooth, axis=-1, mode='nearest')
@@ -352,7 +367,7 @@ class I_gl_Analyzer(Analyzer):
         trace_cut = trace[fitstart:fitstop]
         fittimes = np.arange(fitstart, fitstop)*dt
 
-        return trace_cut[:-80], fittimes[:-80] #sobel tends to make trace too long --> cutoff
+        return trace_cut[:-80], fittimes[:-80]  # sobel tends to make trace too long --> cutoff
 
     def get_initial_parameters(self, times, trace, V_rest):
         height = trace[0] - V_rest
@@ -374,12 +389,12 @@ class I_gl_Analyzer(Analyzer):
 
         try:
             expf, pcov, infodict, errmsg, ier = curve_fit(
-            func,
-            fittimes,
-            trace_cut,
-            x0,
-            sigma=std,
-            full_output=True)
+                func,
+                fittimes,
+                trace_cut,
+                x0,
+                sigma=std,
+                full_output=True)
         except (ValueError, ZeroDivisionError, FloatingPointError) as e:
             self.logger.WARN("Fit failed: {}".format(e))
             return np.nan, V_rest_init, np.nan, np.nan, np.nan, np.nan, {"error": e}, 0
@@ -398,7 +413,7 @@ class I_gl_Analyzer(Analyzer):
         if isinstance(pcov, np.ndarray) and pcov[0][0] < 0:
             e = 'pcov negative'
             return np.nan, V_rest_init, np.nan, np.nan, np.nan, np.nan, {'error': e}, 0
-        if (ier<1) or (tau >1) or (tau<0):
+        if (ier < 1) or (tau > 1) or (tau < 0):
             e = 'ier < 1 or tau out of bounds'
             return np.nan, V_rest_init, np.nan, np.nan, np.nan, np.nan, {'error': e}, 0
 
