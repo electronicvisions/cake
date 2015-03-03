@@ -71,6 +71,9 @@ class TestNeuronCalibration(unittest.TestCase):
 
 if __name__ == "__main__":
     import pylogging
-    pylogging.set_loglevel(Calibtic.logger, pylogging.LogLevel.INFO)
-    pylogging.append_to_cout(Calibtic.logger)
+    from pysthal.command_line_util import init_logger
+
+    init_logger(pylogging.LogLevel.WARN, [
+        (Calibtic.logger.getName(), pylogging.LogLevel.INFO),
+    ])
     unittest.main()
