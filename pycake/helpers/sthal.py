@@ -609,8 +609,7 @@ class SimStHALContainer(StHALContainer):
                  wafer_cfg="",
                  PLL=100e6,
                  dump_file=None,
-                 config=None,
-                 neuron_size=1):
+                 config=None):
         """Initialize StHAL. kwargs default to vertical setup configuration.
 
         Args:
@@ -625,7 +624,7 @@ class SimStHALContainer(StHALContainer):
         """
         super(SimStHALContainer, self).__init__(
             coord_wafer, coord_hicann, coord_analog, recording_time,
-            wafer_cfg, PLL, dump_file, neuron_size)
+            wafer_cfg, PLL, dump_file)
         self.current_neuron = Coordinate.NeuronOnHICANN()
         host, port = config.get_sim_denmem().split(':')
         self.remote_host = host
