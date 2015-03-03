@@ -213,6 +213,7 @@ if __name__ == "__main__":
     addr_n_bad = defaultdict(int)
 
     n_good_drv = 0
+    bad_drivers = []
 
     # list for results per driver
     vols_board_0 = []
@@ -292,6 +293,7 @@ if __name__ == "__main__":
                 pass
         else:
             is_good.append(False)
+            bad_drivers.append(driver)
             if args.verbose:
                 print "driver {:03d} is bad".format(driver)
 
@@ -325,9 +327,15 @@ if __name__ == "__main__":
     mean_vol = mean_vols_board_0
     std_vol = std_vols_board_0
 
+    mean_vol_DAC = mean_vols_DAC_board_0
+    std_vol_DAC = std_vols_DAC_board_0
+
     # mean_voh = np.mean([mean_vohs_board_0, mean_vohs_board_1])
     mean_voh = mean_vohs_board_0
     std_voh = std_vohs_board_0
+
+    mean_voh_DAC = mean_vohs_DAC_board_0
+    std_voh_DAC = std_vohs_DAC_board_0
 
     vol_diffs = [(vol_b_1 - vol_b_0)*1000 for vol_b_0, vol_b_1 in zip(vols_board_0, vols_board_1)]
     nbins = 100
@@ -391,7 +399,7 @@ if __name__ == "__main__":
     plt.savefig(os.path.join(fdir, "vol_board_1.pdf"))
     plt.close()
 
-    ana_results = {"VOL":mean_vol, "VOH":mean_voh, "STD_VOL":std_vol, "STD_VOH":std_voh, "n_good_driver" : n_good_drv, "wafer": wafer, "hicann": hicann, "freq": freq, "bkgisi": bkgisi, "V_ccas" : V_ccas, "V_dllres" : V_dllres}
+    ana_results = {"VOL":mean_vol, "VOH":mean_voh, "STD_VOL":std_vol, "STD_VOH":std_voh, "VOL_DAC":mean_vol_DAC, "VOH_DAC":mean_voh_DAC, "STD_VOL_DAC":std_vol_DAC, "STD_VOH_DAC":std_voh_DAC, "n_good_driver" : n_good_drv, "bad_drivers" : bad_drivers, "wafer": wafer, "hicann": hicann, "freq": freq, "bkgisi": bkgisi, "V_ccas" : V_ccas, "V_dllres" : V_dllres}
 
     with open(ana_file, 'w') as fana:
         json.dump(ana_results, fana)
