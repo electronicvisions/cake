@@ -385,15 +385,14 @@ class I_gl_Measurement(ADCMeasurement):
     """ This measurement is done in three steps:
 
         1) Measure V_rest without injecting current
-        2) Vary input current from 1 to 30 nA to determine best value for fit
-        3) Measure longer trace that is used for the fit
+        2) Vary input current between 1 to 30 to determine which one generates the best traces
+        3) Measure the main trace that is used for the fit
 
         This takes a lot of time!
 
-        skip_I_gl can be used to skip step 2) above a certain I_gl (default 700 nA,
-        adjust this for other SpeedUp factors!)
+        skip_I_gl can be used to skip step 2) above a certain I_gl
     """
-    def __init__(self, sthal, neurons, readout_shifts=None, currents=range(30), skip_I_gl=2000):
+    def __init__(self, sthal, neurons, readout_shifts=None, currents=[2,5,10,20,30], skip_I_gl=2500):
         super(I_gl_Measurement, self).__init__(sthal, neurons, readout_shifts)
         self.currents = currents
         self.skip_I_gl = skip_I_gl
@@ -413,7 +412,7 @@ class I_gl_Measurement(ADCMeasurement):
         self.sthal.adc.setRecordingTime(old_recording_time)
         return V_rest, std
 
-    def find_best_current(self, neuron, V_rest, currents, threshold=0.15, recording_time_divider=20., skip_I_gl=700):
+    def find_best_current(self, neuron, V_rest, currents, threshold=0.15, recording_time_divider=20.):
         """ Sweep over a range of currents and find the best current for fit.
 
             Args:
@@ -423,12 +422,12 @@ class I_gl_Measurement(ADCMeasurement):
                 threshold: how far should the trace go above V_rest?
                 recording_time_divider: how much smaller should the recorded traces be? \
                         Divider 1 means ~60 cycles (5e-3 s), standard divider of 20 means 3 cycles (2.5e-4 s)
-                skip_I_gl: Skip the measurement above a certain I_gl and just use 30 nA.
+                skip_I_gl: Skip the measurement above a certain I_gl and just use 30.
         """
         old_recording_time = self.sthal.recording_time
         I_gl = self.get_parameter(neuron_parameter.I_gl, neuron).values()[0]*2500/1023.
-        if I_gl > skip_I_gl:  # Experience shows that for a large enough I_gl, a current of 30 nA is good
-            self.logger.TRACE("I_gl of {0:.1f} large enough. Setting current to 30 nA".format(I_gl))
+        if I_gl > self.skip_I_gl:  # Experience shows that for a large enough I_gl, a current of 30 is good
+            self.logger.TRACE("I_gl of {0:.1f} large enough. Setting current to 30".format(I_gl))
             return 30
         self.sthal.adc.setRecordingTime(old_recording_time/recording_time_divider)
         self.logger.TRACE("Finding best current for neuron {}".format(neuron))
