@@ -233,12 +233,6 @@ class Spikes_Experimentbuilder(BaseExperimentBuilder):
 
 
 class V_reset_Experimentbuilder(BaseExperimentBuilder):
-    def get_readout_shifts(self, neurons):
-        if self.test:
-            return super(V_reset_Experimentbuilder, self).get_readout_shifts(neurons)
-        else:
-            return dict(((n, 0) for n in neurons))
-
     def get_analyzer(self):
         "get analyzer"
         return pycake.analyzer.V_reset_Analyzer()
@@ -389,3 +383,19 @@ class V_syntcx_psp_max_Experimentbuilder(BaseExperimentBuilder):
     def prepare_specific_config(self, sthal):
         sthal.stimulateNeurons(0.1e6, 1, excitatory=True)
         return sthal
+
+class readout_shift_Experimentbuilder(BaseExperimentBuilder):
+    def prepare_specific_config(self, sthal):
+        sthal.set_neuron_size(64)
+        return sthal
+
+    def get_readout_shifts(self, neurons):
+        """ Get readout shifts (in V) for a list of neurons.
+            If no readout shift is saved, a shift of 0 is returned.
+
+            Args:
+                neurons: a list of NeuronOnHICANN coordinates
+            Returns:
+                shifts: a dictionary {neuron: shift (in V)}
+        """
+        return dict((n, 0) for n in neurons)

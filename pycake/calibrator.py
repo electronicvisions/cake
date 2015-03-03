@@ -462,3 +462,38 @@ class I_pl_short_Calibrator(I_pl_Calibrator):
 
     It is identical to its parent class."""
     pass
+
+
+class readout_shift_Calibrator(BaseCalibrator):
+    def __init__(self, experiments, config, neuron_size=64):
+        super(readout_shift_Calibrator, self).__init__(experiments, config)
+        self.neuron_size = neuron_size
+
+    def generate_coeffs(self):
+        """
+        """
+        results = self.experiments[0].results[0]
+        readout_shifts = self.get_readout_shifts(results)
+        return [('readout_shift', readout_shifts)]
+
+    def get_neuron_block(self, block_id, size):
+        if block_id * size > 512:
+            raise ValueError, "There are only {} blocks of size {}".format(512/size, size)
+        nids_top = np.arange(size/2*block_id,size/2*block_id+size/2)
+        nids_bottom = np.arange(256+size/2*block_id,256+size/2*block_id+size/2)
+        nids = np.concatenate([nids_top, nids_bottom])
+        neurons = [Coordinate.NeuronOnHICANN(Coordinate.Enum(int(nid))) for nid in nids]
+        return neurons
+
+    def get_readout_shifts(self, results):
+        """
+        """
+        n_blocks = 512/self.neuron_size # no. of interconnected neurons
+        readout_shifts = {}
+        for block_id in range(n_blocks):
+            neurons_in_block = self.get_neuron_block(block_id, self.neuron_size)
+            V_rests_in_block = np.array([results[neuron]['mean'] for neuron in neurons_in_block])
+            mean_V_rest_over_block = np.mean(V_rests_in_block)
+            for neuron in neurons_in_block:
+                readout_shifts[neuron] = [float(results[neuron]['mean'] - mean_V_rest_over_block)]
+        return readout_shifts

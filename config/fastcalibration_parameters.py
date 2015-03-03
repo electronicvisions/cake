@@ -29,6 +29,7 @@ parameters = {
     "blocks":  [FGBlockOnHICANN(Enum(i)) for i in range(4)],
 
     # Set the ranges within which you want to calibrate
+    "readout_shift_range": [{neuron_parameter.E_l: Voltage(900)}], # Set some realistic E_l value.
     "V_reset_range":  [{shared_parameter.V_reset : v} for v in linspace_voltage(600, 800, 5)],
     "E_syni_range":   [{neuron_parameter.E_syni : v} for v in linspace_voltage(550, 850, 5)],
     "E_synx_range":   [{neuron_parameter.E_synx : v} for v in linspace_voltage(650, 950, 5)],
@@ -49,6 +50,7 @@ parameters = {
     "repetitions":  1,
 
     # Set which calibrations you want to run
+    "run_readout_shift": True,
     "run_V_reset":  True,
     "run_E_synx":   True,
     "run_E_syni":   True,
@@ -78,8 +80,6 @@ parameters = {
 
     # Set whether you want to keep traces or delete them after analysis
     "save_traces":  False,
-    "V_reset_save_traces": True,
-    "V_t_save_traces": True,
 
     ## If you save your measurements, each folder will have a description file. The following parameters let you specify additional info to be stored.
     #"E_synx_description":   "E_synx calibration.",
@@ -162,6 +162,11 @@ parameters = {
 
 
                           },
+
+    "readout_shift_parameters": { neuron_parameter.V_t: Voltage(1400),
+                                  neuron_parameter.I_convx: Current(0),
+                                  neuron_parameter.I_convi: Current(0),
+                                },
 
     "E_synx_parameters": {neuron_parameter.I_gl: Current(0),  # I_gl and I_convi MUST be set to 0
                           neuron_parameter.I_convx: Current(2500),
@@ -249,7 +254,8 @@ parameters = {
                              },
 
     # In which order should the parameters be calibrated?
-    "parameter_order":      [shared_parameter.V_reset.name,
+    "parameter_order":      ['readout_shift',
+                             shared_parameter.V_reset.name,
                              neuron_parameter.E_syni.name,
                              neuron_parameter.E_synx.name,
                              "E_l_I_gl_fixed",

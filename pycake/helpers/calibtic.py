@@ -158,17 +158,19 @@ class Calibtic(object):
 
             # If parameter is V_reset, BUT coordinate is not a block, it is assumed that you want to store readout shifts
             # Readout shifts are stored as parameter
-            if parameter is shared_parameter.V_reset and isinstance(coord, Coordinate.NeuronOnHICANN):
+            if parameter is 'readout_shift':
                 param_id = pycalibtic.NeuronCalibration.VResetShift
+                param_name = parameter
             else:
                 param_id = parameter
+                param_name = parameter.name
 
             index = coord.id().value()
             polynomial = create_pycalibtic_polynomial(coeffs)
             if not collection.exists(index):
                 collection.insert(index, cal)
             collection.at(index).reset(param_id, polynomial)
-            self.logger.TRACE("Resetting coordinate {} parameter {} to {}".format(coord, parameter.name, polynomial))
+            self.logger.TRACE("Resetting coordinate {} parameter {} to {}".format(coord, param_name, polynomial))
         self.backend.store(name, self.md, self.hc)
 
     def get_calibration(self, coord):
