@@ -194,7 +194,7 @@ class V_syntc_Experimentbuilder(BaseExperimentBuilder):
         averager = createTraceAverager(coord_wafer, coord_hicann)
 
         pre_result = pre_measurement.run_measurement(
-                V_syntc_PrerunAnalyzer(averager, self.get_bg_period(sthal)))
+                V_syntc_PrerunAnalyzer(averager, self.get_bg_period(sthal)), None)
 
         save_traces = self.config.get_save_traces()
         return PSPAnalyzer(averager, self.get_bg_period(sthal),

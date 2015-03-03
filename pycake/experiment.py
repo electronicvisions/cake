@@ -182,6 +182,19 @@ class SequentialExperiment(Experiment):
         Experiment.__init__(self, analyzer)
         self.measurements_to_run = measurements
         self.repetitions = repetitions
+        self.initial_data = {}
+        self.initial_measurements = []
+
+    def add_initial_measurement(self, measurement, analyzer):
+        self.initial_measurements.append((measurement, analyzer))
+
+    def run_initial_measurements(self):
+        """ Dummy for preparation measurements.
+        """
+        if len(self.initial_measurements) > 0:
+            self.logger.INFO("Running initial measurements.")
+            for measurement, analyzer in self.initial_measurements:
+                self.initial_data.update(measurement.run_measurement(analyzer, None))
 
     def save_traces(self, path):
         for mid, measurement in enumerate(self.measurements_to_run):
@@ -189,11 +202,12 @@ class SequentialExperiment(Experiment):
             measurement.save_traces(filename)
 
     def iter_measurements(self):
+        self.run_initial_measurements()
         i_max = len(self.measurements_to_run)
         for i, measurement in enumerate(self.measurements_to_run):
             if not measurement.done:
                 self.logger.INFO("Running measurement {}/{}".format(i+1, i_max))
-                result = measurement.run_measurement(self.analyzer)
+                result = measurement.run_measurement(self.analyzer, self.initial_data)
                 self.append_measurement_and_result(measurement, result)
                 yield True # Used to save state of runner 
             else:

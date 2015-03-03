@@ -141,7 +141,7 @@ class Measurement(object):
         self.sthal.wafer.configure(HRC)
         return readout_wafer[self.sthal.coord_hicann]
 
-    def _measure(self, analyzer):
+    def _measure(self, analyzer, additional_data):
         """ Measure traces and correct each value for readout shift.
             Changes traces to numpy arrays
 
@@ -151,12 +151,12 @@ class Measurement(object):
         raise NotImplementedError("Not implemented in {}".format(
             type(self).__name__))
 
-    def run_measurement(self, analyzer, configurator=None):
+    def run_measurement(self, analyzer, additional_data, configurator=None):
         """ First configure, then measure
         """
         self.logger.INFO("Connecting to hardware and configuring.")
         self.configure(configurator)
-        result = self._measure(analyzer)
+        result = self._measure(analyzer, additional_data)
         self.logger.INFO("Measurement done, disconnecting from hardware.")
         self.finish()
         self.sthal.disconnect()
@@ -249,7 +249,7 @@ class SpikeMeasurement(Measurement):
         self.sthal.hicann.disable_aout()
         self.sthal.hicann.disable_l1_output()
 
-    def _measure(self, analyzer):
+    def _measure(self, analyzer, additional_data):
         """ Spikes
             Changes traces to numpy arrays
         """
@@ -334,7 +334,7 @@ class ADCMeasurement(Measurement):
         """Hook to be execute before a measurement is taken"""
         self.sthal.switch_analog_output(neuron, l1address=l1address)
 
-    def _measure(self, analyzer):
+    def _measure(self, analyzer, additional_data):
         """ Measure traces and correct each value for readout shift.
             Changes traces to numpy arrays
 
@@ -451,7 +451,7 @@ class I_gl_Measurement(ADCMeasurement):
         else:
             return best_current
 
-    def _measure(self, analyzer):
+    def _measure(self, analyzer, additional_data):
         """ Measure traces and correct each value for readout shift.
             Also applies analyzer to measurement
         """
@@ -491,7 +491,7 @@ class I_gl_Measurement_multiple_currents(I_gl_Measurement):
         super(I_gl_Measurement, self).__init__(sthal, neurons, readout_shifts)
         self.currents = currents
 
-    def _measure(self, analyzer):
+    def _measure(self, analyzer, additional_data):
         """ Measure traces and correct each value for readout shift.
             Also applies analyzer to measurement
         """

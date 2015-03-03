@@ -183,6 +183,9 @@ class BaseExperimentBuilder(object):
         """
         measurements, repetitions = self.generate_measurements()
         analyzer = self.get_analyzer()
+        experiment = SequentialExperiment(measurements, analyzer, repetitions)
+        experiment = self.add_additional_measurements(experiment)
+        return experiment
         return SequentialExperiment(measurements, analyzer, repetitions)
 
     def get_analyzer(self):
@@ -200,6 +203,10 @@ class BaseExperimentBuilder(object):
 
         return ADCMeasurement(sthal, neurons, readout_shifts)
 
+    def add_additional_measurements(self, experiment):
+        """ Dummy for adding additional initial measurements if needed.
+        """
+        return experiment
 
 class InputSpike_Experimentbuilder(BaseExperimentBuilder):
     """Send input spikes to neurons"""
