@@ -273,6 +273,8 @@ class E_synx_Experimentbuilder(BaseExperimentBuilder):
         sthal.simulation_init_time = 100.0e-6
         sthal.set_recording_time(10e-6, 10)
         sthal.stimulateNeurons(5.0e6, 1, excitatory=True)
+        sthal.maximum_spikes = 1
+        sthal.spike_counter_offset = 0.0
         return sthal
 
 
@@ -281,6 +283,8 @@ class E_syni_Experimentbuilder(BaseExperimentBuilder):
         sthal.simulation_init_time = 100.0e-6
         sthal.set_recording_time(10e-6, 10)
         sthal.stimulateNeurons(5.0e6, 1, excitatory=False)
+        sthal.maximum_spikes = 1
+        sthal.spike_counter_offset = 0.0
         return sthal
 
 
@@ -290,9 +294,9 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
 
     def __init__(self, *args, **kwargs):
         super(V_convoff_Experimentbuilder, self).__init__(*args, **kwargs)
-        self.init_time = 300.0e-6
-        self.recording_time = 60e-6
-        self.spikes = numpy.array([20e-6])
+        self.init_time = 0.0e-6
+        self.recording_time = 360e-6
+        self.spikes = numpy.array([320e-6])
         self.gmax_div = 30
 
     def prepare_specific_config(self, sthal):
@@ -300,7 +304,7 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
         sthal.set_recording_time(self.recording_time, 1)
         sthal.send_spikes_to_all_neurons(
             self.spikes, excitatory=self.EXCITATORY, gmax_div=self.gmax_div)
-        sthal.maximum_spikes = 10
+        sthal.maximum_spikes = 2
         sthal.spike_counter_offset = 0.0
         return sthal
 

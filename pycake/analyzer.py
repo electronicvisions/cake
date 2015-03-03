@@ -30,10 +30,21 @@ class MeanOfTraceAnalyzer(Analyzer):
     """ Analyzes traces for E_l measurement.
     """
     def __call__(self, neuron, t, v, **traces):
-        return {"mean": np.mean(v),
+        spike_counter = traces.get(NETS_AND_PINS.SpikeCounter, None)
+        spikes = -1.0 if spike_counter is None else spike_counter[-1]
+
+        if spikes > 0.0:
+            return {
+                "spikes": spikes,
+            }
+        else:
+            return {
+                "spikes": spikes,
+                "mean": np.mean(v),
                 "std": np.std(v),
                 "max": np.max(v),
-                "min": np.min(v)}
+                "min": np.min(v)
+            }
 
 
 class PeakAnalyzer(Analyzer):

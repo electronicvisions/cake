@@ -14,6 +14,7 @@ from Coordinate import NeuronOnHICANN
 from Coordinate import BackgroundGeneratorOnHICANN
 from Coordinate import SynapseDriverOnHICANN
 from Coordinate import GbitLinkOnHICANN
+from collections import defaultdict
 from sims.sim_denmem_lib import NETS_AND_PINS
 from sims.sim_denmem_lib import TBParameters
 from sims.sim_denmem_lib import run_remote_simulation
@@ -614,7 +615,6 @@ class SimStHALContainer(StHALContainer):
             coord_wafer, coord_hicann, coord_analog, recording_time,
             wafer_cfg, PLL, dump_file, neuron_size)
         self.current_neuron = Coordinate.NeuronOnHICANN()
-        self.recorded_traces = {}
         host, port = config.get_sim_denmem().split(':')
         self.remote_host = host
         self.remote_port = int(port)
@@ -635,6 +635,8 @@ class SimStHALContainer(StHALContainer):
         self.maximum_spikes = 200
         self.spike_counter_offset = self.simulation_init_time
 
+        self.simulated_configurations = defaultdict(list)
+
     def connect(self):
         """Connect to the hardware."""
         pass
@@ -652,8 +654,7 @@ class SimStHALContainer(StHALContainer):
 
     def disconnect(self):
         """Free handles."""
-        for k in self.recorded_traces.keys():
-            self.recorded_traces[k] = None
+        pass
 
     def write_config(self, program_floating_gates=True, configurator=None):
         """Write full configuration."""
@@ -669,13 +670,7 @@ class SimStHALContainer(StHALContainer):
 
         param = self.build_TBParameters(self.current_neuron)
         json = param.to_json()
-        key = (self.current_neuron, json)
-        # After finishing the simulation the recorded traces are set to None
-        # in order to preserve memory and diskspace.
-        # They will be stored by the Measurement class, if save_traces is set
-        if self.recorded_traces.get(key, None) is None:
-            self.run_simulation(self.current_neuron, param)
-        return self.recorded_traces[key]
+        return self.run_simulation(self.current_neuron, param)
 
     def read_adc_and_spikes(self):
         return self.read_adc()
@@ -698,14 +693,29 @@ class SimStHALContainer(StHALContainer):
         param.simulator_settings.hicann_version = self.hicann_version
         param.simulator_settings.max_spike_count = self.maximum_spikes
 
-        # HACK, enable analog output for both neurons, if no current input
-        # is enabled. Otherwise caching would not work as expected.
-        if param.digital_parameters["iout"][2] is False:
-            param.digital_parameters["iout"] = (True, True, False)
-
         if self.mc_seed is not None:
             mc_run = int(neuron.id())/2 + 1
             param.simulator_settings.set_mc_run(self.mc_seed, mc_run)
+
+        # set the unused neuron to "harmless" parameters
+        idx = (int(neuron.x()) + 1) % 2
+        nparams = [
+            ('El', 0.7),
+            ('Vt', 1.2),
+            ('Igl', 2.0e-6),
+            ('Vreset', 0.7),
+            ('Vconvoffi', 1.7),
+            ('Vconvoffx', 1.7)
+        ]
+        fg = param.floating_gate_parameters
+        for p, v in nparams:
+            tmp = list(fg[p])
+            tmp[idx] = v
+            fg[p] = tuple(tmp)
+
+        tmp = list(param.digital_parameters['activate_firing'])
+        tmp[idx] = False
+        param.digital_parameters['activate_firing'] = tuple(tmp)
 
         return param
 
@@ -738,8 +748,12 @@ class SimStHALContainer(StHALContainer):
                     data = (json, lresult, rresult)
                     cPickle.dump(data, outfile, cPickle.HIGHEST_PROTOCOL)
 
-        self.recorded_traces[(left, json)] = lresult
-        self.recorded_traces[(right, json)] = rresult
+        if neuron == left:
+            self.simulated_configurations[left].append(param)
+            return lresult
+        else:
+            self.simulated_configurations[right].append(param)
+            return rresult
 
     def read_adc_status(self):
         return "FAKE ADC :P"
