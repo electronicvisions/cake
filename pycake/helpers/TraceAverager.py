@@ -87,7 +87,7 @@ def createTraceAverager(coord_wafer, coord_hicann):
 
 
 class TraceAverager(object):
-    def __init__(self,  adc_freq):
+    def __init__(self, adc_freq):
         self.adc_freq = adc_freq
         msg = "Initialized TraceAverager with adc frequency of {} MHz"
         logger.INFO(msg.format(self.adc_freq))
@@ -105,7 +105,17 @@ class TraceAverager(object):
             result[ii] = trace[pos:pos+window_size]
         return result
 
-    def get_average(self, trace, dt):
-        """Gives mean and std of trace slices with length dt"""
-        chunks = self.get_chunks(trace, dt)
+    def get_average(self, trace, period):
+        """Gives mean and std of trace slices with length period.
+
+        Args:
+            voltage trace,
+            period
+
+        Returns:
+            (averaged trace,
+             std of points,
+             number of chunks used for average)
+        """
+        chunks = self.get_chunks(trace, period)
         return np.mean(chunks, axis=0), np.std(chunks, axis=0, ddof=1), chunks.shape[0]
