@@ -57,12 +57,12 @@ current_params = [neuron_parameter.I_spikeamp,
                   neuron_parameter.I_bexp,
                   shared_parameter.int_op_bias,
                   shared_parameter.I_breset,
-                  shared_parameter.I_bstim] 
+                  shared_parameter.I_bstim]
 
 # Polynomials for the transformation from Hardware to Hardwarecontrol parameters
 # Polynomial coefficients are in this order: a*x^2 + b*x + c
 # These polynomial coefficients are the results of Marcos transistor-level simulations
-HWtoHC_polys = { 
+HWtoHC_polys = {
         neuron_parameter.E_l:       [        1.,  0.],
         neuron_parameter.V_t:       [        1.,  0.],
         shared_parameter.V_reset:   [        1.,  0.],
@@ -82,7 +82,7 @@ def DACtoHW(value, parameter):
 
 def HWtoHC(value, parameter):
     """ Transform hardware parameter to Hardwarecontrol parameter.
-        
+
         Args:
             value = hardware value
             parameter = pyhalbe.HICANN.neuron_parameter or pyhalbe.HICANN.shared_parameter
@@ -99,7 +99,7 @@ def HWtoHC(value, parameter):
 
 def HCtoHW(value, parameter):
     """ Transform hardware parameter to DAC value.
-        
+
         Args:
             value = hardware value
             parameter = pyhalbe.HICANN.neuron_parameter or pyhalbe.HICANN.shared_parameter
@@ -109,22 +109,22 @@ def HCtoHW(value, parameter):
     """
     if parameter in HWtoHC_polys.keys():
         if len(HWtoHC_polys[parameter]) is 2:
-            a = HWtoHC_polys[parameter][0] 
-            b = HWtoHC_polys[parameter][1] 
+            a = HWtoHC_polys[parameter][0]
+            b = HWtoHC_polys[parameter][1]
             if parameter is neuron_parameter.I_pl:
                 return 1/(a*value) - b/a
             return (value - b)/a
         elif len(HWtoHC_polys[parameter]) is 3:
-            a = HWtoHC_polys[parameter][0] 
-            b = HWtoHC_polys[parameter][1] 
-            c = HWtoHC_polys[parameter][2] 
+            a = HWtoHC_polys[parameter][0]
+            b = HWtoHC_polys[parameter][1]
+            c = HWtoHC_polys[parameter][2]
             return np.sqrt(value/a + b**2 / (4*a**2) - c/a) - b/(2*a)
         else:
             raise ValueError("No valid transformation found.")
 
 def HCtoDAC(value, parameter, rounded=True):
     """ Transform hardware control parameter to DAC value.
-        
+
         Args:
             value = hardware value
             parameter = pyhalbe.HICANN.neuron_parameter or pyhalbe.HICANN.shared_parameter
@@ -154,7 +154,7 @@ def HCtoDAC(value, parameter, rounded=True):
 
 def DACtoHC(value, parameter):
     """ Transform DAC value to hardware control parameter.
-        
+
         Args:
             value = DAC value
             parameter = pyhalbe.HICANN.neuron_parameter or pyhalbe.HICANN.shared_parameter
