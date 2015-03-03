@@ -9,6 +9,7 @@ from scipy.optimize import curve_fit
 from scipy.integrate import simps
 from pycake.helpers.peakdetect import peakdet
 from pycake.logic.spikes import spikes_to_frequency
+from pycake.helpers.TraceAverager import TraceAverager
 
 from sims.sim_denmem_lib import NETS_AND_PINS
 
@@ -490,3 +491,35 @@ class Spikes_Analyzer(Analyzer):
 
         return {"spikes_mean_isi": mean_isi,
                 "spikes_n_spikes": n_spikes}
+
+class ADCFreq_Analyzer(Analyzer):
+    def __call__(self, t, v, bg_rate):
+        """Detects spikes in a trace of the HICANN preout
+
+        The signal of the preout seems to be usually quite strong.
+        """
+        pos = self._find_spikes_in_preout(v)
+        n = len(pos)
+        expected_t = np.arange(n) / bg_rate
+        adc_freq, _ = np.polyfit(expected_t, pos, 1)
+        if not 95e6 < adc_freq < 97e6:
+            raise RuntimeError("Found ADC frequency of {}, this is unlikly".format(
+                adc_freq))
+        return {"adc_freq": adc_freq}
+
+    def _find_spikes_in_preout(self, trace):
+        """Detects spikes in a trace of the HICANN preout
+
+        The signal of the preout seems to be usually quite strong.
+        """
+        th = 0.5
+        tmp = np.where((trace >= th)[:-1] != (trace >= th)[1:])[0]
+        tmp = tmp[:len(tmp)/2*2]
+        spike_pos = tmp.reshape((len(tmp)/2, 2))
+        positions = []
+        for begin, end in spike_pos:
+            begin, end = begin - 1, end + 1
+            t = np.arange(begin, end)
+            pos = np.dot(trace[begin:end], t) / np.sum(trace[begin:end])
+            positions.append(pos)
+        return np.array(positions)

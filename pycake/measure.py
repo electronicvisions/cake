@@ -9,6 +9,7 @@ import pycake
 
 from helpers.WorkerPool import WorkerPool
 from helpers.TracesOnDiskDict import RecordsOnDiskDict
+from helpers.sthal import ADCFreqConfigurator
 
 import time
 import os
@@ -515,3 +516,39 @@ class I_gl_Measurement_multiple_currents(I_gl_Measurement):
                 worker.do(neuron, neuron=neuron, **readout)
         self.logger.INFO("Wait for analysis to complete.")
         return worker.join()
+
+class ADCFreq_Measurement(ADCMeasurement):
+    def __init__(self, sthal, neurons, bg_rate=100e3, readout_shifts=None):
+        super(ADCFreq_Measurement, self).__init__(sthal, neurons, readout_shifts=readout_shifts)
+        self.bg_rate = bg_rate
+
+    def pre_measure(self):
+        """ Set analog recorder to preout """
+        recording_time = 1000.0 / self.bg_rate
+        self.sthal.stimulateNeurons(self.bg_rate, 4)
+        self.sthal.hicann.analog.set_preout(Coordinate.AnalogOnHICANN(0))
+
+    def _measure(self, analyzer, additional_data):
+        """ Measure traces and correct each value for readout shift.
+            Changes traces to numpy arrays
+
+            This will set:
+                self.traces = {neuron: trace}
+        """
+        time.sleep(1)  # Settle driver locking
+        readout = self.read_adc()
+        result = analyzer(readout['t'], readout['v'], self.bg_rate)
+        self.logger.INFO("ADC Frequency measured: {}".format(result))
+        return result
+
+    def run_measurement(self, analyzer, additional_data):
+        """ First configure, then measure
+        """
+        self.logger.INFO("Connecting to hardware and configuring.")
+        self.pre_measure()
+        self.configure(ADCFreqConfigurator())
+        result = self._measure(analyzer, additional_data)
+        self.logger.INFO("Measurement done, disconnecting from hardware.")
+        self.finish()
+        self.sthal.disconnect()
+        return result

@@ -119,3 +119,9 @@ class TraceAverager(object):
         """
         chunks = self.get_chunks(trace, period)
         return np.mean(chunks, axis=0), np.std(chunks, axis=0, ddof=1), chunks.shape[0]
+
+    def get_adc_freq(self):
+        return self.adc_freq
+
+    def set_adc_freq(self, freq):
+        self.adc_freq = freq

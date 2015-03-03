@@ -105,6 +105,17 @@ class UpdateParameter(pysthal.HICANNConfigurator):
                 HICANN.set_fg_row_values(handle, block, row, data, write_down)
 
 
+class ADCFreqConfigurator(pysthal.HICANNConfigurator):
+    def hicann_init(self, h):
+        pyhalbe.HICANN.init(h, False)
+
+    def config_synapse_array(self, handle, data):
+        pass
+
+    def config_floating_gates(self, handle, data):
+        pass
+
+
 class FakeAnalogRecorder(object):
     """Fake AnalogRecorder for testing purposes.
 
