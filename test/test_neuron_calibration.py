@@ -11,7 +11,7 @@ import unittest
 
 import pycellparameters
 import pyNN.standardmodels.cells as pynn
-from pycake.helpers.calibtic import Calibtic as CalibData
+from pycake.helpers.calibtic import Calibtic
 
 import pyhalbe
 import pycalibtic
@@ -36,7 +36,7 @@ class TestNeuronCalibration(unittest.TestCase):
         """Load and apply fake calibration."""
 
         # load calibration data
-        calib = CalibData(self.config["xmlbackendpath"], self.config["c_wafer"], self.config["c_hicann"])
+        calib = Calibtic(self.config["xmlbackendpath"], self.config["c_wafer"], self.config["c_hicann"])
         neuron_cal = calib.nc
         shared_cal = calib.bc
 
@@ -71,6 +71,6 @@ class TestNeuronCalibration(unittest.TestCase):
 
 if __name__ == "__main__":
     import pylogging
-    pylogging.set_loglevel(CalibData.logger, pylogging.LogLevel.INFO)
-    pylogging.append_to_cout(CalibData.logger)
+    pylogging.set_loglevel(Calibtic.logger, pylogging.LogLevel.INFO)
+    pylogging.append_to_cout(Calibtic.logger)
     unittest.main()
