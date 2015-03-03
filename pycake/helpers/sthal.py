@@ -164,8 +164,7 @@ class StHALContainer(object):
                  recording_time=1.e-4,
                  wafer_cfg="",
                  PLL=100e6,
-                 dump_file=None,
-                 neuron_size=1):
+                 dump_file=None):
         """Initialize StHAL. kwargs default to vertical setup configuration.
 
         Args:
@@ -196,6 +195,7 @@ class StHALContainer(object):
         self.coord_analog = coord_analog
         self._connected = False
         self.input_spikes = {}
+        self.neuron_size = 1
 
     def connect(self):
         """Connect to the hardware."""
@@ -584,6 +584,7 @@ class StHALContainer(object):
     def set_neuron_size(self, n):
         self.logger.INFO("Setting neuron size to {}".format(n))
         self.firing_denmems = list(self.hicann.set_neuron_size(n))
+        self.neuron_size = n
 
 
 class SimStHALContainer(StHALContainer):
