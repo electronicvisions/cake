@@ -310,12 +310,12 @@ class V_t_Analyzer(PeakAnalyzer):
 
 
 class I_gl_Analyzer(Analyzer):
-    def __init__(self, trace_averager, save_mean=True, pll_freq=100e6):
+    def __init__(self, save_mean=True, pll_freq=100e6):
         super(I_gl_Analyzer, self).__init__()
         self.logger.INFO("I_gl_Analyzer is using pll={}".format(pll_freq))
-        self.logger.INFO("Initializing I_gl_analyzer by measuring ADC sampling frequency.")
-        self.trace_averager = trace_averager
-        self.logger.INFO("TraceAverager created with ADC frequency {} Hz.".format(trace_averager.adc_freq))
+
+        # Create trace_averager with empty ADC frequency.
+        self.trace_averager = TraceAverager(None)
 
         # stimulation period
         # FG cell count * 1/(1/4) (pll_freq divider) * (pulse_length + 1)
@@ -326,8 +326,16 @@ class I_gl_Analyzer(Analyzer):
         self.logger.INFO("Initializing I_gl_analyzer using C={} (bigcap).".format(self.C))
         self.save_mean = save_mean
 
-    def __call__(self, neuron, t, v, std, V_rest_init=0.7, used_current=None, **traces):
+    #def measure_adc_frequency(self, coord_wafer, coord_hicann):
+    #    self.trace_averager.adc_freq = measure_adc_freq(coord_wafer, coord_hicann)
+
+    def set_adc_freq(self, freq):
+        self.trace_averager.set_adc_freq(freq)
+
+    def __call__(self, neuron, t, v, std, used_current=None, **traces):
         # average over all periods, reduce to one smooth period
+        if traces.has_key('adc_freq'):
+            self.set_adc_freq(traces['adc_freq'])
         mean_trace, std_trace, n_chunks = self.trace_averager.get_average(v, self.dt)
 
         # edge detection of decay,
