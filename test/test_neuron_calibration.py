@@ -52,13 +52,13 @@ class TestNeuronCalibration(unittest.TestCase):
         c_nrn = self.config["c_nrn"]
         ncal_params = pycalibtic.NeuronCalibrationParameters()
         hwparam_n = neuron_cal.applyNeuronCalibration(parameters, c_nrn.id().value(), ncal_params)
-        hwparam_s = shared_cal.applySharedCalibration(self.config["hw_vreset"], c_nrn.sharedFGBlock().id())
+        hwparam_s = shared_cal.applySharedCalibration(self.config["hw_vreset"], c_nrn.toSharedFGBlockOnHICANN().id())
 
         # modify FGControl using calibrated parameters
         fgc = pyhalbe.HICANN.FGControl()
 
         hwparam_n.toHW(c_nrn, fgc)
-        hwparam_s.toHW(c_nrn.sharedFGBlock(), fgc)
+        hwparam_s.toHW(c_nrn.toSharedFGBlockOnHICANN(), fgc)
 
         unmodified_fgc = pyhalbe.HICANN.FGControl()
         self.assertNotEqual(unmodified_fgc, fgc)
