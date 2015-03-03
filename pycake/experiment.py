@@ -44,26 +44,77 @@ class Experiment(object):
     def get_parameters_and_results(self, neuron, parameters, result_keys):
         """ Read out parameters and result for the given neuron.
         Shared parameters are read from the corresponding FGBlock.
+        If any of the given keys could not be obtained from a measurement,
+        this measurement is ignored.
 
-            Args:
-                neuron: parameters matching this neuron
-                parameter: [list] parameters to read (neuron_parameter or
-                           shared_parameter)
-                result_keys: [list] result keys to append
-            Return:
-                2D numpy array: each row contains the containing parameters
-                    in the requested order, followed by the requested keys
+        Args:
+            neuron: parameters matching this neuron
+            parameter: [list] parameters to read (neuron_parameter or
+                       shared_parameter)
+            result_keys: [list] result keys to append
+
+        Return:
+            2D numpy array: each row contains the containing parameters
+                in the requested order, followed by the requested keys
+
+        Raises:
+            ValueError, if no results are found for the given neuron.
         """
-        values =[]
+        values = []
         for measurement, result in zip(self.measurements, self.results):
             value = measurement.get_parameters(neuron, parameters)
-            for key in result_keys:
-                value.append(result[neuron][key])
+            try:
+                nrn_results = result[neuron]
+                value.extend(nrn_results[key] for key in result_keys)
+            except KeyError:
+                continue
             values.append(value)
+
+        if not values:
+            raise ValueError("No results for {}".format(neuron))
+
         try:
             return numpy.array(values)
         except ValueError:
             return values
+
+    def get_parameters(self, neuron, parameters):
+        """short for get_parameters_and_results(neuron, parameters, tuple())"""
+        return self.get_parameters_and_results(neuron, parameters, tuple())
+
+    def get_results(self, neuron, keys):
+        """short for get_parameters_and_results(neuron, tuple(), keys)"""
+        return self.get_parameters_and_results(neuron, tuple(), keys)
+
+    def get_data(self, neuron, parameters, result_keys):
+        """ Read out parameters and result for the given neuron.
+        Shared parameters are read from the corresponding FGBlock.
+        If any of the given keys could not be obtained from a measurement,
+        this measurement is ignored.
+
+        Args:
+            neuron: parameters matching this neuron
+            parameter: [list] parameters to read (neuron_parameter or
+                       shared_parameter)
+            result_keys: [list] result keys to append
+
+        Return:
+            2D numpy array: each row contains the containing parameters
+                in the requested order, followed by the requested keys
+
+        Raises:
+            ValueError, if no results are found for the given neuron.
+        """
+        import pandas
+        names = [p.name for p in parameters]
+        names.extend(result_keys)
+        values = []
+        for msr, result in zip(self.measurements, self.results):
+            value = msr.get_parameters(neuron, parameters)
+            nrn_results = result[neuron]
+            value.extend(nrn_results.get(key, numpy.nan) for key in result_keys)
+            values.append(numpy.array(value))
+        return pandas.DataFrame(values, columns=names)
 
     def get_mean_results(self, neuron, parameter, result_keys):
         """ Read out parameters and result for the given neuron.
