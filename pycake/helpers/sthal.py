@@ -332,7 +332,7 @@ class StHALContainer(object):
                 self._sendSpikes(self.input_spikes)
                 runtime = self.adc.getRecordingTime() + 1.e-5
                 runner = pysthal.ExperimentRunner(runtime)
-                self.wafer.restart(runner) # Clears received spikes
+                self.wafer.restart(runner)  # Clears received spikes
                 self.adc.record()  # TODO triggered
                 recv_spikes = {}
                 for link in Coordinate.iter_all(GbitLinkOnHICANN):
@@ -345,7 +345,6 @@ class StHALContainer(object):
                 print "retry"
                 self.connect_adc()
         raise RuntimeError("Aborting ADC readout, maximum number of retries exceded")
-
 
     def read_adc_status(self):
         if not self._connected:
@@ -575,8 +574,9 @@ class StHALContainer(object):
         self.logger.INFO("Setting neuron size to {}".format(n))
         self.firing_denmems = list(self.hicann.set_neuron_size(n))
 
+
 class SimStHALContainer(StHALContainer):
-    """Contains StHAL objects for hardware access. Multiple experiments can 
+    """Contains StHAL objects for hardware access. Multiple experiments can
     share one container.
 
     Attributes:
@@ -631,6 +631,7 @@ class SimStHALContainer(StHALContainer):
             raise RuntimeError("simulation_cache must be a folder")
         self.hicann_version = config.get_hicann_version()
         self.mc_seed = config.get_sim_denmem_mc_seed()
+        self.adc = FakeAnalogRecorder()
 
         self.maximum_spikes = 200
         self.spike_counter_offset = self.simulation_init_time
@@ -655,6 +656,8 @@ class SimStHALContainer(StHALContainer):
     def disconnect(self):
         """Free handles."""
         pass
+
+        self.adc = None
 
     def write_config(self, program_floating_gates=True, configurator=None):
         """Write full configuration."""
@@ -775,3 +778,9 @@ class SimStHALContainer(StHALContainer):
 
     def set_neuron_size(self, n):
         self.logger.ERROR("Neuron size other than 1 not supported! Using size 1")
+
+    def switch_current_stimulus_and_output(self, coord_neuron, l1address=None):
+        def do_nothing(*args, **kwargs):
+            pass
+        self.wafer.configure = do_nothing
+        super(SimStHALContainer, self).switch_current_stimulus_and_output(coord_neuron, l1address)
