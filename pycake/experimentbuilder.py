@@ -133,7 +133,7 @@ class BaseExperimentBuilder(object):
 
                 if value.apply_calibration:
                     self.logger.TRACE("Applying calibration to coord {} value {}".format(neuron, value_dac))
-                    value_dac.value = self.calibtic.apply_calibration(value_dac.value, param, neuron) + value_dac.offset
+                    value_dac.value = self.calibtic.apply_calibration(value_dac.value, param, neuron)
 
                 self.logger.TRACE("Setting FGValue of {} parameter {} to {}.".format(neuron, param, value_dac))
                 floating_gates.setNeuron(neuron, param, value_dac.value)
@@ -156,7 +156,7 @@ class BaseExperimentBuilder(object):
                 # Do not calibrate target parameter except if this is a test measurement
                 if value.apply_calibration:
                     self.logger.TRACE("Applying calibration to coord {} value {}".format(block, value_dac))
-                    value_dac.value = self.calibtic.apply_calibration(value_dac.value, param, block) + value_dac.offset
+                    value_dac.value = self.calibtic.apply_calibration(value_dac.value, param, block)
 
                 self.logger.TRACE("Setting FGValue of {} parameter {} to {}.".format(block, param, value_dac))
                 floating_gates.setShared(block, param, value_dac.value)
