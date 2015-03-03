@@ -9,7 +9,6 @@ import numpy
 from pycake.helpers.sthal import StHALContainer
 from pycake.helpers.sthal import SimStHALContainer
 from pycake.helpers.calibtic import Calibtic
-from pycake.helpers.TraceAverager import createTraceAverager
 from pycake.measure import ADCMeasurement
 from pycake.measure import ADCMeasurementWithSpikes
 from pycake.measure import SpikeMeasurement
@@ -186,7 +185,6 @@ class BaseExperimentBuilder(object):
         experiment = SequentialExperiment(measurements, analyzer, repetitions)
         experiment = self.add_additional_measurements(experiment)
         return experiment
-        return SequentialExperiment(measurements, analyzer, repetitions)
 
     def get_analyzer(self):
         """
@@ -371,14 +369,30 @@ class I_gl_Experimentbuilder(BaseExperimentBuilder):
         return I_gl_Measurement(sthal, neurons, readout_shifts)
 
     def get_analyzer(self):
-        """ Get the appropriate analyzer for a specific parameter.
+        """ Create an I_gl analyzer WITHOUT setting the ADC frequency.
+            This frequency needs to be measured before using the analyzer!
+            This is done by the SequentialExperimentWithAveraging or manually by
+                calling analyzer.measure_adc_frequency()
         """
-        coord_wafer, coord_hicann = self.config.get_coordinates()
-        # not ideal place to call createTraceAverager, connects to hardware
-        trace_averager = createTraceAverager(coord_wafer, coord_hicann)
         save_traces = self.config.get_save_traces()
         pll = self.config.get_PLL()
-        return pycake.analyzer.I_gl_Analyzer(trace_averager, save_traces, pll)
+        return pycake.analyzer.I_gl_Analyzer(save_traces, pll)
+
+    def add_additional_measurements(self, experiment):
+        """ Add the initial measurement to I_gl experiment.
+            This measurement determines the ADC frequency needed for the TraceAverager
+        """
+        from pycake.measure import ADCFreq_Measurement
+        from pycake.analyzer import ADCFreq_Analyzer
+        coord_wafer, coord_hicann = self.config.get_coordinates()
+        wafer_cfg = self.config.get_wafer_cfg()
+        PLL = self.config.get_PLL()
+        sthal = StHALContainer(
+            coord_wafer, coord_hicann, wafer_cfg=wafer_cfg, PLL=PLL)
+        measurement = ADCFreq_Measurement(sthal, self.neurons, bg_rate=100e3)
+        analyzer = ADCFreq_Analyzer()
+        experiment.add_initial_measurement(measurement, analyzer)
+        return experiment
 
 
 class E_l_I_gl_fixed_Experimentbuilder(E_l_Experimentbuilder):

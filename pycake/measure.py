@@ -474,6 +474,7 @@ class I_gl_Measurement(ADCMeasurement):
                 self.traces[neuron] = readout
 
             readout['v'] = self.readout_shifts(neuron, readout['v'])
+            readout.update(additional_data)
             worker.do(neuron, neuron=neuron, **readout)
         self.logger.INFO("Wait for analysis to complete.")
         return worker.join()
