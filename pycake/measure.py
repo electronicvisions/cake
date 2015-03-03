@@ -463,11 +463,15 @@ class I_gl_Measurement(ADCMeasurement):
             self.logger.TRACE("Measuring neuron {} with current {}".format(neuron, current))
             self.pre_measure(neuron, current=current)
             readout = self.read_adc()
-            readout['current'] = current
-            readout['std'] = std
-            readout['V_rest'] = V_rest
+
+            # these are just an integers/floats, convert to array for TracesOnDiskDict
+            readout['current'] = np.array([current])
+            readout['std'] = np.array([std])
+            readout['V_rest'] = np.array([V_rest])
+
             if not self.traces is None:
                 self.traces[neuron] = readout
+
             readout['v'] = self.readout_shifts(neuron, readout['v'])
             worker.do(neuron, neuron=neuron, **readout)
         self.logger.INFO("Wait for analysis to complete.")
