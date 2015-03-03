@@ -254,6 +254,14 @@ class V_t_Experimentbuilder(BaseExperimentBuilder):
         return sthal
 
 
+class I_gladapt_Experimentbuilder(BaseExperimentBuilder):
+    def get_analyzer(self):
+        """ISI std is a hint whether adaptation takes place.
+        Should be replaced by a better analysis before real usage.
+        """
+        return pycake.analyzer.ISI_Analyzer()
+
+
 class I_pl_Experimentbuilder(BaseExperimentBuilder):
     """Longer recording time than parent class.
 
@@ -388,6 +396,7 @@ class V_syntcx_psp_max_Experimentbuilder(BaseExperimentBuilder):
         sthal.stimulateNeurons(0.1e6, 1, excitatory=True)
         return sthal
 
+
 class readout_shift_Experimentbuilder(BaseExperimentBuilder):
     def prepare_specific_config(self, sthal):
         sthal.set_neuron_size(64)
@@ -403,3 +412,8 @@ class readout_shift_Experimentbuilder(BaseExperimentBuilder):
                 shifts: a dictionary {neuron: shift (in V)}
         """
         return dict((n, 0) for n in neurons)
+
+
+class I_bexp_Experimentbuilder(BaseExperimentBuilder):
+    def get_analyzer(self):
+        return pycake.analyzer.ISI_Analyzer()
