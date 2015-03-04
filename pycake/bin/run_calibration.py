@@ -18,6 +18,45 @@ def check_file(string):
         raise argparse.ArgumentTypeError(msg)
     return string
 
+class DictionaryAction(argparse.Action):
+    """Converts values to the given time and collects them in a dictionary"""
+    TYPES = {
+        'float': float,
+        'int': int,
+        'string': str,
+    }
+    METAVAR = ('<key>', '<type>', '<value>')
+
+    def __init__(self, option_strings, dest, **kwargs):
+        argparse.Action.__init__(
+            self, option_strings, dest, nargs=3, metavar=self.METAVAR,
+            default={}, **kwargs)
+
+    def __call__(self, parser, namespace, arg_value, option_string):
+        target = getattr(namespace, self.dest)
+        if target is None:
+            target = {}
+
+        try:
+            key, value_type, value = arg_value
+            target[key] = self.TYPES[value_type](value)
+        except KeyError as e:
+            raise argparse.ArgumentError(
+                self,
+                "Unkown value type '{}', known types are: ".format(
+                    value_type, ", ".join(self.TYPES.keys())))
+        except ValueError as e:
+            raise argparse.ArgumentError(
+                self,
+                "Could not convert '{}' to {}: {}".format(
+                    value, value_type, e))
+        except Exception as e:
+            raise argparse.ArgumentError(
+                self,
+                "Strange Error parsing '{}': {}".format(
+                    option_string, e))
+        setattr(namespace, self.dest, target)
+
 
 def load_config(parsed_args):
     cfg = pycake.config.Config(None, parsed_args.parameter_file)
@@ -36,6 +75,7 @@ def load_config(parsed_args):
         for key in remove:
             del cfg.parameters[key]
         cfg.parameters['parameter_order'] = parsed_args.parameter
+    cfg.parameters.update(parsed_args.overwrite)
     return cfg
 
 
@@ -59,16 +99,24 @@ init_logger(pylogging.LogLevel.WARN, [
 parser = argparse.ArgumentParser(description='HICANN Calibration tool. Takes a parameter file as input. See pycake/bin/parameters.py to see an example.')
 add_default_coordinate_options(parser)
 add_logger_options(parser)
-parser.add_argument('parameter_file', type=check_file, help='parameterfile containing the parameters of this calibration')
-parser.add_argument('--outdir', type=str, default=None, help="output folder. default is the one specified in the config file.")
+parser.add_argument('parameter_file', type=check_file,
+                    help="parameterfile containing the parameters of this "
+                         "calibration")
+parser.add_argument('--outdir', type=str, default=None,
+                    help="output folder. default is the one specified in the "
+                         "config file.")
 parser.add_argument('--logfile', default=None,
-                        help="Specify a logfile where all the logger output will be stored (any LogLevel!)")
+                    help="Specify a logfile where all the logger output will "
+                         "be stored")
 parser.add_argument('--parameter', type=str, default=None, action='append',
                     help='Runs the specified calibrations in the given order')
+parser.add_argument('--overwrite', required=False, action=DictionaryAction,
+                    help="Overwrites values loaded from configuration file")
 args = parser.parse_args()
 
 if args.logfile is not None:
-    pylogging.log_to_file(args.logfile, pylogging.LogLevel.ALL)
+    # pylogging.log_to_file(args.logfile, pylogging.LogLevel.ALL)
+    pylogging.logger_append_to_file(args.logfile, pylogging.get_root())
 
 config = load_config(args)
 
