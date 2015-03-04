@@ -1,0 +1,101 @@
+import numpy as np
+import argparse
+import pickle
+import os
+import pylogging
+
+import Coordinate
+
+from pysthal.command_line_util import add_default_coordinate_options
+from pysthal.command_line_util import add_logger_options
+from pysthal.command_line_util import init_logger
+
+from pycake.config import Config
+from pycake.helpers.WorkerPool import WorkerPool
+from pycake.helpers.misc import mkdir_p
+
+from pycake.calibration.capacitance import Capacitance_Measurement
+from pycake.calibration.capacitance import Capacitance_Analyzer
+from pycake.calibration.capacitance import Capacitance_Experimentbuilder
+from pycake.calibration.capacitance import Capacitance_Calibrator
+
+def check_file(string):
+    if not os.path.isfile(string):
+        msg = "parameter file '%r' not found! :p" % string
+        raise argparse.ArgumentTypeError(msg)
+    return string
+
+
+def load_config(parsed_args):
+    cfg = Config('capacitance', 'capacitance_config.py')
+
+    if parsed_args.outdir:
+        backend_dir = os.path.join(parsed_args.outdir, 'backends')
+        cfg.parameters['folder'] = parsed_args.outdir
+        cfg.parameters['backend_c'] = backend_dir
+        cfg.parameters['backend_r'] = backend_dir
+    if parsed_args.hicann:
+        cfg.parameters['coord_hicann'] = parsed_args.hicann
+    if parsed_args.wafer:
+        cfg.parameters['coord_wafer'] = parsed_args.wafer
+    if parsed_args.smallcap:
+        cfg.parameters['smallcap'] = True
+    return cfg
+
+
+if __name__ == "__main__":
+    init_logger(pylogging.LogLevel.WARN, [
+        ("Default", pylogging.LogLevel.INFO),
+        ("halbe.fgwriter", pylogging.LogLevel.ERROR),
+        ("pycake.calibrationrunner", pylogging.LogLevel.DEBUG),
+        ("pycake.measurement", pylogging.LogLevel.TRACE),
+        ("pycake.analyzer", pylogging.LogLevel.TRACE),
+        ("pycake.experiment", pylogging.LogLevel.DEBUG),
+        ("pycake.experimentbuilder", pylogging.LogLevel.DEBUG),
+        ("pycake.calibtic", pylogging.LogLevel.DEBUG),
+        ("pycake.redman", pylogging.LogLevel.DEBUG),
+        ("pycake.sthal", pylogging.LogLevel.DEBUG),
+        ("pycake.helper.sthal", pylogging.LogLevel.INFO),
+        ("sthal", pylogging.LogLevel.INFO),
+        ("sthal.AnalogRecorder", pylogging.LogLevel.WARN),
+        ("sthal.HICANNConfigurator.Time", pylogging.LogLevel.INFO)
+        ])
+
+    helpstring = """Tool for measurement of neuron membrane capacitances.
+        Method from Schmidt(2014) chapter 4.3 is used.
+        The resulting capacitances include the additional capacitances of the stimulus line!
+        The results dictionary is pickled to results.p in the output folder.
+        In addition, a human-readable results.npy is saved.
+        The experiment is stored in experiment.p in the output folder."""
+    parser = argparse.ArgumentParser(description=helpstring)
+    add_default_coordinate_options(parser)
+    add_logger_options(parser)
+    parser.add_argument('--outdir', type=str, help="Output folder.")
+    parser.add_argument('--smallcap', action='store_true', help="Set small capacitance")
+    parser.add_argument('--logfile', default=None,
+                            help="Specify a logfile where all the logger output will be stored (any LogLevel!)")
+    args = parser.parse_args()
+
+    outdir = args.outdir
+
+    if args.logfile is not None:
+        pylogging.log_to_file(args.logfile, pylogging.LogLevel.ALL)
+
+    config = load_config(args)
+
+    builder = Capacitance_Experimentbuilder(config)
+
+    experiment = builder.get_experiment('capacitance')
+    analyzer = builder.get_analyzer()
+
+    for i in experiment.iter_measurements():
+        mkdir_p(outdir)
+        pickle.dump(experiment, open(os.path.join(outdir, 'experiment.p'), 'wb'))
+
+    calibrator = Capacitance_Calibrator(experiment, config)
+    caps = calibrator.generate_coeffs()[0][1]
+
+    pickle.dump(caps, open(os.path.join(outdir, 'results.p'), 'wb'))
+
+    result_array = np.array([caps[Coordinate.NeuronOnHICANN(Coordinate.Enum(nid))] for nid in range(512)])
+    np.savetxt(os.path.join(outdir, 'results.npy'), result_array)
