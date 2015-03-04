@@ -332,19 +332,11 @@ class V_convoffi_Experimentbuilder(V_convoff_Experimentbuilder):
     EXCITATORY = False
     ANALYZER = pycake.analyzer.V_convoffi_Analyzer
 
-    def __init__(self, *args, **kwargs):
-        super(V_convoffi_Experimentbuilder, self).__init__(*args, **kwargs)
-        self.recording_time = 80e-6
-        self.spikes = numpy.array([50e-6])
-
 
 class V_convoffx_Experimentbuilder(V_convoff_Experimentbuilder):
     EXCITATORY = True
     ANALYZER = pycake.analyzer.V_convoffx_Analyzer
 
-class V_convoffi_Experimentbuilder(BaseExperimentBuilder):
-    EXCITATORY = None
-    ANALYZER = pycake.analyzer.V_convoffx_Analyzer
 
 from calibration.vsyntc import SimplePSPAnalyzer
 
