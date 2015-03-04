@@ -281,24 +281,23 @@ class I_pl_Experimentbuilder(BaseExperimentBuilder):
         return pycake.analyzer.ISI_Analyzer()
 
 
-class E_synx_Experimentbuilder(BaseExperimentBuilder):
+class E_syn_Experimentbuilder(BaseExperimentBuilder):
+    EXCITATORY = None
     def prepare_specific_config(self, sthal):
         sthal.simulation_init_time = 100.0e-6
         sthal.set_recording_time(10e-6, 10)
-        sthal.stimulateNeurons(5.0e6, 1, excitatory=True)
+        sthal.stimulateNeurons(5.0e6, 1, excitatory=self.EXCITATORY)
         sthal.maximum_spikes = 1
         sthal.spike_counter_offset = 0.0
         return sthal
 
 
-class E_syni_Experimentbuilder(BaseExperimentBuilder):
-    def prepare_specific_config(self, sthal):
-        sthal.simulation_init_time = 100.0e-6
-        sthal.set_recording_time(10e-6, 10)
-        sthal.stimulateNeurons(5.0e6, 1, excitatory=False)
-        sthal.maximum_spikes = 1
-        sthal.spike_counter_offset = 0.0
-        return sthal
+class E_syni_Experimentbuilder(E_syn_Experimentbuilder):
+    EXCITATORY = False
+
+
+class E_synx_Experimentbuilder(E_syn_Experimentbuilder):
+    EXCITATORY = True
 
 
 class V_convoff_Experimentbuilder(BaseExperimentBuilder):
@@ -307,9 +306,9 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
 
     def __init__(self, *args, **kwargs):
         super(V_convoff_Experimentbuilder, self).__init__(*args, **kwargs)
-        self.init_time = 0.0e-6
-        self.recording_time = 360e-6
-        self.spikes = numpy.array([320e-6])
+        self.init_time = 300.0e-6
+        self.recording_time = 60e-6
+        self.spikes = numpy.array([20e-6])
         self.gmax_div = 30
 
     def prepare_specific_config(self, sthal):
