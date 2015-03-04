@@ -72,7 +72,7 @@ class PeakAnalyzer(Analyzer):
     def __call__(self, neuron, t, v, **traces):
         maxtab, mintab = self.get_peaks(t, v)
         # FIXME get_peaks is called by most following functions, wasting CPU time
-        mean_max, mean_min, std_max, std_min = self.get_mean_peak(t, v)
+        mean_max, mean_min, std_max, std_min = self.get_mean_peak(t, v, maxtab, mintab)
         maxindex = maxtab[:, 0]
         spikes = t[maxindex]
         freq = spikes_to_frequency(spikes)
@@ -94,7 +94,7 @@ class PeakAnalyzer(Analyzer):
                    "mintab": mintab}
 
         if self.analyze_slopes:
-            slopes_rising, slopes_falling = self.get_slopes(t, v)
+            slopes_rising, slopes_falling = self.get_slopes(t, v, maxtab, mintab)
             results['slopes_rising'] = slopes_rising
             results['slopes_falling'] = slopes_falling
 
@@ -104,13 +104,12 @@ class PeakAnalyzer(Analyzer):
         delta = np.std(v)
         return peakdet(v, delta)
 
-    def get_slopes(self, t, v):
+    def get_slopes(self, t, v, maxtab, mintab):
         """ Returns all the slopes of a trace
 
             Return:
                 slopes_rising, slopes_falling
         """
-        maxtab, mintab = self.get_peaks(t, v)
         imin = np.array(mintab[:, 0], dtype=int)
         valmin = mintab[:, 1]
         imax = np.array(maxtab[:, 0], dtype=int)
@@ -136,9 +135,8 @@ class PeakAnalyzer(Analyzer):
 
         return slopes_rising, slopes_falling
 
-    def get_mean_peak(self, t, v):
+    def get_mean_peak(self, t, v, maxtab, mintab):
         try:
-            maxtab, mintab = self.get_peaks(t, v)
             mean_max = np.mean(maxtab[:, 1])
             std_max = np.std(maxtab[:, 1])
             mean_min = np.mean(mintab[:, 1])
@@ -151,8 +149,7 @@ class PeakAnalyzer(Analyzer):
             std_min = 0
         return mean_max, mean_min, std_max, std_min
 
-    def get_mean_dt(self, t, v):
-        maxtab, mintab = self.get_peaks(t, v)
+    def get_mean_dt(self, t, v, maxtab, mintab):
         spike_indices = np.array(maxtab[:, 0], dtype=int)
         spiketimes = t[spike_indices]
         dts = np.roll(spiketimes, -1) - spiketimes
