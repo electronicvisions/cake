@@ -219,6 +219,10 @@ class SequentialExperiment(Experiment):
     def __setstate__(self, state):
         if 'measurements_to_run' not in state:
             state['measurements_to_run'] = copy.copy(state['measurements'])
+        if 'initial_data' not in state:
+            state['initial_data'] = {}
+        if 'initial_measurements' not in state:
+            state['initial_measurements'] = []
         self.__dict__.update(state)
 
 
