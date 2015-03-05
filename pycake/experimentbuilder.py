@@ -367,7 +367,7 @@ class I_gl_Experimentbuilder(BaseExperimentBuilder):
         """
         save_traces = self.config.get_save_traces()
         pll = self.config.get_PLL()
-        return pycake.analyzer.I_gl_Analyzer(save_traces, pll)
+        return pycake.analyzer.I_gl_Analyzer(pll)
 
     def add_additional_measurements(self, experiment):
         """ Add the initial measurement to I_gl experiment.

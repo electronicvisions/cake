@@ -390,12 +390,10 @@ class I_gl_Measurement(ADCMeasurement):
 
         This takes a lot of time!
 
-        skip_I_gl can be used to skip step 2) above a certain I_gl
     """
-    def __init__(self, sthal, neurons, readout_shifts=None, currents=[2,5,10,20,30], skip_I_gl=2500):
+    def __init__(self, sthal, neurons, readout_shifts=None, currents=[2,5,10,20,30]):
         super(I_gl_Measurement, self).__init__(sthal, neurons, readout_shifts)
         self.currents = currents
-        self.skip_I_gl = skip_I_gl
 
     def measure_V_rest(self, neuron):
         """ Measure V_rest and independend std by injecting 0 current into the membrane.
@@ -422,13 +420,9 @@ class I_gl_Measurement(ADCMeasurement):
                 threshold: how far should the trace go above V_rest?
                 recording_time_divider: how much smaller should the recorded traces be? \
                         Divider 1 means ~60 cycles (5e-3 s), standard divider of 20 means 3 cycles (2.5e-4 s)
-                skip_I_gl: Skip the measurement above a certain I_gl and just use 30.
         """
         old_recording_time = self.sthal.recording_time
         I_gl = self.get_parameter(neuron_parameter.I_gl, neuron).values()[0]*2500/1023.
-        if I_gl > self.skip_I_gl:  # Experience shows that for a large enough I_gl, a current of 30 is good
-            self.logger.TRACE("I_gl of {0:.1f} large enough. Setting current to 30".format(I_gl))
-            return 30
         self.sthal.adc.setRecordingTime(old_recording_time/recording_time_divider)
         self.logger.TRACE("Finding best current for neuron {}".format(neuron))
         best_current = None
@@ -459,7 +453,7 @@ class I_gl_Measurement(ADCMeasurement):
         worker = WorkerPool(analyzer)
         for neuron in self.neurons:
             V_rest, std = self.measure_V_rest(neuron)
-            current = self.find_best_current(neuron, V_rest, currents=self.currents, skip_I_gl=self.skip_I_gl)
+            current = self.find_best_current(neuron, V_rest, currents=self.currents)
             self.logger.TRACE("Measuring neuron {} with current {}".format(neuron, current))
             self.pre_measure(neuron, current=current)
             readout = self.read_adc()

@@ -9,6 +9,7 @@ from scipy.optimize import curve_fit
 from scipy.integrate import simps
 from pycake.helpers.peakdetect import peakdet
 from pycake.logic.spikes import spikes_to_frequency
+from pycake.logic.exponential_fit import fit_exponential, get_decay_fit_range, failed_dict
 from pycake.helpers.TraceAverager import TraceAverager
 
 from sims.sim_denmem_lib import NETS_AND_PINS
@@ -307,7 +308,7 @@ class V_t_Analyzer(PeakAnalyzer):
 
 
 class I_gl_Analyzer(Analyzer):
-    def __init__(self, save_mean=True, pll_freq=100e6):
+    def __init__(self, pll_freq=100e6):
         super(I_gl_Analyzer, self).__init__()
         self.logger.INFO("I_gl_Analyzer is using pll={}".format(pll_freq))
 
@@ -321,131 +322,38 @@ class I_gl_Analyzer(Analyzer):
         # TODO implement different capacitors
         self.C = 2.16456e-12  # Capacitance when bigcap is turned on
         self.logger.INFO("Initializing I_gl_analyzer using C={} (bigcap).".format(self.C))
-        self.save_mean = save_mean
-
-    #def measure_adc_frequency(self, coord_wafer, coord_hicann):
-    #    self.trace_averager.adc_freq = measure_adc_freq(coord_wafer, coord_hicann)
 
     def set_adc_freq(self, freq):
         self.trace_averager.set_adc_freq(freq)
 
-    def __call__(self, neuron, t, v, std, used_current=None, **traces):
+    def __call__(self, neuron, t, v, std, current=None, save_mean=False, **traces):
         # average over all periods, reduce to one smooth period
         if traces.has_key('adc_freq'):
             self.set_adc_freq(traces['adc_freq'])
         mean_trace, std_trace, n_chunks = self.trace_averager.get_average(v, self.dt)
 
         # edge detection of decay,
-        cut_v, fittimes = self.get_decay_fit_range(mean_trace, fwidth=64)
-
-        # initial value for fitting
-        V_rest_init = cut_v[-1]
+        cut_t, cut_v = get_decay_fit_range(mean_trace, self.trace_averager.adc_freq, fwidth=64)
 
         if len(cut_v) < (len(mean_trace)/4):
             # sanity check: if cut trace too short, something failed
             # return empty data and error
-            tau_m, V_rest, height, std_tau = np.nan, V_rest_init, np.nan, np.nan
-            red_chi2, pcov, infodict, ier = np.nan, np.nan, {'error': "cut trace length {} too short".format(len(cut_v))}, 0
+            result = failed_dict({'error': "Cut trace too short"})
         else:
-            tau_m, V_rest, height, std_tau, red_chi2, pcov, infodict, ier = self.fit_exponential(fittimes, cut_v, std,
-                                                                                                 V_rest_init, n_chunks)
-        result = {'tau_m': tau_m,
-                  'std_tau': std_tau,
-                  'V_rest': V_rest,
-                  'height': height,
-                  'red_chi2': red_chi2,
-                  'pcov': pcov,
-                  'ier': ier}
+            result = fit_exponential(cut_t, cut_v, std, n_chunks=n_chunks, full_output=True)
 
-        if np.isnan(tau_m):
-            # if fit failed, also return infodict for debugging
-            result['infodict'] = infodict
+        if result['ier'] > 0:
+            # if fit was succesful, do not save infodict
+            result['infodict'] = None
 
-        if self.save_mean:
+        if save_mean:
             result["mean"] = mean_trace
+
+        if current is not None:
+            result['current'] = current
 
         return result
 
-    def get_decay_fit_range(self, trace, fwidth=64):
-        """Detects decaying part of trace (for exponential fit).
-           Returns subtrace (v, t) in this range.
-
-        Args:
-            trace: the averaged trace
-            fwidth: filter width for smoothing
-
-        Returns: decaying trace and corresponding times
-            trace_cut, fittimes"""
-
-        dt = 1./self.trace_averager.adc_freq
-        vsmooth = ndimage.gaussian_filter(trace, fwidth)
-        # Sobel filter finds edges
-        edges = ndimage.sobel(vsmooth, axis=-1, mode='nearest')
-        fitstart, fitstop = np.argmin(edges), np.argmax(edges)
-
-        fitstop = fitstop - fitstart
-
-        if fitstop < 0:
-            fitstop += len(trace)
-
-        trace = pylab.roll(trace, -fitstart)
-
-        fitstart = 0
-        trace_cut = trace[fitstart:fitstop]
-        fittimes = np.arange(fitstart, fitstop)*dt
-
-        return trace_cut[:-80], fittimes[:-80]  # sobel tends to make trace too long --> cutoff
-
-    def get_initial_parameters(self, times, trace, V_rest):
-        height = trace[0] - V_rest
-        try:
-            # get first element where trace is below 1/e of initial value
-            # This does not always work
-            tau = times[trace-V_rest < ((trace[0]-V_rest) / np.exp(1))][0]
-        except IndexError:  # If trace never goes below 1/e, use some high value
-            tau = 1e-5
-        return [tau, height, V_rest]
-
-    def fit_exponential(self, fittimes, trace_cut, std, V_rest_init, n_chunks):
-        """ Fit an exponential function to the mean trace. """
-        def func(t, tau, height, V_rest):
-            return height * np.exp(-(t - t[0]) / tau) + V_rest
-
-        x0 = self.get_initial_parameters(fittimes, trace_cut, V_rest_init)
-        std = std / np.sqrt(n_chunks-1)
-
-        try:
-            expf, pcov, infodict, errmsg, ier = curve_fit(
-                func,
-                fittimes,
-                trace_cut,
-                x0,
-                sigma=std,
-                full_output=True)
-        except (ValueError, ZeroDivisionError, FloatingPointError) as e:
-            self.logger.WARN("Fit failed: {}".format(e))
-            return np.nan, V_rest_init, np.nan, np.nan, np.nan, np.nan, {"error": e}, 0
-
-        tau = expf[0]
-        height = expf[1]
-        V_rest = expf[2]
-
-        DOF = len(fittimes) - len(expf)
-        red_chisquare = sum(infodict["fvec"] ** 2) / (DOF)
-
-        # Sanity checks:
-        if not isinstance(pcov, np.ndarray):
-            e = 'pcov not array'
-            return np.nan, V_rest_init, np.nan, np.nan, np.nan, np.nan, {'error': e}, 0
-        if isinstance(pcov, np.ndarray) and pcov[0][0] < 0:
-            e = 'pcov negative'
-            return np.nan, V_rest_init, np.nan, np.nan, np.nan, np.nan, {'error': e}, 0
-        if (ier < 1) or (tau > 1) or (tau < 0):
-            e = 'ier < 1 or tau out of bounds'
-            return np.nan, V_rest_init, np.nan, np.nan, np.nan, np.nan, {'error': e}, 0
-
-        tau_std = np.sqrt(pcov[0][0])
-        return tau, V_rest, height, tau_std, red_chisquare, pcov, infodict, ier
 
 V_syntci_psp_max_Analyzer = MeanOfTraceAnalyzer
 V_syntcx_psp_max_Analyzer = MeanOfTraceAnalyzer
