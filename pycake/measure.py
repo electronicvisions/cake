@@ -354,6 +354,7 @@ class ADCMeasurement(Measurement):
                 if not self.traces is None:
                     self.traces[neuron] = readout
                 readout['v'] = self.readout_shifts(neuron, readout['v'])
+                readout.update(additional_data)
                 worker.do(neuron, neuron=neuron, **readout)
 
                 # DEBUG stuff
@@ -507,6 +508,7 @@ class I_gl_Measurement_multiple_currents(I_gl_Measurement):
                 if not self.traces is None:
                     self.traces[neuron] = readout
                 readout['v'] = self.readout_shifts(neuron, readout['v'])
+                readout.update(additional_data)
                 worker.do(neuron, neuron=neuron, **readout)
         self.logger.INFO("Wait for analysis to complete.")
         return worker.join()

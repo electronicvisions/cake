@@ -219,6 +219,13 @@ class InputSpike_Experimentbuilder(BaseExperimentBuilder):
         return ADCMeasurementWithSpikes(sthal, neurons, readout_shifts)
 
 
+"""
+Custom calibration experiment builders can be imported below,
+after the base classes were defined.
+"""
+from pycake.calibration.I_gl_charging import I_gl_charging_Experimentbuilder
+
+
 class E_l_Experimentbuilder(BaseExperimentBuilder):
     pass
 
