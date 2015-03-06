@@ -180,5 +180,8 @@ class Config(object):
     def get_hicann_version(self):
         return self.parameters["hicann_version"]
 
+    def get_sim_denmem_maximum_spikes(self):
+        return self.parameters.get("sim_denmem_maximum_spikes", None)
+
     def get_sim_denmem_mc_seed(self):
         return self.parameters.get("sim_denmem_mc_seed", None)

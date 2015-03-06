@@ -644,7 +644,12 @@ class SimStHALContainer(StHALContainer):
         self.mc_seed = config.get_sim_denmem_mc_seed()
         self.adc = FakeAnalogRecorder()
 
-        self.maximum_spikes = 200
+        maximum_spikes = config.get_sim_denmem_maximum_spikes()
+        if maximum_spikes is None:
+            self.maximum_spikes = 200
+        else:
+            self.maximum_spikes = maximum_spikes
+
         self.spike_counter_offset = self.simulation_init_time
 
         self.simulated_configurations = defaultdict(list)
