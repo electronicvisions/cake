@@ -3,15 +3,15 @@
 
 """Collection of matplotlib customizations for visualization."""
 
-import matplotlib as mpl
+import matplotlib
 
 
 def latex_mode(on=True):
     """Enable LaTeX for labels"""
-    mpl.rc('text', usetex=on)
+    matplotlib.rc('text', usetex=on)
 
 
-class ScaledFormatter(mpl.ticker.OldScalarFormatter):
+class ScaledFormatter(matplotlib.ticker.OldScalarFormatter):
     """Formats tick labels scaled by *dx* and shifted by *x0*."""
     def __init__(self, dx=1.0, x0=0.0, **kwargs):
         self.dx, self.x0 = dx, x0
