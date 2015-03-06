@@ -5,10 +5,12 @@ import pandas
 import numpy as np
 from scipy.optimize import curve_fit
 
-from pyhalbe.HICANN import neuron_parameters
+from pyhalbe.HICANN import neuron_parameter
 from pycake.analyzer import Analyzer
+from pycake.measure import ADCMeasurement
 from pycake.experimentbuilder import BaseExperimentBuilder
 from pycake.helpers.peakdetect import peakdet
+from pycake.helpers.units import Voltage
 
 
 class I_gl_charging_Analyzer(Analyzer):
@@ -48,13 +50,15 @@ class I_gl_charging_Analyzer(Analyzer):
         fitParams, fitCovariances = curve_fit(cap_voltage, xData, yData, guess, diag=diag)
         return fitParams, fitCovariances
 
-    def __call__(self, neuron, time, voltage, **kwargs):
+    def __call__(self, neuron, t, v, **kwargs):
         """
         Find multiple charging intervals, not using TraceAverager.
         Fit tau_m to each interval, return mean.
         """
-        df = pandas.DataFrame({'v': voltage, 't': time}, index=time)
-        calibrated_E_l = kwargs['E_l']
+        df = pandas.DataFrame({'v': v, 't': t}, index=t)
+
+        # get E_l via hacky data path
+        calibrated_E_l = kwargs['E_l'][0]
 
         maxtab, mintab = peakdet(df['v'].values, 0.03, df['t'].values)
 
@@ -77,13 +81,27 @@ class I_gl_charging_Analyzer(Analyzer):
             t_min = t_min + t_buffer
             t_max = t_max - t_buffer
 
-            fitParams, fitCovariances = self.fit_taum(t_min, t_max, df, calibrated_E_l)
+            fitParams, fitCovariances = self.fit_taum(df, t_min, t_max, calibrated_E_l)
             tau_m = fitParams[0]
             tau_ms.append(tau_m)
         tau_ms = np.array(tau_ms)
         return {
             'tau_m': np.mean(tau_ms),
         }
+
+
+class AddElADCMeasurement(ADCMeasurement):
+    """This is a hack to add E_l information to the analyzer"""
+
+    def __init__(self, sthal, neurons, readout_shifts, E_l):
+        super(AddElADCMeasurement, self).__init__(sthal, neurons, readout_shifts)
+        self.E_l = E_l
+
+    def read_adc(self):
+        readout = super(AddElADCMeasurement, self).read_adc()
+        if readout is not None:
+            readout['E_l'] = np.array([self.E_l])
+        return readout
 
 
 class I_gl_charging_Experimentbuilder(BaseExperimentBuilder):
@@ -100,10 +118,12 @@ class I_gl_charging_Experimentbuilder(BaseExperimentBuilder):
     def prepare_parameters(self, parameters):
         # prepare_parameters is called just before make_measurement
         # grab the target E_l information while it is available
-        self.E_l = parameters[neuron_parameters.E_l]
-        return super(I_gl_charging_Analyzer, self).prepare_parameters(self, parameters)
+        E_l = parameters[neuron_parameter.E_l]
+        if type(E_l) is not Voltage:
+            raise TypeError("E_l must be Voltage()")
+        self.E_l = E_l.value  # in mV
+        return super(I_gl_charging_Experimentbuilder, self).prepare_parameters(parameters)
 
     def make_measurement(self, sthal, neurons, readout_shifts):
-        measurement = super(I_gl_charging_Analyzer, self
-                            ).make_measurement(self, sthal, neurons, readout_shifts)
-        measurement.initial_data['E_l'] = self.E_l
+        """This is a hack to add E_l information to the analyzer"""
+        return AddElADCMeasurement(sthal, neurons, readout_shifts, self.E_l)
