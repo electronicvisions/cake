@@ -206,6 +206,7 @@ class BaseExperimentBuilder(object):
         """
         return experiment
 
+
 class InputSpike_Experimentbuilder(BaseExperimentBuilder):
     """Send input spikes to neurons"""
     def prepare_specific_config(self, sthal):
@@ -283,6 +284,7 @@ class I_pl_Experimentbuilder(BaseExperimentBuilder):
 
 class E_syn_Experimentbuilder(BaseExperimentBuilder):
     EXCITATORY = None
+
     def prepare_specific_config(self, sthal):
         sthal.simulation_init_time = 100.0e-6
         sthal.set_recording_time(10e-6, 10)
@@ -344,9 +346,11 @@ class V_syntcx_Experimentbuilder(V_convoff_Experimentbuilder):
     EXCITATORY = True
     ANALYZER = SimplePSPAnalyzer
 
+
 class V_syntci_Experimentbuilder(V_convoff_Experimentbuilder):
     EXCITATORY = False
     ANALYZER = SimplePSPAnalyzer
+
 
 class I_gl_Experimentbuilder(BaseExperimentBuilder):
     def __init__(self, *args, **kwargs):
@@ -365,7 +369,6 @@ class I_gl_Experimentbuilder(BaseExperimentBuilder):
             This is done by the SequentialExperimentWithAveraging or manually by
                 calling analyzer.measure_adc_frequency()
         """
-        save_traces = self.config.get_save_traces()
         pll = self.config.get_PLL()
         return pycake.analyzer.I_gl_Analyzer(pll)
 
