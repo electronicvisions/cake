@@ -289,6 +289,11 @@ class I_gl_Calibrator(BaseCalibrator):
     def get_key(self):
         return 'tau_m'
 
+
+class I_gl_charging_Calibrator(I_gl_Calibrator):
+    pass
+
+
 from pycake.calibration.E_l_I_gl_fixed import E_l_I_gl_fixed_Calibrator
 
 
