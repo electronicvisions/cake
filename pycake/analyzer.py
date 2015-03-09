@@ -283,7 +283,8 @@ class V_reset_Analyzer(PeakAnalyzer):
     """
     def __call__(self, neuron, t, v, **traces):
         baseline, delta_t = self.find_baseline(t, v)
-        mean_max, mean_min, std_max, std_min = self.get_mean_peak(t, v)
+        maxtab, mintab = self.get_peaks(t, v)
+        mean_max, mean_min, std_max, std_min = self.get_mean_peak(t, v, maxtab, mintab)
 
         return {"mean_min": mean_min,
                 "mean_max": mean_max,
@@ -300,7 +301,8 @@ class V_t_Analyzer(PeakAnalyzer):
                 old_max: hard maximum of complete trace
     """
     def __call__(self, neuron, t, v, **traces):
-        mean_max, mean_min, std_max, std_min = self.get_mean_peak(t, v)
+        maxtab, mintab = self.get_peaks(t, v)
+        mean_max, mean_min, std_max, std_min = self.get_mean_peak(t, v, maxtab, mintab)
 
         return {"max": mean_max,
                 "std_max": std_max,
