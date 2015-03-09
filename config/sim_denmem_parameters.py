@@ -19,6 +19,9 @@ from pyhalbe.HICANN import shared_parameter
 def pproduct(paramters, ranges):
     return [dict(zip(paramters, step)) for step in product(*ranges)]
 
+# minimal floating gate current cell value [nA]
+MIN_CUR_FG = 50
+
 MC = False
 if MC:
     folder = "/wang/users/koke/cluster_home/calibration/sim_denmem_calib_mc2"
@@ -161,27 +164,26 @@ parameters = {
     },
 
     "V_reset_parameters":  {
-        neuron_parameter.I_convi: Current(0),
-        neuron_parameter.I_convx: Current(0),
+        neuron_parameter.I_convi: Current(MIN_CUR_FG),
+        neuron_parameter.I_convx: Current(MIN_CUR_FG),
         neuron_parameter.I_gl:   Current(1100),
-        neuron_parameter.I_pl:  Current(20),
+        neuron_parameter.I_pl:  Current(max(MIN_CUR_FG, 20)),
         neuron_parameter.V_convoffi: Voltage(1800),
         neuron_parameter.V_convoffx: Voltage(1800),
     },
 
     "V_t_parameters": {
-        neuron_parameter.I_convi: Current(0),
-        neuron_parameter.I_convx: Current(0),
+        neuron_parameter.I_convi: Current(MIN_CUR_FG),
+        neuron_parameter.I_convx: Current(MIN_CUR_FG),
         neuron_parameter.I_gl:       Current(1500),
         neuron_parameter.V_convoffi: Voltage(1800),
         neuron_parameter.V_convoffx: Voltage(1800),
     },
 
     "E_syni_parameters": {
-        # 35 nA is the actual lowest curren value
         neuron_parameter.I_convi: Current(2500),
-        neuron_parameter.I_convx: Current(35),
-        neuron_parameter.I_gl: Current(35),
+        neuron_parameter.I_convx: Current(MIN_CUR_FG),
+        neuron_parameter.I_gl: Current(MIN_CUR_FG),
         neuron_parameter.V_convoffi: Voltage(300),
         neuron_parameter.V_convoffx: Voltage(1800),
         neuron_parameter.V_t: Voltage(1200),
@@ -190,9 +192,9 @@ parameters = {
 
     "E_synx_parameters": {
         # I_gl and I_convi MUST be set to min. realistic fg value
-        neuron_parameter.I_convi: Current(35),
+        neuron_parameter.I_convi: Current(MIN_CUR_FG),
         neuron_parameter.I_convx: Current(2500),
-        neuron_parameter.I_gl: Current(35),
+        neuron_parameter.I_gl: Current(MIN_CUR_FG),
         neuron_parameter.V_convoffi: Voltage(1800),
         neuron_parameter.V_convoffx: Voltage(300),
         neuron_parameter.V_t: Voltage(1200),
@@ -200,10 +202,9 @@ parameters = {
     },
 
     "V_convoffx_parameters": {
-        # Minimum DAC value is ~30nA
         neuron_parameter.E_synx: Voltage(1100),
         neuron_parameter.E_l: Voltage(900),
-        neuron_parameter.I_convi: Current(30),
+        neuron_parameter.I_convi: Current(MIN_CUR_FG),
         neuron_parameter.I_convx: Current(2500),
         neuron_parameter.I_gl: Current(1000),
         neuron_parameter.V_convoffi: Voltage(1800),
@@ -213,11 +214,10 @@ parameters = {
     },
 
     "V_convoffi_parameters": {
-        # Minimum DAC value is ~30nA
         neuron_parameter.E_syni: Voltage(700),
         neuron_parameter.E_l: Voltage(900),
         neuron_parameter.I_convi: Current(2500),
-        neuron_parameter.I_convx: Current(30),
+        neuron_parameter.I_convx: Current(MIN_CUR_FG),
         neuron_parameter.I_gl: Current(1000),
         neuron_parameter.V_convoffx: Voltage(1800),
         shared_parameter.V_gmax0: Current(2000), # * max. synaptic weight
