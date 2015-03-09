@@ -1,11 +1,7 @@
 import numpy as np
 np.seterr(all='raise')
 np.seterr(under='warn')
-import pylab
 import pylogging
-#import scipy.signal
-from scipy import ndimage
-from scipy.optimize import curve_fit
 from scipy.integrate import simps
 from pycake.helpers.peakdetect import peakdet
 from pycake.logic.spikes import spikes_to_frequency
@@ -72,13 +68,12 @@ class PeakAnalyzer(Analyzer):
 
     def __call__(self, neuron, t, v, **traces):
         maxtab, mintab = self.get_peaks(t, v)
-        # FIXME get_peaks is called by most following functions, wasting CPU time
         mean_max, mean_min, std_max, std_min = self.get_mean_peak(t, v, maxtab, mintab)
         maxindex = maxtab[:, 0]
         spikes = t[maxindex]
         freq = spikes_to_frequency(spikes)
         try:
-            mean_dt = 1/freq
+            mean_dt = 1./freq
         except ZeroDivisionError:
             self.logger.WARN("Division by zero -> dt set to inf")
             mean_dt = np.Inf
@@ -330,7 +325,7 @@ class I_gl_Analyzer(Analyzer):
 
     def __call__(self, neuron, t, v, std, current=None, save_mean=False, **traces):
         # average over all periods, reduce to one smooth period
-        if traces.has_key('adc_freq'):
+        if 'adc_freq' in traces:
             self.set_adc_freq(traces['adc_freq'])
         mean_trace, std_trace, n_chunks = self.trace_averager.get_average(v, self.dt)
 
@@ -406,6 +401,7 @@ class Spikes_Analyzer(Analyzer):
 
         return {"spikes_mean_isi": mean_isi,
                 "spikes_n_spikes": n_spikes}
+
 
 class ADCFreq_Analyzer(Analyzer):
     def __call__(self, t, v, bg_rate):
