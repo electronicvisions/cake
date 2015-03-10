@@ -346,17 +346,17 @@ class V_convoffx_Experimentbuilder(V_convoff_Experimentbuilder):
     EXCITATORY = True
     ANALYZER = pycake.analyzer.V_convoffx_Analyzer
 
-
-from calibration.vsyntc import SimplePSPAnalyzer
+#FIXME: #1615
+#from calibration.vsyntc import SimplePSPAnalyzer
 
 class V_syntcx_Experimentbuilder(V_convoff_Experimentbuilder):
     EXCITATORY = True
-    ANALYZER = SimplePSPAnalyzer
+    ANALYZER = None#SimplePSPAnalyzer #FIXME: #1615
 
 
 class V_syntci_Experimentbuilder(V_convoff_Experimentbuilder):
     EXCITATORY = False
-    ANALYZER = SimplePSPAnalyzer
+    ANALYZER = None#SimplePSPAnalyzer #FIXME: #1615
 
 
 class I_gl_Experimentbuilder(BaseExperimentBuilder):
