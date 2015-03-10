@@ -69,6 +69,7 @@ parameters = {
         #neuron_parameter.E_synx.name,
         neuron_parameter.V_convoffx.name,
         neuron_parameter.V_convoffi.name,
+        neuron_parameter.E_l.name,
         neuron_parameter.I_pl.name,
         "I_gl_charging",
     ],
@@ -109,7 +110,7 @@ parameters = {
     # "V_convoffx_range": [{neuron_parameter.V_convoffx : v} for v in linspace_voltage(300, 1500, 3)],
     "V_convoffi_range": [{neuron_parameter.V_convoffi : v}
                          for v in linspace_voltage(400, 1600, 20)],
-
+    "E_l_range": [{neuron_parameter.E_l : v} for v in linspace_voltage(550, 850, 6)],
     "I_pl_range": [{neuron_parameter.I_pl : Current(v)} for v in [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 500, 1000, 1500, 2500]],
 
     "I_gl_charging_range": [
@@ -234,6 +235,16 @@ parameters = {
         shared_parameter.V_gmax0: Current(2000), # * max. synaptic weight
         neuron_parameter.V_t: Voltage(1400),
         shared_parameter.V_reset: Voltage(900), # Also initial membrane voltage in simulation
+    },
+
+    "E_l_parameters": {
+        neuron_parameter.V_t: Voltage(1200),
+        neuron_parameter.E_syni: Voltage(E_syni_target, apply_calibration=True),
+        neuron_parameter.E_synx: Voltage(E_synx_target, apply_calibration=True),
+        neuron_parameter.I_gl: Current(1000, apply_calibration=True),
+        neuron_parameter.V_syntcx: Voltage(1440, apply_calibration=True),  # dummy
+        neuron_parameter.V_syntci: Voltage(1440, apply_calibration=True),  # dummy
+        shared_parameter.V_reset: Voltage(500, apply_calibration=True),
     },
 
 
