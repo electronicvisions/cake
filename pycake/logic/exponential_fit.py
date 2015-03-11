@@ -51,7 +51,7 @@ def fit_exponential(t, v, std=None, n_chunks=None, full_output=False, V_rest_ini
             sigma=std,
             full_output=True)
     except (ValueError, ZeroDivisionError, FloatingPointError) as e:
-        return failed_dict(e, {"V_rest": x0[2]})
+        return failed_dict({"error": e, "V_rest": x0[2]})
 
     tau = expf[0]
     height = expf[1]
