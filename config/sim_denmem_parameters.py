@@ -239,11 +239,7 @@ parameters = {
 
     "E_l_parameters": {
         neuron_parameter.V_t: Voltage(1200),
-        neuron_parameter.E_syni: Voltage(E_syni_target, apply_calibration=True),
-        neuron_parameter.E_synx: Voltage(E_synx_target, apply_calibration=True),
-        neuron_parameter.I_gl: Current(1000, apply_calibration=True),
-        neuron_parameter.V_syntcx: Voltage(1440, apply_calibration=True),  # dummy
-        neuron_parameter.V_syntci: Voltage(1440, apply_calibration=True),  # dummy
+        neuron_parameter.I_gl: Current(1000),
         shared_parameter.V_reset: Voltage(500, apply_calibration=True),
     },
 
@@ -251,8 +247,6 @@ parameters = {
     "I_pl_parameters": {
         neuron_parameter.E_l: Voltage(1200),
         neuron_parameter.V_t: Voltage(800),
-        neuron_parameter.E_syni: Voltage(E_syni_target, apply_calibration=True),
-        neuron_parameter.E_synx: Voltage(E_synx_target, apply_calibration=True),
         shared_parameter.V_reset: Voltage(500, apply_calibration=True),
     },
 
