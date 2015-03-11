@@ -29,25 +29,29 @@ class I_gl_charging_Analyzer(Analyzer):
             known_E_l [mV]: potential which is approached by charging
         """
 
-        def cap_voltage(x, tau, offset):
+        def cap_voltage(t, tau, offset):
             """charging or discharging of capacitor"""
             # E_l is in mV -> divide by 1000
             final_potential = known_E_l/1.e3
-            return (final_potential - offset)*(1 - np.exp(-x/tau)) + offset
+            return offset * np.exp(-t/tau) + final_potential
 
         cutout = df[t_min:t_max]
 
         xData = cutout['t']
         yData = cutout['v']
 
+        interval_x = t_max - t_min
+        interval_y = np.max(yData) - np.min(yData)
+
         # initial values for fit
-        guess = [(t_max-t_min), 0.]
+        guess = [interval_x, np.min(yData)]
 
-        # use inverse-mean of the data set as scale factor
+        # use inverse-interval of the data set as scale factor
         # to be passed to the underlying leastsq() called by curve_fit()
-        diag = (1./xData.mean(), 1./yData.mean())
+        rescale = (1./interval_x, 1./interval_y)
 
-        fitParams, fitCovariances = curve_fit(cap_voltage, xData, yData, guess, diag=diag)
+        fitParams, fitCovariances = curve_fit(cap_voltage, xData - t_min, yData, guess, diag=rescale)
+
         return fitParams, fitCovariances
 
     def __call__(self, neuron, t, v, **kwargs):
@@ -114,6 +118,10 @@ class I_gl_charging_Experimentbuilder(BaseExperimentBuilder):
     """
     def get_analyzer(self):
         return I_gl_charging_Analyzer()
+
+    def prepare_specific_config(self, sthal):
+        sthal.maximum_spikes = 10
+        return sthal
 
     def prepare_parameters(self, parameters):
         # prepare_parameters is called just before make_measurement
