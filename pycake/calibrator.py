@@ -5,19 +5,9 @@ import numpy
 import numpy as np
 import pylogging
 from collections import defaultdict
-import pyhalbe
+from pyhalbe.HICANN import neuron_parameter, shared_parameter
 import Coordinate
-from pycake.helpers.trafos import HWtoDAC
-from pycake.helpers.units import DAC
 
-
-# shorter names
-Enum = Coordinate.Enum
-neuron_parameter = pyhalbe.HICANN.neuron_parameter
-shared_parameter = pyhalbe.HICANN.shared_parameter
-
-
-# TODO find better name
 class BaseCalibrator(object):
     """ Takes experiments and a target parameter and turns this into calibration data via a linear fit.
         Does NOT save any data.
@@ -56,7 +46,6 @@ class BaseCalibrator(object):
 
     def get_merged_results(self, neuron):
         """ Return all parameters and results from all experiments for one neuron.
-
             This does not average over experiments.
         """
         results = []
@@ -114,7 +103,6 @@ class BaseCalibrator(object):
         # TODO: Improve this
         return self.experiments[0].measurements[0].get_neurons()
 
-
 class V_reset_Calibrator(BaseCalibrator):
     target_parameter = shared_parameter.V_reset
 
@@ -141,7 +129,6 @@ class V_reset_Calibrator(BaseCalibrator):
         return self.experiment.measurements[0].neurons
 
     def do_fit(self, raw_x, raw_y):
-        print raw_x, raw_y
         xs = self.prepare_x(raw_x)
         ys = self.prepare_y(raw_y)
         return np.polyfit(xs, ys, 1)
@@ -167,19 +154,9 @@ class V_reset_Calibrator(BaseCalibrator):
 class E_synx_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.E_synx
 
-    def is_defect(self, coeffs):
-        # Defect if slope of the fit is too high or offset is significantly positive
-        defect = (abs(coeffs[0]) - 1) > 1 or abs(coeffs[1]) > 100
-        return defect
-
 
 class E_syni_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.E_syni
-
-    def is_defect(self, coeffs):
-        # Defect if slope of the fit is too high
-        defect = (abs(coeffs[0]) - 1) > 1 or abs(coeffs[1]) > 100
-        return defect
 
 
 class E_l_Calibrator(BaseCalibrator):
@@ -384,7 +361,7 @@ class I_pl_Calibrator(BaseCalibrator):
         dts = np.array(x)
         tau_refracs = dts - dts[-1]
         tau_refracs = tau_refracs[0:-1]
-        return xs
+        return tau_refracs
 
     def prepare_y(self, y):
         """ Prepares y values for fit
