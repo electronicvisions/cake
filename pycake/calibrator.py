@@ -90,19 +90,15 @@ class BaseCalibrator(object):
 
     def prepare_x(self, x):
         """ Prepares x values for fit
-            Usually, this is a measured membrane voltage in V
-            Per default, this function Translates from V or A to DAC
+            This should be the raw measured hardware data
         """
-        xs = [HWtoDAC(val*1000, self.target_parameter) for val in x]
-        xs = np.array(xs)
-        return xs
+        return np.array(x)
 
     def prepare_y(self, y):
         """ Prepares y values for fit
             Per default, these are the step (DAC) values that were set.
         """
-        ys = np.array(y)
-        return ys
+        return np.array(y)
 
     def do_fit(self, xs, ys):
         """ Fits a curve to results of one neuron
@@ -220,7 +216,6 @@ class I_gl_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.I_gl
 
     def prepare_x(self, x):
-        xs = [HWtoDAC(val, self.target_parameter) for val in x]
         xs = np.array(xs)
         return xs
 
@@ -389,7 +384,6 @@ class I_pl_Calibrator(BaseCalibrator):
         dts = np.array(x)
         tau_refracs = dts - dts[-1]
         tau_refracs = tau_refracs[0:-1]
-        xs = HWtoDAC(tau_refracs, self.target_parameter)
         return xs
 
     def prepare_y(self, y):
