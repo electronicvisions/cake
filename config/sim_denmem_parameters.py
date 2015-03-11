@@ -241,6 +241,10 @@ parameters = {
         neuron_parameter.V_t: Voltage(1200),
         neuron_parameter.I_gl: Current(1000),
         shared_parameter.V_reset: Voltage(500, apply_calibration=True),
+
+        # calibrated V_convoff is a constant, value here should be irrelevant
+        neuron_parameter.V_convoffi: Voltage(1800, apply_calibration=True),
+        neuron_parameter.V_convoffx: Voltage(1800, apply_calibration=True),
     },
 
 
