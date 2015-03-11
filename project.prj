@@ -79,7 +79,7 @@ doc = DocumentationJob(
 
 hw = HardwareJob(
     source : sw,
-    hwshell : 'bin/tools/run_calibration.py cake/config/fastcalibration_parameters.py --wafer 0 --hicann 276 --outdir ~/build/results_calibration
+    hwshell : 'bin/tools/run_calibration.py cake/config/fastcalibration_parameters.py --wafer 0 --hicann 276 --outdir ~/build/results_calibration'
 )
 
 return "Done."
