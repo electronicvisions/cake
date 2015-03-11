@@ -54,77 +54,25 @@ class BaseCalibrator(object):
             self.target_parameter, measurement.neurons)
         return step_parameters
 
-    def merge_experiments(self):
-        """ Merges all experiments into one result dictionary.
-            Returns:
-                dictionary containing merged results
-                The structure is as follows:
-                {neuron1: [(step1, [result1, result2, ...]), (step2, [result1, result2, ...]), ...],
-                {neuron2: [(step2, [result1, result2, ...]), (step2, [result1, result2, ...]), ...],
-                 ...}
+    def get_merged_results(self, neuron):
+        """ Return all parameters and results from all experiments for one neuron.
+
+            This does not average over experiments.
         """
-        merged = defaultdict(list)
+        results = []
         for ex in self.experiments:
-            step_id = 0
-            for m in ex.measurements:
-                step_results = ex.results[step_id]
-                neuron_parameters = self.get_step_parameters(m)
-                for neuron, step_value in neuron_parameters.iteritems():
-                    if step_results[neuron] is not None:
-                        merged[neuron].append((step_value, step_results[neuron]))
-                step_id += 1
-
-        ordered = {}
-        for neuron, result_list in merged.iteritems():
-            neuron_results = defaultdict(list)
-            for step, result in result_list:
-                neuron_results[step].append(result[self.get_key()])
-            neuron_results_list = [(step, result) for step, result in neuron_results.iteritems()]
-            ordered[neuron] = neuron_results_list
-        return ordered
-
-    def average_over_experiments(self):
-        """ Gives average and (trial-to-trial) standard deviation over all experiments.
-
-            Returns:
-                Two dictionaries that are structured as follows:
-                {neuron1: [(step1, mean1), (step2, mean2), ...],
-                 neuron2: ....}
-                and
-                {neuron1: [(step1, std1), (step2, std2), ...],
-                 neuron2: ....}
-        """
-        merged = self.merge_experiments()
-        mean = {}
-        std = {}
-        for neuron, all_results in merged.iteritems():
-            neuron_mean = []
-            neuron_std = []
-            for step, results in all_results:
-                if len(results) == 0:
-                    # If no result at all is found, None should be returned
-                    neuron_mean.append((step, None))
-                    neuron_std.append((step, None))
-                    continue
-                mean_result = np.mean(results)
-                std_result = np.std(results)
-                neuron_mean.append((step, mean_result))
-                neuron_std.append((step, std_result))
-            mean[neuron] = neuron_mean
-            std[neuron] = neuron_std
-        return mean, std
+            results.append(ex.get_parameters_and_results(neuron, [self.target_parameter], [self.get_key()]))
+        # return 'unzipped' results, e.g.: (100,0.1),(200,0.2) -> (100,200), (0.1,0.2)
+        return zip(*np.concatenate(results))
 
     def generate_coeffs(self):
         """ Takes averaged experiments and does the fits
         """
-        average, std = self.average_over_experiments()
         coeffs = {}
-        for neuron, results in average.iteritems():
+        for neuron in self.get_neurons():
             # Need to switch y and x in order to get the right fit
             # (y-axis: configured parameter, x-axis: measurement)
-
-            # 'unzip' results, e.g.: (100,0.1),(200,0.2) -> (100,200), (0.1,0.2)
-            ys_raw, xs_raw = zip(*results)
+            ys_raw, xs_raw = self.get_merged_results(neuron)
             xs = self.prepare_x(xs_raw)
             ys = self.prepare_y(ys_raw)
             coeffs[neuron] = self.do_fit(xs, ys)
@@ -167,7 +115,8 @@ class BaseCalibrator(object):
         return False
 
     def get_neurons(self):
-        return self.experiments[0].measurements[0].neurons
+        # TODO: Improve this
+        return self.experiments[0].measurements[0].get_neurons()
 
 
 class V_reset_Calibrator(BaseCalibrator):
