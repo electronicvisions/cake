@@ -114,7 +114,7 @@ class BaseExperimentBuilder(object):
     def prepare_parameters(self, parameters):
         """ Writes floating gate parameters into a
         sthal FloatingGates container.
-            This includes calibration and transformation from mV or nA to DAC values.
+            This includes calibration and transformation from V or nA to DAC values.
 
         Returns:
             pysthal.FloatingGates with given parameters

@@ -1,7 +1,7 @@
 import pyhalbe
 import numpy as np
 
-from pycake.helpers.units import Voltage
+from pycake.helpers.units import Volt
 from pycake.experiment import SequentialExperiment
 
 neuron_parameter = pyhalbe.HICANN.neuron_parameter

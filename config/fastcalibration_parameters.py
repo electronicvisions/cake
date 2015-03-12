@@ -1,6 +1,6 @@
 import pyhalbe
 from Coordinate import NeuronOnHICANN, FGBlockOnHICANN, Enum
-from pycake.helpers.units import DAC, Voltage, Current
+from pycake.helpers.units import DAC, Volt, Current
 from pycake.helpers.units import linspace_voltage, linspace_current
 import os
 from itertools import product
@@ -29,7 +29,7 @@ parameters = {
     "blocks":  [FGBlockOnHICANN(Enum(i)) for i in range(4)],
 
     # Set the ranges within which you want to calibrate
-    "readout_shift_range": [{neuron_parameter.E_l: Voltage(0.9)}], # Set some realistic E_l value.
+    "readout_shift_range": [{neuron_parameter.E_l: Volt(0.9)}], # Set some realistic E_l value.
     "V_reset_range":  [{shared_parameter.V_reset : v} for v in linspace_voltage(0.6, 0.8, 5)],
     "E_syni_range":   [{neuron_parameter.E_syni : v} for v in linspace_voltage(0.55, 0.85, 5)],
     "E_synx_range":   [{neuron_parameter.E_synx : v} for v in linspace_voltage(0.65, 0.95, 5)],
@@ -98,9 +98,9 @@ parameters = {
 
     # Here you can set the fixed parameters for each calibration.
     # base_parameters are set for all calibrations
-    "base_parameters":   {neuron_parameter.E_l: Voltage(E_l_target),
-                          neuron_parameter.E_syni: Voltage(E_syni_target),     # synapse
-                          neuron_parameter.E_synx: Voltage(E_synx_target),    # synapse
+    "base_parameters":   {neuron_parameter.E_l: Volt(E_l_target),
+                          neuron_parameter.E_syni: Volt(E_syni_target),     # synapse
+                          neuron_parameter.E_synx: Volt(E_synx_target),    # synapse
                           neuron_parameter.I_bexp: Current(2500),       # turn off exp by setting this to 2500 and see I_rexp and V_bexp
                           neuron_parameter.I_convi: Current(2500),   # bias current for synaptic input
                           neuron_parameter.I_convx: Current(2500),   # bias current for synaptic input
@@ -113,14 +113,14 @@ parameters = {
                           neuron_parameter.I_radapt: Current(2500),  #
                           neuron_parameter.I_rexp: Current(2500),     # exp-term: must be 2500 if I_bexp is 2500
                           neuron_parameter.I_spikeamp: Current(2000),  #
-                          neuron_parameter.V_exp: Voltage(1.8),      # exponential term
-                          neuron_parameter.V_syni: Voltage(1.),    # inhibitory synaptic reversal potential
-                          neuron_parameter.V_syntci: Voltage(1.42),   # inhibitory synapse time constant
-                          neuron_parameter.V_syntcx: Voltage(1.42),   # excitatory synapse time constant
-                          neuron_parameter.V_synx: Voltage(1.),    # excitatory synaptic reversal potential
-                          neuron_parameter.V_t: Voltage(1.),       # recommended threshold, maximum is 1.1
+                          neuron_parameter.V_exp: Volt(1.8),      # exponential term
+                          neuron_parameter.V_syni: Volt(1.),    # inhibitory synaptic reversal potential
+                          neuron_parameter.V_syntci: Volt(1.42),   # inhibitory synapse time constant
+                          neuron_parameter.V_syntcx: Volt(1.42),   # excitatory synapse time constant
+                          neuron_parameter.V_synx: Volt(1.),    # excitatory synaptic reversal potential
+                          neuron_parameter.V_t: Volt(1.),       # recommended threshold, maximum is 1.1
 
-                          shared_parameter.V_reset:       Voltage(.5),   # * Neuron reset voltage
+                          shared_parameter.V_reset:       Volt(.5),   # * Neuron reset voltage
                           shared_parameter.int_op_bias:   DAC(1023),      # internal OP bias
                           shared_parameter.V_dllres:      DAC(200),       # DLL reset voltage
                           shared_parameter.V_bout:        Current(750),   # * Global bias of neuron readout amps
@@ -130,14 +130,14 @@ parameters = {
                           shared_parameter.V_dep:         DAC(0),         # Short-term plasticity in depression mode
                           shared_parameter.I_bstim:       DAC(1023),      # Bias for neuron stimulation circuit
                           shared_parameter.V_thigh:       DAC(0),         # STDP readout compare voltage
-                          shared_parameter.V_gmax3:       Voltage(.080),    # max. synaptic weight
+                          shared_parameter.V_gmax3:       Volt(.080),    # max. synaptic weight
                           shared_parameter.V_tlow:        DAC(0),         # STDP readout compare voltage (?)
-                          shared_parameter.V_gmax0:       Voltage(.080),    # * max. synaptic weight
+                          shared_parameter.V_gmax0:       Volt(.080),    # * max. synaptic weight
                           shared_parameter.V_clra:        DAC(0),         # STDP CLR voltage (acausal)
                           shared_parameter.V_clrc:        DAC(0),         # STDP CLR voltage (causa)l
-                          shared_parameter.V_gmax1:       Voltage(.080),    # * max. synaptic weight
+                          shared_parameter.V_gmax1:       Volt(.080),    # * max. synaptic weight
                           shared_parameter.V_stdf:        DAC(0),         # STDF reset voltage
-                          shared_parameter.V_gmax2:       Voltage(.080),    # * max. synaptic weight
+                          shared_parameter.V_gmax2:       Volt(.080),    # * max. synaptic weight
                           shared_parameter.V_m:           DAC(0),         # Start load voltage of causal STDP capacitor (grnd for acausal)
                           shared_parameter.V_bstdf:       DAC(0),         # Bias for short-term plasticity
                           shared_parameter.V_dtc:         DAC(0),         # Bias for DTC in short-term plasticity circuit
@@ -146,7 +146,7 @@ parameters = {
 
                           },
 
-    "readout_shift_parameters": { neuron_parameter.V_t: Voltage(1.4),
+    "readout_shift_parameters": { neuron_parameter.V_t: Volt(1.4),
                                   neuron_parameter.I_convx: Current(0),
                                   neuron_parameter.I_convi: Current(0),
                                 },
@@ -154,86 +154,86 @@ parameters = {
     "E_synx_parameters": {neuron_parameter.I_gl: Current(0),  # I_gl and I_convi MUST be set to 0
                           neuron_parameter.I_convx: Current(2500),
                           neuron_parameter.I_convi: Current(0),
-                          neuron_parameter.V_t: Voltage(1.2),
-                          shared_parameter.V_reset:  Voltage(.2),
-                          #neuron_parameter.V_syntcx: Voltage(1.44, apply_calibration=True), # dummy
-                          #neuron_parameter.V_syntci: Voltage(1.44, apply_calibration=True), # dummy
+                          neuron_parameter.V_t: Volt(1.2),
+                          shared_parameter.V_reset:  Volt(.2),
+                          #neuron_parameter.V_syntcx: Volt(1.44, apply_calibration=True), # dummy
+                          #neuron_parameter.V_syntci: Volt(1.44, apply_calibration=True), # dummy
                           },
 
     "E_syni_parameters": {neuron_parameter.I_gl: Current(0),  # I_gl and I_convx MUST be set to 0
                           neuron_parameter.I_convx: Current(0),
                           neuron_parameter.I_convi: Current(2500),
-                          neuron_parameter.V_t: Voltage(1.2),
-                          shared_parameter.V_reset:  Voltage(.2),
+                          neuron_parameter.V_t: Volt(1.2),
+                          shared_parameter.V_reset:  Volt(.2),
                           },
 
-    "E_l_I_gl_fixed_parameters": {neuron_parameter.V_t:        Voltage(1.2),
-                                  neuron_parameter.E_syni:     Voltage(E_syni_target, apply_calibration=True),
-                                  neuron_parameter.E_synx:     Voltage(E_synx_target, apply_calibration=True),
-                                  shared_parameter.V_reset:    Voltage(.5, apply_calibration=True),
+    "E_l_I_gl_fixed_parameters": {neuron_parameter.V_t:        Volt(1.2),
+                                  neuron_parameter.E_syni:     Volt(E_syni_target, apply_calibration=True),
+                                  neuron_parameter.E_synx:     Volt(E_synx_target, apply_calibration=True),
+                                  shared_parameter.V_reset:    Volt(.5, apply_calibration=True),
                                   },
 
-    "E_l_parameters":       {neuron_parameter.V_t:        Voltage(1.2),
-                             neuron_parameter.E_syni:     Voltage(E_syni_target, apply_calibration=True),
-                             neuron_parameter.E_synx:     Voltage(E_synx_target, apply_calibration=True),
+    "E_l_parameters":       {neuron_parameter.V_t:        Volt(1.2),
+                             neuron_parameter.E_syni:     Volt(E_syni_target, apply_calibration=True),
+                             neuron_parameter.E_synx:     Volt(E_synx_target, apply_calibration=True),
                              neuron_parameter.I_gl:       Current(1000, apply_calibration=True),
-                             neuron_parameter.V_syntcx: Voltage(1.44, apply_calibration=True),  # dummy
-                             neuron_parameter.V_syntci: Voltage(1.44, apply_calibration=True),  # dummy
-                             shared_parameter.V_reset:    Voltage(.5, apply_calibration=True),
+                             neuron_parameter.V_syntcx: Volt(1.44, apply_calibration=True),  # dummy
+                             neuron_parameter.V_syntci: Volt(1.44, apply_calibration=True),  # dummy
+                             shared_parameter.V_reset:    Volt(.5, apply_calibration=True),
                              },
 
-    "V_syntcx_psp_max_parameters":       {neuron_parameter.V_t:        Voltage(1.2),
-                                          neuron_parameter.E_syni:     Voltage(E_syni_target, apply_calibration=True),
-                                          neuron_parameter.E_l:     Voltage(E_l_target, apply_calibration=True),
-                                          neuron_parameter.E_synx:     Voltage(E_synx_target, apply_calibration=True),
-                                          shared_parameter.V_reset:    Voltage(.5, apply_calibration=True),
+    "V_syntcx_psp_max_parameters":       {neuron_parameter.V_t:        Volt(1.2),
+                                          neuron_parameter.E_syni:     Volt(E_syni_target, apply_calibration=True),
+                                          neuron_parameter.E_l:     Volt(E_l_target, apply_calibration=True),
+                                          neuron_parameter.E_synx:     Volt(E_synx_target, apply_calibration=True),
+                                          shared_parameter.V_reset:    Volt(.5, apply_calibration=True),
                                           },
 
-    "V_syntci_psp_max_parameters":       {neuron_parameter.V_t:        Voltage(1.2),
-                                          neuron_parameter.E_syni:     Voltage(E_syni_target, apply_calibration=True),
-                                          neuron_parameter.E_l:     Voltage(E_l_target, apply_calibration=True),
-                                          neuron_parameter.E_synx:     Voltage(E_synx_target, apply_calibration=True),
-                                          shared_parameter.V_reset:    Voltage(.5, apply_calibration=True),
+    "V_syntci_psp_max_parameters":       {neuron_parameter.V_t:        Volt(1.2),
+                                          neuron_parameter.E_syni:     Volt(E_syni_target, apply_calibration=True),
+                                          neuron_parameter.E_l:     Volt(E_l_target, apply_calibration=True),
+                                          neuron_parameter.E_synx:     Volt(E_synx_target, apply_calibration=True),
+                                          shared_parameter.V_reset:    Volt(.5, apply_calibration=True),
                                           },
 
-    "V_t_parameters":       {neuron_parameter.E_l:        Voltage(1.2),
+    "V_t_parameters":       {neuron_parameter.E_l:        Volt(1.2),
                              neuron_parameter.I_gl:       Current(1500),
-                             shared_parameter.V_reset:    Voltage(.4),
+                             shared_parameter.V_reset:    Volt(.4),
                              neuron_parameter.I_convx: Current(0),
                              neuron_parameter.I_convi: Current(0),
                              },
 
-    "V_reset_parameters":   {neuron_parameter.E_l:    Voltage(1.3),
+    "V_reset_parameters":   {neuron_parameter.E_l:    Volt(1.3),
                              neuron_parameter.I_convx: Current(0),
                              neuron_parameter.I_convi: Current(0),
-                             neuron_parameter.V_t:    Voltage(.9),
+                             neuron_parameter.V_t:    Volt(.9),
                              neuron_parameter.I_gl:   Current(1100),
                              neuron_parameter.I_pl:  Current(20),
                              },
 
-    "I_gl_parameters":       {neuron_parameter.E_l: Voltage(E_l_target, apply_calibration=True),
-                              neuron_parameter.V_t:        Voltage(1.2),
-                              neuron_parameter.E_syni:     Voltage(E_syni_target, apply_calibration=True),
-                              neuron_parameter.E_synx:     Voltage(E_synx_target, apply_calibration=True),
-                              shared_parameter.V_reset:    Voltage(.2, apply_calibration=True),
+    "I_gl_parameters":       {neuron_parameter.E_l: Volt(E_l_target, apply_calibration=True),
+                              neuron_parameter.V_t:        Volt(1.2),
+                              neuron_parameter.E_syni:     Volt(E_syni_target, apply_calibration=True),
+                              neuron_parameter.E_synx:     Volt(E_synx_target, apply_calibration=True),
+                              shared_parameter.V_reset:    Volt(.2, apply_calibration=True),
                               },
 
-    "I_pl_parameters":       {neuron_parameter.E_l:        Voltage(1.2),
-                              neuron_parameter.V_t:        Voltage(.8),
-                              neuron_parameter.E_syni:     Voltage(E_syni_target, apply_calibration=True),
-                              neuron_parameter.E_synx:     Voltage(E_synx_target, apply_calibration=True),
-                              shared_parameter.V_reset:    Voltage(.5, apply_calibration=True),
+    "I_pl_parameters":       {neuron_parameter.E_l:        Volt(1.2),
+                              neuron_parameter.V_t:        Volt(.8),
+                              neuron_parameter.E_syni:     Volt(E_syni_target, apply_calibration=True),
+                              neuron_parameter.E_synx:     Volt(E_synx_target, apply_calibration=True),
+                              shared_parameter.V_reset:    Volt(.5, apply_calibration=True),
                               },
 
-    "V_syntcx_parameters":  {neuron_parameter.E_l:     Voltage(E_l_target, apply_calibration=True),
-                             neuron_parameter.E_syni:  Voltage(E_syni_target, apply_calibration=True),
+    "V_syntcx_parameters":  {neuron_parameter.E_l:     Volt(E_l_target, apply_calibration=True),
+                             neuron_parameter.E_syni:  Volt(E_syni_target, apply_calibration=True),
                              neuron_parameter.I_gl:    Current(1000, apply_calibration=True),
-                             neuron_parameter.E_synx:  Voltage(E_synx_target, apply_calibration=True),
-                             shared_parameter.V_gmax0: Voltage(0.025),
-                             shared_parameter.V_gmax1: Voltage(0.025),
-                             shared_parameter.V_gmax2: Voltage(0.025),
-                             shared_parameter.V_gmax3: Voltage(0.025),
-                             shared_parameter.V_reset: Voltage(.4),
+                             neuron_parameter.E_synx:  Volt(E_synx_target, apply_calibration=True),
+                             shared_parameter.V_gmax0: Volt(0.025),
+                             shared_parameter.V_gmax1: Volt(0.025),
+                             shared_parameter.V_gmax2: Volt(0.025),
+                             shared_parameter.V_gmax3: Volt(0.025),
+                             shared_parameter.V_reset: Volt(.4),
                              },
 
     # In which order should the parameters be calibrated?
