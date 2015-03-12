@@ -310,7 +310,7 @@ if args.backenddir:
 
     def get_offset(cal, nrnidx):
         try:
-            offset = cal.nc.at(nrnidx).at(pycalibtic.NeuronCalibration.VResetShift).apply(0)
+            offset = cal.nc.at(nrnidx).at(pycalibtic.NeuronCalibration.ReadoutShift).apply(0)
             return offset
         except IndexError:
             logger.WARN("No offset found for Neuron {}. Is the wafer and hicann enum correct? (w{}, h{})".format(nrnidx,args.wafer,args.hicann))

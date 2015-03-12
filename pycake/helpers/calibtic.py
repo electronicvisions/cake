@@ -179,7 +179,7 @@ class Calibtic(object):
             # If parameter is V_reset, BUT coordinate is not a block, it is assumed that you want to store readout shifts
             # Readout shifts are stored as parameter
             if parameter is 'readout_shift':
-                param_id = pycalibtic.NeuronCalibration.VResetShift
+                param_id = pycalibtic.NeuronCalibration.ReadoutShift
                 param_name = parameter
             else:
                 param_id = parameter
@@ -227,8 +227,8 @@ class Calibtic(object):
         if not calib:
             return 0.0
 
-        if calib.exists(pycalibtic.NeuronCalibration.VResetShift):
-            shift = calib.at(pycalibtic.NeuronCalibration.VResetShift).apply(0.0)
+        if calib.exists(pycalibtic.NeuronCalibration.ReadoutShift):
+            shift = calib.at(pycalibtic.NeuronCalibration.ReadoutShift).apply(0.0)
             self.logger.TRACE("Readout shift for neuron {0}:{1:.2f}".format(neuron, shift))
         else:
             shift = 0.0
