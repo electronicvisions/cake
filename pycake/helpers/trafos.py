@@ -137,7 +137,7 @@ def HCtoDAC(value, parameter, rounded=True):
     if parameter is neuron_parameter.I_pl:
         lower_limit = 4
     if parameter in voltage_params:
-        DAC = value * 1023/1800.
+        DAC = value * 1023/1.8
     elif parameter in current_params:
         DAC = value * 1023/2500.
     else:
@@ -163,7 +163,7 @@ def DACtoHC(value, parameter):
             hardware value
     """
     if parameter in voltage_params:
-        return value * 1800./1023.
+        return value * 1.8/1023.
     elif parameter in current_params:
         return value * 2500./1023.
 
@@ -174,5 +174,5 @@ def BiotoHW(value, parameter):
 
 def HWtoBio(value, parameter):
     if parameter in voltage_params:
-        if value < 1800 and value > 0:
+        if value < 1.8 and value > 0:
             return 20/100.*value - 180 # dV = 20 mV -> dV = 100 mV. V = -60 mV -> V = 600 mV

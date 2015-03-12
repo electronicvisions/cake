@@ -15,10 +15,10 @@ class E_l_I_gl_fixed_Calibrator(object):
         self.neurons = self.experiment.measurements[0].neurons
         # TODO from config? perhaps later
         self.target = config.get_config_with_default('E_l_target', 700.0)
-        self.min_distance = 50.0 # mV
         self.fallback_I_gl_DAC = 1023
         # maximum deviation of DAC for target membrane voltage from ideal transformation
-        self.max_delta_ideal = 300
+        self.target = config.get_config_with_default('E_l_target', 0.7)
+        self.min_distance = 0.05
 
     def fit_neuron(self, neuron):
         data = self.experiment.get_parameters_and_results(neuron,
@@ -32,19 +32,12 @@ class E_l_I_gl_fixed_Calibrator(object):
             selected = data[data[:,index_I_gl] == I_gl_DAC]
             E_l, mean = selected[:,(index_E_l,index_mean)].T
 
-            # membrane voltages (in mV) for a low and high (uncalibrated) E_l
-            mean *= 1000.0
-
             if ((np.min(mean) < (self.target - self.min_distance))
                     and (np.max(mean) > (self.target + self.min_distance))):
 
                 a1, a0 = np.polyfit(E_l, mean, 1)
-
-                # DAC for target membrane voltage
-                E_l_DAC_target = (self.target - a0)/a1
-
-                # sanity check
-                if E_l_DAC_target > Voltage(self.target + self.max_delta_ideal).toDAC().value:
+                E_l_result = (self.target - a0)/a1 #.toDAC().value
+                if E_l_result > Volt(self.target + 0.3).toDAC().value:
                     continue
                 return E_l_DAC_target, I_gl_DAC
             else:

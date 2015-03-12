@@ -31,8 +31,7 @@ class I_gl_charging_Analyzer(Analyzer):
 
         def cap_voltage(t, tau, offset):
             """charging or discharging of capacitor"""
-            # E_l is in mV -> divide by 1000
-            final_potential = known_E_l/1.e3
+            final_potential = known_E_l
             return offset * np.exp(-t/tau) + final_potential
 
         cutout = df[t_min:t_max]
