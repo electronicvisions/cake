@@ -9,6 +9,7 @@ import numpy
 from pycake.helpers.sthal import StHALContainer
 from pycake.helpers.sthal import SimStHALContainer
 from pycake.helpers.calibtic import Calibtic
+from pycake.helpers.TraceAverager import TraceAverager
 from pycake.measure import ADCMeasurement
 from pycake.measure import ADCMeasurementWithSpikes
 from pycake.measure import SpikeMeasurement
@@ -358,7 +359,6 @@ class V_syntci_Experimentbuilder(V_convoff_Experimentbuilder):
     EXCITATORY = False
     ANALYZER = None#SimplePSPAnalyzer #FIXME: #1615
 
-
 class I_gl_Experimentbuilder(BaseExperimentBuilder):
     def __init__(self, *args, **kwargs):
         super(I_gl_Experimentbuilder, self).__init__(*args, **kwargs)
@@ -394,6 +394,39 @@ class I_gl_Experimentbuilder(BaseExperimentBuilder):
         analyzer = ADCFreq_Analyzer()
         experiment.add_initial_measurement(measurement, analyzer)
         return experiment
+
+
+class I_gl_sim_Experimentbuilder(I_gl_Experimentbuilder):
+    class FakeTraceAverager(TraceAverager):
+        def get_average(self, v, period):
+            """
+            Instead of averaging, just return the full trace.
+            In simulation, trace is smooth anyways. This assumes
+            that the trace is EXACTLY one period long.
+            """
+            return v, numpy.zeros(len(v)), 1
+
+        def get_chunks(self, trace, dt):
+            # original function does not work with non-equidistant times
+            raise NotImplemented
+
+    def prepare_specific_config(self, sthal):
+        # set recording time to one stimulation period
+        sthal.recording_time = self.get_analyzer().dt
+        return sthal
+
+    def get_analyzer(self):
+        coord_wafer, coord_hicann = self.config.get_coordinates()
+        save_traces = self.config.get_save_traces()
+        pll = self.config.get_PLL()
+
+        # this method is hacky, but works using existing functionality
+        # scipy.signal.resample assumes a periodic signal
+        # resample voltage trace at this frequency
+        # for trace averager
+        sampling_freq = 90.e6
+        trace_averager = TraceAverager(sampling_freq)
+        return pycake.analyzer.I_gl_sim_Analyzer(trace_averager, save_traces, pll)
 
 
 class E_l_I_gl_fixed_Experimentbuilder(E_l_Experimentbuilder):

@@ -352,6 +352,10 @@ class I_gl_Analyzer(Analyzer):
         return result
 
 
+class I_gl_sim_Analyzer(I_gl_Analyzer):
+    pass
+
+
 V_syntci_psp_max_Analyzer = MeanOfTraceAnalyzer
 V_syntcx_psp_max_Analyzer = MeanOfTraceAnalyzer
 
