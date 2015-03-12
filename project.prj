@@ -79,7 +79,8 @@ doc = DocumentationJob(
 
 hw = HardwareJob(
     source : sw,
-    hwshell : 'bin/tools/run_calibration.py cake/config/fastcalibration_parameters.py --wafer 0 --hicann 276 --outdir ~/build/results_calibration'
+    // TODO: install hw test script to bin/tools folder...
+    hwshell : 'bin/tools/run_test_calib.sh'
 )
 
 return "Done."
