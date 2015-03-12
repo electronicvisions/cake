@@ -88,6 +88,8 @@ class I_gl_charging_Analyzer(Analyzer):
             fitParams, fitCovariances = self.fit_taum(df, t_min, t_max, calibrated_E_l)
             tau_m = fitParams[0]
             tau_ms.append(tau_m)
+            # TODO check quality of fit by calculating difference to actual
+            # trace, return error estimation
         tau_ms = np.array(tau_ms)
         return {
             'tau_m': np.mean(tau_ms),
