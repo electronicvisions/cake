@@ -13,8 +13,6 @@ from sim_denmem_parameters import parameters
 
 eval_parameters = {
     "filename_prefix": "eval",
-    "neurons": [NeuronOnHICANN(Enum(i)) for i in range(512)],
-    "blocks": [FGBlockOnHICANN(Enum(i)) for i in range(4)],
 
     # For the evaluation of the calibration, sometimes only one point is
     # targeted, usually 3
