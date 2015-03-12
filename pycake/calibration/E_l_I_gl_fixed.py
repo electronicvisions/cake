@@ -52,8 +52,8 @@ class E_l_I_gl_fixed_Calibrator(object):
             fit = self.fit_neuron(neuron)
             if fit:
                 E_l, I_gl_DAC = fit
-                I_gl_fits[neuron] = [I_gl_DAC]
+                I_gl_fits[neuron] = [[I_gl], [0, 2.5]]
             else:
-                I_gl_fits[neuron] = [self.fallback_I_gl_DAC]
+                I_gl_fits[neuron] = [[self.fallback_I_gl_DAC], [0, 2.5]]
         x = [(neuron_parameter.I_gl, I_gl_fits)]
         return x

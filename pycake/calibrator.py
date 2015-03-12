@@ -58,13 +58,15 @@ class BaseCalibrator(object):
         """ Takes averaged experiments and does the fits
         """
         coeffs = {}
+        domains = {}
         for neuron in self.get_neurons():
             # Need to switch y and x in order to get the right fit
             # (y-axis: configured parameter, x-axis: measurement)
             ys_raw, xs_raw = self.get_merged_results(neuron)
             xs = self.prepare_x(xs_raw)
             ys = self.prepare_y(ys_raw)
-            coeffs[neuron] = self.do_fit(xs, ys)
+            # Extract function coefficients and domain from measured data
+            coeffs[neuron] = [self.do_fit(xs, ys), self.get_domain(xs)]
             if self.is_defect(coeffs[neuron]):
                 coeffs[neuron] = None
         return [(self.target_parameter, coeffs)]
@@ -152,7 +154,7 @@ class V_reset_Calibrator(BaseCalibrator):
 
         coeffs = {}
         for coord, mean in block_means.iteritems():
-            coeffs[coord] = self.do_fit(mean[:, 2], mean[:, 0])
+            coeffs[coord] = [self.do_fit(mean[:, 2], mean[:, 0]), self.get_domain(mean[:,2])]
 
         return [(self.target_parameter, coeffs)]
 
@@ -256,15 +258,10 @@ class V_syntc_psp_max_BaseCalibrator(BaseCalibrator):
 
         for neuron in self.neurons:
             V_syntc_psp_max = self.fit_neuron(neuron)
-            coeffs[neuron] = [V_syntc_psp_max]
+            # For compatibility, the domain should be None
+            coeffs[neuron] = [[V_syntc_psp_max], None]
 
         return [(self.target_parameter, coeffs)]
-
-    """
-    def is_defect(self, coeffs, xs):
-        defect = np.max(xs) < 0.005
-        print xs, np.max(xs), defect
-    """
 
 
 class V_syntci_psp_max_Calibrator(V_syntc_psp_max_BaseCalibrator):
@@ -408,7 +405,8 @@ class readout_shift_Calibrator(BaseCalibrator):
             V_rests_in_block = np.array([results[neuron]['mean'] for neuron in neurons_in_block])
             mean_V_rest_over_block = np.mean(V_rests_in_block)
             for neuron in neurons_in_block:
-                readout_shifts[neuron] = [float(results[neuron]['mean'] - mean_V_rest_over_block)]
+                # For compatibility purposes, domain should be None
+                readout_shifts[neuron] = [[float(results[neuron]['mean'] - mean_V_rest_over_block)], None]
         return readout_shifts
 
 

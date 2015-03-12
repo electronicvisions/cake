@@ -7,16 +7,20 @@ import Coordinate
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
 
 
-def create_pycalibtic_transformation(coefficients, trafo_type=pycalibtic.Polynomial):
+def create_pycalibtic_transformation(coefficients, domain=None, trafo_type=pycalibtic.Polynomial):
     """Create a pycalibtic.Polynomial from a list of coefficients.
 
-    Order: [c0, c1, c2, ...] resulting in c0*x^0 + c1*x^1 + c2*x^2 + ..."""
+    Order: [c0, c1, c2, ...] resulting in c0*x^0 + c1*x^1 + c2*x^2 + ...
+
+    Domain should be a tuple wit min and max possible hardware value"""
     # Make standard python list to have the right order
     if coefficients is None:
         return None
     coefficients = list(coefficients)
     data = pywrapstdvector.Vector_Double(coefficients)
-    return trafo_type(data)
+    if domain is None:
+        return trafo_type(data)
+    return trafo_type(data, domain[0], domain[1])
 
 class Calibtic(object):
     logger = pylogging.get("pycake.calibtic")
@@ -168,7 +172,11 @@ class Calibtic(object):
         else:
             trafo_type = pycalibtic.Polynomial
 
-        for coord, coeffs in data.iteritems():
+        for coord, [coeffs, domain] in data.iteritems():
+
+            if coeffs is None:
+                continue
+
             if isinstance(parameter, shared_parameter) and isinstance(coord, Coordinate.FGBlockOnHICANN):
                 collection = self.bc
                 cal = pycalibtic.SharedCalibration()
@@ -187,7 +195,7 @@ class Calibtic(object):
 
             index = coord.id().value()
 
-            polynomial = create_pycalibtic_transformation(coeffs, trafo_type)
+            polynomial = create_pycalibtic_transformation(coeffs, domain, trafo_type)
 
             if not collection.exists(index):
                 collection.insert(index, cal)
