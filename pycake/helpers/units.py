@@ -46,11 +46,11 @@ class Voltage(Unit):
 
     @staticmethod
     def _check(value):
-        if value < 0. or value > 1800.:
+        if value < 0. or value > 1.8:
             raise ValueError("Voltage value {} mV out of range".format(value))
 
     def toDAC(self):
-        return DAC(self.value/1800.*1023., self.apply_calibration)
+        return DAC(self.value/1.8*1023., self.apply_calibration)
 
     def __repr__(self):
         return "{} mV".format(self.value)
@@ -74,7 +74,7 @@ class DAC(Unit):
         return Current(self.value/1023.*2500., self.apply_calibration)
 
     def toVoltage(self):
-        return Voltage(self.value/1023.*1800., self.apply_calibration)
+        return Voltage(self.value/1023.*1.8, self.apply_calibration)
 
     def __repr__(self):
         return "{} (DAC)".format(self.value)

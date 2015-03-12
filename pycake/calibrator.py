@@ -69,13 +69,19 @@ class BaseCalibrator(object):
                 coeffs[neuron] = None
         return [(self.target_parameter, coeffs)]
 
+    def get_domain(self, data):
+        """ Extract the domain from measured data.
+            Default always returns the complete Voltage domain (0, 1.8) V.
+        """
+        return [0, 1.8]
+
     def dac_to_si(self, dac, parameter):
         """ Transforms dac value to mV or nA, depending on input parameter
         """
         if self.target_parameter.name[0] == 'I':
             return dac * 2500/1023.
         else:
-            return dac * 1800/1023.
+            return dac * 1.8/1023.
 
     def prepare_x(self, x):
         """ Prepares x values for fit
