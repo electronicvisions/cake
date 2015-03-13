@@ -17,6 +17,6 @@ else
     export PYTHONPATH=$PWD/lib:$PYTHONPATH
 fi
 
-ls
+find .
 
 bin/tools/run_calibration.py config/fastcalibration_parameters.py --wafer 1 --hicann 288 --outdir ~/build/results_calibration
