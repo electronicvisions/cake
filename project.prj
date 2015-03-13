@@ -59,7 +59,7 @@ sw = SoftwareJob([
     blamemail   : true,     // if the job should send mails to vandals, will be overridden to false if debug is true
     
     test_publisher : true,  // build/test_results/test-*.xml
-    distribution : false, // create artifacts for lib and bin folder
+    distribution : true,    // create artifacts for lib and bin folder
     
     queue       : false,    // if the job should be queued after the generator
 ])
