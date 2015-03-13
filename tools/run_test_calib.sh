@@ -17,4 +17,6 @@ else
     export PYTHONPATH=$PWD/lib:$PYTHONPATH
 fi
 
-bin/tools/run_calibration.py cake/config/fastcalibration_parameters.py --wafer 1 --hicann 288 --outdir ~/build/results_calibration
+ls
+
+bin/tools/run_calibration.py config/fastcalibration_parameters.py --wafer 1 --hicann 288 --outdir ~/build/results_calibration
