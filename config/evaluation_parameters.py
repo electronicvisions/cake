@@ -21,7 +21,6 @@ eval_parameters = {
         "neurons": [NeuronOnHICANN(Enum(i)) for i in range(512)],
         "blocks":  [FGBlockOnHICANN(Enum(i)) for i in range(4)],
 
-        # For the evaluation of the calibration, only one point, except for V_t, is targeted
         "V_reset_range":  [{shared_parameter.V_reset : Voltage(500)}],
         "E_syni_range":   [{neuron_parameter.E_syni :v } for v in linspace_voltage(E_syni_target, E_synx_target, 3)],
         "E_synx_range":   [{neuron_parameter.E_synx :v } for v in linspace_voltage(E_syni_target, E_synx_target, 3)],
