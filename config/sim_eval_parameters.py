@@ -1,8 +1,8 @@
 """Evaluate calibration in MonteCarlo transistor level simulation"""
 
-from Coordinate import NeuronOnHICANN, FGBlockOnHICANN, Enum
 from pycake.helpers.units import Voltage, Current
 from pycake.helpers.units import linspace_voltage
+from pycake.helpers.misc import nested_update
 
 from pyhalbe.HICANN import neuron_parameter
 from pyhalbe.HICANN import shared_parameter
@@ -44,4 +44,16 @@ eval_parameters = {
     "measure": True,
 }
 
+# overwrite ranges by regular update
 parameters.update(eval_parameters)
+
+
+special_parameters = {
+    "base_parameters": {
+        neuron_parameter.V_convoffi: Voltage(1800, apply_calibration=True),
+        neuron_parameter.V_convoffx: Voltage(1800, apply_calibration=True),
+    }
+}
+
+# modify base parameter without losing other base parameters
+nested_update(parameters, special_parameters)
