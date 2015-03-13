@@ -306,6 +306,11 @@ if args.backenddir:
         except IndexError:
             print "No offset found for Neuron {}. Is the wafer and hicann enum correct? (w{}, h{})".format(nrnidx,args.wafer,args.hicann)
             return 0
+        except RuntimeError, e:
+            if e.message == "No transformation available at 23":
+                print "No offset found for Neuron {}.".format(nrnidx)
+                return 0
+            raise
 
     offsets = [get_offset(c, n) * 1000 for n in xrange(512)]
     plt.hist(offsets, bins=100);
