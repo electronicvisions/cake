@@ -1,6 +1,10 @@
 #!/bin/bash -ev
 
-module load mongo
+
+# c.f. cake/project.prj
+module load numpy/1.8.0
+module load pyfftw
+module load pynn
 
 if [ -z $LD_LIBRARY_PATH ]; then
     export LD_LIBRARY_PATH=$PWD/lib
