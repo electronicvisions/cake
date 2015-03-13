@@ -19,4 +19,4 @@ fi
 
 find .
 
-bin/tools/run_calibration.py artifacts/config/fastcalibration_parameters.py --wafer 1 --hicann 288 --outdir ~/build/results_calibration
+bin/tools/run_calibration.py bin/tools/fastcalibration_parameters.py --wafer 1 --hicann 288 --outdir ~/build/results_calibration
