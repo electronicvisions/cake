@@ -19,4 +19,12 @@ fi
 
 find .
 
-bin/tools/run_calibration.py bin/tools/fastcalibration_parameters.py --wafer 1 --hicann 288 --outdir ~/build/results_calibration
+cp -v bin/tools/*_parameters.py .
+
+# issue 1621
+export PYTHONPATH=.:$PYTHONPATH
+
+bin/tools/run_calibration.py fastcalibration_parameters.py --wafer 1 --hicann 288 --outdir ~/build/results_calibration
+bin/tools/run_calibration.py evaluation_parameters.py --wafer 1 --hicann 288 --outdir ~/build/results_calibration
+
+find ~/build/calibration
