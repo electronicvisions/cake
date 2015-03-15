@@ -27,4 +27,6 @@ export PYTHONPATH=.:$PYTHONPATH
 bin/tools/run_calibration.py fastcalibration_parameters.py --wafer 1 --hicann 288 --outdir ./build/results_calibration
 bin/tools/run_calibration.py evaluation_parameters.py --wafer 1 --hicann 288 --outdir ./build/results_calibration
 
-find ./build/calibration
+find
+
+find ./build/results_calibration
