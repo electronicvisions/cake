@@ -54,14 +54,13 @@ class E_l_I_gl_fixed_Calibrator(object):
     def generate_coeffs(self):
         """ Takes averaged experiments and does the fits
         """
-        E_l_fits = {}
         I_gl_fits = {}
         for neuron in self.neurons:
             fit = self.fit_neuron(neuron)
             if fit:
-                E_l, I_gl = fit
-                E_l_fits[neuron] = [E_l]
-                I_gl_fits[neuron] = [I_gl]
-        x = [(neuron_parameter.E_l, E_l_fits),
-                (neuron_parameter.I_gl, I_gl_fits)]
+                E_l, I_gl_DAC = fit
+                I_gl_fits[neuron] = [I_gl_DAC]
+            else:
+                I_gl_fits[neuron] = [self.fallback_I_gl_DAC]
+        x = [(neuron_parameter.I_gl, I_gl_fits)]
         return x
