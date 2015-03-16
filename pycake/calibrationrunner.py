@@ -40,7 +40,10 @@ class CalibrationRunner(object):
         self.calibtic = pycake.helpers.calibtic.Calibtic(path, wafer, hicann)
         self.redman =   pycake.helpers.redman.Redman(path, Coordinate.HICANNGlobal(hicann,wafer))
 
+        pll_in_MHz = int(self.config.get_PLL()/1e6)
+
         name_details = "_".join([s for s in [
+            "f{}".format(pll_in_MHz),
             "w{}".format(wafer.value()),
             "h{}".format(hicann.id().value()),
             self.config.get_filename_prefix(),
