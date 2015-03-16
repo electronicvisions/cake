@@ -48,8 +48,9 @@ class PSPShape(object):
         """
         raise NotImplementedError
 
-    def parameter_names(self):
-        return inspect.getargspec(self.__call__).args[2:]
+    @classmethod
+    def parameter_names(cls):
+        return inspect.getargspec(cls.__call__).args[2:]
 
     def parameter_dict(self, parameters):
         return dict(zip(self.parameter_names, parameters))
