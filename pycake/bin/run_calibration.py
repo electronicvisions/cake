@@ -115,8 +115,8 @@ parser.add_argument('--overwrite', required=False, action=DictionaryAction,
 args = parser.parse_args()
 
 if args.logfile is not None:
-    # pylogging.log_to_file(args.logfile, pylogging.LogLevel.ALL)
-    pylogging.logger_append_to_file(args.logfile, pylogging.get_root())
+    pylogging.log_to_file(args.logfile, pylogging.LogLevel.ALL)
+    #pylogging.logger_append_to_file(args.logfile, pylogging.get_root())
 
 config = load_config(args)
 
