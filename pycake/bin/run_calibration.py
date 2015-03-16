@@ -111,7 +111,7 @@ parser.add_argument('--logfile', default=None,
 parser.add_argument('--parameter', type=str, default=None, action='append',
                     help='Runs the specified calibrations in the given order')
 parser.add_argument('--overwrite', required=False, action=DictionaryAction,
-                    help="Overwrites values loaded from configuration file")
+                    help="Overwrites values loaded from configuration file, e.g. --overwrite float PLL")
 args = parser.parse_args()
 
 if args.logfile is not None:
