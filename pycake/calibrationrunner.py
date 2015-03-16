@@ -187,7 +187,7 @@ class CalibrationRunner(object):
         """
         """
         for parameter, data in coeffs:
-            defects = [coord for coord, coeff in data.iteritems() if coeff == None]
+            defects = [coord for coord, coeff in data.iteritems() if coeff is None]
             self.redman.write_defects(defects)
 
 class TestRunner(CalibrationRunner):
