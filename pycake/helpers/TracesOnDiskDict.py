@@ -98,10 +98,6 @@ class TracesOnDiskDict(collections.MutableMapping):
         for value in self.reverse_keys.itervalues():
             yield value
 
-    def __len__(self):
-        return self.root._v_nchildren
-
-
 class RecordsOnDiskDict(TracesOnDiskDict):
     """A dictonary that stores traces on disc.
 
