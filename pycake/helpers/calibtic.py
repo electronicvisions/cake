@@ -149,32 +149,20 @@ class Calibtic(object):
         self.md = md
         self._loaded = True
 
-    def write_calibration(self, parameter, data):
-        """ Writes calibration data
-            Coefficients are ordered like this:
-            [a, b, c] ==> a*x^0 + b*x^1 + c*x^2 + ...
-            if coefficients are None, the transformation for the parameter is cleared
+    def write_calibration(self, parameter, trafos):
+        """ Writes calibration data to backend
 
             Args:
                 parameter: which neuron or hicann parameter
-                data: dict { coord : coefficients }
+                trafos: dict { coord : pycalibtic.transformation }
         """
         if not self._loaded:
             self._load_calibration()
         name = self.get_calibtic_name()
 
-        if parameter is neuron_parameter.I_gl:
-            # Transformation for I_gl is a * 1/tau^2 + b * 1/tau + c
-            trafo_type = pycalibtic.NegativePowersPolynomial
-        if parameter is neuron_parameter.I_pl:
-            # Transformation for I_pl is 1/(a*tau + b)
-            trafo_type = pycalibtic.OneOverPolynomial
-        else:
-            trafo_type = pycalibtic.Polynomial
+        for coord, trafo in trafos.iteritems():
 
-        for coord, [coeffs, domain] in data.iteritems():
-
-            if coeffs is None:
+            if trafo is None:
                 continue
 
             if isinstance(parameter, shared_parameter) and isinstance(coord, Coordinate.FGBlockOnHICANN):
@@ -184,8 +172,7 @@ class Calibtic(object):
                 collection = self.nc
                 cal = pycalibtic.NeuronCalibration()
 
-            # If parameter is V_reset, BUT coordinate is not a block, it is assumed that you want to store readout shifts
-            # Readout shifts are stored as parameter
+            # Readout shifts are stored as parameter Neuroncalibration.ReadoutShift
             if parameter is 'readout_shift':
                 param_id = pycalibtic.NeuronCalibration.ReadoutShift
                 param_name = parameter
@@ -195,16 +182,10 @@ class Calibtic(object):
 
             index = coord.id().value()
 
-            polynomial = create_pycalibtic_transformation(coeffs, domain, trafo_type)
-
             if not collection.exists(index):
                 collection.insert(index, cal)
-            collection.at(index).reset(param_id, polynomial)
-            self.logger.TRACE("Resetting coordinate {} parameter {} to {}".format(coord, param_name, polynomial))
-
-        self.logger.TRACE("Resetting PLL to {} MHz".format(int(self.pll/1e6)))
-        self.hc.setPLLFrequency(int(self.pll))
-
+            collection.at(index).reset(param_id, trafo)
+            self.logger.TRACE("Resetting coordinate {} parameter {} to {}".format(coord, param_name, trafo))
         self.backend.store(name, self.md, self.hc)
 
     def get_calibration(self, coord):

@@ -3,10 +3,13 @@
 """
 import numpy
 import numpy as np
+from scipy.optimize import curve_fit
 import pylogging
 from collections import defaultdict
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
 import Coordinate
+import pycalibtic
+from pycake.helpers.calibtic import create_pycalibtic_transformation
 
 class BaseCalibrator(object):
     """ Takes experiments and a target parameter and turns this into calibration data via a linear fit.
@@ -54,11 +57,12 @@ class BaseCalibrator(object):
         # return 'unzipped' results, e.g.: (100,0.1),(200,0.2) -> (100,200), (0.1,0.2)
         return zip(*np.concatenate(results))
 
-    def generate_coeffs(self):
+    def generate_transformations(self):
         """ Takes averaged experiments and does the fits
         """
-        coeffs = {}
-        domains = {}
+        transformations = {}
+        trafo_type = self.get_trafo_type()
+
         for neuron in self.get_neurons():
             # Need to switch y and x in order to get the right fit
             # (y-axis: configured parameter, x-axis: measurement)
@@ -66,10 +70,14 @@ class BaseCalibrator(object):
             xs = self.prepare_x(xs_raw)
             ys = self.prepare_y(ys_raw)
             # Extract function coefficients and domain from measured data
-            coeffs[neuron] = [self.do_fit(xs, ys), self.get_domain(xs)]
-            if self.is_defect(coeffs[neuron]):
-                coeffs[neuron] = None
-        return [(self.target_parameter, coeffs)]
+            # TODO coeffs[neuron] = [pycalibit.Polynomial, self.do_fit(xs, ys), self.get_domain(xs)]
+            coeffs = self.do_fit(xs, ys)
+            coeffs = coeffs[::-1] # coeffs are reversed in calibtic transformations
+            domain = self.get_domain(xs)
+            transformations[neuron] = create_pycalibtic_transformation(coeffs, domain, trafo_type)
+            if self.is_defect(coeffs):
+                transformations[neuron] = None
+        return [(self.target_parameter, transformations)]
 
     def get_domain(self, data):
         """ Extract the domain from measured data.
@@ -110,6 +118,13 @@ class BaseCalibrator(object):
     def get_neurons(self):
         # TODO: Improve this
         return self.experiments[0].measurements[0].get_neurons()
+
+    def get_trafo_type(self):
+        """ Returns the pycalibtic.transformation type that is used for calibration.
+            Default returns Polynomial
+        """
+        return pycalibtic.Polynomial
+
 
 class V_reset_Calibrator(BaseCalibrator):
     target_parameter = shared_parameter.V_reset
@@ -207,6 +222,11 @@ class I_gl_Calibrator(BaseCalibrator):
     def get_key(self):
         return 'tau_m'
 
+    def get_trafo_type(self):
+        """ Returns the pycalibtic.transformation type that is used for calibration.
+            Default returns Polynomial
+        """
+        return pycalibtic.NegativePowersPolynomial
 
 class I_gl_charging_Calibrator(I_gl_Calibrator):
     pass
@@ -373,13 +393,27 @@ class I_pl_Calibrator(BaseCalibrator):
         ys = np.array(y)
         return ys[0:-1]
 
+    def do_fit(self, xs, ys):
+        """ Fits a curve to results of one neuron
+            Standard behaviour is a linear fit.
+        """
+        def func(x, a, b):
+            return 1/(a*x + b)
+        fit_coeffs = curve_fit(func, xs, ys, [0.025, 0.0004])[0]
+        return fit_coeffs
+
+    def get_trafo_type(self):
+        """ Returns the pycalibtic.transformation type that is used for calibration.
+            Default returns Polynomial
+        """
+        return pycalibtic.OneOverPolynomial
 
 class readout_shift_Calibrator(BaseCalibrator):
     def __init__(self, experiments, config, neuron_size=64):
         super(readout_shift_Calibrator, self).__init__(experiments, config)
         self.neuron_size = neuron_size
 
-    def generate_coeffs(self):
+    def generate_transformations(self):
         """
         """
         results = self.experiments[0].results[0]
@@ -398,6 +432,7 @@ class readout_shift_Calibrator(BaseCalibrator):
     def get_readout_shifts(self, results):
         """
         """
+        trafo_type = self.get_trafo_type()
         n_blocks = 512/self.neuron_size # no. of interconnected neurons
         readout_shifts = {}
         for block_id in range(n_blocks):
@@ -406,7 +441,9 @@ class readout_shift_Calibrator(BaseCalibrator):
             mean_V_rest_over_block = np.mean(V_rests_in_block)
             for neuron in neurons_in_block:
                 # For compatibility purposes, domain should be None
-                readout_shifts[neuron] = [[float(results[neuron]['mean'] - mean_V_rest_over_block)], None]
+                shift = float(results[neuron]['mean'] - mean_V_rest_over_block)
+                trafo = create_pycalibtic_transformation([shift], None, trafo_type)
+                readout_shifts[neuron] = trafo
         return readout_shifts
 
 
