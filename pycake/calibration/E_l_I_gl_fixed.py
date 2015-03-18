@@ -36,8 +36,12 @@ class E_l_I_gl_fixed_Calibrator(object):
                     and (np.max(mean) > (self.target + self.min_distance))):
 
                 a1, a0 = np.polyfit(E_l, mean, 1)
-                E_l_result = (self.target - a0)/a1 #.toDAC().value
-                if E_l_result > Volt(self.target + 0.3).toDAC().value:
+
+                # DAC for target membrane voltage
+                E_l_DAC_target = (self.target - a0)/a1
+
+                # sanity check
+                if E_l_DAC_target > Volt(self.target + self.max_delta_ideal).toDAC().value:
                     continue
                 return E_l_DAC_target, I_gl_DAC
             else:
@@ -48,6 +52,7 @@ class E_l_I_gl_fixed_Calibrator(object):
         """ Takes averaged experiments and does the fits
         """
         I_gl_fits = {}
+        E_l_fits = {}
         for neuron in self.neurons:
             fit = self.fit_neuron(neuron)
             if fit:
