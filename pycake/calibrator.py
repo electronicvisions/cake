@@ -70,7 +70,6 @@ class BaseCalibrator(object):
             xs = self.prepare_x(xs_raw)
             ys = self.prepare_y(ys_raw)
             # Extract function coefficients and domain from measured data
-            # TODO coeffs[neuron] = [pycalibit.Polynomial, self.do_fit(xs, ys), self.get_domain(xs)]
             coeffs = self.do_fit(xs, ys)
             coeffs = coeffs[::-1] # coeffs are reversed in calibtic transformations
             domain = self.get_domain(xs)
@@ -81,9 +80,9 @@ class BaseCalibrator(object):
 
     def get_domain(self, data):
         """ Extract the domain from measured data.
-            Default always returns the complete Voltage domain (0, 1.8) V.
+            Default always returns None
         """
-        return [0, 1.8]
+        return None
 
     def dac_to_si(self, dac, parameter):
         """ Transforms dac value to mV or nA, depending on input parameter
@@ -173,13 +172,32 @@ class V_reset_Calibrator(BaseCalibrator):
 
         return [(self.target_parameter, coeffs)]
 
+    def get_domain(self, data):
+        return [0,1.8]
+
 
 class E_synx_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.E_synx
 
+    def get_domain(self, data):
+        return [0,1.8]
+
+    #def is_defect(self, coeffs):
+    #    # Defect if slope of the fit is too high or offset is significantly positive
+    #    defect = (abs(coeffs[0]) - 1) > 1 or abs(coeffs[1]) > 100
+    #    return defect
+
 
 class E_syni_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.E_syni
+
+    def get_domain(self, data):
+        return [0,1.8]
+
+    #def is_defect(self, coeffs):
+    #    # Defect if slope of the fit is too high
+    #    defect = (abs(coeffs[0]) - 1) > 1 or abs(coeffs[1]) > 100
+    #    return defect
 
 
 class E_l_Calibrator(BaseCalibrator):
@@ -190,6 +208,8 @@ class E_l_Calibrator(BaseCalibrator):
         defect = (coeffs[0] - 1) > 1 # Defect if slope of the fit is too high
         return defect
     """
+    def get_domain(self, data):
+        return [0,1.8]
 
 
 class spikes_Calibrator(BaseCalibrator):
@@ -211,6 +231,8 @@ class V_t_Calibrator(BaseCalibrator):
         defect = abs(coeffs[0] - 1) > 1
         return defect
 
+    def get_domain(self, data):
+        return [0,1.8]
 
 class I_gl_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.I_gl
@@ -221,6 +243,10 @@ class I_gl_Calibrator(BaseCalibrator):
 
     def get_key(self):
         return 'tau_m'
+
+    # TODO: implement proper domain detection
+    def get_domain(self, data):
+        return [0,2.5e-6]
 
     def get_trafo_type(self):
         """ Returns the pycalibtic.transformation type that is used for calibration.
@@ -392,6 +418,10 @@ class I_pl_Calibrator(BaseCalibrator):
         """
         ys = np.array(y)
         return ys[0:-1]
+
+    # TODO: implement proper domain
+    def get_domain(self, data):
+        return [0,1e-5]
 
     def do_fit(self, xs, ys):
         """ Fits a curve to results of one neuron
