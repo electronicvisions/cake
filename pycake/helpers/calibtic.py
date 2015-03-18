@@ -12,9 +12,12 @@ def create_pycalibtic_polynomial(coefficients):
 
     Order: [c0, c1, c2, ...] resulting in c0*x^0 + c1*x^1 + c2*x^2 + ..."""
     # Make standard python list to have the right order
-    coefficients = list(coefficients)
-    data = pywrapstdvector.Vector_Double(coefficients)
-    return pycalibtic.Polynomial(data)
+    if coefficients is None:
+        return None
+    else:
+        coefficients = list(coefficients)
+        data = pywrapstdvector.Vector_Double(coefficients)
+        return pycalibtic.Polynomial(data)
 
 
 class Calibtic(object):
@@ -135,6 +138,7 @@ class Calibtic(object):
         """ Writes calibration data
             Coefficients are ordered like this:
             [a, b, c] ==> a*x^0 + b*x^1 + c*x^2 + ...
+            if coefficients are None, the transformation for the parameter is cleared
 
             Args:
                 parameter: which neuron or hicann parameter
@@ -145,10 +149,6 @@ class Calibtic(object):
         name = self.get_calibtic_name()
 
         for coord, coeffs in data.iteritems():
-
-            if coeffs is None:
-                continue
-
             if isinstance(parameter, shared_parameter) and isinstance(coord, Coordinate.FGBlockOnHICANN):
                 collection = self.bc
                 cal = pycalibtic.SharedCalibration()
@@ -166,9 +166,9 @@ class Calibtic(object):
                 param_name = parameter.name
 
             index = coord.id().value()
-            polynomial = create_pycalibtic_polynomial(coeffs)
             if not collection.exists(index):
                 collection.insert(index, cal)
+            polynomial = create_pycalibtic_polynomial(coeffs)
             collection.at(index).reset(param_id, polynomial)
             self.logger.TRACE("Resetting coordinate {} parameter {} to {}".format(coord, param_name, polynomial))
         self.backend.store(name, self.md, self.hc)

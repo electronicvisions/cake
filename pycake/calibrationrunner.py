@@ -180,7 +180,8 @@ class CalibrationRunner(object):
         """
         """
         for parameter, data in coeffs:
-            data = dict((coord, coeff[::-1]) for coord, coeff in data.iteritems() if coeff is not None)
+            data = dict((coord, coeff[::-1])
+                        for coord, coeff in data.iteritems())
             self.calibtic.write_calibration(parameter, data)
 
     def write_defects(self, coeffs):
