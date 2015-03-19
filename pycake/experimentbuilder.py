@@ -15,7 +15,7 @@ from pycake.measure import SpikeMeasurement
 from pycake.measure import I_gl_Measurement
 from pycake.experiment import SequentialExperiment
 import pycake.analyzer
-from pycake.helpers.units import Unit
+from pycake.helpers.units import Unit, Ampere, Volt, DAC
 
 # shorter names
 Enum = Coordinate.Enum
@@ -128,14 +128,14 @@ class BaseExperimentBuilder(object):
                     # e.g. __last_neuron
                     continue
 
-                value_dac = value.toDAC()
-
                 if value.apply_calibration:
-                    self.logger.TRACE("Applying calibration to coord {} value {}".format(neuron, value_dac))
-                    value_dac.value = self.calibtic.apply_calibration(value_dac.value, param, neuron)
+                    self.logger.TRACE("Applying calibration to coord {} value {}".format(neuron, value))
+                    value_dac = self.calibtic.apply_calibration(value, param, neuron)
+                else:
+                    value_dac = value.toDAC().value
 
                 self.logger.TRACE("Setting FGValue of {} parameter {} to {}.".format(neuron, param, value_dac))
-                floating_gates.setNeuron(neuron, param, value_dac.value)
+                floating_gates.setNeuron(neuron, param, value_dac)
 
         for block in self.blocks:
             block_parameters = copy.deepcopy(parameters)
@@ -150,15 +150,17 @@ class BaseExperimentBuilder(object):
                 if not even and param.name in ['V_clrc', 'V_bexp']:
                     continue
 
-                value_dac = value.toDAC()
-
-                # Do not calibrate target parameter except if this is a test measurement
                 if value.apply_calibration:
-                    self.logger.TRACE("Applying calibration to coord {} value {}".format(block, value_dac))
-                    value_dac.value = self.calibtic.apply_calibration(value_dac.value, param, block)
+                    self.logger.TRACE("Applying calibration to coord {} value {}".format(block, value))
+                    value_dac = self.calibtic.apply_calibration(value, param, block)
+                else:
+                    if type(value) in [Ampere, Volt, DAC]:
+                        value_dac = value.toDAC().value
+                    else:
+                        value_dac = self.calibtic.apply_calibration(value.value, param, block, use_ideal=True)
 
-                self.logger.TRACE("Setting FGValue of {} parameter {} to {}.".format(block, param, value_dac))
-                floating_gates.setShared(block, param, value_dac.value)
+                self.logger.TRACE("Setting FGValue of {} parameter {} to {}.".format(block, param, value))
+                floating_gates.setShared(block, param, value_dac)
         return floating_gates
 
     def prepare_specific_config(self, sthal):
