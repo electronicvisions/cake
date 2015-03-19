@@ -16,7 +16,9 @@ eval_parameters = {
 
     # For the evaluation of the calibration, sometimes only one point is
     # targeted, usually 3
-    "V_reset_range": [{shared_parameter.V_reset : Voltage(500)}],
+    "V_reset_range": [{shared_parameter.V_reset : Voltage(500),
+                       neuron_parameter.E_l : Voltage(900),
+                       neuron_parameter.V_t : Voltage(700)}],
     "E_l_range": [{neuron_parameter.E_l : Voltage(v)} for v in [650, 700, 750]],
     "V_t_range": [{neuron_parameter.V_t : v} for v in linspace_voltage(700, 1100, 3)],
     "I_gl_charging_range": [{neuron_parameter.I_gl : Current(c)} for c in [500, 700]],
@@ -50,6 +52,10 @@ parameters.update(eval_parameters)
 
 special_parameters = {
     "base_parameters": {
+        neuron_parameter.V_convoffi: Voltage(1800, apply_calibration=True),
+        neuron_parameter.V_convoffx: Voltage(1800, apply_calibration=True),
+    },
+    "V_reset_parameters": {
         neuron_parameter.V_convoffi: Voltage(1800, apply_calibration=True),
         neuron_parameter.V_convoffx: Voltage(1800, apply_calibration=True),
     }
