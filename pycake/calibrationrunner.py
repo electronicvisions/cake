@@ -176,11 +176,17 @@ class CalibrationRunner(object):
                 "{}_Calibrator".format(config_name))
         return calibrator_type(experiments, self.config.copy(config_name))
 
+    def reverse(self, x):
+        if x is not None:
+            return x[::-1]
+        else:
+            return None
+
     def write_calibration(self, coeffs):
         """
         """
         for parameter, data in coeffs:
-            data = dict((coord, coeff[::-1])
+            data = dict((coord, self.reverse(coeff))
                         for coord, coeff in data.iteritems())
             self.calibtic.write_calibration(parameter, data)
 
