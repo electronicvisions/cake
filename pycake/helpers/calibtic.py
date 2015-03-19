@@ -5,7 +5,8 @@ import os
 
 import Coordinate
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
-
+import pycake.helpers.trafos
+from pycake.helpers.units import DAC, Volt, Ampere, Unit, Second
 
 def create_pycalibtic_transformation(coefficients, domain=None, trafo_type=pycalibtic.Polynomial):
     """Create a pycalibtic.Polynomial from a list of coefficients.
@@ -34,6 +35,8 @@ class Calibtic(object):
         del odict['nc']
         del odict['bc']
         del odict['md']
+        del odict['ideal_nc']
+        del odict['ideal_bc']
         return odict
 
     def __setstate__(self, dic):
@@ -43,6 +46,10 @@ class Calibtic(object):
         dic['backend'] = self.init_backend()
         if 'pll' not in dic:
             dic['pll'] = 0.0
+        dic['ideal_nc'] = pycalibtic.NeuronCollection()
+        dic['ideal_nc'].setDefaults()
+        dic['ideal_bc'] = pycalibtic.BlockCollection()
+        dic['ideal_bc'].setDefaults()
         self.__dict__.update(dic)
         self._load_calibration()
 
@@ -54,6 +61,10 @@ class Calibtic(object):
         self.pll = pll
 
         self._load_calibration()
+        self.ideal_nc = pycalibtic.NeuronCollection()
+        self.ideal_nc.setDefaults()
+        self.ideal_bc = pycalibtic.BlockCollection()
+        self.ideal_bc.setDefaults()
 
     def init_backend(self, type='xml'):
         if type == 'xml':
@@ -188,8 +199,10 @@ class Calibtic(object):
             self.logger.TRACE("Resetting coordinate {} parameter {} to {}".format(coord, param_name, trafo))
         self.backend.store(name, self.md, self.hc)
 
-    def get_calibration(self, coord):
-        """
+    def get_calibration(self, coord, use_ideal=False):
+        """ Returns NeuronCalibration or SharedCalibration object for one coordinate.
+
+            If a collection is not found und use_ideal is set to True, returns ideal calibration
         """
         if not self._loaded:
             self._load_calibration()
@@ -200,11 +213,15 @@ class Calibtic(object):
         else:
             collection = self.nc
 
-        if collection.exists(c_id):
+        if collection.exists(c_id) and not use_ideal:
+            self.logger.TRACE("Found Calibration for {}".format(coord))
             return collection.at(c_id)
         else:
-            self.logger.WARN("No calibration dataset found for {}.".format(coord))
-            return None
+            self.logger.WARN("No calibration dataset found for {}. Returning ideal calibration.".format(coord))
+            if isinstance(coord, Coordinate.FGBlockOnHICANN):
+                return self.ideal_bc.at(c_id)
+            else:
+                return self.ideal_nc.at(c_id)
 
     def get_readout_shift(self, neuron):
         """
@@ -225,29 +242,32 @@ class Calibtic(object):
 
         return shift
 
-    def apply_calibration(self, dac_value, parameter, coord):
-        """ Apply calibration to one value.
+    def apply_calibration(self, value, parameter, coord, use_ideal=False):
+        """ Apply calibration to one value. If no calibration is found, use ideal calibration.
+            Also, if parameter value is given in a unit that does not support calibration, e.g.
+            I_pl given in Ampere instead of microseconds, apply direct translation to DAC.
 
             Args:
-                dac_value
-                parameter
-                coord
+                value: Value in Hardware specific units (e.g. volt, ampere, seconds)
+                parameter: neuron_parameter or shared_parameter type
+                coord: neuron coordinate
             Returns:
-                Calibrated value if calibration exists. Otherwise,
-                the value itself is returned and a warning is given.
-
+                Calibrated DAC value
                 If the calibrated value exceeds the boundaries, it is clipped.
         """
         if not self._loaded:
             self._load_calibration()
 
+        if not isinstance(value, Unit):
+            value = Unit(value)
+
+        calib = self.get_calibration(coord, use_ideal)
+
         lower_boundary = 0
         if parameter is neuron_parameter.I_pl:
+            if not isinstance(value, Second):
+                raise TypeError("Calibration for I_pl only valid for seconds.")
             lower_boundary = 4
-
-        calib = self.get_calibration(coord)
-        if not calib:
-            return int(round(dac_value))
 
         if calib.exists(parameter):
             # Check domain
@@ -263,14 +283,14 @@ class Calibtic(object):
 
             self.logger.TRACE("Calibrated {} parameter {}: {} --> {} DAC".format(coord, parameter.name, value, calib_dac_value))
         else:
-            self.logger.WARN("Applying calibration failed: Nothing found for {} parameter {}. Using uncalibrated value {}".format(coord, parameter.name, dac_value))
-            calib_dac_value = dac_value
+            calib_dac_value = value.toDAC().value
+            self.logger.WARN("Calibration for {} parameter {} not found. Using uncalibrated DAC value {}".format(coord, parameter.name, calib_dac_value))
 
         if calib_dac_value < lower_boundary:
-            self.logger.WARN("Coord {} Parameter {} DAC-Value {} Calibrated to {} is lower than {}. Clipping.".format(coord, parameter, dac_value, calib_dac_value, lower_boundary))
+            self.logger.WARN("Coord {} Parameter {} value {} calibrated to {} is lower than {}. Clipping.".format(coord, parameter, value, calib_dac_value, lower_boundary))
             calib_dac_value = lower_boundary
         if calib_dac_value > 1023:
-            self.logger.WARN("Coord {} Parameter {} DAC-Value {} Calibrated to {} is larger than 1023. Clipping.".format(coord, parameter, dac_value, calib_dac_value))
+            self.logger.WARN("Coord {} Parameter {} value {} calibrated to {} is larger than 1023. Clipping.".format(coord, parameter, value, calib_dac_value))
             calib_dac_value = 1023
 
         return int(round(calib_dac_value))
