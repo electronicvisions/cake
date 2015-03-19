@@ -102,31 +102,37 @@ class Calibtic(object):
     def _load_calibration(self):
         """ Load existing calibration data from backend.
         """
-        hc = pycalibtic.HICANNCollection()
+
+        # load existing calibration
+        try:
+            hc = pycalibtic.HICANNCollection()
+            md = pycalibtic.MetaData()
+            name = self.get_calibtic_name()
+            self.backend.load(name, md, hc)
+            calibration_existed = True
+        except RuntimeError, e:
+            if e.message == "data set not found":
+                calibration_existed = False
+            else:
+                raise RuntimeError(e)
+
+        if calibration_existed == False:
+            # create new (and empty) calibration
+            hc = pycalibtic.HICANNCollection()
+            md = pycalibtic.MetaData()
+
+        # hc (and md) are now either loaded or created
         nc = hc.atNeuronCollection()
         bc = hc.atBlockCollection()
-        md = pycalibtic.MetaData()
 
-        name = self.get_calibtic_name()
+        if calibration_existed == False:
+            # Delete all standard entries.
+            #TODO: fix calibtic to use proper standard entries
+            for nid in range(512):
+                nc.erase(nid)
+            for bid in range(4):
+                bc.erase(bid)
 
-        # Delete all standard entries.
-        #TODO: fix calibtic to use proper standard entries
-        for nid in range(512):
-            nc.erase(nid)
-        for bid in range(4):
-            bc.erase(bid)
-
-        try:
-            self.backend.load(name, md, hc)
-            # load existing calibration:
-            nc = hc.atNeuronCollection()
-            bc = hc.atBlockCollection()
-        except RuntimeError, e:
-            if e.message != "data set not found":
-                raise RuntimeError(e)
-            else:
-                # backend does not exist
-                pass
 
         self.hc = hc
         self.nc = nc
