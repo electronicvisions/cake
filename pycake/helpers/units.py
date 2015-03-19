@@ -1,4 +1,4 @@
-"""Conversion of Voltage/Current to DAC"""
+"""Conversion of Volt/Ampere to DAC"""
 
 import numpy
 
@@ -20,6 +20,26 @@ class Unit(object):
     def value(self, value):
         self._check(value)
         self._value = value
+
+    @staticmethod
+    def _check(value):
+        pass
+
+class Second(Unit):
+    """ Time in s for hardware parameters"""
+    def __init__(self, value, apply_calibration=False):
+        super(Second, self).__init__(float(value), apply_calibration)
+
+    @staticmethod
+    def _check(value):
+        if value < 0. or value > 1:
+            raise ValueError("Second value {} s out of range".format(value))
+
+    def toDAC(self):
+        raise RuntimeError("Cannot convert seconds to DAC. Calibration needed.")
+
+    def __repr__(self):
+        return "{} s".format(self.value)
 
 
 class Ampere(Unit):
