@@ -39,6 +39,8 @@ class Calibtic(object):
         # Initialize logger and calibtic backend when unpickling
         self.path = dic['path']
         dic['backend'] = self.init_backend()
+        if 'pll' not in dic:
+            dic['pll'] = 0.0
         self.__dict__.update(dic)
         self._load_calibration()
 
