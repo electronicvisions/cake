@@ -8,7 +8,6 @@ import numpy
 
 from pycake.helpers.sthal import StHALContainer
 from pycake.helpers.sthal import SimStHALContainer
-from pycake.helpers.calibtic import Calibtic
 from pycake.helpers.TraceAverager import TraceAverager
 from pycake.measure import ADCMeasurement
 from pycake.measure import ADCMeasurementWithSpikes
@@ -35,12 +34,12 @@ class BaseExperimentBuilder(object):
     """
     logger = pylogging.get("pycake.experimentbuilder")
 
-    def __init__(self, config, test=False):
+    def __init__(self, config, test, calibtic_helper):
         self.config = config
 
         path, name = self.config.get_calibtic_backend()
         wafer, hicann = self.config.get_coordinates()
-        self.calibtic = Calibtic(path, wafer, hicann)
+        self.calibtic = calibtic_helper
 
         self.neurons = self.config.get_neurons()
         self.blocks = self.config.get_blocks()

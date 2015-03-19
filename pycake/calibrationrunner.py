@@ -167,7 +167,7 @@ class CalibrationRunner(object):
         """
         builder_type = getattr(pycake.experimentbuilder,
                 "{}_Experimentbuilder".format(config_name))
-        return builder_type(config)
+        return builder_type(config, test = False, calibtic_helper = self.calibtic)
 
     def get_calibrator(self, config_name, experiments):
         """
@@ -209,4 +209,4 @@ class TestRunner(CalibrationRunner):
         """
         builder_type = getattr(pycake.experimentbuilder,
                 "{}_Experimentbuilder".format(config_name))
-        return builder_type(config, test = True)
+        return builder_type(config, test = True, calibtic_helper = self.calibtic)
