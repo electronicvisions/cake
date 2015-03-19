@@ -42,11 +42,13 @@ class Calibtic(object):
         self.__dict__.update(dic)
         self._load_calibration()
 
-    def __init__(self, path, wafer, hicann):
+    def __init__(self, path, wafer, hicann, pll=100e6):
         self.path = self._make_path(os.path.expanduser(path))
         self.backend = self.init_backend()
         self.wafer = wafer
         self.hicann = hicann
+        self.pll = pll
+
         self._load_calibration()
 
     def init_backend(self, type='xml'):
@@ -120,6 +122,7 @@ class Calibtic(object):
             # create new (and empty) calibration
             hc = pycalibtic.HICANNCollection()
             md = pycalibtic.MetaData()
+            hc.setPLLFrequency(int(self.pll))
 
         # hc (and md) are now either loaded or created
         nc = hc.atNeuronCollection()
@@ -133,6 +136,8 @@ class Calibtic(object):
             for bid in range(4):
                 bc.erase(bid)
 
+        if hc.getPLLFrequency() != self.pll:
+            self.logger.WARN("PLL stored in HICANNCollection {} MHz != {} MHz set here".format(hc.getPLLFrequency()/1e6, self.pll/1e6))
 
         self.hc = hc
         self.nc = nc
@@ -177,6 +182,10 @@ class Calibtic(object):
             polynomial = create_pycalibtic_polynomial(coeffs)
             collection.at(index).reset(param_id, polynomial)
             self.logger.TRACE("Resetting coordinate {} parameter {} to {}".format(coord, param_name, polynomial))
+
+        self.logger.TRACE("Resetting PLL to {} MHz".format(int(self.pll/1e6)))
+        self.hc.setPLLFrequency(int(self.pll))
+
         self.backend.store(name, self.md, self.hc)
 
     def get_calibration(self, coord):

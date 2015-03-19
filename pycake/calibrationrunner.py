@@ -37,10 +37,10 @@ class CalibrationRunner(object):
         # Initialize calibtic
         path, _ = self.config.get_calibtic_backend()
         wafer, hicann = self.config.get_coordinates()
-        self.calibtic = pycake.helpers.calibtic.Calibtic(path, wafer, hicann)
+        pll = self.config.get_PLL()
+        pll_in_MHz = int(pll/1e6)
+        self.calibtic = pycake.helpers.calibtic.Calibtic(path, wafer, hicann, pll)
         self.redman =   pycake.helpers.redman.Redman(path, Coordinate.HICANNGlobal(hicann,wafer))
-
-        pll_in_MHz = int(self.config.get_PLL()/1e6)
 
         name_details = "_".join([s for s in [
             "f{}".format(pll_in_MHz),
