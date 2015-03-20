@@ -467,9 +467,9 @@ class I_pl_Calibrator(BaseCalibrator):
         ys = np.array(y)
         return ys[0:-1]
 
-    # TODO: implement proper domain
     def get_domain(self, data):
-        return [0,1e-5]
+        # assume up to 20% higher possible domain than max measured value
+        return [0, max(data) * 1.20]
 
     def do_fit(self, xs, ys):
         """ Fits a curve to results of one neuron
