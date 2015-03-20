@@ -409,13 +409,54 @@ class I_pl_Calibrator(BaseCalibrator):
     def get_key(self):
         return 'mean_isi'
 
-    def prepare_x(self, x):
+    def get_merged_results(self, neuron, key):
+        """ Return all parameters and results from all experiments for one neuron.
+            This does not average over experiments.
+        """
+        results = []
+        for ex in self.experiments:
+            results.append(ex.get_parameters_and_results(neuron, [self.target_parameter], key))
+        # return 'unzipped' results, e.g.: (100,0.1),(200,0.2) -> (100,200), (0.1,0.2)
+        return zip(*np.concatenate(results))
+
+    def generate_transformations(self):
+        """ Takes averaged experiments and does the fits
+        """
+        transformations = {}
+        trafo_type = self.get_trafo_type()
+
+        for neuron in self.get_neurons():
+            # Need to switch y and x in order to get the right fit
+            # (y-axis: configured parameter, x-axis: measurement)
+            ys_raw, xs_raw, amplitudes = self.get_merged_results(neuron, ['mean_isi', 'amplitude'])
+            ys = self.prepare_y(ys_raw)
+            tau0_indices = np.where(ys == 1023)
+            if len(tau0_indices) is 0:
+                raise("No I_pl=2.5 uA measurement done. Cannot calculate tau_ref!")
+            xs = self.prepare_x(xs_raw, amplitudes, tau0_indices)
+            # Extract function coefficients and domain from measured data
+            coeffs = self.do_fit(xs, ys)
+            coeffs = coeffs[::-1] # coeffs are reversed in calibtic transformations
+            domain = self.get_domain(xs)
+            transformations[neuron] = create_pycalibtic_transformation(coeffs, domain, trafo_type)
+            if self.is_defect(coeffs):
+                transformations[neuron] = None
+        return [(self.target_parameter, transformations)]
+
+    def prepare_x(self, x, amplitudes, tau0_indices):
         """ Prepares x values for fit
             Here, the refractory period needs to be calculated from dt of spikes.
-            The last measurement is the one with I_pl=2500, so tau_ref=0
+            tau_ref is calculated via ISI_n - ISI_0, where ISI_0 is the mean ISI of
+            all measurements with I_pl = 1023 DAC. Correction for amplitude variations
+            are also done, resulting the final calculation of tau_ref for step n:
+                tau_ref_n = ISI_n - amplitude_n / amplitude_0 * ISI_0
         """
-        dts = np.array(x)
-        tau_refracs = dts - dts[-1]
+        x = np.array(x)
+        amplitudes = np.array(amplitudes)
+        tau0 = np.mean(x[tau0_indices])
+        mean_amp0 = np.mean(amplitudes[tau0_indices])
+        tau0amps = amplitudes * tau0/mean_amp0
+        tau_refracs = x - tau0amps
         tau_refracs = tau_refracs[0:-1]
         return tau_refracs
 
