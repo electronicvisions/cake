@@ -267,6 +267,9 @@ parameters = {
                              neuron_parameter.I_pl.name,
                              neuron_parameter.V_syntcx.name,
                              neuron_parameter.V_syntci.name,
+                             neuron_parameter.E_l.name,
                              "Spikes"
                              ],
 }
+
+print "folder", parameters['folder']
