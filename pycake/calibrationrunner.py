@@ -23,11 +23,11 @@ from collections import OrderedDict
 from pyhalbe import Coordinate
 
 
-class StepNotFound(RuntimeError):
+class UnitNotFound(RuntimeError):
     pass
 
 
-class InvalidPathToStep(RuntimeError):
+class InvalidPathToUnit(RuntimeError):
     pass
 
 
@@ -115,7 +115,7 @@ class CalibrationUnit(object):
             redman.write_defects(defects)
 
     def set_storage_folder(self, folder):
-        """Update the pathes to calibration steps results"""
+        """Update the pathes to calibration units results"""
         pycake.helpers.misc.mkdir_p(folder)
         self.storage_folder = folder
         if self.config.get_save_traces():
@@ -133,13 +133,13 @@ class CalibrationUnit(object):
     @classmethod
     def load(cls, path):
         if not os.path.exists(cls.filename(path)):
-            raise StepNotFound()
+            raise UnitNotFound()
         if not os.path.isdir(path):
-            raise InvalidPathToStep("'{}' is not a path")
-        cls.logger.INFO("Loading calibration step '{}'".format(path))
+            raise InvalidPathToUnit("'{}' is not a path")
+        cls.logger.INFO("Loading calibration unit '{}'".format(path))
         data = pycake.helpers.misc.load_pickled_file(cls.filename(path))
         if not isinstance(data, cls):
-            raise InvalidPathToStep("'{}' contained invalid data")
+            raise InvalidPathToUnit("'{}' contained invalid data")
         data.set_storage_folder(path)
         return data
 
@@ -254,7 +254,7 @@ class CalibrationRunner(object):
         step_folder = os.path.join(self.storage_folder, str(ii))
         try:
             return CalibrationUnit.load(step_folder)
-        except StepNotFound:
+        except UnitNotFound:
             name = self.to_run[ii]
             return CalibrationUnit(
                 self.config.copy(name), step_folder, self.calibtic)
