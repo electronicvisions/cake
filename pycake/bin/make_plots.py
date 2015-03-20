@@ -49,8 +49,8 @@ matplotlib.rc('font', **font)
 margins={"left":0.11, "right":0.95, "top":0.95, "bottom":0.11}
 
 parser = argparse.ArgumentParser()
-parser.add_argument("runner", help="path to calibration runner (can be empty)")
-parser.add_argument("testrunner", help="path to test runner (evaluation of calibration) (can be empty)")
+parser.add_argument("runner", help="path of calibration runner directory (can be empty)")
+parser.add_argument("testrunner", help="path of test runner directory (evaluation of calibration) (can be empty)")
 parser.add_argument("hicann", help="HICANNOnWafer enum", type=int)
 parser.add_argument("backenddir", help="path to backends directory (can be empty)")
 parser.add_argument("--wafer", help="Wafer enum", default=0, type=int)
@@ -250,7 +250,8 @@ def trace(ylabel, reader, parameter, neuron, steps=None, start=0, end=-1, suffix
 
     fig = plt.figure()
 
-    e = reader.runner.experiments[parameter]
+    recurrence = 0
+    e = reader.runner.get(name=parameter, pos=reader.runner.query_calibrations(name=parameter)[recurrence])[0].experiment
 
     if steps == None:
         steps = range(len(e.measurements))
