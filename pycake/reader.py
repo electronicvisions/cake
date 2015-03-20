@@ -41,12 +41,13 @@ class Reader(object):
     def get_parameters(self,):
         return self.runner.to_run
 
-    def get_calibration_unit(self, name=None, pos=None):
-        key = (name, pos)
+    def get_calibration_unit(self, name, recurrence=0):
+
+        key = (name, recurrence)
         try:
             return self.calibration_unit_cache[key]
         except KeyError:
-            result = self.runner.get_single(name=name, pos=pos)
+            result = self.runner.get(name=name, pos=self.runner.query_calibrations(name=name)[recurrence])[0]
             self.calibration_unit_cache[key] = result
             return result
 
@@ -69,7 +70,7 @@ class Reader(object):
             neuron = C.NeuronOnHICANN(C.Enum(neuron))
         return [r[neuron].get(key, None) for r in ex.results]
 
-    def get_results(self, parameter, neurons, key, repetition=None):
+    def get_results(self, parameter, neurons, key, repetition=None, recurrence=0):
         """ Get measurement results for one neuron.
 
             Args:
@@ -77,11 +78,14 @@ class Reader(object):
                 neurons: list of neuron coordinates or ids
                 key: which key? (e.g. 'mean', 'std', 'baseline', ...)
                 repetition: if not None only values for given repetition are returned
+                recurrence: recurrence of calibration unit
 
             Returns:
                 {neuron: [results]} if neurons
         """
-        step = self.get_calibration_unit(name=parameter)
+
+        step = self.get_calibration_unit(name=parameter, recurrence=recurrence)
+
         ex = step.experiment
         nsteps = len(self.runner.config.copy(parameter).get_steps())
 
