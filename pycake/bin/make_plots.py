@@ -33,6 +33,15 @@ from collections import defaultdict
 import argparse
 from pycake.helpers.misc import mkdir_p
 
+import pylogging
+pylogging.reset()
+pylogging.default_config(date_format='absolute')
+
+logger = pylogging.get("pycake.make_plots")
+
+pylogging.set_loglevel(pylogging.get("pycake.make_plots"), pylogging.LogLevel.INFO)
+pylogging.set_loglevel(pylogging.get("pycake.reader"), pylogging.LogLevel.INFO)
+
 font = {#'family' : 'normal',
         #'weight' : 'bold',
         'size'   : 12}
@@ -80,26 +89,28 @@ mkdir_p(fig_dir)
 try:
     reader = Reader(args.runner)
 except Exception as e:
-    print "Cannot instantiate reader {} because: {}".format(args.runner, e)
-    print "Ok, if other runners are specified."
+    logger.WARN("Cannot instantiate reader {} because: {}".format(args.runner, e))
+    logger.WARN("Ok, if other runners are specified.")
     reader = None
 
 try:
     test_reader = Reader(args.testrunner)
 except Exception as e:
-    print "Cannot instantiate test reader {} because: {}".format(args.testrunner, e)
-    print "Ok, if other runners are specified."
+    logger.WARN("Cannot instantiate test reader {} because: {}".format(args.testrunner, e))
+    logger.WARN("Ok, if other runners are specified.")
     test_reader = None
 
 def uncalibrated_hist(xlabel, reader, **reader_kwargs):
 
     if not reader: return
 
-    print "uncalibrated hist for", reader_kwargs["parameter"]
+    logger.INFO("uncalibrated hist for {}".format(reader_kwargs["parameter"]))
 
     reader_kwargs["alpha"] = 0.8
 
     for include_defects in [True, False]:
+
+        logger.DEBUG("histogram including defects: {}".format(include_defects))
 
         reader.include_defects = include_defects
 
@@ -122,6 +133,8 @@ def uncalibrated_hist(xlabel, reader, **reader_kwargs):
 
         #--------------------------------------------------------------------------------
 
+        logger.INFO("... vs neuron number")
+
         fig, foos = reader.plot_vs_neuron_number_s(**reader_kwargs)
         plt.title("uncalibrated", x=0.125, y=0.9)
         plt.xlabel("Neuron")
@@ -140,6 +153,8 @@ def uncalibrated_hist(xlabel, reader, **reader_kwargs):
                                                     "uncalibrated_vs_neuron_number.png"])))
 
         #--------------------------------------------------------------------------------
+
+        logger.INFO("... vs shared FG block")
 
         fig, foos = reader.plot_vs_neuron_number_s(sort_by_shared_FG_block=True, **reader_kwargs)
         plt.title("uncalibrated", x=0.125, y=0.9)
@@ -163,7 +178,7 @@ def calibrated_hist(xlabel, reader, **reader_kwargs):
 
     if not reader: return
 
-    print "calibrated hist for", reader_kwargs["parameter"]
+    logger.INFO("calibrated hist for {}".format(reader_kwargs["parameter"]))
 
     reader_kwargs["alpha"] = 0.8
 
@@ -231,7 +246,7 @@ def trace(ylabel, reader, parameter, neuron, steps=None, start=0, end=-1, suffix
 
     if not reader: return
 
-    print "trace for", parameter
+    logger.INFO("trace for {}".format(parameter))
 
     fig = plt.figure()
 
@@ -246,7 +261,7 @@ def trace(ylabel, reader, parameter, neuron, steps=None, start=0, end=-1, suffix
         t = m.get_trace(neuron)
 
         if not t:
-            print "missing trace for", parameter, neuron, step
+            logger.WARN("missing trace for {} {} {}".format(parameter, neuron, step))
             return
 
         plt.plot(np.array(t[0][start:end])*1e6, t[1][start:end]*1000);
@@ -266,7 +281,7 @@ def result(label, xlabel=None, ylabel=None, reader=None, suffix="", ylim=None, *
 
     if not reader: return
 
-    print "result for", reader_kwargs["parameter"]
+    logger.INFO("result for {}".format(reader_kwargs["parameter"]))
 
     for include_defects in [True, False]:
 
@@ -304,11 +319,11 @@ if args.backenddir:
             offset = cal.nc.at(nrnidx).at(pycalibtic.NeuronCalibration.VResetShift).apply(0)
             return offset
         except IndexError:
-            print "No offset found for Neuron {}. Is the wafer and hicann enum correct? (w{}, h{})".format(nrnidx,args.wafer,args.hicann)
+            logger.WARN("No offset found for Neuron {}. Is the wafer and hicann enum correct? (w{}, h{})".format(nrnidx,args.wafer,args.hicann))
             return 0
         except RuntimeError, e:
             if e.message == "No transformation available at 23":
-                print "No offset found for Neuron {}.".format(nrnidx)
+                logger.WARN("No offset found for Neuron {}.".format(nrnidx))
                 return 0
             raise
 
