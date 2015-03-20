@@ -22,13 +22,16 @@ class Reader(object):
         self.include_defects = include_defects
         self.calibration_unit_cache = {}
 
+        self.neurons_including_defects = self.runner.config.get_neurons()
+
+        self.neurons_without_defects = [nrn for nrn in self.runner.config.get_neurons()
+                                        if self.runner.redman.hicann_with_backend.neurons().has(nrn)]
+
     logger = pylogging.get("pycake.reader")
 
     def get_neurons(self):
-        neurons = [nrn for nrn in self.runner.config.get_neurons()
-                   if (self.include_defects == True or
-                       self.runner.redman.hicann_with_backend.neurons().has(nrn))
-               ]
+
+        neurons = self.neurons_including_defects if self.include_defects else self.neurons_without_defects
 
         if not neurons:
             self.logger.warn("no neurons specified or all marked as defect")
