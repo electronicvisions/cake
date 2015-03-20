@@ -104,7 +104,7 @@ class CalibrationStep(object):
                 return None
 
         for parameter, data in transformations:
-            data = dict((nrn, t[::-1]) for nrn, t in data.iteritems())
+            data = dict((nrn, reverse(t)) for nrn, t in data.iteritems())
             calibtic.write_calibration(parameter, data)
 
     def write_defects(self, redman, transformations):
