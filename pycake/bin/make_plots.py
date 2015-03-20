@@ -735,7 +735,7 @@ r_v_syntci = reader if args.v_syntci_runner == None else Reader(args.v_syntci_ru
 
 if r_v_syntci:
 
-    e = r_v_syntci.runner.experiments["V_syntci_psp_max"]
+    e = r_v_syntci.runner.get_single(name="V_syntci_psp_max").experiment
 
     """
 
