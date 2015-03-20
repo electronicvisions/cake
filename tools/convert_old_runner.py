@@ -7,7 +7,7 @@ import pylogging
 
 from pycake.helpers.misc import load_pickled_file
 from pycake.calibrationrunner import CalibrationRunner
-from pycake.calibrationrunner import CalibrationStep
+from pycake.calibrationrunner import CalibrationUnit
 from pysthal.command_line_util import add_logger_options
 from pysthal.command_line_util import init_logger
 
@@ -37,23 +37,26 @@ def convert_old_runner(path):
             continue
 
         # First copy traces, afterwards the pathes are changed
+        to_copy = []
         logger.INFO("Copy traces for {}".format(step))
         for ii, measurement in enumerate(experiment.measurements):
             if measurement.traces is None:
                 continue
             source = measurement.traces.fullpath
-            target = os.path.join(storage_path, str(ii))
-            logger.TRACE(" {} -> {}".format(source, target))
-            shutil.copy2(source, target)
+            target = os.path.join(storage_path, measurement.traces.filename)
+            to_copy.append((source, target))
 
         logger.INFO("Create step {} at '{}'".format(step, storage_path))
-        calib = CalibrationStep(config.copy(step),
+        calib = CalibrationUnit(config.copy(step),
                                 storage_path,
                                 old_runner.calibtic,
                                 experiment=experiment)
         calib.result = old_runner.coeffs.get(step, None)
         calib.save()
 
+        for source, target in to_copy:
+            logger.TRACE(" {} -> {}".format(source, target))
+            shutil.copy2(source, target)
 
 
 

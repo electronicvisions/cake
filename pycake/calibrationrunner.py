@@ -31,7 +31,7 @@ class InvalidPathToStep(RuntimeError):
     pass
 
 
-class CalibrationStep(object):
+class CalibrationUnit(object):
     logger = pylogging.get("pycake.calibrationrunner")
 
     def __init__(self, config, storage_path, calibitic, experiment=None):
@@ -253,10 +253,10 @@ class CalibrationRunner(object):
         """Receives a pickle calibration step or creates a new one"""
         step_folder = os.path.join(self.storage_folder, str(ii))
         try:
-            return CalibrationStep.load(step_folder)
+            return CalibrationUnit.load(step_folder)
         except StepNotFound:
             name = self.to_run[ii]
-            return CalibrationStep(
+            return CalibrationUnit(
                 self.config.copy(name), step_folder, self.calibtic)
 
     def set_storage_folder(self, folder):
