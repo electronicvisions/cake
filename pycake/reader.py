@@ -1,14 +1,12 @@
 import cPickle
 import os
 import numpy as np
-import matplotlib.pyplot as plt
 import pylogging
-import pycake.calibrationrunner
+from pycake.calibrationrunner import CalibrationRunner
 import Coordinate as C
 import pyhalbe
-from bz2 import BZ2File
-from gzip import GzipFile
 from operator import itemgetter
+from helpers.misc import load_pickled_file
 
 class Reader(object):
     def __init__(self, runner, include_defects = True):
@@ -17,18 +15,10 @@ class Reader(object):
         @param include_defects, if true, include neurons classified as defect
         """
 
-        if isinstance(runner, pycake.calibrationrunner.CalibrationRunner):
+        if isinstance(runner, CalibrationRunner):
             self.runner = runner
         else:
-            if runner.endswith('.bz2'):
-                f_open = BZ2File
-            elif runner.endswith('.gz'):
-                f_open = GzipFile
-            else:
-                f_open = open
-            with f_open(os.path.expanduser(runner), 'rb') as infile:
-                self.runner = cPickle.load(infile)
-
+            self.runner = CalibrationRunner.load(runner)
         self.include_defects = include_defects
 
     logger = pylogging.get("pycake.reader")
@@ -45,7 +35,7 @@ class Reader(object):
         return neurons
 
     def get_parameters(self):
-        return self.runner.experiments.keys()
+        return self.runner.to_run
 
     def get_result(self, parameter, neuron, key):
         """ Get measurement results for one neuron.
@@ -59,7 +49,8 @@ class Reader(object):
             Returns:
                 list of all results
         """
-        ex = self.runner.experiments[parameter]
+        step = self.runner.get_single(name=parameter)
+        ex = step.experiment
 
         if isinstance(neuron, int):
             neuron = C.NeuronOnHICANN(C.Enum(neuron))
@@ -77,7 +68,8 @@ class Reader(object):
             Returns:
                 {neuron: [results]} if neurons
         """
-        ex = self.runner.experiments[parameter]
+        step = self.runner.get_single(name=parameter)
+        ex = step.experiment
         nsteps = len(self.runner.config.copy(parameter).get_steps())
 
         results = {}
@@ -95,6 +87,7 @@ class Reader(object):
         return results
 
     def plot_hist(self, parameter, key, step, repetition=0, draw_target_line=True, **kwargs):
+        import matplotlib.pyplot as plt
         neurons = self.get_neurons()
         results = self.get_results(parameter, neurons, key, repetition)
         results_list = np.array(results.values())[:,step]
@@ -108,6 +101,7 @@ class Reader(object):
         return hist
 
     def plot_vs_neuron_number(self, parameter, key, step, repetition=0, draw_target_line=True, sort_by_shared_FG_block=False, **kwargs):
+        import matplotlib.pyplot as plt
         neurons = self.get_neurons()
         results = self.get_results(parameter, self.get_neurons(), key, repetition)
 
@@ -135,6 +129,7 @@ class Reader(object):
         return p
 
     def plot_vs_neuron_number_s(self, parameter, key, repetition=0, show_legend=False, **kwargs):
+        import matplotlib.pyplot as plt
 
         nsteps = len(self.runner.config.copy(parameter).get_steps())
 
@@ -151,6 +146,7 @@ class Reader(object):
     def plot_hists(self, parameter, key, repetition=0, show_legend=False, **kwargs):
         """ Returns figure and histograms for all steps
         """
+        import matplotlib.pyplot as plt
 
         nsteps = len(self.runner.config.copy(parameter).get_steps())
 
@@ -164,6 +160,7 @@ class Reader(object):
         return fig, hists
 
     def plot_std(self, parameter, hicann_parameter, key, step, **kwargs):
+        import matplotlib.pyplot as plt
 
         e = self.runner.experiments[parameter]
 
@@ -172,6 +169,7 @@ class Reader(object):
         return hist
 
     def plot_result(self, parameter, key, neurons=None, yfactor=1000, mark_top_bottom=True, average=False, **kwargs):
+        import matplotlib.pyplot as plt
 
         fig = plt.figure()
 

@@ -1,7 +1,10 @@
 import os
 import errno
 import collections
+import cPickle
 
+from bz2 import BZ2File
+from gzip import GzipFile
 
 # http://stackoverflow.com/a/600612/1350789
 def mkdir_p(path):
@@ -13,6 +16,17 @@ def mkdir_p(path):
         else:  # pragma: no cover
             # unexpected, re-raise exception
             raise
+
+def load_pickled_file(path):
+    """load a pickled file, which may be compressed"""
+    if path.endswith('.bz2'):
+        f_open = BZ2File
+    elif path.endswith('.gz'):
+        f_open = GzipFile
+    else:
+        f_open = open
+    with f_open(os.path.expanduser(path), 'rb') as infile:
+        return cPickle.load(infile)
 
 
 # https://stackoverflow.com/a/3233356

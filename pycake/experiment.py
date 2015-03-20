@@ -23,6 +23,11 @@ class Experiment(object):
         """Run the experiment and process results."""
         return list(self.iter_measurements())
 
+    def finished(self):
+        """Returns true after all measurements have been done"""
+        raise NotImplementedError("Not implemented in {}".format(
+            type(self).__name__))
+
     def iter_measurements(self):
         cls_name = type(self).__name__
         raise NotImplementedError("Not implemented in {}".format(cls_name))
@@ -185,11 +190,15 @@ class SequentialExperiment(Experiment):
         self.initial_data = {}
         self.initial_measurements = []
 
+    def finished(self):
+        """Returns true after all measurements have been done"""
+        return len(self.measurements_to_run) == len(self.measurements)
+
     def add_initial_measurement(self, measurement, analyzer):
         self.initial_measurements.append((measurement, analyzer))
 
     def run_initial_measurements(self):
-        """ Dummy for preparation measurements.
+        """ Dummy f/or preparation measurements.
         """
         if len(self.initial_measurements) > 0:
             self.logger.INFO("Running initial measurements.")
@@ -238,12 +247,12 @@ class IncrementalExperiment(Experiment):
         self.generator = generator
         self.traces_folder = None
 
+    def finished(self):
+        # TODO@CK fix this
+        return False
+
     def save_traces(self, path):
         self.traces_folder = path
-
-    def run(self):
-        """Run the experiment and process results."""
-        return list(self.iter_measurements())
 
     def iter_measurements(self):
         self.logger.INFO("Connecting to hardware and configuring.")

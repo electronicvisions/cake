@@ -5,33 +5,34 @@ import bz2
 import gzip
 import pylogging
 
-pylogging.default_config(date_format='absolute')
-pylogging.set_loglevel(pylogging.get("Default"),                    pylogging.LogLevel.INFO)
-pylogging.set_loglevel(pylogging.get("pycake.calibrationrunner"),   pylogging.LogLevel.DEBUG )
-pylogging.set_loglevel(pylogging.get("pycake.testrunner"),          pylogging.LogLevel.DEBUG )
-pylogging.set_loglevel(pylogging.get("pycake.measurement"),         pylogging.LogLevel.DEBUG )
-pylogging.set_loglevel(pylogging.get("pycake.experiment"),          pylogging.LogLevel.DEBUG )
-pylogging.set_loglevel(pylogging.get("pycake.experimentbuilder"),   pylogging.LogLevel.DEBUG )
-pylogging.set_loglevel(pylogging.get("pycake.calibtic"),            pylogging.LogLevel.DEBUG )
-pylogging.set_loglevel(pylogging.get("pycake.redman"),              pylogging.LogLevel.DEBUG )
-pylogging.set_loglevel(pylogging.get("sthal"),                      pylogging.LogLevel.INFO )
-pylogging.set_loglevel(pylogging.get("pycake.helper.sthal"),        pylogging.LogLevel.INFO )
-pylogging.set_loglevel(pylogging.get("sthal.AnalogRecorder"),       pylogging.LogLevel.WARN)
+from pysthal.command_line_util import init_logger
+from pysthal.command_line_util import add_logger_options
+from pysthal.command_line_util import folder
+
+from pycake.calibrationrunner import CalibrationRunner
+
+init_logger(pylogging.LogLevel.WARN, [
+    ("Default", pylogging.LogLevel.INFO),
+    ("halbe.fgwriter", pylogging.LogLevel.ERROR),
+    ("pycake.calibrationrunner", pylogging.LogLevel.DEBUG),
+    ("pycake.measurement", pylogging.LogLevel.DEBUG),
+    ("pycake.analyzer", pylogging.LogLevel.TRACE),
+    ("pycake.experiment", pylogging.LogLevel.DEBUG),
+    ("pycake.experimentbuilder", pylogging.LogLevel.DEBUG),
+    ("pycake.calibtic", pylogging.LogLevel.DEBUG),
+    ("pycake.redman", pylogging.LogLevel.DEBUG),
+    ("pycake.sthal", pylogging.LogLevel.DEBUG),
+    ("pycake.helper.sthal", pylogging.LogLevel.INFO),
+    ("sthal", pylogging.LogLevel.INFO),
+    ("sthal.AnalogRecorder", pylogging.LogLevel.WARN),
+    ("sthal.HICANNConfigurator.Time", pylogging.LogLevel.INFO)
+    ])
 
 parser = argparse.ArgumentParser(
-        description='HICANN Calibration tool.') 
-parser.add_argument('runner_file', type=argparse.FileType('r'),
+        description='HICANN Calibration tool.')
+add_logger_options(parser)
+parser.add_argument('runner', type=folder,
         help='Pickled experiment to rerun')
 args = parser.parse_args()
-
-runner_filename = args.runner_file.name
-if runner_filename.endswith('.bz2'):
-    with bz2.BZ2File(runner_filename) as infile:
-        runner = cPickle.load(infile)
-elif runner_filename.endswith('.gz'):
-    with gzip.GzipFile(runner_filename) as infile:
-        runner = cPickle.load(infile)
-else:
-    runner = cPickle.load(args.runner_file)
-
+runner = CalibrationRunner.load(args.runner)
 runner.continue_calibration()

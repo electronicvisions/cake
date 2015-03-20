@@ -54,6 +54,12 @@ class Measurement(object):
     def save_traces(self, storage_path):
         """Enabling saving of traces to the given file"""
         dirname, filename = os.path.split(storage_path)
+        if self.traces and self.traces.directory != dirname:
+            self.logger.info(
+                "Update traces storage location from '{}'".format(dirname))
+            self.traces.close()
+            self.traces = None
+
         if self.traces is None:
             self.logger.info("Storing traces at '{}'".format(storage_path))
             self.traces = RecordsOnDiskDict(dirname, filename)

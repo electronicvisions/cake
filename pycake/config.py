@@ -13,8 +13,10 @@ class Config(object):
         else:
             self.parameters = self.read_parameter_file(parameters)
 
-    def copy(self, config_name):
+    def copy(self, config_name=None):
         """Create copy of current instance for modification."""
+        if config_name is None:
+            config_name = self.config_name
         return Config(config_name, self.parameters)
 
     def read_parameter_file(self, parameters_file):

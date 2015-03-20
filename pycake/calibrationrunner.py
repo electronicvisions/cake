@@ -17,81 +17,200 @@ from pycake.helpers.StorageProcess import StorageProcess
 import time
 import os
 import copy
+import errno
 from collections import OrderedDict
 
 from pyhalbe import Coordinate
 
-class CalibrationRunner(object):
-    """
-    """
+
+class StepNotFound(RuntimeError):
+    pass
+
+
+class InvalidPathToStep(RuntimeError):
+    pass
+
+
+class CalibrationStep(object):
     logger = pylogging.get("pycake.calibrationrunner")
-    pickle_file_pattern = "runner_{}.p.gz"
-    pickel_measurements_folder = "runner_{}_measurements"
 
-    def __init__(self, config):
+    def __init__(self, config, storage_path, calibitic, experiment=None):
+        """
+        Arguments:
+            experiment: needed for conversion of old experiments
+        """
         self.config = config
-        self.experiments = {}
-        self.coeffs = {}
-        self.configurations = self.config.get_enabled_calibrations()
+        self.name = config.config_name
+        self.result = None
+        self.storage_folder = None
+        self.storage = StorageProcess(compresslevel=9)
+        if experiment is None:
+            experiment = self.get_experiment(calibitic)
+        self.experiment = experiment
+        self.set_storage_folder(storage_path)
+        self.save()
 
-        # Initialize calibtic
-        path, _ = self.config.get_calibtic_backend()
+    def finished(self):
+        if self.experiment:
+            return self.experiment.finished() and self.result is not None
+        else:
+            return False
+
+    def run(self):
+        """Run the measurement"""
+        self.logger.INFO("Running measurements for {}".format(self.name))
+        for measured in self.experiment.iter_measurements():
+            if measured:
+                self.save()
+
+        self.logger.INFO("Fitting result data for {}".format(self.name))
+        calibrator = self.get_calibrator()
+        self.result = calibrator.generate_coeffs()
+        self.save()
+
+    def generate_calibration_data(self, calibtic, redman):
+        if not self.finished():
+            raise RuntimeError("The calibration has not been finished yet")
+        self.logger.INFO("Writing calibration data for {}".format(self.name))
+        self.write_calibration(calibtic, self.result)
+        self.write_defects(redman, self.result)
+        self.save()
+
+    def get_experiment(self, calibitic):
+        """ Get the right experiment builder.
+        """
+        builder_type = getattr(pycake.experimentbuilder,
+                "{}_Experimentbuilder".format(self.name))
+        builder = builder_type(self.config, self.config.get_run_test(),
+                               calibtic_helper=calibitic)
+        self.logger.INFO("Creating analyzers and experiments for parameter {} "
+                         "using {}".format(self.name, type(builder).__name__))
+        return builder.get_experiment()
+
+    def get_calibrator(self):
+        """
+        """
+        calibrator_type = getattr(pycake.calibrator,
+                "{}_Calibrator".format(self.name))
+        return calibrator_type(self.experiment, self.config)
+
+    def write_calibration(self, calibtic, transformations):
+        """
+        """
+        def reverse(x):
+            if x is not None:
+                return x[::-1]
+            else:
+                return None
+
+        for parameter, data in transformations:
+            data = dict((nrn, t[::-1]) for nrn, t in data.iteritems())
+            calibtic.write_calibration(parameter, data)
+
+    def write_defects(self, redman, transformations):
+        """
+        """
+        for parameter, data in transformations:
+            defects = [coord for coord, t in data.iteritems() if t is None]
+            redman.write_defects(defects)
+
+    def set_storage_folder(self, folder):
+        """Update the pathes to calibration steps results"""
+        pycake.helpers.misc.mkdir_p(folder)
+        self.storage_folder = folder
+        if self.config.get_save_traces():
+            self.experiment.save_traces(self.storage_folder)
+
+    @staticmethod
+    def filename(storage_folder):
+        return os.path.join(storage_folder, "experiment.p.gz")
+
+    def save(self):
+        self.logger.INFO(
+            "Pickling current state to {}".format(self.storage_folder))
+        self.storage.save_object(self.filename(self.storage_folder), self)
+
+    @classmethod
+    def load(cls, path):
+        if not os.path.exists(cls.filename(path)):
+            raise StepNotFound()
+        if not os.path.isdir(path):
+            raise InvalidPathToStep("'{}' is not a path")
+        cls.logger.INFO("Loading calibration step '{}'".format(path))
+        data = pycake.helpers.misc.load_pickled_file(cls.filename(path))
+        if not isinstance(data, cls):
+            raise InvalidPathToStep("'{}' contained invalid data")
+        data.set_storage_folder(path)
+        return data
+
+
+class CalibrationRunner(object):
+    logger = pylogging.get("pycake.calibrationrunner")
+    filename = "runner.p.gz"
+
+    def __init__(self, config, storage_path=None):
+        """
+        Arguments:
+            storage_path: helper to convert old runners easier
+        """
+
+        self.config = config
+        self.to_run = self.config.get_enabled_calibrations()
+
         wafer, hicann = self.config.get_coordinates()
         pll = self.config.get_PLL()
         pll_in_MHz = int(pll/1e6)
-        self.calibtic = pycake.helpers.calibtic.Calibtic(path, wafer, hicann, pll)
-        self.redman =   pycake.helpers.redman.Redman(path, Coordinate.HICANNGlobal(hicann,wafer))
-
         name_details = "_".join([s for s in [
+            self.config.get_filename_prefix(),
             "f{}".format(pll_in_MHz),
             "w{}".format(wafer.value()),
             "h{}".format(hicann.id().value()),
-            self.config.get_filename_prefix(),
             time.strftime('%m%d_%H%M'),
         ] if s != ""])
 
-        self.filename = self.pickle_file_pattern.format(name_details)
-        self.measurements_folder = self.pickel_measurements_folder.format(name_details)
+        if storage_path is None:
+            self.set_storage_folder(
+                os.path.join(self.config.get_folder(), name_details))
+        else:
+            self.set_storage_folder(storage_path)
 
-        self.storage = StorageProcess(compresslevel=9)
+        path, _ = self.config.get_calibtic_backend()
+        self.calibtic = pycake.helpers.calibtic.Calibtic(
+            path, wafer, hicann, pll)
+        self.redman = pycake.helpers.redman.Redman(
+            path, Coordinate.HICANNGlobal(hicann,wafer))
 
-    def run_calibration(self):
-        """entry method for regular calibrations
-        to resume a calibrations see: continue_calibration"""
-        self.clear_calibration() # Clears calibration if this is wanted
-        self.clear_defects()
-        self.logger.INFO("Start calibration")
-        self.experiments.clear()
-        self.coeffs.clear()
-        for config_name in self.configurations:
-            self.experiments[config_name] = None
-        self._run_measurements()
+        self.save()
 
-    def get_experiment(self, config_name):
-        """Returns the experiment for a givin config step"""
-        config = self.config.copy(config_name)
+    def get(self, **kwargs):
+        return [self.create_or_load_step(ii) for ii in
+                self.query_calibrations(**kwargs)]
 
-        builder = self.get_builder(config_name, config)
-        self.logger.INFO("Creating analyzers and experiments for parameter {} "
-            "using {}".format(config_name, type(builder).__name__))
-        experiment = builder.get_experiment()
+    def get_single(self, **kwargs):
+        pos = self.query_calibrations(**kwargs)
+        if len(pos) == 0:
+            raise KeyError(kwargs)
+        elif len(pos) == 1:
+            return self.create_or_load_step(pos[0])
+        else:
+            raise RuntimeError("Multiple calibrations found")
 
-        if config.get_save_traces():
-            experiment.save_traces(
-                self.get_measurement_storage_path(config_name))
+    def query_calibrations(self, name=None, pos=None):
+        """Return calibrations filtered by the given arguments
 
-        return experiment
-
-    def get_measurement_storage_path(self, config_name):
-        """ Save measurement i of experiment to a file and clear the traces from
-            that measurement.
+        Arguments:
+            name [str]: Name of the given calibration step
+            pos [int/slice/iterable]: index of the request calibrations
         """
-        folder = os.path.join(
-            self.config.get_folder(),
-            self.measurements_folder,
-            config_name)
-        pycake.helpers.misc.mkdir_p(folder)
-        return folder
+        if pos is None:
+            pos = xrange(len(self.to_run))
+        elif isinstance(pos, int):
+            pos = [pos]
+        elif isinstance(pos, slice):
+            pos = xrange(*pos.indices(len(self.to_run)))
+        if name:
+            pos = [ii for ii in pos if self.to_run[ii] == name]
+        return pos
 
     def clear_calibration(self):
         """ Clears calibration if this is set in the configuration
@@ -106,107 +225,71 @@ class CalibrationRunner(object):
         if self.config.get_clear_defects():
             self.redman.clear_defects()
 
+    def run_calibration(self):
+        """entry method for regular calibrations
+        to resume a calibrations see: continue_calibration"""
+        self.clear_calibration() # Clears calibration if this is wanted
+        self.clear_defects()
+        self.logger.INFO("Start calibration")
+        self._run_measurements()
+
     def continue_calibration(self):
         """resumes an calibration run
 
         This method will first complete unfinished measurements.
         Afterwards the calibrator will be run. This can overwrite the results
         loaded from an previous run."""
-
         self.logger.INFO("Continue calibration")
         self._run_measurements()
 
     def _run_measurements(self):
         """execute the measurement loop"""
+        for ii, name in enumerate(self.to_run):
+            measurement = self.create_or_load_step(ii)
+            measurement.run()
+            measurement.generate_calibration_data(self.calibtic, self.redman)
 
-        if not self.experiments:
-            self.logger.WARN("No experiments configured.")
+    def create_or_load_step(self, ii):
+        """Receives a pickle calibration step or creates a new one"""
+        step_folder = os.path.join(self.storage_folder, str(ii))
+        try:
+            return CalibrationStep.load(step_folder)
+        except StepNotFound:
+            name = self.to_run[ii]
+            return CalibrationStep(
+                self.config.copy(name), step_folder, self.calibtic)
 
-        for config_name in self.configurations:
-            experiment = self.experiments[config_name]
-            # Create experiments lazy to apply calibration from previous runs
-            # correctly
-            if experiment is None:
-                experiment = self.get_experiment(config_name)
-                self.experiments[config_name] = experiment
-                self.save_state()
-
-            self.logger.INFO("Running measurements for {}".format(config_name))
-            for measured in experiment.iter_measurements():
-                if measured:
-                    self.save_state()
-
-            self.generate_calibration_data(config_name, experiment)
-
-    def generate_calibration_data(self, config_name, experiment):
-        self.logger.INFO("Fitting result data for {}".format(config_name))
-        calibrator = self.get_calibrator(config_name, experiment)
-        coeffs = calibrator.generate_coeffs()
-        self.logger.INFO("Writing calibration data for {}".format(config_name))
-        self.write_calibration(coeffs)
-        self.write_defects(coeffs)
-        self.coeffs[config_name] = coeffs
-        self.save_state()
-
-    def save_state(self):
-        """ Saves itself to a file in the given path.
-        """
-        # TODO zip
-        folder = self.config.get_folder()
+    def set_storage_folder(self, folder):
+        """Update the pathes to calibration steps results"""
         pycake.helpers.misc.mkdir_p(folder)
-        fullpath = os.path.join(folder, self.filename)
-        self.logger.INFO("Pickling current state to {}".format(fullpath))
-        self.storage.save_object(fullpath, self)
+        self.storage_folder = folder
 
-    def make_path(self, path):
-        if not os.path.isdir(path):
-            os.makedirs(path)
+    @classmethod
+    def load(cls, path):
+        filename = os.path.join(path, cls.filename)
+        cls.logger.INFO("Loading '{}'".format(filename))
+        data = pycake.helpers.misc.load_pickled_file(filename)
+        if not isinstance(data, cls):
+            raise RuntimeError("Invalid class loaded!")
+        data.set_storage_folder(path)
+        return data
 
-    def get_builder(self, config_name, config):
-        """ Get the right experiment builder.
-        """
-        builder_type = getattr(pycake.experimentbuilder,
-                "{}_Experimentbuilder".format(config_name))
-        return builder_type(config, test = False, calibtic_helper = self.calibtic)
-
-    def get_calibrator(self, config_name, experiments):
-        """
-        """
-        calibrator_type = getattr(pycake.calibrator,
-                "{}_Calibrator".format(config_name))
-        return calibrator_type(experiments, self.config.copy(config_name))
-
-    def write_calibration(self, coeffs):
-        """
-        """
-        for parameter, data in coeffs:
-            data = dict((coord, coeff[::-1])
-                        for coord, coeff in data.iteritems())
-            self.calibtic.write_calibration(parameter, data)
-
-    def write_defects(self, coeffs):
-        """
-        """
-        for parameter, data in coeffs:
-            defects = [coord for coord, coeff in data.iteritems() if coeff is None]
-            self.redman.write_defects(defects)
+    def save(self):
+        storage = StorageProcess(compresslevel=9)
+        filename = os.path.join(self.storage_folder, self.filename)
+        self.logger.INFO("Save calibration runner '{}'".format(
+            self.storage_folder))
+        storage.save_object(filename, self)
 
 class TestRunner(CalibrationRunner):
     logger = pylogging.get("pycake.testrunner")
-    pickle_file_pattern = "testrunner_{}.p.gz"
-    pickel_measurements_folder = "testrunner_{}_measurements"
-
-    def generate_calibration_data(self, config_name, experiment):
-        self.logger.INFO("Skipping calibration fit since this is a test measurement.")
-        return
 
     def clear_calibration(self):
-        self.logger.TRACE("Not clearing calibration since this is test measurement")
-        pass
+        self.logger.TRACE(
+            "Not clearing calibration since this is test measurement")
 
-    def get_builder(self, config_name, config):
-        """ Get the right experiment builder.
-        """
-        builder_type = getattr(pycake.experimentbuilder,
-                "{}_Experimentbuilder".format(config_name))
-        return builder_type(config, test = True, calibtic_helper = self.calibtic)
+    def _run_measurements(self):
+        """execute the measurement loop"""
+        for ii, name in enumerate(self.to_run):
+            measurement = self.create_or_load_step(ii)
+            measurement.run()
