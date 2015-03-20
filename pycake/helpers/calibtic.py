@@ -250,8 +250,18 @@ class Calibtic(object):
             return int(round(dac_value))
 
         if calib.exists(parameter):
-            calib_dac_value = calib.at(parameter).apply(dac_value)
-            self.logger.TRACE("Calibrated {} parameter {}: {} --> {} DAC".format(coord, parameter.name, dac_value, calib_dac_value))
+            # Check domain
+            domain = list(calib.at(parameter).getDomainBoundaries())
+            if value.value > max(domain):
+                self.logger.WARN("Coord {} value {} larger than domain maximum {}. Clipping value.".format(coord, value.value, max(domain)))
+                value.value = max(domain)
+            if value.value < min(domain):
+                self.logger.WARN("Coord {} value {} smaller than domain minimum {}. Clipping value.".format(coord, value.value, max(domain)))
+                value.value = min(domain)
+            # Apply calibration
+            calib_dac_value = calib.to_dac(value.value, parameter)
+
+            self.logger.TRACE("Calibrated {} parameter {}: {} --> {} DAC".format(coord, parameter.name, value, calib_dac_value))
         else:
             self.logger.WARN("Applying calibration failed: Nothing found for {} parameter {}. Using uncalibrated value {}".format(coord, parameter.name, dac_value))
             calib_dac_value = dac_value
