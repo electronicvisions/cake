@@ -35,6 +35,7 @@ parameters = {
     "E_synx_range":   [{neuron_parameter.E_synx : v} for v in linspace_voltage(650, 950, 5)],
     "E_l_range":      [{neuron_parameter.E_l : v} for v in linspace_voltage(550, 850, 6)],
     "V_t_range":      [{neuron_parameter.V_t : v} for v in linspace_voltage(600, 900, 4)],
+    # An I_gl of 1023 does not have to be checked because it is the fallback
     "E_l_I_gl_fixed_range": pproduct((neuron_parameter.E_l, neuron_parameter.I_gl),
                                      (linspace_voltage(550, 850, 2), [DAC(v) for v in (40, 80, 120, 240, 480, 960)])),
     "I_gl_range":     [{neuron_parameter.I_gl : v} for v in linspace_current(100, 800, 8)],
