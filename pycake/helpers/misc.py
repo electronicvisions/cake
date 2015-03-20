@@ -19,6 +19,10 @@ def mkdir_p(path):
 
 def load_pickled_file(path):
     """load a pickled file, which may be compressed"""
+
+    if not os.path.exists(path):
+        raise RuntimeError("{} not found".format(path))
+
     if path.endswith('.bz2'):
         f_open = BZ2File
     elif path.endswith('.gz'):
