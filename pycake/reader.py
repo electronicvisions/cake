@@ -20,6 +20,7 @@ class Reader(object):
         else:
             self.runner = CalibrationRunner.load(runner)
         self.include_defects = include_defects
+        self.calibration_unit_cache = {}
 
     logger = pylogging.get("pycake.reader")
 
@@ -34,8 +35,17 @@ class Reader(object):
 
         return neurons
 
-    def get_parameters(self):
+    def get_parameters(self,):
         return self.runner.to_run
+
+    def get_calibration_unit(self, name=None, pos=None):
+        key = (name, pos)
+        try:
+            return self.calibration_unit_cache[key]
+        except KeyError:
+            result = self.runner.get_single(name=name, pos=pos)
+            self.calibration_unit_cache[key] = result
+            return result
 
     def get_result(self, parameter, neuron, key):
         """ Get measurement results for one neuron.
@@ -49,7 +59,7 @@ class Reader(object):
             Returns:
                 list of all results
         """
-        step = self.runner.get_single(name=parameter)
+        step = self.get_calibration_unit(name=parameter)
         ex = step.experiment
 
         if isinstance(neuron, int):
@@ -68,7 +78,7 @@ class Reader(object):
             Returns:
                 {neuron: [results]} if neurons
         """
-        step = self.runner.get_single(name=parameter)
+        step = self.get_calibration_unit(name=parameter)
         ex = step.experiment
         nsteps = len(self.runner.config.copy(parameter).get_steps())
 
@@ -162,7 +172,8 @@ class Reader(object):
     def plot_std(self, parameter, hicann_parameter, key, step, **kwargs):
         import matplotlib.pyplot as plt
 
-        e = self.runner.experiments[parameter]
+        step = self.runner.get_single(name=parameter)
+        e = step.experiment
 
         hist = plt.hist([e.get_mean_results(n,hicann_parameter,[key])[0][step][-1] for n in self.get_neurons()], **kwargs)
 
