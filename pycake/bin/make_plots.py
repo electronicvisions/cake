@@ -89,14 +89,14 @@ mkdir_p(fig_dir)
 try:
     reader = Reader(args.runner)
 except Exception as e:
-    logger.WARN("Cannot instantiate reader {} because: {}".format(args.runner, e))
+    logger.WARN("Cannot instantiate reader because: {} in \"{}\"".format(e.message, args.runner))
     logger.WARN("Ok, if other runners are specified.")
     reader = None
 
 try:
     test_reader = Reader(args.testrunner)
 except Exception as e:
-    logger.WARN("Cannot instantiate test reader {} because: {}".format(args.testrunner, e))
+    logger.WARN("Cannot instantiate test reader because: {} in \"{}\"".format(e.message, args.testrunner))
     logger.WARN("Ok, if other runners are specified.")
     test_reader = None
 
