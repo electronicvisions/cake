@@ -251,21 +251,14 @@ def trace(ylabel, reader, parameter, neuron, steps=None, start=0, end=-1, suffix
     fig = plt.figure()
 
     recurrence = 0
-    e = reader.runner.get(name=parameter, pos=reader.runner.query_calibrations(name=parameter)[recurrence])[0].experiment
+    e = reader.get_calibration_unit(name=parameter, recurrence=recurrence).experiment
 
     if steps == None:
         steps = range(len(e.measurements))
 
     for step in steps:
 
-        m = e.measurements[step]
-        t = m.get_trace(neuron)
-
-        if not t:
-            logger.WARN("missing trace for {} {} {}".format(parameter, neuron, step))
-            return
-
-        plt.plot(np.array(t[0][start:end])*1e6, t[1][start:end]*1000);
+        reader.plot_trace(parameter, neuron, step, start, end)
 
     plt.grid(True)
 

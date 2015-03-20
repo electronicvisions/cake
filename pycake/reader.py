@@ -103,6 +103,22 @@ class Reader(object):
 
         return results
 
+    def plot_trace(self, parameter, neuron, step, start=0, end=-1, recurrence=0):
+        import matplotlib.pyplot as plt
+
+        e = self.get_calibration_unit(name=parameter, recurrence=recurrence).experiment
+
+        m = e.measurements[step]
+        t = m.get_trace(neuron)
+
+        if not t:
+            self.logger.WARN("missing trace for {} {} {}".format(parameter, neuron, step))
+            return None
+
+        p = plt.plot(np.array(t[0][start:end])*1e6, t[1][start:end]*1000)
+
+        return p
+
     def plot_hist(self, parameter, key, step, repetition=0, draw_target_line=True, **kwargs):
         import matplotlib.pyplot as plt
         neurons = self.get_neurons()
