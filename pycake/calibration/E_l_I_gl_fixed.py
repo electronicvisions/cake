@@ -2,6 +2,7 @@ import pyhalbe
 import numpy as np
 
 from pycake.helpers.units import Volt
+from pycake.helpers.calibtic import create_pycalibtic_transformation
 from pycake.experiment import SequentialExperiment
 
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
@@ -48,17 +49,19 @@ class E_l_I_gl_fixed_Calibrator(object):
                 continue
         return None
 
-    def generate_coeffs(self):
+    def generate_transformations(self):
         """ Takes averaged experiments and does the fits
         """
-        I_gl_fits = {}
-        E_l_fits = {}
+        I_gl_trafos = {}
+        E_l_trafos = {}
         for neuron in self.neurons:
             fit = self.fit_neuron(neuron)
             if fit:
-                E_l, I_gl_DAC = fit
-                I_gl_fits[neuron] = [[I_gl], [0, 2.5]]
+                E_l, I_gl = fit
+                I_gl_trafo = create_pycalibtic_transformation([I_gl], [0,2.5e-6])
+                I_gl_trafos[neuron] = I_gl_trafo
             else:
-                I_gl_fits[neuron] = [[self.fallback_I_gl_DAC], [0, 2.5]]
-        x = [(neuron_parameter.I_gl, I_gl_fits)]
+                I_gl_trafo = create_pycalibtic_transformation([self.fallback_I_gl_DAC], [0,2.5e-6])
+                I_gl_trafos[neuron] = I_gl_trafo
+        x = [(neuron_parameter.I_gl, I_gl_trafos)]
         return x

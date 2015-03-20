@@ -155,7 +155,7 @@ class V_reset_Calibrator(BaseCalibrator):
         ys = self.prepare_y(raw_y)
         return np.polyfit(xs, ys, 1)
 
-    def generate_coeffs(self):
+    def generate_transformations(self):
         """
         Default fiting method.
 
@@ -166,11 +166,16 @@ class V_reset_Calibrator(BaseCalibrator):
         neuron_results = dict(x for x in self.iter_neuron_results())
         block_means = self.mean_over_blocks(neuron_results)
 
-        coeffs = {}
+        trafos = {}
+        trafo_type = self.get_trafo_type()
         for coord, mean in block_means.iteritems():
-            coeffs[coord] = [self.do_fit(mean[:, 2], mean[:, 0]), self.get_domain(mean[:,2])]
+            fit = list(self.do_fit(mean[:, 2], mean[:, 0]))
+            domain = self.get_domain(mean[:,2])
+            trafo = create_pycalibtic_transformation(fit, domain, trafo_type)
+            trafos[coord] = trafo
 
-        return [(self.target_parameter, coeffs)]
+
+        return [(self.target_parameter, trafos)]
 
     def get_domain(self, data):
         return [0,1.8]
@@ -298,16 +303,17 @@ class V_syntc_psp_max_BaseCalibrator(BaseCalibrator):
 
         return V_syntc_psp_max
 
-    def generate_coeffs(self):
+    def generate_transformations(self):
 
-        coeffs = {}
+        trafos = {}
 
         for neuron in self.neurons:
             V_syntc_psp_max = self.fit_neuron(neuron)
             # For compatibility, the domain should be None
-            coeffs[neuron] = [[V_syntc_psp_max], None]
+            trafo = create_pycalibtic_transformation([V_syntc_psp_max], None)
+            trafos[neuron] = trafo
 
-        return [(self.target_parameter, coeffs)]
+        return [(self.target_parameter, trafos)]
 
 
 class V_syntci_psp_max_Calibrator(V_syntc_psp_max_BaseCalibrator):
@@ -328,7 +334,7 @@ class V_convoff_Calibrator(BaseCalibrator):
     def get_neurons(self):
         return self.experiment.measurements[0].neurons
 
-    def generate_coeffs(self):
+    def generate_transformations(self):
         """
         Default fiting method.
 
@@ -336,8 +342,8 @@ class V_convoff_Calibrator(BaseCalibrator):
             List of tuples, each containing the neuron parameter and a
             dictionary containing polynomial fit coefficients for each neuron
         """
-        coeffs = dict((n, self.find_v_convoff(n)) for n in self.get_neurons())
-        return [(self.target_parameter, coeffs)]
+        trafos = dict((n, self.find_v_convoff(n)) for n in self.get_neurons())
+        return [(self.target_parameter, trafos)]
 
     def get_fit_data(self, neuron):
         parameters = (self.target_parameter, )
@@ -378,7 +384,8 @@ class V_convoff_Calibrator(BaseCalibrator):
         V_convoff, baseline = self.get_fit_data(neuron)
         try:
             x, f = self.do_fit(V_convoff, baseline)
-            return self.find_roots(x, f)
+            ret = create_pycalibtic_transformation(self.find_roots(x,f), None)
+            return ret
         except TypeError:
             return None
 
