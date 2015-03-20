@@ -82,6 +82,9 @@ parameters = {
     # Set whether you want to keep traces or delete them after analysis
     "save_traces":  False,
 
+    "V_reset_save_traces":  True,
+    "V_t_save_traces":  True,
+
     ## If you save your measurements, each folder will have a description file. The following parameters let you specify additional info to be stored.
     #"E_synx_description":   "E_synx calibration.",
     #"E_syni_description":   "E_syni calibration",
