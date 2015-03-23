@@ -27,7 +27,7 @@ def convert_old_runner(path):
     logger.INFO("Transforming '{}' -> '{}'".format(path, new_path))
     logger.INFO("Loading pickled file")
     if os.path.exists(new_path):
-        logger.error("'{}' already exists".format(path))
+        logger.error("'{}' already exists".format(new_path))
         exit(-1)
 
     old_runner = load_pickled_file(path)
