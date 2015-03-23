@@ -28,17 +28,22 @@ def convert_old_runner(path):
     logger.INFO("Loading pickled file")
     old_runner = load_pickled_file(path)
     config = old_runner.config.copy()
-    new_runner = CalibrationRunner(config.copy(), storage_path=new_path)
 
-    for ii, step in enumerate(old_runner.experiments.keys()):
+    new_runner = CalibrationRunner(config.copy(), storage_path=new_path)
+    to_run = new_runner.to_run
+
+    assert to_run == old_runner.configurations
+
+    for ii, unit in enumerate(to_run):
+        logger.INFO("Converting to Unit {}".format(unit))
         storage_path = os.path.join(new_path, str(ii))
-        experiment = old_runner.experiments[step]
+        experiment = old_runner.experiments[unit]
         if experiment is None:
             continue
 
         # First copy traces, afterwards the pathes are changed
         to_copy = []
-        logger.INFO("Copy traces for {}".format(step))
+        logger.INFO("Copy traces for {}".format(unit))
         for ii, measurement in enumerate(experiment.measurements):
             if measurement.traces is None:
                 continue
@@ -46,15 +51,16 @@ def convert_old_runner(path):
             target = os.path.join(storage_path, measurement.traces.filename)
             to_copy.append((source, target))
 
-        logger.INFO("Create step {} at '{}'".format(step, storage_path))
-        calib = CalibrationUnit(config.copy(step),
+        logger.INFO("Create unit {} at '{}'".format(unit, storage_path))
+        calib = CalibrationUnit(config.copy(unit),
                                 storage_path,
                                 old_runner.calibtic,
                                 experiment=experiment)
-        calib.result = old_runner.coeffs.get(step, None)
+        calib.result = old_runner.coeffs.get(unit, None)
         calib.save()
 
         for source, target in to_copy:
+            print source, "->", target
             logger.TRACE(" {} -> {}".format(source, target))
             shutil.copy2(source, target)
 
