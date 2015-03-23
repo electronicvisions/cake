@@ -1,7 +1,8 @@
 """Evaluate calibration in MonteCarlo transistor level simulation"""
 
+import numpy
+
 from pycake.helpers.units import Voltage, Current
-from pycake.helpers.units import linspace_voltage
 from pycake.helpers.misc import nested_update
 
 from pyhalbe.HICANN import neuron_parameter
@@ -19,8 +20,10 @@ eval_parameters = {
     "V_reset_range": [{shared_parameter.V_reset : Voltage(500),
                        neuron_parameter.E_l : Voltage(900),
                        neuron_parameter.V_t : Voltage(700)}],
-    "E_l_range": [{neuron_parameter.E_l : Voltage(v)} for v in [650, 700, 750]],
-    "V_t_range": [{neuron_parameter.V_t : v} for v in linspace_voltage(700, 1100, 3)],
+    "E_l_range": [{neuron_parameter.E_l: Voltage(v)} for v in [650, 700, 750]],
+    "V_t_range": [{shared_parameter.V_reset : Voltage(v-200),
+                   neuron_parameter.E_l: Voltage(v + 200),
+                   neuron_parameter.V_t: Voltage(v)} for v in numpy.linspace(700, 1100, 3)],
     "I_gl_charging_range": [{neuron_parameter.I_gl : Current(c)} for c in [500, 700]],
     "I_pl_range": [{neuron_parameter.I_pl : Current(c)} for c in [10, 30, 50, 70, 90, 2500]],
 
