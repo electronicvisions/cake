@@ -170,6 +170,7 @@ class V_reset_Calibrator(BaseCalibrator):
         trafo_type = self.get_trafo_type()
         for coord, mean in block_means.iteritems():
             fit = list(self.do_fit(mean[:, 2], mean[:, 0]))
+            fit = fit[::-1] # reverse coefficients for calibtic
             domain = self.get_domain(mean[:,2])
             trafo = create_pycalibtic_transformation(fit, domain, trafo_type)
             trafos[coord] = trafo
