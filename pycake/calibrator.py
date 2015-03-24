@@ -475,11 +475,12 @@ class I_pl_Calibrator(BaseCalibrator):
 
     def do_fit(self, xs, ys):
         """ Fits a curve to results of one neuron
-            Standard behaviour is a linear fit.
+            For I_pl, the function is I_pl_DAC = 1/(a*tau + 1/1023.)
         """
-        def func(x, a, b):
-            return 1/(a*x + b)
-        fit_coeffs = curve_fit(func, xs, ys, [0.025, 0.0004])[0]
+        def func(x, a):
+            return 1/(a*x + 1/1023.)
+        fit_coeffs = curve_fit(func, xs, ys, [0.025e6])[0]
+        fit_coeffs = [fit_coeffs[0], 1/1023.]
         return fit_coeffs
 
     def get_trafo_type(self):
