@@ -429,8 +429,8 @@ class I_pl_Calibrator(BaseCalibrator):
             # Need to switch y and x in order to get the right fit
             # (y-axis: configured parameter, x-axis: measurement)
             ys_raw, xs_raw, amplitudes = self.get_merged_results(neuron, ['mean_isi', 'amplitude'])
-            ys = self.prepare_y(ys_raw)
-            tau0_indices = np.where(ys == 1023)
+            tau0_indices = np.array(ys_raw) == 1023
+            ys = self.prepare_y(ys_raw, tau0_indices)
             if len(tau0_indices) is 0:
                 raise("No I_pl=2.5 uA measurement done. Cannot calculate tau_ref!")
             xs = self.prepare_x(xs_raw, amplitudes, tau0_indices)
@@ -457,15 +457,16 @@ class I_pl_Calibrator(BaseCalibrator):
         mean_amp0 = np.mean(amplitudes[tau0_indices])
         tau0amps = amplitudes * tau0/mean_amp0
         tau_refracs = x - tau0amps
-        tau_refracs = tau_refracs[0:-1]
-        return tau_refracs
+        tau_ref_indices = tau0_indices == False
+        return tau_refracs[tau_ref_indices]
 
-    def prepare_y(self, y):
+    def prepare_y(self, y, tau0_indices):
         """ Prepares y values for fit
             Per default, these are the step (DAC) values that were set.
         """
         ys = np.array(y)
-        return ys[0:-1]
+        tau_ref_indices = tau0_indices == False
+        return ys[tau_ref_indices]
 
     def get_domain(self, data):
         # assume up to 20% higher possible domain than max measured value
