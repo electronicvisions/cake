@@ -66,8 +66,8 @@ class Reader(object):
             Returns:
                 list of all results
         """
-        step = self.get_calibration_unit(name=parameter)
-        ex = step.experiment
+        unit = self.get_calibration_unit(name=parameter)
+        ex = unit.experiment
 
         if isinstance(neuron, int):
             neuron = C.NeuronOnHICANN(C.Enum(neuron))
@@ -87,9 +87,9 @@ class Reader(object):
                 {neuron: [results]} if neurons
         """
 
-        step = self.get_calibration_unit(name=parameter, recurrence=recurrence)
+        unit = self.get_calibration_unit(name=parameter, recurrence=recurrence)
 
-        ex = step.experiment
+        ex = unit.experiment
         nsteps = len(self.runner.config.copy(parameter).get_steps())
 
         results = {}
@@ -198,8 +198,8 @@ class Reader(object):
     def plot_std(self, parameter, hicann_parameter, key, step, **kwargs):
         import matplotlib.pyplot as plt
 
-        step = self.runner.get_single(name=parameter)
-        e = step.experiment
+        unit = self.runner.get_single(name=parameter)
+        e = unit.experiment
 
         hist = plt.hist([e.get_mean_results(n,hicann_parameter,[key])[0][step][-1] for n in self.get_neurons()], **kwargs)
 
