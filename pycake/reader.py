@@ -118,7 +118,7 @@ class Reader(object):
             self.logger.WARN("missing trace for {} {} {}".format(parameter, neuron, step))
             return None
 
-        p = plt.plot(np.array(t[0][start:end])*1e6, t[1][start:end]*1000)
+        p = plt.plot(np.array(t[0][start:end])*1e6, t[1][start:end])
 
         return p
 
@@ -127,12 +127,12 @@ class Reader(object):
         neurons = self.get_neurons()
         results = self.get_results(parameter, neurons, key, repetition)
         results_list = np.array(results.values())[:,step]
-        hist = plt.hist(results_list, label="{:.2f} +- {:.2f}, {}".format(np.mean(results_list)*1000, np.std(results_list)*1000, len(neurons)), **kwargs)
+        hist = plt.hist(results_list, label="{:.2f} +- {:.2f}, {}".format(np.mean(results_list), np.std(results_list), len(neurons)), **kwargs)
         config = self.runner.config.copy(parameter)
         step_valus = config.get_steps()[step]
         target_value = config.get_steps()[step]
         if draw_target_line and len(target_value) == 1:
-            target_value = target_value.values()[0].value / 1000.0
+            target_value = target_value.values()[0].value
             plt.axvline(target_value, linestyle='dashed', color='k', linewidth=1)
         return hist
 
@@ -159,7 +159,7 @@ class Reader(object):
         target_value = config.get_steps()[step]
 
         if draw_target_line and len(target_value) == 1:
-            target_value = target_value.values()[0].value / 1000.0
+            target_value = target_value.values()[0].value
             plt.axhline(target_value, linestyle='dashed', color='k', linewidth=1)
 
         return p
