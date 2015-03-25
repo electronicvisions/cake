@@ -1,6 +1,6 @@
 import pyhalbe
 from Coordinate import NeuronOnHICANN, FGBlockOnHICANN, Enum
-from pycake.helpers.units import Voltage, Current
+from pycake.helpers.units import Volt, Ampere, Second
 from pycake.helpers.units import linspace_voltage, linspace_current
 
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
@@ -15,25 +15,29 @@ from fastcalibration_parameters import E_syn_distance
 
 import numpy as np
 
+# Time constants roughly correspond to ideal transformations of:
+# I_pl = [10, 30, 50, 70, 90, 350, 2500] nA
+tau_refs = [4.0e-6, 1.3e-6, 0.8e-6, 0.6e-6, 0.4e-6, 0.1e-6, 0.0]
+
 eval_parameters = {
 # Which neurons and blocks do you want to calibrate?
         "folder_prefix": "evaluation",
         "neurons": [NeuronOnHICANN(Enum(i)) for i in range(512)],
         "blocks":  [FGBlockOnHICANN(Enum(i)) for i in range(4)],
 
-        "V_reset_range":  [{shared_parameter.V_reset : Voltage(500)}],
+        "V_reset_range":  [{shared_parameter.V_reset : Volt(.5)}],
         "E_syni_range":   [{neuron_parameter.E_syni :v } for v in linspace_voltage(E_syni_target, E_synx_target, 3)],
         "E_synx_range":   [{neuron_parameter.E_synx :v } for v in linspace_voltage(E_syni_target, E_synx_target, 3)],
-        "E_l_range":      [{neuron_parameter.E_l : Voltage(v) } for v in [E_l_target-E_syn_distance/2, E_l_target, E_l_target+E_syn_distance/2]],
+        "E_l_range":      [{neuron_parameter.E_l : Volt(v) } for v in [E_l_target-E_syn_distance/2, E_l_target, E_l_target+E_syn_distance/2]],
         "V_t_range":      [{neuron_parameter.V_t : v} for v in linspace_voltage(E_l_target, E_synx_target, 3)],
 
-        "I_gl_range":     [{neuron_parameter.I_gl : Current(0)}], # dummy
-        "V_syntcx_range": [{neuron_parameter.V_syntcx : Voltage(1440)} ], # dummy
-        "V_syntci_range": [{neuron_parameter.V_syntci : Voltage(1440)} ], # dummy
+        "I_gl_range":     [{neuron_parameter.I_gl : Ampere(0)}], # dummy
+        "V_syntcx_range": [{neuron_parameter.V_syntcx : Volt(1.44)} ], # dummy
+        "V_syntci_range": [{neuron_parameter.V_syntci : Volt(1.44)} ], # dummy
 
-        "I_pl_range":   [{neuron_parameter.I_pl : Current(c)} for c in [10, 30, 50, 70, 90, 2500]],
+        "I_pl_range":   [{neuron_parameter.I_pl : Second(t)} for t in tau_refs],
 
-        "Spikes_range" : [{neuron_parameter.V_t : Voltage(v)} for v in np.concatenate([[650, 660, 670], np.linspace(680, 720, 11), [730, 740, 750]])],
+        "Spikes_range" : [{neuron_parameter.V_t : Volt(v)} for v in np.concatenate([[0.65, .66, .67], np.linspace(.68, .72, .011), [.73, .74, .75]])],
 
         # How many repetitions?
         # Each repetition will take about 1 minute per step!
@@ -60,14 +64,14 @@ eval_parameters = {
         "measure":      True,
 
         "Spikes_parameters": {
-            neuron_parameter.E_l: Voltage(E_l_target, apply_calibration=True),
-            neuron_parameter.E_syni:     Voltage(E_syni_target, apply_calibration=True),
-            neuron_parameter.E_synx:     Voltage(E_synx_target, apply_calibration=True),
-            neuron_parameter.I_gl:       Current(1000, apply_calibration=True),
-            neuron_parameter.I_pl:       Current(5.),
-            neuron_parameter.V_syntcx: Voltage(1440, apply_calibration=True),  # dummy
-            neuron_parameter.V_syntci: Voltage(1440, apply_calibration=True),  # dummy
-            shared_parameter.V_reset:    Voltage(200, apply_calibration=True),
+            neuron_parameter.E_l: Volt(E_l_target, apply_calibration=True),
+            neuron_parameter.E_syni:     Volt(E_syni_target, apply_calibration=True),
+            neuron_parameter.E_synx:     Volt(E_synx_target, apply_calibration=True),
+            neuron_parameter.I_gl:       Ampere(1e-6, apply_calibration=True),
+            neuron_parameter.I_pl:       Ampere(5e-9),
+            neuron_parameter.V_syntcx: Volt(1.44, apply_calibration=True),  # dummy
+            neuron_parameter.V_syntci: Volt(1.44, apply_calibration=True),  # dummy
+            shared_parameter.V_reset:    Volt(0.2, apply_calibration=True),
         },
 
 
