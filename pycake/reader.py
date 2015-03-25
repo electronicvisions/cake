@@ -47,9 +47,12 @@ class Reader(object):
         try:
             return self.calibration_unit_cache[key]
         except KeyError:
-            result = self.runner.get(name=name, pos=self.runner.query_calibrations(name=name)[recurrence])[0]
-            self.calibration_unit_cache[key] = result
-            return result
+            positions = self.runner.query_calibrations(name=name)
+            if not positions:
+                raise RuntimeError("No unit(s) found for name {}".format(name))
+            unit = self.runner.get(name=name, pos=positions[recurrence])[0]
+            self.calibration_unit_cache[key] = unit
+            return unit
 
     def get_result(self, parameter, neuron, key):
         """ Get measurement results for one neuron.
