@@ -161,7 +161,7 @@ class CalibrationRunner(object):
         pll = self.config.get_PLL()
         pll_in_MHz = int(pll/1e6)
         name_details = "_".join([s for s in [
-            self.config.get_filename_prefix(),
+            self.config.get_folder_prefix(),
             "f{}".format(pll_in_MHz),
             "w{}".format(wafer.value()),
             "h{}".format(hicann.id().value()),

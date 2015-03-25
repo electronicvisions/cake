@@ -24,7 +24,7 @@ E_synx_target = E_l_target + E_syn_distance
 
 parameters = {
     # Which neurons and blocks do you want to calibrate?
-    "filename_prefix": "calibration",
+    "folder_prefix": "calibration",
     "neurons": [NeuronOnHICANN(Enum(i)) for i in range(512)],
     "blocks":  [FGBlockOnHICANN(Enum(i)) for i in range(4)],
 

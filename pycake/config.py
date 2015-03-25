@@ -99,9 +99,9 @@ class Config(object):
         params.update(self.get_config("parameters"))
         return params
 
-    def get_filename_prefix(self):
+    def get_folder_prefix(self):
         try:
-            return self.parameters["filename_prefix"]
+            return self.parameters["folder_prefix"]
         except KeyError:
             return ""
 
