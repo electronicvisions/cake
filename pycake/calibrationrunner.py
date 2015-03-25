@@ -183,7 +183,7 @@ class CalibrationRunner(object):
         self.save()
 
     def get(self, **kwargs):
-        return [self.create_or_load_step(ii) for ii in
+        return [self.load_calibration_step(ii) for ii in
                 self.query_calibrations(**kwargs)]
 
     def get_single(self, **kwargs):
@@ -191,7 +191,7 @@ class CalibrationRunner(object):
         if len(pos) == 0:
             raise KeyError(kwargs)
         elif len(pos) == 1:
-            return self.create_or_load_step(pos[0])
+            return self.load_calibration_step(pos[0])
         else:
             raise RuntimeError("Multiple calibrations found")
 
@@ -249,15 +249,20 @@ class CalibrationRunner(object):
             measurement.run()
             measurement.generate_calibration_data(self.calibtic, self.redman)
 
+    def get_step_folder(self, ii):
+        return os.path.join(self.storage_folder, str(ii))
+
+    def load_calibration_step(self, ii):
+        return CalibrationUnit.load(self.get_step_folder(ii))
+
     def create_or_load_step(self, ii):
         """Receives a pickle calibration step or creates a new one"""
-        step_folder = os.path.join(self.storage_folder, str(ii))
         try:
-            return CalibrationUnit.load(step_folder)
+            return self.load_calibration_step(ii)
         except UnitNotFound:
             name = self.to_run[ii]
             return CalibrationUnit(
-                self.config.copy(name), step_folder, self.calibtic)
+                self.config.copy(name), self.get_step_folder(ii), self.calibtic)
 
     def set_storage_folder(self, folder):
         """Update the pathes to calibration steps results"""
