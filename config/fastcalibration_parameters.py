@@ -1,7 +1,6 @@
 import pyhalbe
 from Coordinate import NeuronOnHICANN, FGBlockOnHICANN, Enum
 from pycake.helpers.units import DAC, Volt, Ampere
-from pycake.helpers.units import DAC, Volt, Current
 from pycake.helpers.units import linspace_voltage, linspace_current
 import os
 from itertools import product
