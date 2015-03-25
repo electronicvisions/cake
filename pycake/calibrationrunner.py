@@ -183,7 +183,7 @@ class CalibrationRunner(object):
         self.save()
 
     def get(self, **kwargs):
-        return [self.load_calibration_step(ii) for ii in
+        return [self.load_calibration_unit(ii) for ii in
                 self.query_calibrations(**kwargs)]
 
     def get_single(self, **kwargs):
@@ -191,7 +191,7 @@ class CalibrationRunner(object):
         if len(pos) == 0:
             raise KeyError(kwargs)
         elif len(pos) == 1:
-            return self.load_calibration_step(pos[0])
+            return self.load_calibration_unit(pos[0])
         else:
             raise RuntimeError("Multiple calibrations found")
 
@@ -199,7 +199,7 @@ class CalibrationRunner(object):
         """Return calibrations filtered by the given arguments
 
         Arguments:
-            name [str]: Name of the given calibration step
+            name [str]: Name of the given calibration unit
             pos [int/slice/iterable]: index of the request calibrations
         """
         if pos is None:
@@ -245,27 +245,27 @@ class CalibrationRunner(object):
     def _run_measurements(self):
         """execute the measurement loop"""
         for ii, name in enumerate(self.to_run):
-            measurement = self.create_or_load_step(ii)
+            measurement = self.create_or_load_unit(ii)
             measurement.run()
             measurement.generate_calibration_data(self.calibtic, self.redman)
 
-    def get_step_folder(self, ii):
+    def get_unit_folder(self, ii):
         return os.path.join(self.storage_folder, str(ii))
 
-    def load_calibration_step(self, ii):
-        return CalibrationUnit.load(self.get_step_folder(ii))
+    def load_calibration_unit(self, ii):
+        return CalibrationUnit.load(self.get_unit_folder(ii))
 
-    def create_or_load_step(self, ii):
-        """Receives a pickle calibration step or creates a new one"""
+    def create_or_load_unit(self, ii):
+        """Receives a pickle calibration unit or creates a new one"""
         try:
-            return self.load_calibration_step(ii)
+            return self.load_calibration_unit(ii)
         except UnitNotFound:
             name = self.to_run[ii]
             return CalibrationUnit(
-                self.config.copy(name), self.get_step_folder(ii), self.calibtic)
+                self.config.copy(name), self.get_unit_folder(ii), self.calibtic)
 
     def set_storage_folder(self, folder):
-        """Update the pathes to calibration steps results"""
+        """Update the pathes to calibration units results"""
         pycake.helpers.misc.mkdir_p(folder)
         self.storage_folder = folder
 
@@ -296,5 +296,5 @@ class TestRunner(CalibrationRunner):
     def _run_measurements(self):
         """execute the measurement loop"""
         for ii, name in enumerate(self.to_run):
-            measurement = self.create_or_load_step(ii)
+            measurement = self.create_or_load_unit(ii)
             measurement.run()
