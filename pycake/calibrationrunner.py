@@ -56,7 +56,9 @@ class CalibrationUnit(object):
             return False
 
     def run(self):
-        """Run the measurement"""
+        """ Run the measurement and use calibrator on the measured data.
+            If measurement is already done, it is skipped.
+            Returns the generated transformation"""
         self.logger.INFO("Running measurements for {}".format(self.name))
         for measured in self.experiment.iter_measurements():
             if measured:
@@ -73,6 +75,13 @@ class CalibrationUnit(object):
         return calibrator.generate_transformations()
 
     def generate_calibration_data(self, calibtic, redman):
+        """ Applies calibrator fits to the finished experiment and writes
+            the generated calibration data to calibtic backend.
+
+            Args:
+                calibtic: calibtic helper object
+                redman: redman helper object
+        """
         if not self.finished():
             raise RuntimeError("The calibration has not been finished yet")
         trafos = self.generate_transformations()
