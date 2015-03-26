@@ -709,18 +709,27 @@ if r_v_syntcx:
     fig = plt.figure()
     r_v_syntcx.include_defects = False
     results_v_syntcx = r_v_syntcx.get_results("V_syntcx_psp_max",r_v_syntcx.get_neurons(),"std")
-    max_stds = [np.max(stds)*1000 for n, stds in results_v_syntcx.iteritems()]
-    plt.hist(max_stds,bins=100);
-    plt.xlabel("$\sigma$(trace) [mV]")
+
+    bins = np.linspace(0,50,101)
+
+    top_max_stds = [np.max(stds)*1000 for n, stds in results_v_syntcx.iteritems() if n.y() == C.Y(0)]
+    plt.hist(top_max_stds,bins=bins,color='b',label="top")
+
+    bottom_max_stds = [np.max(stds)*1000 for n, stds in results_v_syntcx.iteritems() if n.y() == C.Y(1)]
+    plt.hist(bottom_max_stds,bins=bins,color='g',alpha=0.8,label="bottom")
+
+    plt.xlabel("max $\sigma$(trace) [mV]")
     plt.ylabel("#")
+    plt.xlim(0,50)
     plt.ylim(0,23)
+    plt.legend()
     plt.subplots_adjust(**margins)
     plt.savefig(os.path.join(fig_dir,"V_syntcx_psp_stds.pdf"))
     plt.savefig(os.path.join(fig_dir,"V_syntcx_psp_stds.png"))
 
     # In[242]:
 
-    sum(np.array(max_stds) < 0.005)
+    # sum(np.array(max_stds) < 0.005)
 
 ## V syntci psp max
 
@@ -768,12 +777,20 @@ if r_v_syntci:
     fig = plt.figure()
     r_v_syntci.include_defects = False
     results_v_syntci = r_v_syntci.get_results("V_syntci_psp_max",r_v_syntci.get_neurons(),"std")
-    max_stds = [np.max(stds)*1000 for n, stds in results_v_syntci.iteritems()]
-    plt.hist(max_stds,bins=100);
-    plt.xlabel("$\sigma$(trace) [mV]")
+
+    bins = np.linspace(0,50,101)
+
+    top_max_stds = [np.max(stds)*1000 for n, stds in results_v_syntci.iteritems() if n.y() == C.Y(0)]
+    plt.hist(top_max_stds,bins=bins,color='b',label="top")
+
+    bottom_max_stds = [np.max(stds)*1000 for n, stds in results_v_syntci.iteritems() if n.y() == C.Y(1)]
+    plt.hist(bottom_max_stds,bins=bins,color='g',alpha=0.8,label="bottom")
+
+    plt.xlabel("max $\sigma$(trace) [mV]")
     plt.ylabel("#")
+    plt.xlim(0,50)
     plt.ylim(0,23)
-    plt.xlim(0,30)
+    plt.legend()
     plt.subplots_adjust(**margins)
     plt.savefig(os.path.join(fig_dir,"V_syntci_psp_stds.pdf"))
     plt.savefig(os.path.join(fig_dir,"V_syntci_psp_stds.png"))
