@@ -205,7 +205,7 @@ class Reader(object):
 
         return hist
 
-    def plot_result(self, parameter, key, neurons=None, yfactor=1000, mark_top_bottom=True, average=False, **kwargs):
+    def plot_result(self, parameter, key, neurons=None, yfactor=1000, mark_top_bottom=True, average=False, marker='o', **kwargs):
         import matplotlib.pyplot as plt
 
         fig = plt.figure()
@@ -230,7 +230,7 @@ class Reader(object):
             # http://stackoverflow.com/a/17210030/1350789
             colors = ['b','g']
             labels = ["top", "bottom"]
-            [plt.plot(None,None,ls='-',marker='o',c=c,label=l) for c,l in zip(colors,labels)]
+            [plt.plot(None,None,ls='-',marker=marker,c=c,label=l) for c,l in zip(colors,labels)]
             plt.legend(labels)
 
         for vertical, color in zip([C.Y(0), C.Y(1)], ['b', 'g']):
@@ -260,9 +260,9 @@ class Reader(object):
 
                 if mark_top_bottom:
                     if average:
-                        plot = plt.errorbar(xs, ys, yerr=yerrs, color=color, marker='o', **kwargs)
+                        plot = plt.errorbar(xs, ys, yerr=yerrs, color=color, marker=marker, **kwargs)
                     else:
-                        plot = plt.plot(xs, ys, color=color, marker='o', **kwargs)
+                        plot = plt.plot(xs, ys, color=color, marker=marker, **kwargs)
                 else:
                     if average:
                         plot = plt.errorbar(xs, ys, yerr=yerrs, **kwargs)
