@@ -697,9 +697,9 @@ if r_v_syntcx:
            reader=r_v_syntcx,
            parameter="V_syntcx_psp_max",
            key="std",
-           neurons=range(50),
-           mark_top_bottom=False,
-           alpha=0.5)
+           mark_top_bottom=True,
+           alpha=0.5,
+           marker="None")
 
 
     trace("$V_{mem}$ [mV]", r_v_syntcx, "V_syntcx_psp_max", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=4000)
@@ -766,9 +766,9 @@ if r_v_syntci:
            reader=r_v_syntci,
            parameter="V_syntci_psp_max",
            key="std",
-           neurons=range(50),
-           mark_top_bottom=False,
-           alpha=0.5)
+           mark_top_bottom=True,
+           alpha=0.5,
+           marker="None")
 
     trace("$V_{mem}$ [mV]", r_v_syntci, "V_syntci_psp_max", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510)
 
