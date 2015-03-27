@@ -196,7 +196,7 @@ class E_l_Calibrator(BaseCalibrator):
     """
 
 
-class spikes_Calibrator(BaseCalibrator):
+class Spikes_Calibrator(BaseCalibrator):
     target_parameter = None
 
 
