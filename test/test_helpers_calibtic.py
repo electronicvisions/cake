@@ -12,7 +12,7 @@ import shutil
 import tempfile
 
 import pylogging
-from pycake.helpers.calibtic import Calibtic, create_pycalibtic_polynomial
+from pycake.helpers.calibtic import Calibtic, create_pycalibtic_transformation
 from pyhalbe import Coordinate as C
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
 
@@ -29,7 +29,7 @@ class TestCalibticHelper(unittest.TestCase):
 
     def test_polynomial(self):
         # 3 + 2*x + 1*x^2
-        poly = create_pycalibtic_polynomial([3, 2, 1])
+        poly = create_pycalibtic_transformation([3, 2, 1])
         self.assertEqual(poly.apply(1), 6)
         self.assertEqual(poly.apply(3), 18)
 
@@ -56,12 +56,14 @@ class TestCalibticHelper(unittest.TestCase):
         self.assertEqual(c.get_readout_shift(neuron), 0.0)
 
         # read with data, but no readout shift
-        data = {c: [4, 2, 3] for c in C.iter_all(C.NeuronOnHICANN)}
+        trafo = create_pycalibtic_transformation([4,2,3])
+        data = {c: trafo for c in C.iter_all(C.NeuronOnHICANN)}
         c.write_calibration(neuron_parameter.V_t, data)
         self.assertEqual(c.get_readout_shift(neuron), 0.0)
 
         # write readout shift, read
-        data = {c: [4] for c in C.iter_all(C.NeuronOnHICANN)}
+        trafo = create_pycalibtic_transformation([4])
+        data = {c: trafo for c in C.iter_all(C.NeuronOnHICANN)}
         c.write_calibration("readout_shift", data)
         self.assertEqual(c.get_readout_shift(neuron), 4.0)
 
@@ -71,20 +73,23 @@ class TestCalibticHelper(unittest.TestCase):
 
         # NeuronCalibration
         # same data for all neurons
-        data = {c: [4, 2, 3] for c in C.iter_all(C.NeuronOnHICANN)}
+        trafo = create_pycalibtic_transformation([4,2,3])
+        data = {c: trafo for c in C.iter_all(C.NeuronOnHICANN)}
         c.write_calibration(neuron_parameter.V_t, data)
         c._loaded = False  # reload
         c.clear_one_calibration(neuron_parameter.V_t)
 
         # FGBlock
-        data = {c: [4, 2, 5] for c in C.iter_all(C.FGBlockOnHICANN)}
+        trafo = create_pycalibtic_transformation([4, 2, 5])
+        data = {c: trafo for c in C.iter_all(C.FGBlockOnHICANN)}
         c._loaded = False  # reload
         c.write_calibration(shared_parameter.V_reset, data)
         c.clear_one_calibration(shared_parameter.V_reset)
 
     def test_overwrite(self):
         c = self.calibtic
-        data = {c: [4, 2, 3] for c in C.iter_all(C.NeuronOnHICANN)}
+        trafo = create_pycalibtic_transformation([4,2,3])
+        data = {c: trafo for c in C.iter_all(C.NeuronOnHICANN)}
         c.write_calibration(neuron_parameter.V_t, data)
         c.write_calibration(neuron_parameter.V_t, data)
         c.clear_calibration()
@@ -98,12 +103,10 @@ class TestCalibticHelper(unittest.TestCase):
         parameter = neuron_parameter.V_t
         parameter_missing = neuron_parameter.E_l
 
-        # apply without data should return rounded DAC
-        self.assertEqual(c.apply_calibration(526.3, parameter, neuron), 526)
-
         # write data
         coeffs = [4, 2, 3]
-        data = {c: coeffs for c in C.iter_all(C.NeuronOnHICANN)}
+        trafos = create_pycalibtic_transformation(coeffs)
+        data = {c: trafos for c in C.iter_all(C.NeuronOnHICANN)}
         c.write_calibration(parameter, data)
 
         # test apply with data
@@ -118,12 +121,10 @@ class TestCalibticHelper(unittest.TestCase):
         # over 1023
         self.assertEqual(c.apply_calibration(2000, parameter, neuron), 1023)
 
-        # no calibration data
-        self.assertEqual(c.apply_calibration(111.7, parameter_missing, neuron), 112)
-
         # same for FGBlock
         coeffs = [-6, 2, 3]
-        data = {c: coeffs for c in C.iter_all(C.FGBlockOnHICANN)}
+        trafos = create_pycalibtic_transformation(coeffs)
+        data = {c: trafos for c in C.iter_all(C.FGBlockOnHICANN)}
         parameter = shared_parameter.V_reset
         c.write_calibration(parameter, data)
         block = C.FGBlockOnHICANN(C.Enum(2))
