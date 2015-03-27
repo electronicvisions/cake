@@ -232,11 +232,6 @@ class V_t_Calibrator(BaseCalibrator):
     def get_key(self):
         return 'max'
 
-    def is_defect(self, coeffs):
-        # Defect if slope of the fit is too high
-        defect = abs(coeffs[0] - 1) > 1
-        return defect
-
     def get_domain(self, data):
         return [0,1.8]
 
