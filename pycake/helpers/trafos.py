@@ -10,54 +10,7 @@ Bio is still work in progress
 """
 import numpy as np
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
-
-
-voltage_params = [neuron_parameter.E_synx,
-                  neuron_parameter.V_synx,
-                  neuron_parameter.E_syni,
-                  neuron_parameter.V_syni,
-                  neuron_parameter.E_l,
-                  neuron_parameter.V_t,
-                  neuron_parameter.V_exp,
-                  neuron_parameter.V_syntci,
-                  neuron_parameter.V_syntcx,
-                  shared_parameter.V_clra,
-                  shared_parameter.V_clrc,
-                  shared_parameter.V_reset,
-                  shared_parameter.V_dllres,
-                  shared_parameter.V_bout,
-                  shared_parameter.V_dtc,
-                  shared_parameter.V_thigh,
-                  shared_parameter.V_br,
-                  shared_parameter.V_m,
-                  shared_parameter.V_dep,
-                  shared_parameter.V_tlow,
-                  shared_parameter.V_gmax1,
-                  shared_parameter.V_gmax0,
-                  shared_parameter.V_gmax3,
-                  shared_parameter.V_gmax2,
-                  shared_parameter.V_ccas,
-                  shared_parameter.V_stdf,
-                  shared_parameter.V_fac,
-                  shared_parameter.V_bexp,
-                  shared_parameter.V_bstdf]
-
-
-current_params = [neuron_parameter.I_spikeamp,
-                  neuron_parameter.I_radapt,
-                  neuron_parameter.I_convi,
-                  neuron_parameter.I_gl,
-                  neuron_parameter.I_convx,
-                  neuron_parameter.I_gladapt,
-                  neuron_parameter.I_intbbi,
-                  neuron_parameter.I_fire,
-                  neuron_parameter.I_intbbx,
-                  neuron_parameter.I_rexp,
-                  neuron_parameter.I_pl,
-                  neuron_parameter.I_bexp,
-                  shared_parameter.int_op_bias,
-                  shared_parameter.I_breset,
-                  shared_parameter.I_bstim]
+from pyhalbe.HICANN import isCurrentParameter, isVoltageParameter
 
 # Polynomials for the transformation from Hardware to Hardwarecontrol parameters
 # Polynomial coefficients are in this order: a*x^2 + b*x + c
@@ -136,10 +89,10 @@ def HCtoDAC(value, parameter, rounded=True):
     upper_limit = 1023
     if parameter is neuron_parameter.I_pl:
         lower_limit = 4
-    if parameter in voltage_params:
-        DAC = value * 1023/1800.
-    elif parameter in current_params:
-        DAC = value * 1023/2500.
+    if isVoltageParameter(parameter):
+        DAC = value * 1023/1.8
+    elif isCurrentParameter(parameter):
+        DAC = value * 1023/2.5e-6
     else:
         raise ValueError("Invalid Value")
 
@@ -163,7 +116,7 @@ def DACtoHC(value, parameter):
             hardware value
     """
     if parameter in voltage_params:
-        return value * 1800./1023.
+        return value * 1.8/1023.
     elif parameter in current_params:
         return value * 2500./1023.
 
@@ -174,5 +127,5 @@ def BiotoHW(value, parameter):
 
 def HWtoBio(value, parameter):
     if parameter in voltage_params:
-        if value < 1800 and value > 0:
+        if value < 1.8 and value > 0:
             return 20/100.*value - 180 # dV = 20 mV -> dV = 100 mV. V = -60 mV -> V = 600 mV

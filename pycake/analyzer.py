@@ -380,9 +380,13 @@ class ISI_Analyzer(Analyzer):
         isi = np.diff(spike_times)
         mean_isi = np.mean(isi)
         std_isi = np.std(isi)
+        mean_max = np.mean(maxtab[:,1])
+        mean_min = np.mean(mintab[:,1])
+        amplitude = mean_max - mean_min
 
         return {"mean_isi": mean_isi,
                 "std_isi": std_isi,
+                "amplitude": amplitude,
                 }
 
 

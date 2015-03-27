@@ -1,4 +1,4 @@
-"""Conversion of Voltage/Current to DAC"""
+"""Conversion of Volt/Ampere to DAC"""
 
 import numpy
 
@@ -21,39 +21,59 @@ class Unit(object):
         self._check(value)
         self._value = value
 
+    @staticmethod
+    def _check(value):
+        pass
 
-class Current(Unit):
-    """Current in nA for hardware parameters."""
+class Second(Unit):
+    """ Time in s for hardware parameters"""
     def __init__(self, value, apply_calibration=False):
-        super(Current, self).__init__(float(value), apply_calibration)
+        super(Second, self).__init__(float(value), apply_calibration)
 
     @staticmethod
     def _check(value):
-        if value < 0. or value > 2500.:
-            raise ValueError("Current value {} nA out of range".format(value))
+        if value < 0. or value > 1:
+            raise ValueError("Second value {} s out of range".format(value))
 
     def toDAC(self):
-        return DAC(self.value/2500.*1023., self.apply_calibration)
+        raise RuntimeError("Cannot convert seconds to DAC. Calibration needed.")
 
     def __repr__(self):
-        return "{} nA".format(self.value)
+        return "{} s".format(self.value)
 
 
-class Voltage(Unit):
-    """Voltage in mV for hardware parameters."""
+class Ampere(Unit):
+    """Current in A for hardware parameters."""
     def __init__(self, value, apply_calibration=False):
-        super(Voltage, self).__init__(float(value), apply_calibration)
+        super(Ampere, self).__init__(float(value), apply_calibration)
 
     @staticmethod
     def _check(value):
-        if value < 0. or value > 1800.:
-            raise ValueError("Voltage value {} mV out of range".format(value))
+        if value < 0. or value > 2.5e-6:
+            raise ValueError("Current value {} A out of range".format(value))
 
     def toDAC(self):
-        return DAC(self.value/1800.*1023., self.apply_calibration)
+        return DAC(self.value/2.5e-6*1023., self.apply_calibration)
 
     def __repr__(self):
-        return "{} mV".format(self.value)
+        return "{} A".format(self.value)
+
+
+class Volt(Unit):
+    """Voltage in V for hardware parameters."""
+    def __init__(self, value, apply_calibration=False):
+        super(Volt, self).__init__(float(value), apply_calibration)
+
+    @staticmethod
+    def _check(value):
+        if value < 0. or value > 1.8:
+            raise ValueError("Volt value {} V out of range".format(value))
+
+    def toDAC(self):
+        return DAC(self.value/1.8*1023., self.apply_calibration)
+
+    def __repr__(self):
+        return "{} V".format(self.value)
 
 
 class DAC(Unit):
@@ -70,21 +90,21 @@ class DAC(Unit):
     def toDAC(self):
         return self
 
-    def toCurrent(self):
-        return Current(self.value/1023.*2500., self.apply_calibration)
+    def toAmpere(self):
+        return Ampere(self.value/1023.*2.5e-6, self.apply_calibration)
 
-    def toVoltage(self):
-        return Voltage(self.value/1023.*1800., self.apply_calibration)
+    def toVolt(self):
+        return Volt(self.value/1023.*1.8, self.apply_calibration)
 
     def __repr__(self):
         return "{} (DAC)".format(self.value)
 
 def linspace_voltage(start, end, steps, apply_calibration=False):
     """generates a numpy.linspace of voltage values"""
-    return [Voltage(step, apply_calibration)
+    return [Volt(step, apply_calibration)
             for step in numpy.linspace(start, end, steps)]
 
 def linspace_current(start, end, steps, apply_calibration=False):
     """generates a numpy.linspace of current values"""
-    return [Current(step, apply_calibration)
+    return [Ampere(step, apply_calibration)
             for step in numpy.linspace(start, end, steps)]

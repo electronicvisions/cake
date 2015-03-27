@@ -10,7 +10,7 @@ from pycake.analyzer import Analyzer
 from pycake.measure import ADCMeasurement
 from pycake.experimentbuilder import BaseExperimentBuilder
 from pycake.helpers.peakdetect import peakdet
-from pycake.helpers.units import Voltage
+from pycake.helpers.units import Volt
 
 
 class I_gl_charging_Analyzer(Analyzer):
@@ -31,8 +31,7 @@ class I_gl_charging_Analyzer(Analyzer):
 
         def cap_voltage(t, tau, offset):
             """charging or discharging of capacitor"""
-            # E_l is in mV -> divide by 1000
-            final_potential = known_E_l/1.e3
+            final_potential = known_E_l
             return offset * np.exp(-t/tau) + final_potential
 
         cutout = df[t_min:t_max]
@@ -129,8 +128,8 @@ class I_gl_charging_Experimentbuilder(BaseExperimentBuilder):
         # prepare_parameters is called just before make_measurement
         # grab the target E_l information while it is available
         E_l = parameters[neuron_parameter.E_l]
-        if type(E_l) is not Voltage:
-            raise TypeError("E_l must be Voltage()")
+        if type(E_l) is not Volt:
+            raise TypeError("E_l must be Volt()")
         self.E_l = E_l.value  # in mV
         return super(I_gl_charging_Experimentbuilder, self).prepare_parameters(parameters)
 
