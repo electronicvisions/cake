@@ -485,15 +485,17 @@ class I_pl_Calibrator(BaseCalibrator):
         return pycalibtic.OneOverPolynomial
 
 class readout_shift_Calibrator(BaseCalibrator):
-    def __init__(self, experiments, config, neuron_size=64):
+    def __init__(self, experiments, config):
         super(readout_shift_Calibrator, self).__init__(experiments, config)
-        self.neuron_size = neuron_size
 
     def generate_transformations(self):
         """
         """
         results = self.experiments[0].results[0]
-        readout_shifts = self.get_readout_shifts(results)
+        neuron_size = self.experiments[0].measurements[0].sthal.get_neuron_size()
+        if neuron_size < 64:
+            self.logger.WARN("Neuron size is smaller than 64. 64 is required for readout shift measurement")
+        readout_shifts = self.get_readout_shifts(results, neuron_size)
         return [('readout_shift', readout_shifts)]
 
     def get_neuron_block(self, block_id, size):
@@ -505,14 +507,14 @@ class readout_shift_Calibrator(BaseCalibrator):
         neurons = [Coordinate.NeuronOnHICANN(Coordinate.Enum(int(nid))) for nid in nids]
         return neurons
 
-    def get_readout_shifts(self, results):
+    def get_readout_shifts(self, results, neuron_size):
         """
         """
         trafo_type = self.get_trafo_type()
-        n_blocks = 512/self.neuron_size # no. of interconnected neurons
+        n_blocks = 512/neuron_size # no. of interconnected neurons
         readout_shifts = {}
         for block_id in range(n_blocks):
-            neurons_in_block = self.get_neuron_block(block_id, self.neuron_size)
+            neurons_in_block = self.get_neuron_block(block_id, neuron_size)
             V_rests_in_block = np.array([results[neuron]['mean'] for neuron in neurons_in_block])
             mean_V_rest_over_block = np.mean(V_rests_in_block)
             for neuron in neurons_in_block:
