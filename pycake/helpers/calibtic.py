@@ -202,7 +202,9 @@ class Calibtic(object):
     def get_calibration(self, coord, use_ideal=False):
         """ Returns NeuronCalibration or SharedCalibration object for one coordinate.
 
-            If a collection is not found und use_ideal is set to True, returns ideal calibration
+            If a collection is not found und use_ideal is set to True, returns an ideal calibration
+            This is turned off by default.
+            If no calibration is found for a coordinate, it returns an empty calibration.
         """
         if not self._loaded:
             self._load_calibration()
@@ -210,18 +212,24 @@ class Calibtic(object):
 
         if isinstance(coord, Coordinate.FGBlockOnHICANN):
             collection = self.bc
+            calibration = pycalibtic.SharedCalibration
         else:
             collection = self.nc
+            calibration = pycalibtic.NeuronCalibration
 
         if collection.exists(c_id) and not use_ideal:
             self.logger.TRACE("Found Calibration for {}".format(coord))
             return collection.at(c_id)
-        else:
+        elif use_ideal:
             self.logger.WARN("No calibration dataset found for {}. Returning ideal calibration.".format(coord))
             if isinstance(coord, Coordinate.FGBlockOnHICANN):
                 return self.ideal_bc.at(c_id)
             else:
                 return self.ideal_nc.at(c_id)
+        else:
+            # return empty calibration if none exists
+            self.logger.WARN("No calibration dataset found for {}. Returning empty calibration".format(coord))
+            return calibration()
 
     def get_readout_shift(self, neuron):
         """
