@@ -485,6 +485,8 @@ class I_pl_Calibrator(BaseCalibrator):
         return pycalibtic.OneOverPolynomial
 
 class readout_shift_Calibrator(BaseCalibrator):
+    target_parameter = 'readout_shift'
+
     def __init__(self, experiments, config):
         super(readout_shift_Calibrator, self).__init__(experiments, config)
 
