@@ -63,9 +63,11 @@ class CalibrationUnit(object):
             if measured:
                 self.save()
 
-        self.logger.INFO("Fitting result data for {}".format(self.name))
         calibrator = self.get_calibrator()
-        self.result = calibrator.generate_coeffs()
+        if calibrator.target_parameter is not None:
+            self.logger.INFO("Fitting result data for {}".format(self.name))
+            self.result = calibrator.generate_coeffs()
+
         self.save()
 
     def generate_calibration_data(self, calibtic, redman):

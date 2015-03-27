@@ -124,6 +124,8 @@ class Measurement(object):
             elif isinstance(parameter, shared_parameter):
                 block = neuron.toSharedFGBlockOnHICANN()
                 values.append(fgs.getShared(block, parameter))
+            elif parameter is None:
+                continue
             else:
                 raise TypeError("invalid parameter type {}".format(type(parameter)))
         return values
