@@ -586,6 +586,9 @@ class StHALContainer(object):
         self.firing_denmems = list(self.hicann.set_neuron_size(n))
         self.neuron_size = n
 
+    def get_neuron_size(self):
+        return self.neuron_size
+
 
 class SimStHALContainer(StHALContainer):
     """Contains StHAL objects for hardware access. Multiple experiments can
@@ -794,6 +797,9 @@ class SimStHALContainer(StHALContainer):
 
     def set_neuron_size(self, n):
         self.logger.ERROR("Neuron size other than 1 not supported! Using size 1")
+
+    def get_neuron_size(self):
+        return 1
 
     def switch_current_stimulus_and_output(self, coord_neuron, l1address=None):
         def do_nothing(*args, **kwargs):
