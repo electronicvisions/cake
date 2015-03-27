@@ -176,8 +176,8 @@ parameters = {
                              neuron_parameter.E_syni:     Volt(E_syni_target, apply_calibration=True),
                              neuron_parameter.E_synx:     Volt(E_synx_target, apply_calibration=True),
                              neuron_parameter.I_gl:       Ampere(1e-9*1000, apply_calibration=True),
-                             neuron_parameter.V_syntcx: Volt(1.44),  # dummy
-                             neuron_parameter.V_syntci: Volt(1.44),  # dummy
+                             neuron_parameter.V_syntcx: Volt(1.44, apply_calibration=True),  # dummy
+                             neuron_parameter.V_syntci: Volt(1.44, apply_calibration=True),  # dummy
                              shared_parameter.V_reset:    Volt(.5, apply_calibration=True),
                              },
 
