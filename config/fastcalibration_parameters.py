@@ -64,7 +64,6 @@ parameters = {
     "run_V_syntci": False,
     "run_V_syntcx_psp_max": True,
     "run_V_syntci_psp_max": True,
-    "run_Spikes":   False,
 
 
     # Measurement runs twice by default: first to generate calibration data, and a second time to measure the success of calibration
@@ -271,8 +270,7 @@ parameters = {
                              neuron_parameter.I_pl.name,
                              neuron_parameter.V_syntcx.name,
                              neuron_parameter.V_syntci.name,
-                             neuron_parameter.E_l.name,
-                             "Spikes"
+                             neuron_parameter.E_l.name
                              ],
 }
 

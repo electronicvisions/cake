@@ -47,11 +47,6 @@ eval_parameters = {
         "run_V_t":      True,
         "run_I_gl":     False,
         "run_I_pl":     False,
-        "run_V_syntcx": False,
-        "run_V_syntci": False,
-        "run_V_syntci_psp_max": False,
-        "run_V_syntcx_psp_max": False,
-        "run_E_l_I_gl_fixed":  False,
         "run_Spikes" : False,
 
         # Measurement runs twice by default: first to generate calibration data, and a second time to measure the success of calibration
@@ -70,6 +65,16 @@ eval_parameters = {
             shared_parameter.V_reset:    Voltage(200, apply_calibration=True),
         },
 
+    # In which order should the parameters be evaluated?
+    "parameter_order": [shared_parameter.V_reset.name,
+                        neuron_parameter.E_syni.name,
+                        neuron_parameter.E_synx.name,
+                        neuron_parameter.E_l.name,
+                        neuron_parameter.V_t.name,
+                        neuron_parameter.I_gl.name,
+                        neuron_parameter.I_pl.name,
+                        "Spikes"
+                       ],
 
 }
 
