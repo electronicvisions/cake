@@ -37,7 +37,7 @@ eval_parameters = {
 
         "I_pl_range":   [{neuron_parameter.I_pl : Second(t)} for t in tau_refs],
 
-        "Spikes_range" : [{neuron_parameter.V_t : Volt(v)} for v in np.concatenate([[0.65, .66, .67], np.linspace(.68, .72, .011), [.73, .74, .75]])],
+        "Spikes_range" : [{neuron_parameter.V_t : Volt(v)} for v in np.concatenate([[0.65, .66, .67], np.linspace(.68, .72, 11), [.73, .74, .75]])],
 
         # How many repetitions?
         # Each repetition will take about 1 minute per step!
