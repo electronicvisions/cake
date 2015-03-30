@@ -35,7 +35,7 @@ class WorkerPool(object):
     def do(self, key, *args, **kwargs):
         if not self.is_alive():
             self.terminate()
-            raise RuntimeError("Worker process died unexpeted.")
+            raise RuntimeError("Worker process died unexpectedly.")
         self.q_in.put_nowait((key, args, kwargs))
 
     def join(self):
@@ -44,7 +44,7 @@ class WorkerPool(object):
         # TODO potential dead lock, if a worker or queue process dies unexpectedly
         if not self.is_alive():
             self.terminate()
-            raise RuntimeError("Worker process died unexpeted.")
+            raise RuntimeError("Worker process died unexpectedly.")
         self.q_in.join()
         self.q_in.close()
 
