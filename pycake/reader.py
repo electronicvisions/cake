@@ -115,8 +115,7 @@ class Reader(object):
         t = m.get_trace(neuron)
 
         if not t:
-            self.logger.WARN("missing trace for {} {} {}".format(parameter, neuron, step))
-            return None
+            raise KeyError("missing trace for {} {} {}".format(parameter, neuron, step))
 
         t_to_plot = [np.array(t[0][start:end])*1e6, t[1][start:end]]
 
