@@ -206,7 +206,7 @@ class Reader(object):
 
         return hist
 
-    def plot_result(self, parameter, key, neurons=None, yfactor=1000, mark_top_bottom=True, average=False, marker='o', **kwargs):
+    def plot_result(self, parameter, key, neurons=None, yfactor=1, mark_top_bottom=True, average=False, marker='o', **kwargs):
         import matplotlib.pyplot as plt
 
         fig = plt.figure()
