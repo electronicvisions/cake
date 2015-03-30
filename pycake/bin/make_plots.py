@@ -275,9 +275,9 @@ def trace(ylabel, reader, parameter, neuron, steps=None, start=0, end=-1, suffix
     plt.savefig(os.path.join(fig_dir,parameter+"_trace"+suffix+".pdf"))
     plt.savefig(os.path.join(fig_dir,parameter+"_trace"+suffix+".png"))
 
-def result(label, xlabel=None, ylabel=None, reader=None, suffix="", ylim=None, **reader_kwargs):
+def result(label, xlabel=None, ylabel=None, reader=None, suffix="", xlim=None, ylim=None, **reader_kwargs):
     """ label must have placeholder 'inout' for 'in' and 'out' x and y labels,
-        like: '$E_{{synx}}$ {inout} [mV]'
+        like: '$E_{{synx}}$ {inout} [V]'
     """
 
     if not reader: return
@@ -288,14 +288,19 @@ def result(label, xlabel=None, ylabel=None, reader=None, suffix="", ylim=None, *
 
         reader.include_defects = include_defects
 
-        fig = reader.plot_result(**reader_kwargs)
+        fig, plot = reader.plot_result(**reader_kwargs)
         plt.xlabel(xlabel if xlabel != None else label.format(inout="(in)"))
         plt.ylabel(ylabel if ylabel != None else label.format(inout="(out)"))
 
         plt.subplots_adjust(**margins)
 
+        if xlim:
+            plt.xlim(*xlim)
+
         if ylim:
             plt.ylim(*ylim)
+
+        plt.grid(True)
 
         defects_string = "with_defects" if include_defects else "without_defects"
 
@@ -352,7 +357,7 @@ if r_v_reset:
 
     trace("$V_{mem}$ [mV]", r_v_reset, "V_reset", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=2000, suffix="_uncalibrated")
 
-    result("$V_{{reset}}$ {inout} [mV]", reader=r_v_reset, parameter="V_reset",key="baseline",alpha=0.05)
+    result("$V_{{reset}}$ {inout} [V]", reader=r_v_reset, parameter="V_reset",key="baseline",alpha=0.05)
 
 r_test_v_reset = test_reader if args.v_reset_testrunner == None else Reader(args.v_reset_testrunner)
 
@@ -366,7 +371,7 @@ if r_test_v_reset:
                       range=(0.46,0.54),
                       show_legend=True)
 
-    trace("$V_{mem}$ [mV]", r_test_v_reset, "V_reset", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_calibrated")
+    trace("$V_{mem}$ [V]", r_test_v_reset, "V_reset", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_calibrated")
 
 ## E synx
 
@@ -382,9 +387,9 @@ if r_e_synx:
                       range=(0.55,0.99),
                       show_legend=False);
 
-    result("$E_{{synx}}$ {inout} [mV]", reader=r_e_synx, ylim=[500,1000], parameter="E_synx",key="mean",alpha=0.05)
+    result("$E_{{synx}}$ {inout} [V]", reader=r_e_synx, ylim=[0.5,1], parameter="E_synx",key="mean",alpha=0.05)
 
-    trace("$V_{mem}$ [mV]", r_e_synx, "E_synx", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_uncalibrated")
+    trace("$V_{mem}$ [V]", r_e_synx, "E_synx", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_uncalibrated")
 
 r_test_e_synx = test_reader if args.e_synx_testrunner == None else Reader(args.e_synx_testrunner)
 
@@ -398,9 +403,9 @@ if r_test_e_synx:
                     range=(0.55,0.95),
                     show_legend=True);
 
-    result("$E_{{synx}}$ {inout} [mV]", reader=r_test_e_synx, suffix="_calibrated", ylim=[500,1000], parameter="E_synx",key="mean",alpha=0.05)
+    result("$E_{{synx}}$ {inout} [V]", reader=r_test_e_synx, suffix="_calibrated", xlim=[0.55,0.85], ylim=[0.55,0.85], parameter="E_synx",key="mean",alpha=0.05)
 
-    trace("$V_{mem}$ [mV]", r_test_e_synx, "E_synx", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_calibrated")
+    trace("$V_{mem}$ [V]", r_test_e_synx, "E_synx", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_calibrated")
 
 #for k,v in r_test_e_synx.get_results("E_synx", r_test_e_synx.get_neurons(), "mean").iteritems():
 #        if v[0] < 0.78 or v[0] > 0.82:
@@ -420,9 +425,9 @@ if r_e_syni:
                       range=(0.4, 0.8),
                       show_legend=False);
 
-    result("$E_{{syni}}$ {inout} [mV]", reader=r_e_syni, ylim=[400,900], parameter="E_syni",key="mean",alpha=0.05)
+    result("$E_{{syni}}$ {inout} [V]", reader=r_e_syni, ylim=[0.4,0.9], parameter="E_syni",key="mean",alpha=0.05)
 
-    trace("$V_{mem}$ [mV]", r_e_syni, "E_syni", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_uncalibrated")
+    trace("$V_{mem}$ [V]", r_e_syni, "E_syni", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_uncalibrated")
 
 r_test_e_syni = test_reader if args.e_syni_testrunner == None else Reader(args.e_syni_testrunner)
 
@@ -436,9 +441,9 @@ if r_test_e_syni:
                     range=(0.55, 0.95),
                     show_legend=True);
 
-    result("$E_{{syni}}$ {inout} [mV]", reader=r_test_e_syni, suffix="_calibrated", ylim=[400,900], parameter="E_syni",key="mean",alpha=0.05)
+    result("$E_{{syni}}$ {inout} [V]", reader=r_test_e_syni, suffix="_calibrated", xlim=[0.55,0.85], ylim=[0.55,0.85], parameter="E_syni",key="mean",alpha=0.05)
 
-    trace("$V_{mem}$ [mV]", r_test_e_syni, "E_syni", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_calibrated")
+    trace("$V_{mem}$ [V]", r_test_e_syni, "E_syni", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_calibrated")
 
 ## E l
 
@@ -454,9 +459,9 @@ if r_e_l:
                       range=(0.5,1),
                       show_legend=False)
 
-    result("$E_{{l}}$ {inout} [mV]", reader=r_e_l, ylim=[400,900], parameter="E_l",key="mean",alpha=0.05)
+    result("$E_{{l}}$ {inout} [V]", reader=r_e_l, ylim=[0.4,0.9], parameter="E_l",key="mean",alpha=0.05)
 
-    trace("$V_{mem}$ [mV]", r_e_l, "E_l", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_uncalibrated")
+    trace("$V_{mem}$ [V]", r_e_l, "E_l", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_uncalibrated")
 
     """
 
@@ -490,7 +495,7 @@ if r_e_l:
         plt.plot(xs,np.array(polynomial(xs/1800.*1023.)*1800./1023.), label="Neuron {}".format(n.id().value()))
 
     plt.xlabel("Input [DAC]")
-    plt.ylabel("Output [mV]")
+    plt.ylabel("Output [V]")
     plt.subplots_adjust(**margins)
     plt.xlim(500,900)
     plt.ylim(500,900)
@@ -511,9 +516,9 @@ if r_test_e_l:
                     bins=100,
                     range=(0.6,0.8))
 
-    result("$E_{{l}}$ {inout} [mV]", reader=r_test_e_l, suffix="_calibrated", ylim=[400,900], parameter="E_l",key="mean",alpha=0.05)
+    result("$E_{{l}}$ {inout} [V]", reader=r_test_e_l, suffix="_calibrated", xlim=[0.6,0.8], ylim=[0.6,0.8], parameter="E_l",key="mean",alpha=0.05)
 
-    trace("$V_{mem}$ [mV]", r_test_e_l, "E_l", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_calibrated")
+    trace("$V_{mem}$ [V]", r_test_e_l, "E_l", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_calibrated")
 
 ## V t
 
@@ -528,9 +533,9 @@ if r_v_t:
                       bins=100,
                       range=(0.5,0.85))
 
-    result("$V_{{t}}$ {inout} [mV]", reader=r_v_t, ylim=[500,1000], parameter="V_t",key="max",alpha=0.05)
+    result("$V_{{t}}$ {inout} [V]", reader=r_v_t, ylim=[0.5,1], parameter="V_t",key="max",alpha=0.05)
 
-    trace("$V_{mem}$ [mV]", r_v_t, "V_t", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_uncalibrated")
+    trace("$V_{mem}$ [V]", r_v_t, "V_t", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_uncalibrated")
 
 r_test_v_t = test_reader if args.v_t_testrunner == None else Reader(args.v_t_testrunner)
 
@@ -555,9 +560,9 @@ if  r_test_v_t:
     #            print 0.8, k.id(), v[2]
     #            print
 
-    result("$V_{{t}}$ {inout} [mV]", reader=r_test_v_t, suffix="_calibrated", ylim=[500,1000], parameter="V_t",key="max",alpha=0.05)
+    result("$V_{{t}}$ {inout} [V]", reader=r_test_v_t, suffix="_calibrated", xlim=[0.65,0.85], ylim=[0.65,0.85], parameter="V_t",key="max",alpha=0.05)
 
-    trace("$V_{mem}$ [mV]", r_test_v_t, parameter="V_t", neuron=C.NeuronOnHICANN(C.Enum(args.neuron_enum)), start=500, end=700, suffix="_calibrated")
+    trace("$V_{mem}$ [V]", r_test_v_t, parameter="V_t", neuron=C.NeuronOnHICANN(C.Enum(args.neuron_enum)), start=500, end=700, suffix="_calibrated")
 
     #r_v_t.include_defects = False
 
@@ -706,7 +711,8 @@ if r_v_syntcx:
            key="std",
            mark_top_bottom=True,
            alpha=0.5,
-           marker="None")
+           marker="None",
+           yfactor=1000)
 
 
     trace("$V_{mem}$ [mV]", r_v_syntcx, "V_syntcx_psp_max", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=4000)
