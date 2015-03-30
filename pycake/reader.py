@@ -118,9 +118,11 @@ class Reader(object):
             self.logger.WARN("missing trace for {} {} {}".format(parameter, neuron, step))
             return None
 
-        p = plt.plot(np.array(t[0][start:end])*1e6, t[1][start:end])
+        t_to_plot = [np.array(t[0][start:end])*1e6, t[1][start:end]]
 
-        return p
+        p = plt.plot(*t_to_plot)
+
+        return p, t_to_plot
 
     def plot_hist(self, parameter, key, step, repetition=0, draw_target_line=True, **kwargs):
         import matplotlib.pyplot as plt
