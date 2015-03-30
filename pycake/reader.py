@@ -232,7 +232,7 @@ class Reader(object):
             colors = ['b','g']
             labels = ["top", "bottom"]
             [plt.plot(None,None,ls='-',marker=marker,c=c,label=l) for c,l in zip(colors,labels)]
-            plt.legend(labels)
+            plt.legend(labels, loc=2)
 
         for vertical, color in zip([C.Y(0), C.Y(1)], ['b', 'g']):
 
