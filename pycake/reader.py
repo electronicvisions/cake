@@ -128,7 +128,7 @@ class Reader(object):
         neurons = self.get_neurons()
         results = self.get_results(parameter, neurons, key, repetition)
         results_list = np.array(results.values())[:,step]
-        hist = plt.hist(results_list, label="{:.2f} +- {:.2f}, {}".format(np.mean(results_list), np.std(results_list), len(neurons)), **kwargs)
+        hist = plt.hist(results_list, label="{:.1f} +- {:.1f} mV, {}".format(np.mean(results_list)*1000, np.std(results_list)*1000, len(neurons)), **kwargs)
         config = self.runner.config.copy(parameter)
         step_valus = config.get_steps()[step]
         target_value = config.get_steps()[step]
