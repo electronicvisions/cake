@@ -256,12 +256,19 @@ def trace(ylabel, reader, parameter, neuron, steps=None, start=0, end=-1, suffix
     if steps == None:
         steps = range(len(e.measurements))
 
+    t = None
+
     for step in steps:
 
-        reader.plot_trace(parameter, neuron, step, start, end)
+        try:
+            p, t = reader.plot_trace(parameter, neuron, step, start, end)
+        except KeyError as e:
+            logger.WARN(e)
+            continue
 
     plt.grid(True)
-
+    if t:
+        plt.xlim(t[0][0], t[0][-1])
     plt.xlabel("t [$\mu$s]")
     plt.ylabel(ylabel)
     plt.subplots_adjust(**margins)
