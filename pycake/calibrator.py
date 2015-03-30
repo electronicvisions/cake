@@ -11,6 +11,24 @@ import Coordinate
 import pycalibtic
 from pycake.helpers.calibtic import create_pycalibtic_transformation
 
+def is_defect_potential(slope, offset, slope_from_one=1, offset_cut=100):
+    """
+
+    returns true if slope is not close to one or offset is too large
+    assuming that a trivial V = slope*DAC/1023*1.8 + offset transformation holds
+
+    slope: DAC/Volt
+    offset: DAC
+
+    """
+
+    slope_not_close_to_one = (slope/1023.*1.8 - 1) > slope_from_one
+    offset_too_large = abs(offset) > offset_cut
+
+    defect =  slope_not_close_to_one or offset_too_large
+
+    return defect
+
 class BaseCalibrator(object):
     """ Takes experiments and a target parameter and turns this into calibration data via a linear fit.
         Does NOT save any data.
@@ -188,11 +206,8 @@ class E_synx_Calibrator(BaseCalibrator):
     def get_domain(self, data):
         return [0,1.8]
 
-    #def is_defect(self, coeffs):
-    #    # Defect if slope of the fit is too high or offset is significantly positive
-    #    defect = (abs(coeffs[0]) - 1) > 1 or abs(coeffs[1]) > 100
-    #    return defect
-
+    def is_defect(self, coeffs):
+        return is_defect_potential(coeffs[1], coeffs[0])
 
 class E_syni_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.E_syni
@@ -200,20 +215,12 @@ class E_syni_Calibrator(BaseCalibrator):
     def get_domain(self, data):
         return [0,1.8]
 
-    #def is_defect(self, coeffs):
-    #    # Defect if slope of the fit is too high
-    #    defect = (abs(coeffs[0]) - 1) > 1 or abs(coeffs[1]) > 100
-    #    return defect
-
+    def is_defect(self, coeffs):
+        return is_defect_potential(coeffs[1], coeffs[0])
 
 class E_l_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.E_l
 
-    """
-    def is_defect(self, coeffs):
-        defect = (coeffs[0] - 1) > 1 # Defect if slope of the fit is too high
-        return defect
-    """
     def get_domain(self, data):
         return [0,1.8]
 
@@ -234,6 +241,9 @@ class V_t_Calibrator(BaseCalibrator):
 
     def get_domain(self, data):
         return [0,1.8]
+
+    def is_defect(self, coeffs):
+        return is_defect_potential(coeffs[1], coeffs[0])
 
 class I_gl_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.I_gl
