@@ -9,7 +9,7 @@ neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
 
 class E_l_I_gl_fixed_Calibrator(object):
-    target_parameters = (neuron_parameter.E_l, neuron_parameter.I_gl)
+    target_parameter = neuron_parameter.I_gl
 
     def __init__(self, experiment, config):
         self.experiment = experiment
