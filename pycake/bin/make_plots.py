@@ -368,7 +368,7 @@ if r_test_v_reset:
                       parameter="V_reset",
                       key="baseline",
                       bins=100,
-                      range=(0.46,0.54),
+                      range=(0.4,0.6),
                       show_legend=True)
 
     trace("$V_{mem}$ [V]", r_test_v_reset, "V_reset", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_calibrated")
@@ -384,7 +384,7 @@ if r_e_synx:
                       parameter="E_synx",
                       key="mean",
                       bins=100,
-                      range=(0.55,0.99),
+                      range=(0.55,0.95),
                       show_legend=False);
 
     result("$E_{{synx}}$ {inout} [V]", reader=r_e_synx, ylim=[0.5,1], parameter="E_synx",key="mean",alpha=0.05)
@@ -400,7 +400,7 @@ if r_test_e_synx:
                     parameter="E_synx",
                     key="mean",
                     bins=100,
-                    range=(0.55,0.95),
+                    range=(0.55,0.85),
                     show_legend=True);
 
     result("$E_{{synx}}$ {inout} [V]", reader=r_test_e_synx, suffix="_calibrated", xlim=[0.55,0.85], ylim=[0.55,0.85], parameter="E_synx",key="mean",alpha=0.05)
@@ -422,7 +422,7 @@ if r_e_syni:
                       parameter="E_syni",
                       key="mean",
                       bins=100,
-                      range=(0.4, 0.8),
+                      range=(0.4, 0.9),
                       show_legend=False);
 
     result("$E_{{syni}}$ {inout} [V]", reader=r_e_syni, ylim=[0.4,0.9], parameter="E_syni",key="mean",alpha=0.05)
@@ -438,7 +438,7 @@ if r_test_e_syni:
                     parameter="E_syni",
                     key="mean",
                     bins=100,
-                    range=(0.55, 0.95),
+                    range=(0.55, 0.85),
                     show_legend=True);
 
     result("$E_{{syni}}$ {inout} [V]", reader=r_test_e_syni, suffix="_calibrated", xlim=[0.55,0.85], ylim=[0.55,0.85], parameter="E_syni",key="mean",alpha=0.05)
@@ -456,7 +456,7 @@ if r_e_l:
                       parameter="E_l",
                       key="mean",
                       bins=100,
-                      range=(0.5,1),
+                      range=(0.45,0.9),
                       show_legend=False)
 
     result("$E_{{l}}$ {inout} [V]", reader=r_e_l, ylim=[0.4,0.9], parameter="E_l",key="mean",alpha=0.05)
@@ -531,7 +531,7 @@ if r_v_t:
                       parameter="V_t",
                       key="max",
                       bins=100,
-                      range=(0.5,0.85))
+                      range=(0.5,1))
 
     result("$V_{{t}}$ {inout} [V]", reader=r_v_t, ylim=[0.5,1], parameter="V_t",key="max",alpha=0.05)
 
