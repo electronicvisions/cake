@@ -246,7 +246,7 @@ class Reader(object):
 
                 for step, step_value in enumerate(config.get_steps()):
 
-                    xs.append(step_value.values()[0].value)
+                    xs.append(step_value.values()[0].toDAC().value)
 
                     if yfactor != 1:
                         ys_tmp = (np.array(results.values())*yfactor)[:,step]
