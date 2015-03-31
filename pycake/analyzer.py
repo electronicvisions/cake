@@ -369,6 +369,8 @@ class ISI_Analyzer(Analyzer):
 
     Refractory time is measured as difference between ISI with and without refractory
     period.
+
+    Please note that mean_reset_time only gives valid results if refractory period is very small
     """
 
     def __call__(self, neuron, t, v, **traces):
@@ -384,9 +386,14 @@ class ISI_Analyzer(Analyzer):
         mean_min = np.mean(mintab[:,1])
         amplitude = mean_max - mean_min
 
+        dt = np.mean(t[1:] - t[:-1])
+        l = len(mintab)
+        mean_reset_time = abs(np.mean(mintab[:,0][:l] - maxtab[:,0][:l]) * dt)
+
         return {"mean_isi": mean_isi,
                 "std_isi": std_isi,
                 "amplitude": amplitude,
+                "mean_reset_time": mean_reset_time
                 }
 
 
