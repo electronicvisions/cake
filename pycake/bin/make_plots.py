@@ -39,14 +39,15 @@ pylogging.default_config(date_format='absolute')
 
 logger = pylogging.get("pycake.make_plots")
 
-pylogging.set_loglevel(pylogging.get("pycake.make_plots"), pylogging.LogLevel.INFO)
-pylogging.set_loglevel(pylogging.get("pycake.reader"), pylogging.LogLevel.INFO)
+pylogging.set_loglevel(pylogging.get("pycake.make_plots"), pylogging.LogLevel.TRACE)
+pylogging.set_loglevel(pylogging.get("pycake.reader"), pylogging.LogLevel.TRACE)
+pylogging.set_loglevel(pylogging.get("pycake.calibrationrunner"), pylogging.LogLevel.TRACE)
 
 font = {#'family' : 'normal',
         #'weight' : 'bold',
         'size'   : 12}
 matplotlib.rc('font', **font)
-margins={"left":0.11, "right":0.95, "top":0.95, "bottom":0.11}
+margins={"left":0.1, "right":0.95, "top":0.95, "bottom":0.08}
 
 parser = argparse.ArgumentParser()
 parser.add_argument("runner", help="path of calibration runner directory (can be empty)")
