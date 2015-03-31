@@ -425,6 +425,19 @@ class I_pl_Calibrator(BaseCalibrator):
         # return 'unzipped' results, e.g.: (100,0.1),(200,0.2) -> (100,200), (0.1,0.2)
         return zip(*np.concatenate(results))
 
+    def get_tau_refs(self, neuron):
+        """ Uses the measured results to calculate refractory periods.
+            Returns: taus, I_pls
+        """
+        # Need to switch y and x in order to get the right fit
+        # (y-axis: configured parameter, x-axis: measurement)
+        ys_raw, xs_raw, amplitudes, mean_reset_times = self.get_merged_results(neuron, ['mean_isi', 'amplitude', 'mean_reset_time'])
+        I_pls = self.prepare_y(ys_raw)
+        tau0_indices = np.array(I_pls) == 1023
+        if len(tau0_indices) is 0:
+                raise("No I_pl=2.5 uA measurement done. Cannot calculate tau_ref!")
+        taus = self.prepare_x(xs_raw, amplitudes, tau0_indices, mean_reset_times)
+        return taus, I_pls
     def generate_transformations(self):
         """ Takes averaged experiments and does the fits
         """
@@ -432,14 +445,7 @@ class I_pl_Calibrator(BaseCalibrator):
         trafo_type = self.get_trafo_type()
 
         for neuron in self.get_neurons():
-            # Need to switch y and x in order to get the right fit
-            # (y-axis: configured parameter, x-axis: measurement)
-            ys_raw, xs_raw, amplitudes = self.get_merged_results(neuron, ['mean_isi', 'amplitude'])
-            tau0_indices = np.array(ys_raw) == 1023
-            ys = self.prepare_y(ys_raw, tau0_indices)
-            if len(tau0_indices) is 0:
-                raise("No I_pl=2.5 uA measurement done. Cannot calculate tau_ref!")
-            xs = self.prepare_x(xs_raw, amplitudes, tau0_indices)
+            xs, ys = self.get_tau_refs(neuron)
             # Extract function coefficients and domain from measured data
             coeffs = self.do_fit(xs, ys)
             coeffs = coeffs[::-1] # coeffs are reversed in calibtic transformations
@@ -449,7 +455,7 @@ class I_pl_Calibrator(BaseCalibrator):
                 transformations[neuron] = None
         return [(self.target_parameter, transformations)]
 
-    def prepare_x(self, x, amplitudes, tau0_indices):
+    def prepare_x(self, x, amplitudes, tau0_indices, mean_reset_times):
         """ Prepares x values for fit
             Here, the refractory period needs to be calculated from dt of spikes.
             tau_ref is calculated via ISI_n - ISI_0, where ISI_0 is the mean ISI of
@@ -459,33 +465,36 @@ class I_pl_Calibrator(BaseCalibrator):
         """
         x = np.array(x)
         amplitudes = np.array(amplitudes)
-        tau0 = np.mean(x[tau0_indices])
+        mean_reset_times = np.array(mean_reset_times)
+        ISI0 = np.mean(x[tau0_indices])
+        tau0 = np.mean(mean_reset_times[tau0_indices])
         mean_amp0 = np.mean(amplitudes[tau0_indices])
-        tau0amps = amplitudes * tau0/mean_amp0
-        tau_refracs = x - tau0amps
+        # Correct ISI0 for amplitude differences
+        corrected_ISI0 = ISI0 * amplitudes/mean_amp0
+        tau_refracs = x - corrected_ISI0 + tau0
+        #tau_refracs = x - ISI0 + tau0
         tau_ref_indices = tau0_indices == False
-        return tau_refracs[tau_ref_indices]
+        return np.concatenate([tau_refracs[tau_ref_indices], [tau0]])
 
-    def prepare_y(self, y, tau0_indices):
+    def prepare_y(self, y):
         """ Prepares y values for fit
             Per default, these are the step (DAC) values that were set.
         """
         ys = np.array(y)
-        tau_ref_indices = tau0_indices == False
-        return ys[tau_ref_indices]
+        return ys
 
     def get_domain(self, data):
-        # assume up to 20% higher possible domain than max measured value
-        return [0, max(data) * 1.20]
-
+        # assume a little larger possible domain than max measured value
+        return [min(data), max(data)*1.1]
     def do_fit(self, xs, ys):
         """ Fits a curve to results of one neuron
-            For I_pl, the function is I_pl_DAC = 1/(a*tau + 1/1023.)
+            For I_pl, the function is such that the minimum x always returns 1023 DAC
+            --> I_pl = 1/(a * x - a * min(x) + 1/1023.)
         """
         def func(x, a):
-            return 1/(a*x + 1/1023.)
+            return 1/(a*x - a*min(xs) + 1/1023.)
         fit_coeffs = curve_fit(func, xs, ys, [0.025e6])[0]
-        fit_coeffs = [fit_coeffs[0], 1/1023.]
+        fit_coeffs = [fit_coeffs[0], 1/1023. - fit_coeffs[0] * min(xs)]
         return fit_coeffs
 
     def get_trafo_type(self):
