@@ -354,7 +354,7 @@ if r_v_reset:
                       key="baseline",
                       bins=100,
                       range=(0.4,0.8),
-                      show_legend=False)
+                      show_legend=True)
 
     trace("$V_{mem}$ [mV]", r_v_reset, "V_reset", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=2000, suffix="_uncalibrated")
 
@@ -386,7 +386,7 @@ if r_e_synx:
                       key="mean",
                       bins=100,
                       range=(0.55,0.95),
-                      show_legend=False);
+                      show_legend=True);
 
     result("$E_{{synx}}$ {inout}", reader=r_e_synx, ylim=[0.5,1], parameter="E_synx",key="mean",alpha=0.05)
 
@@ -424,7 +424,7 @@ if r_e_syni:
                       key="mean",
                       bins=100,
                       range=(0.4, 0.9),
-                      show_legend=False);
+                      show_legend=True);
 
     result("$E_{{syni}}$ {inout}", reader=r_e_syni, ylim=[0.4,0.9], parameter="E_syni",key="mean",alpha=0.05)
 
@@ -458,7 +458,7 @@ if r_e_l:
                       key="mean",
                       bins=100,
                       range=(0.45,0.9),
-                      show_legend=False)
+                      show_legend=True)
 
     result("$E_{{l}}$ {inout}", reader=r_e_l, ylim=[0.4,0.9], parameter="E_l",key="mean",alpha=0.05)
 
@@ -532,7 +532,8 @@ if r_v_t:
                       parameter="V_t",
                       key="max",
                       bins=100,
-                      range=(0.5,1))
+                      range=(0.5,1),
+                      show_legend=True)
 
     result("$V_{{t}}$ {inout}", reader=r_v_t, ylim=[0.5,1], parameter="V_t",key="max",alpha=0.05)
 
