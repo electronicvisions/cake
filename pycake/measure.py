@@ -47,7 +47,7 @@ class Measurement(object):
         # readout_shifter(neuron, trace)
         self.sthal = sthal
         self.neurons = neurons
-        self.time_created = time.time()
+        self.time_created = time.asctime()
         self.traces = None
         self.done = False
 
