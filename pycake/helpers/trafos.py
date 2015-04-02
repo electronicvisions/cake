@@ -115,10 +115,10 @@ def DACtoHC(value, parameter):
         Return:
             hardware value
     """
-    if parameter in voltage_params:
+    if isVoltageParameter(parameter):
         return value * 1.8/1023.
-    elif parameter in current_params:
-        return value * 2500./1023.
+    elif isCurrentParameter(parameter):
+        return value * 2500/1023.
 
 def BiotoHW(value, parameter):
     if parameter in voltage_params:
