@@ -16,6 +16,7 @@ from pycake.measure import I_gl_Measurement
 from pycake.experiment import SequentialExperiment
 import pycake.analyzer
 from pycake.helpers.units import Unit, Ampere, Volt, DAC
+from pycake.helpers.trafos import DACtoHW
 
 # shorter names
 Enum = Coordinate.Enum
@@ -282,7 +283,11 @@ class I_pl_Experimentbuilder(BaseExperimentBuilder):
 
     To be used with hardware."""
     def prepare_specific_config(self, sthal):
-        sthal.recording_time = 1e-3
+        I_pl_DAC = sthal.get_neuron_parameter(Coordinate.NeuronOnHICANN(Enum(0)), neuron_parameter.I_pl)
+        expected_ISI = DACtoHW(I_pl_DAC, neuron_parameter.I_pl) + 1e-8 # estimate 1e-8 as minimum ISI
+        # Record at least 50 but not more than 5000 microseconds
+        # If errors occur during calibration, these values need to be tuned
+        sthal.recording_time = max(50e-6, min([expected_ISI * 70, 5e-4]))
         sthal.maximum_spikes = 10
         return sthal
 
