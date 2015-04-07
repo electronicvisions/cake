@@ -78,6 +78,9 @@ parser.add_argument("--v_syntcx_testrunner", help="path to V syntcx test runner 
 parser.add_argument("--v_syntci_runner", help="path to V syntci runner (if different from 'runner')", default=None)
 parser.add_argument("--v_syntci_testrunner", help="path to V syntci test runner (if different from 'testrunner')", default=None)
 
+parser.add_argument("--tau_ref_runner", help="path to tau ref runner (if different from 'runner')", default=None)
+parser.add_argument("--tau_ref_testrunner", help="path to tau ref test runner (if different from 'testrunner')", default=None)
+
 parser.add_argument("--spikes_testrunner", help="path to spikes test runner (if different from 'testrunner')", default=None)
 
 parser.add_argument("--neuron_enum", help="neuron used for plots", default=0, type=int)
@@ -872,6 +875,40 @@ if r_test_spikes:
                                                    defects_string,
                                                    "result_calibrated.png"])))
 
+
+## tau ref
+
+r_tau_ref = reader if args.tau_ref_runner == None else Reader(args.tau_ref_runner)
+
+if r_tau_ref:
+
+    uncalibrated_hist(r"$\tau_{ref}$ [$\mu$s]",
+                      r_tau_ref,
+                      parameter="I_pl",
+                      key="tau_ref",
+                      bins=100,
+                      range=(0.1e-7,5e-6),
+                      show_legend=True)
+
+    result(r"$\tau_{{ref}}$ {inout}", reader=r_tau_ref, parameter="I_pl", key="tau_ref", alpha=0.05)
+
+    #trace("$V_{mem}$ [V]", r_tau_ref, "tau_ref", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_uncalibrated")
+
+r_test_tau_ref = test_reader if args.tau_ref_testrunner == None else Reader(args.tau_ref_testrunner)
+
+if  r_test_tau_ref:
+
+    calibrated_hist(r"$\tau_{ref}$ [$\mu$s]",
+                    r_test_tau_ref,
+                    parameter="I_pl",
+                    key="tau_ref",
+                    bins=100,
+                    range=(0.1e-7,5e-6),
+                    show_legend=True)
+
+    result(r"$\tau_{{ref}}$ {inout}", reader=r_test_tau_ref, suffix="_calibrated", parameter="I_pl", key="tau_ref", alpha=0.05)
+
+    #trace("$V_{mem}$ [V]", r_test_tau_ref, parameter="tau_ref", neuron=C.NeuronOnHICANN(C.Enum(args.neuron_enum)), start=500, end=700, suffix="_calibrated")
 
 exit(0)
 

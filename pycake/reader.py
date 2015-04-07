@@ -7,6 +7,7 @@ import Coordinate as C
 import pyhalbe
 from operator import itemgetter
 from helpers.misc import load_pickled_file
+from pycake.helpers.units import Second
 
 class Reader(object):
     def __init__(self, runner, include_defects = True):
@@ -250,7 +251,11 @@ class Reader(object):
 
                 for step, step_value in enumerate(config.get_steps()):
 
-                    xs.append(step_value.values()[0].toDAC().value)
+                    val = step_value.values()[0]
+                    if not isinstance(val, Second):
+                        xs.append(val.toDAC().value)
+                    else:
+                        xs.append(val.value)
 
                     if yfactor != 1:
                         ys_tmp = (np.array(results.values())*yfactor)[:,step]
