@@ -119,12 +119,10 @@ if args.logfile is not None:
 
 config = load_config(args)
 
-runner = CalibrationRunner(config)
-
-if runner.config.get_run_calibration():
+if config.get_run_calibration():
+    runner = CalibrationRunner(config)
     runner.run_calibration()
 
-test_runner = TestRunner(config)
-
-if test_runner.config.get_run_test():
+if config.get_run_test():
+    test_runner = TestRunner(config)
     test_runner.run_calibration()
