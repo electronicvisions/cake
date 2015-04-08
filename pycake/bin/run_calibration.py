@@ -24,6 +24,7 @@ class DictionaryAction(argparse.Action):
         'float': float,
         'int': int,
         'string': str,
+        'bool' : bool
     }
     METAVAR = ('<key>', '<type>', '<value>')
 
