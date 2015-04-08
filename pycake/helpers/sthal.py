@@ -267,7 +267,7 @@ class StHALContainer(object):
         self.logger.error(msg)
         raise RuntimeError(msg)
 
-    def switch_analog_output(self, coord_neuron, l1address=None):
+    def switch_analog_output(self, coord_neuron, enable_firing=True, l1address=None):
         """Write analog output configuration (only).
            If l1address is None, l1 output is disabled.
 
@@ -278,7 +278,10 @@ class StHALContainer(object):
         """
         self.hicann.disable_aout()
         self.hicann.disable_l1_output()
+        self.hicann.disable_firing()
         self.hicann.disable_current_stimulus()
+        if enable_firing:
+            self.hicann.enable_firing(coord_neuron)
         if not self.wafer_cfg and l1address is not None:
             self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(l1address))
         self.hicann.enable_aout(coord_neuron, self.coord_analog)
@@ -556,16 +559,23 @@ class StHALContainer(object):
 
         return (pulse_length+1)*4 * stim_length / self.getPLL()
 
-    def switch_current_stimulus_and_output(self, coord_neuron, l1address=None):
+    def switch_current_stimulus_and_output(self, coord_neuron, enable_firing=True, l1address=None):
         """ Switches the current stimulus and analog output to a certain neuron.
             To avoid invalid neuron configurations (see HICANN doc page 33),
             all aouts and current stimuli are disabled before enabling them for
-            one neuron."""
+            one neuron. Firing of all neuron is also deactivated. Only the firing
+            mechanism of the chosen neuron is activated if l1address is not None."""
         if not self._connected:
             self.connect()
+        # disable everything
         self.hicann.disable_aout()
+        self.hicann.disable_firing()
         self.hicann.disable_current_stimulus()
+        self.hicann.disable_l1_output()
+        # now enable this neuron
         self.hicann.enable_current_stimulus(coord_neuron)
+        if enable_firing:
+            self.hicann.enable_firing(coord_neuron)
         if not l1address is None:
             self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(l1address))
         self.hicann.enable_aout(coord_neuron, self.coord_analog)

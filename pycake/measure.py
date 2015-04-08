@@ -484,10 +484,10 @@ class I_gl_Measurement(ADCMeasurement):
     def pre_measure(self, neuron, current, stim_length=65):
         if current is None:
             # No firing activated
-            self.sthal.switch_analog_output(neuron, l1address=None)
+            self.sthal.switch_analog_output(neuron, enable_firing=False, l1address=None)
         else:
             self.sthal.set_current_stimulus(int(current), stim_length)
-            self.sthal.switch_current_stimulus_and_output(neuron, l1address=None)
+            self.sthal.switch_current_stimulus_and_output(neuron, enable_firing=False, l1address=None)
 
 
 class I_gl_Measurement_multiple_currents(I_gl_Measurement):
