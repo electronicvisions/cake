@@ -412,30 +412,11 @@ class V_convoffx_Calibrator(V_convoff_Calibrator):
 class I_pl_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.I_pl
 
-    def get_key(self):
-        return 'mean_isi'
-
-    def get_merged_results(self, neuron, key):
-        """ Return all parameters and results from all experiments for one neuron.
-            This does not average over experiments.
+    def get_tau0(self, neuron):
+        """ Returns the mean of measured tau0s of all experiments
         """
-        results = []
-        for ex in self.experiments:
-            results.append(ex.get_parameters_and_results(neuron, [self.target_parameter], key))
-        # return 'unzipped' results, e.g.: (100,0.1),(200,0.2) -> (100,200), (0.1,0.2)
-        return zip(*np.concatenate(results))
+        return np.mean([e.initial_data[neuron]['mean_reset_time'] for e in self.experiments])
 
-    def get_tau_refs(self, neuron):
-        """ Uses the measured results to calculate refractory periods.
-            Returns: taus, I_pls
-        """
-        # Need to switch y and x in order to get the right fit
-        # (y-axis: configured parameter, x-axis: measurement)
-        ys_raw, xs_raw, amplitudes, mean_reset_times = self.get_merged_results(neuron, ['mean_isi', 'amplitude', 'mean_reset_time'])
-        I_pls = self.prepare_y(ys_raw)
-        assert(I_pls[-1] == 1023), "The last I_pl step must be 1023 DAC."
-        taus = self.prepare_x(xs_raw, amplitudes, mean_reset_times)
-        return taus, I_pls
 
     def generate_transformations(self):
         """ Takes averaged experiments and does the fits
@@ -444,53 +425,33 @@ class I_pl_Calibrator(BaseCalibrator):
         trafo_type = self.get_trafo_type()
 
         for neuron in self.get_neurons():
-            xs, ys = self.get_tau_refs(neuron)
+            # Need to switch y and x in order to get the right fit
+            # (y-axis: configured parameter, x-axis: measurement)
+            ys_raw, xs_raw = self.get_merged_results(neuron)
+            xs = self.prepare_x(xs_raw)
+            ys = self.prepare_y(ys_raw)
+            tau0 = self.get_tau0(neuron)
             # Extract function coefficients and domain from measured data
-            coeffs = self.do_fit(xs, ys)
+            coeffs = self.do_fit(xs, ys, tau0)
             coeffs = coeffs[::-1] # coeffs are reversed in calibtic transformations
-            domain = self.get_domain(xs)
+            domain = [tau0, max(xs)*1.1] # domain slightly larger than max value
             transformations[neuron] = create_pycalibtic_transformation(coeffs, domain, trafo_type)
             if self.is_defect(coeffs):
                 transformations[neuron] = None
         return [(self.target_parameter, transformations)]
 
-    def prepare_x(self, x, amplitudes, mean_reset_times):
-        """ Prepares x values for fit
-            Here, the refractory period needs to be calculated from dt of spikes.
-            tau_ref is calculated via ISI_n - ISI_0, where ISI_0 is the mean ISI of
-            all measurements with I_pl = 1023 DAC. Correction for amplitude variations
-            are also done, resulting the final calculation of tau_ref for step n:
-                tau_ref_n = ISI_n - amplitude_n / amplitude_0 * ISI_0
-        """
-        x = numpy.array(x)
-        amplitudes = numpy.array(amplitudes)
-        mean_reset_times = numpy.array(mean_reset_times)
-        tau0 = mean_reset_times[-1]
-        # Correct ISI0 for spike amplitude differences
-        corrected_ISI0 = x[-1] * amplitudes/amplitudes[-1]
-        #tau_refracs = x - ISI0 + tau0
-        tau_refracs = x - corrected_ISI0 + tau0
-        return tau_refracs
+    def get_key(self):
+        return 'tau_ref'
 
-    def prepare_y(self, y):
-        """ Prepares y values for fit
-            Per default, these are the step (DAC) values that were set.
-        """
-        ys = np.array(y)
-        return ys
-
-    def get_domain(self, data):
-        # assume a little larger possible domain than max measured value
-        return [min(data), max(data)*1.1]
-    def do_fit(self, xs, ys):
+    def do_fit(self, xs, ys, tau0):
         """ Fits a curve to results of one neuron
             For I_pl, the function is such that the minimum x always returns 1023 DAC
             --> I_pl = 1/(a * x - a * min(x) + 1/1023.)
         """
         def func(x, a):
-            return 1/(a*x - a*min(xs) + 1/1023.)
+            return 1/(a*x - a*tau0 + 1/1023.)
         fit_coeffs = curve_fit(func, xs, ys, [0.025e6])[0]
-        fit_coeffs = [fit_coeffs[0], 1/1023. - fit_coeffs[0] * min(xs)]
+        fit_coeffs = [fit_coeffs[0], 1/1023. - fit_coeffs[0] * tau0]
         return fit_coeffs
 
     def get_trafo_type(self):

@@ -4,6 +4,8 @@ import numpy
 import copy
 import os
 
+from pyhalbe.HICANN import neuron_parameter
+
 class Experiment(object):
     """Base class for running experiments
 
@@ -234,6 +236,40 @@ class SequentialExperiment(Experiment):
             state['initial_measurements'] = []
         self.__dict__.update(state)
 
+
+class I_pl_Experiment(SequentialExperiment):
+    """ I_pl experiment uses post-processing to calculate tau_ref results.
+        Otherwise, it does the same as SequentialExperiment
+    """
+    def get_tau_refs(self, neuron):
+        """ Uses the measured results to calculate refractory periods.
+            Returns: taus, I_pls
+        """
+        # Need to switch y and x in order to get the right fit
+        # (y-axis: configured parameter, x-axis: measurement)
+        ys_raw, xs_raw, amplitudes, mean_reset_times = self.get_merged_results(neuron, ['mean_isi', 'amplitude', 'mean_reset_time'])
+        I_pls = self.prepare_y(ys_raw)
+        assert(I_pls[-1] == 1023), "The last I_pl step must be 1023 DAC."
+        taus = self.prepare_x(xs_raw, amplitudes, mean_reset_times)
+        return taus, I_pls
+
+    def prepare_x(self, x, amplitudes, mean_reset_times):
+        """ Prepares x values for fit
+            Here, the refractory period needs to be calculated from dt of spikes.
+            tau_ref is calculated via ISI_n - ISI_0, where ISI_0 is the mean ISI of
+            all measurements with I_pl = 1023 DAC. Correction for amplitude variations
+            are also done, resulting the final calculation of tau_ref for step n:
+                tau_ref_n = ISI_n - amplitude_n / amplitude_0 * ISI_0
+        """
+        x = numpy.array(x)
+        amplitudes = numpy.array(amplitudes)
+        mean_reset_times = numpy.array(mean_reset_times)
+        tau0 = mean_reset_times[-1]
+        # Correct ISI0 for spike amplitude differences
+        corrected_ISI0 = x[-1] * amplitudes/amplitudes[-1]
+        #tau_refracs = x - ISI0 + tau0
+        tau_refracs = x - corrected_ISI0 + tau0
+        return tau_refracs
 
 # Compatibility for old pickels
 BaseExperiment = SequentialExperiment

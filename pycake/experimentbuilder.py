@@ -13,7 +13,7 @@ from pycake.measure import ADCMeasurement
 from pycake.measure import ADCMeasurementWithSpikes
 from pycake.measure import SpikeMeasurement
 from pycake.measure import I_gl_Measurement
-from pycake.experiment import SequentialExperiment
+from pycake.experiment import SequentialExperiment, I_pl_Experiment
 import pycake.analyzer
 from pycake.helpers.units import Unit, Ampere, Volt, DAC
 from pycake.helpers.trafos import DACtoHW
@@ -297,8 +297,44 @@ class I_pl_Experimentbuilder(BaseExperimentBuilder):
 
     def get_analyzer(self):
         "get analyzer"
-        return pycake.analyzer.ISI_Analyzer()
+        return pycake.analyzer.I_pl_Analyzer()
 
+    def get_experiment(self):
+        """
+        """
+        measurements, repetitions = self.generate_measurements()
+        analyzer = self.get_analyzer()
+        experiment = I_pl_Experiment(measurements, analyzer, repetitions)
+        experiment = self.add_additional_measurements(experiment)
+        return experiment
+
+    def add_additional_measurements(self, experiment):
+        """ Add the initial measurement to I_gl experiment.
+            This measurement determines the ADC frequency needed for the TraceAverager
+        """
+        coord_wafer, coord_hicann = self.config.get_coordinates()
+        steps = self.config.get_steps()
+        readout_shifts = self.get_readout_shifts(self.neurons)
+        wafer_cfg = self.config.get_wafer_cfg()
+        PLL = self.config.get_PLL()
+        sthal = StHALContainer(
+            coord_wafer, coord_hicann, wafer_cfg=wafer_cfg, PLL=PLL)
+        sthal.set_bigcap(self.config.get_bigcap())
+        speedup = pysthal.SpeedUp.names[self.config.get_speedup().upper()]
+        sthal.set_speedup(speedup)
+
+        # get a step with I_pl = 1023 DAC
+        parameters = self.get_step_parameters({neuron_parameter.I_pl: DAC(1023, apply_calibration=False)})
+
+        if not wafer_cfg:
+            self.prepare_hicann(sthal.hicann, parameters)
+            sthal.hicann.floating_gates = self.prepare_parameters(parameters)
+        sthal = self.prepare_specific_config(sthal)
+
+        measurement = self.make_measurement(sthal, self.neurons, readout_shifts)
+        analyzer = pycake.analyzer.ISI_Analyzer()
+        experiment.add_initial_measurement(measurement, analyzer)
+        return experiment
 
 class E_syn_Experimentbuilder(BaseExperimentBuilder):
     EXCITATORY = None

@@ -449,3 +449,55 @@ class ADCFreq_Analyzer(Analyzer):
             pos = np.dot(trace[begin:end], t) / np.sum(trace[begin:end])
             positions.append(pos)
         return np.array(positions)
+
+class I_pl_Analyzer(ISI_Analyzer):
+    """Calculate ISIs from trace and their standard deviation.
+
+    Neuron is set to constant-spiking state with constant refractory period.
+    Afterwards, neuron is set to constant-spiking state without refractory
+    period.
+
+    Refractory time is measured as difference between ISI with and without refractory
+    period.
+
+    Please note that mean_reset_time only gives valid results if refractory period is very small
+    """
+
+    def __call__(self, neuron, t, v, **traces):
+        delta = np.std(v)
+        maxtab, mintab = peakdet(v, delta)
+
+        max_idx = maxtab[:, 0].astype(int)  # indices of maxima
+        spike_times = t[max_idx]
+        isi = np.diff(spike_times)
+        mean_isi = np.mean(isi)
+        std_isi = np.std(isi)
+        mean_max = np.mean(maxtab[:,1])
+        mean_min = np.mean(mintab[:,1])
+        amplitude = mean_max - mean_min
+
+        dt = np.mean(t[1:] - t[:-1])
+        l = len(mintab)
+        mean_reset_time = abs(np.mean(mintab[:,0][:l] - maxtab[:,0][:l]) * dt)
+
+        result = {"mean_isi": mean_isi,
+                  "std_isi": std_isi,
+                  "amplitude": amplitude,
+                  "mean_reset_time": mean_reset_time
+                  }
+
+        result['tau_ref'] = self.calculate_tau_ref(result, traces['mean_isi'],
+                                    traces['mean_reset_time'], traces['amplitude'])
+
+        return result
+
+    def calculate_tau_ref(self, result, ISI0, tau0, amp0):
+        """ Calculates tau ref depending on the given initial result
+            where I_pl was 1023 DAC.
+        """
+        corrected_ISI0 = ISI0 * result['amplitude']/amp0
+        tau_ref = result['mean_isi'] - corrected_ISI0 + tau0
+        if tau_ref < 0:
+            self.logger.WARN("calculated tau_ref smaller than zero. Returning nan")
+            return np.nan
+        return tau_ref
