@@ -72,6 +72,10 @@ class BaseExperimentBuilder(object):
             else:
                 sthal = StHALContainer(
                     coord_wafer, coord_hicann, wafer_cfg=wafer_cfg, PLL=PLL)
+                sthal.set_bigcap(self.config.get_bigcap())
+                # Get the SpeedUp type from string
+                speedup = pysthal.SpeedUp.names[self.config.get_speedup().upper()]
+                sthal.set_speedup(speedup)
             # TODO maybe find better solution
             if self.test:
                 step = step.copy()

@@ -187,3 +187,9 @@ class Config(object):
 
     def get_sim_denmem_mc_seed(self):
         return self.parameters.get("sim_denmem_mc_seed", None)
+
+    def get_speedup(self):
+        return self.parameters['speedup']
+
+    def get_bigcap(self):
+        return self.parameters['bigcap']

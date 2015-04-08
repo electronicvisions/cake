@@ -173,11 +173,19 @@ class CalibrationRunner(object):
         wafer, hicann = self.config.get_coordinates()
         pll = self.config.get_PLL()
         pll_in_MHz = int(pll/1e6)
+
+        if config.get_bigcap():
+            cap_prefix = 'bigcap'
+        else:
+            cap_prefix = 'smallcap'
+
         name_details = "_".join([s for s in [
             self.config.get_folder_prefix(),
             "f{}".format(pll_in_MHz),
             "w{}".format(wafer.value()),
             "h{}".format(hicann.id().value()),
+            cap_prefix,
+            config.get_speedup(),
             time.strftime('%m%d_%H%M'),
         ] if s != ""])
 
@@ -189,7 +197,7 @@ class CalibrationRunner(object):
 
         path, _ = self.config.get_calibtic_backend()
         self.calibtic = pycake.helpers.calibtic.Calibtic(
-            path, wafer, hicann, pll)
+            path, wafer, hicann, pll, config.get_bigcap(), config.get_speedup())
         self.redman = pycake.helpers.redman.Redman(
             path, Coordinate.HICANNGlobal(hicann,wafer))
 

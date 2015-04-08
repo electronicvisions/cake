@@ -589,6 +589,25 @@ class StHALContainer(object):
     def get_neuron_size(self):
         return self.neuron_size
 
+    def set_speedup(self, speedup):
+        self.logger.INFO("Setting speedup to {}".format(pysthal.SpeedUp.values[speedup]))
+        self.hicann.set_fg_speed_up_scaling(speedup)
+
+    def get_speedup(self):
+        s_gl = self.hicann.get_speed_up_gl()
+        s_gladapt = self.hicann.get_speed_up_gladapt()
+        s_radapt = self.hicann.get_speed_up_radapt()
+        errmsg = "SpeedUps not equal. gl: {}, gladapt: {}, radapt: {}".format(s_gl, s_gladapt, s_radapt)
+        assert (s_gl == s_gladapt == s_radapt), errmsg
+        return s_gl
+
+    def set_bigcap(self, bigcap):
+        s = {True: "big", False: "small"}
+        self.logger.INFO("Using {} capacitors.".format(s[bigcap]))
+        self.hicann.use_big_capacitors(bigcap)
+
+    def get_bigcap(self):
+        return self.hicann.get_bigcap_setting()
 
 class SimStHALContainer(StHALContainer):
     """Contains StHAL objects for hardware access. Multiple experiments can

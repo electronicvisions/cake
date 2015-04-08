@@ -5,7 +5,6 @@ import os
 
 import Coordinate
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
-import pycake.helpers.trafos
 from pycake.helpers.units import DAC, Volt, Ampere, Unit, Second
 
 def create_pycalibtic_transformation(coefficients, domain=None, trafo_type=pycalibtic.Polynomial):
@@ -50,15 +49,22 @@ class Calibtic(object):
         dic['ideal_nc'].setDefaults()
         dic['ideal_bc'] = pycalibtic.BlockCollection()
         dic['ideal_bc'].setDefaults()
+        # For old pickles: just set bigcap and speedup to default values
+        # Otherwise, unpickling of old calibtic helpers does not work
+        if not (dic.has_key('bigcap') and dic.has_key('speedup')):
+            dic['bigcap'] = True
+            dic['speedup'] = 'normal'
         self.__dict__.update(dic)
         self._load_calibration()
 
-    def __init__(self, path, wafer, hicann, pll=100e6):
+    def __init__(self, path, wafer, hicann, pll=100e6, bigcap=True, speedup='normal'):
         self.path = self._make_path(os.path.expanduser(path))
         self.backend = self.init_backend()
         self.wafer = wafer
         self.hicann = hicann
         self.pll = pll
+        self.bigcap = bigcap
+        self.speedup = speedup
 
         self._load_calibration()
         self.ideal_nc = pycalibtic.NeuronCollection()
@@ -113,7 +119,11 @@ class Calibtic(object):
     def get_calibtic_name(self):
         wafer_id = self.wafer.value()
         hicann_id = self.hicann.id().value()
-        name = "w{}-h{}".format(int(wafer_id), int(hicann_id))
+        if self.bigcap:
+            cap_prefix = 'bigcap'
+        else:
+            cap_prefix = 'smallcap'
+        name = "w{}-h{}_{}_{}".format(int(wafer_id), int(hicann_id), cap_prefix, self.speedup)
         return name
 
     def _load_calibration(self):
