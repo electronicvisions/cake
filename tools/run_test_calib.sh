@@ -21,7 +21,7 @@ cp -v bin/tools/*_parameters.py .
 export PYTHONPATH=.:$PYTHONPATH
 
 # run calibration
-bin/tools/run_calibration.py fastcalibration_parameters.py --wafer $WAFER --hicann $HICANN --outdir $OUTDIR
+bin/tools/run_calibration.py fastcalibration_parameters.py --wafer $WAFER --hicann $HICANN --outdir $OUTDIR --overwrite clear bool True --overwrite clear_defects bool True
 
 find $OUTDIR
 
