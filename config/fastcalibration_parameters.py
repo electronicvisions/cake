@@ -252,4 +252,3 @@ parameters = {
                              ],
 }
 
-print "folder", parameters['folder']
