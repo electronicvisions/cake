@@ -58,7 +58,7 @@ parameters = {
     "run_E_l":      True,
     "run_V_t":      True,
     "run_I_gl":     False,
-    "run_I_pl":     False,
+    "run_I_pl":     True,
     "run_V_syntcx": False,
     "run_V_syntci": False,
     "run_V_syntcx_psp_max": True,
