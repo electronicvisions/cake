@@ -43,4 +43,4 @@ done
 # make plots
 mkdir -p $PLOTDIR
 bin/tools/make_plots.py $latest_calibration $latest_evaluation $HICANN $OUTDIR/backends --wafer $WAFER --outdir $PLOTDIR
-cp cake/pycake/bin/overview.html $PLOTDIR
+cp bin/tools/overview.html $PLOTDIR
