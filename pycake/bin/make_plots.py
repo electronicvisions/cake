@@ -830,6 +830,8 @@ if r_v_syntci:
     set(bad_syntcx).intersection(bad_syntci)
 """
 
+logger.WARN("spike plots disabled until readout is stable")
+"""
 r_test_spikes = test_reader if args.spikes_testrunner == None else Reader(args.spikes_testrunner)
 
 if r_test_spikes:
@@ -874,7 +876,7 @@ if r_test_spikes:
         plt.savefig(os.path.join(fig_dir,"_".join(["n_spikes",
                                                    defects_string,
                                                    "result_calibrated.png"])))
-
+"""
 
 ## tau ref
 
