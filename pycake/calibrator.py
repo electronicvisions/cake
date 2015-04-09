@@ -433,11 +433,10 @@ class I_pl_Calibrator(BaseCalibrator):
         # (y-axis: configured parameter, x-axis: measurement)
         ys_raw, xs_raw, amplitudes, mean_reset_times = self.get_merged_results(neuron, ['mean_isi', 'amplitude', 'mean_reset_time'])
         I_pls = self.prepare_y(ys_raw)
-        tau0_indices = np.array(I_pls) == 1023
-        if len(tau0_indices) is 0:
-                raise("No I_pl=2.5 uA measurement done. Cannot calculate tau_ref!")
-        taus = self.prepare_x(xs_raw, amplitudes, tau0_indices, mean_reset_times)
+        assert(I_pls[-1] == 1023), "The last I_pl step must be 1023 DAC."
+        taus = self.prepare_x(xs_raw, amplitudes, mean_reset_times)
         return taus, I_pls
+
     def generate_transformations(self):
         """ Takes averaged experiments and does the fits
         """
@@ -455,7 +454,7 @@ class I_pl_Calibrator(BaseCalibrator):
                 transformations[neuron] = None
         return [(self.target_parameter, transformations)]
 
-    def prepare_x(self, x, amplitudes, tau0_indices, mean_reset_times):
+    def prepare_x(self, x, amplitudes, mean_reset_times):
         """ Prepares x values for fit
             Here, the refractory period needs to be calculated from dt of spikes.
             tau_ref is calculated via ISI_n - ISI_0, where ISI_0 is the mean ISI of
@@ -463,18 +462,15 @@ class I_pl_Calibrator(BaseCalibrator):
             are also done, resulting the final calculation of tau_ref for step n:
                 tau_ref_n = ISI_n - amplitude_n / amplitude_0 * ISI_0
         """
-        x = np.array(x)
-        amplitudes = np.array(amplitudes)
-        mean_reset_times = np.array(mean_reset_times)
-        ISI0 = np.mean(x[tau0_indices])
-        tau0 = np.mean(mean_reset_times[tau0_indices])
-        mean_amp0 = np.mean(amplitudes[tau0_indices])
-        # Correct ISI0 for amplitude differences
-        corrected_ISI0 = ISI0 * amplitudes/mean_amp0
-        tau_refracs = x - corrected_ISI0 + tau0
+        x = numpy.array(x)
+        amplitudes = numpy.array(amplitudes)
+        mean_reset_times = numpy.array(mean_reset_times)
+        tau0 = mean_reset_times[-1]
+        # Correct ISI0 for spike amplitude differences
+        corrected_ISI0 = x[-1] * amplitudes/amplitudes[-1]
         #tau_refracs = x - ISI0 + tau0
-        tau_ref_indices = tau0_indices == False
-        return np.concatenate([tau_refracs[tau_ref_indices], [tau0]])
+        tau_refracs = x - corrected_ISI0 + tau0
+        return tau_refracs
 
     def prepare_y(self, y):
         """ Prepares y values for fit
