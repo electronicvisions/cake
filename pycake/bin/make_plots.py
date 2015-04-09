@@ -880,8 +880,6 @@ if r_test_spikes:
 
 ## tau ref
 
-logger.WARN("tau ref plots disabled until analysis is fixed")
-"""
 r_tau_ref = reader if args.tau_ref_runner == None else Reader(args.tau_ref_runner)
 
 if r_tau_ref:
@@ -913,7 +911,6 @@ if  r_test_tau_ref:
     result(r"$\tau_{{ref}}$ {inout}", reader=r_test_tau_ref, suffix="_calibrated", parameter="I_pl", key="tau_ref", alpha=0.05)
 
     #trace("$V_{mem}$ [V]", r_test_tau_ref, parameter="tau_ref", neuron=C.NeuronOnHICANN(C.Enum(args.neuron_enum)), start=500, end=700, suffix="_calibrated")
-"""
 
 exit(0)
 
