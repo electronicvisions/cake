@@ -362,7 +362,9 @@ class ADCMeasurement(Measurement):
                 if not self.traces is None:
                     self.traces[neuron] = readout
                 readout['v'] = self.readout_shifts(neuron, readout['v'])
-                readout.update(additional_data)
+                if additional_data is not None:
+                    if additional_data.has_key(neuron):
+                        readout.update(additional_data[neuron])
                 worker.do(neuron, neuron=neuron, **readout)
 
                 # DEBUG stuff
