@@ -331,7 +331,9 @@ if __name__ == "__main__":
     prepare_drivers(drivers)
 
     if not args.nooutput:
-        reader = NeoHdf5IO(filename=os.path.join(PATH,suffix+".hdf5"))
+        fname =os.path.join(PATH,suffix+".hdf5")
+        print "opening {}".format(fname)
+        reader = NeoHdf5IO(filename=fname)
     # create a new block
     blk = Block(time=time.time(),wafer=WAFER,hicann=HICANN,freq=FREQ,bkgisi=BKGISI)
 
