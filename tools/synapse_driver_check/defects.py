@@ -10,6 +10,7 @@ import quantities
 
 import os
 import time
+import subprocess
 
 from collections import defaultdict
 
@@ -274,23 +275,43 @@ def aquire(seg, driver):
 
     print "aquiring done"
 
-def read_voltages():
+def read_voltages(wafer=1):
 
-    if not os.path.isfile("id_rsa_resetuser"):
-        raise RuntimeError("file \"id_rsa_resetuser\" missing")
+    if wafer == 1:
 
-    cmd = "ssh -F /dev/null -x -i ./id_rsa_resetuser resetuser@raspeval-001 -o PubkeyAuthentication=yes /home/pi/voltages/readVoltages"
-    data = dict()
-    for l in os.popen(cmd).read().rstrip('\n').split('\n'):
-        if "voltage" in l:
-            prefix = ""
-            continue
-        if "dac" in l:
-            prefix = "DAC_"
-            continue
-        data.update({ prefix+l.split('\t')[0]: map(float, l.split('\t')[1:]) })
+        data = {}
 
-    return data
+        if not os.path.isfile("id_rsa_resetuser"):
+            raise RuntimeError("file \"id_rsa_resetuser\" missing")
+
+        cmd = ["ssh", "-F", "/dev/null", "-x", "-i", "./id_rsa_resetuser", "resetuser@raspeval-001", "-o PubkeyAuthentication=yes", "/home/pi/voltages/readVoltages"]
+
+        cmd_out = subprocess.check_output(cmd)
+
+        for l in cmd_out.rstrip('\n').split('\n'):
+            if "voltage" in l:
+                prefix = ""
+                continue
+            if "dac" in l:
+                prefix = "DAC_"
+                continue
+            data.update({ prefix+l.split('\t')[0]: map(float, l.split('\t')[1:]) })
+
+        return data
+
+    else:
+
+        print "no voltage information for wafer {}".format(wafer)
+
+        data = {}
+
+        for i in xrange(0,12):
+
+            data['V{}'.format(i)] = [0.,0.]
+            data['DAC_V{}'.format(i)] = [0.,0.]
+
+        return data
+
 
 """
 def store_voltages(filename):
@@ -341,7 +362,7 @@ if __name__ == "__main__":
 
         start = time.time()
 
-        data_voltages = read_voltages()
+        data_voltages = read_voltages(args.wafer)
         seg = Segment(driver=driver, voltages=data_voltages)
         blk.segments.append(seg)
 
