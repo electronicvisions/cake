@@ -7,6 +7,7 @@ import numpy as np
 import pyhalbe
 import pysthal
 from pycake.helpers.calibtic import Calibtic
+from pycake.helpers.units import DAC
 
 from utils import ValueStorage
 
@@ -30,31 +31,31 @@ class Parameters(ValueStorage):
     def __init__(self):
         ValueStorage.__init__(self, {
             'shared': ValueStorage({
-                'V_fac': 1023,
-                'V_dep': 0,
-                'V_stdf': 0,
-                'V_reset': 284,
-                'V_dtc': 0,
-                'V_gmax0': 50,
-                'V_gmax1': 50,
-                'V_gmax2': 50,
-                'V_gmax3': 50,
-                'V_bstdf': 0
+                'V_fac': DAC(1023),
+                'V_dep': DAC(0),
+                'V_stdf': DAC(0),
+                'V_reset': DAC(284),
+                'V_dtc': DAC(0),
+                'V_gmax0': DAC(50),
+                'V_gmax1': DAC(50),
+                'V_gmax2': DAC(50),
+                'V_gmax3': DAC(50),
+                'V_bstdf': DAC(0)
                 }),
             'neuron': {i : ValueStorage({
                 #'V_t': 1023,
                 #'I_gl': 1023,
                 #'V_syntcx': 800,
                 #'V_syntci': 800,
-                'V_synx': 511,
-                'V_syni': 511,
+                'V_synx': DAC(511),
+                'V_syni': DAC(511),
                 #'E_l': 100
                 }) for i in range(512)},
             'synapse_driver': ValueStorage({
                 'stp': None,
-                'cap': 0,
-                'gmax': 0,
-                'gmax_div': 11
+                'cap': DAC(0),
+                'gmax': DAC(0),
+                'gmax_div': DAC(11)
                 })
             })
 
@@ -384,16 +385,16 @@ class Hardware(object):
         for driver_c in Coordinate.iter_all(Coordinate.SynapseDriverOnHICANN):
             driver = self.hicann.synapses[driver_c]
             for i in [TOP, BOT]:
-                driver[i].set_gmax(self.params.synapse_driver.gmax)
-                driver[i].set_gmax_div(Coordinate.left, self.params.synapse_driver.gmax_div)
-                driver[i].set_gmax_div(Coordinate.right, self.params.synapse_driver.gmax_div)
+                driver[i].set_gmax(self.params.synapse_driver.gmax.toDAC().value)
+                driver[i].set_gmax_div(Coordinate.left, self.params.synapse_driver.gmax_div.toDAC().value)
+                driver[i].set_gmax_div(Coordinate.right, self.params.synapse_driver.gmax_div.toDAC().value)
 
             if self.params.synapse_driver.stp == 'facilitation':
                 driver.set_stf()
             elif self.params.synapse_driver.stp == 'depression':
                 driver.set_std()
             
-            driver.stp_cap = self.params.synapse_driver.cap
+            driver.stp_cap = self.params.synapse_driver.cap.toDAC().value
         
         # Now we can set the floating gate parameters for the neurons
         if write_floating_gates:
@@ -430,7 +431,7 @@ class Hardware(object):
 
             for fg_block in Coordinate.iter_all(Coordinate.FGBlockOnHICANN):
                 for k, v in self.params.shared.iteritems():
-                    fg.setShared(fg_block, getattr(HICANN, k), v)
+                    fg.setShared(fg_block, getattr(HICANN, k), v.toDAC().value)
 
         # Write configuration
         self.wafer.configure(FastHICANNConfigurator(write_floating_gates, reset))

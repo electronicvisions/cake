@@ -65,23 +65,23 @@ if args.extrasuffix:
 PATH = '_'.join(["defects", suffix])
 mkdir_p(PATH)
 
-from pycake.helpers.units import DAC, Voltage, Current
+from pycake.helpers.units import DAC, Volt, Ampere
 
 params = shallow.Parameters()
 
 for i in range(512):
 
-    params.neuron[i].E_l = Voltage(700).toDAC().value
-    params.neuron[i].V_t = Voltage(745).toDAC().value
-    params.neuron[i].E_synx = Voltage(800).toDAC().value
-    params.neuron[i].E_syni = Voltage(600).toDAC().value
-    params.neuron[i].V_syntcx = 800
-    params.neuron[i].V_syntci = 800
-    params.neuron[i].I_gl = 409
+    params.neuron[i].E_l = Volt(0.7)
+    params.neuron[i].V_t = Volt(0.745)
+    params.neuron[i].E_synx = Volt(0.8)
+    params.neuron[i].E_syni = Volt(0.6)
+    params.neuron[i].V_syntcx = DAC(800)
+    params.neuron[i].V_syntci = DAC(800)
+    params.neuron[i].I_gl = DAC(0)
 
-params.shared.V_reset = 200
-params.shared.V_ccas = args.V_ccas
-params.shared.V_dllres = args.V_dllres
+params.shared.V_reset = Volt(0.5)
+params.shared.V_ccas = DAC(args.V_ccas)
+params.shared.V_dllres = DAC(args.V_dllres)
 
 import resource
 
