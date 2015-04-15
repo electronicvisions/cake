@@ -276,6 +276,9 @@ def aquire(seg, driver):
 
 def read_voltages():
 
+    if not os.path.isfile("id_rsa_resetuser"):
+        raise RuntimeError("file \"id_rsa_resetuser\" missing")
+
     cmd = "ssh -F /dev/null -x -i ./id_rsa_resetuser resetuser@raspeval-001 -o PubkeyAuthentication=yes /home/pi/voltages/readVoltages"
     data = dict()
     for l in os.popen(cmd).read().rstrip('\n').split('\n'):
