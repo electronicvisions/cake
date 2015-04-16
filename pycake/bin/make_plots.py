@@ -786,7 +786,8 @@ if r_v_syntci:
            key="std",
            mark_top_bottom=True,
            alpha=0.5,
-           marker="None")
+           marker="None",
+           yfactor=1000)
 
     trace("$V_{mem}$ [mV]", r_v_syntci, "V_syntci_psp_max", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510)
 
