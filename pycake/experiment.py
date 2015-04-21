@@ -205,7 +205,11 @@ class SequentialExperiment(Experiment):
         if len(self.initial_measurements) > 0:
             self.logger.INFO("Running initial measurements.")
             for measurement, analyzer in self.initial_measurements:
-                self.initial_data.update(measurement.run_measurement(analyzer, None))
+                if measurement.done:
+                    self.logger.INFO("Initial measurement already done. Going on with next one.")
+                    continue
+                else:
+                    self.initial_data.update(measurement.run_measurement(analyzer, None))
 
     def save_traces(self, path):
         for mid, measurement in enumerate(self.measurements_to_run):
