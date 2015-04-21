@@ -248,16 +248,14 @@ class V_t_Calibrator(BaseCalibrator):
 class I_gl_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.I_gl
 
-    def prepare_x(self, x):
-        xs = np.array(xs)
-        return xs
+    def prepare_x(self, xs):
+        return np.array(xs)
 
     def get_key(self):
         return 'tau_m'
 
-    # TODO: implement proper domain detection
     def get_domain(self, data):
-        return [0,2.5e-6]
+        return [np.min(data), np.max(data)]
 
     def get_trafo_type(self):
         """ Returns the pycalibtic.transformation type that is used for calibration.
@@ -265,6 +263,20 @@ class I_gl_Calibrator(BaseCalibrator):
         """
         return pycalibtic.NegativePowersPolynomial
 
+    def do_fit(self, xs, ys):
+        """ Fits a curve to results of one neuron
+            Standard behaviour is a linear fit.
+        """
+        # coefficients will be reversed afterwards
+        def func(x, a, b):
+            return a*1/x + b*1/x**2
+        try:
+            fit_coeffs = curve_fit(func, xs, ys, [-82.6548e-6, 248.6586e-12])[0]
+            fit_coeffs = [fit_coeffs[1], fit_coeffs[1], 0]
+        except ValueError, e:
+            self.logger.WARN("Could not fit results of I_gl because: {}".format(e))
+            fit_coeffs = None
+        return fit_coeffs
 class I_gl_charging_Calibrator(I_gl_Calibrator):
     pass
 
