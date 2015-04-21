@@ -89,6 +89,9 @@ class BaseCalibrator(object):
             ys = self.prepare_y(ys_raw)
             # Extract function coefficients and domain from measured data
             coeffs = self.do_fit(xs, ys)
+            if coeffs is None:
+                transformations[neuron] = None
+                continue
             coeffs = coeffs[::-1] # coeffs are reversed in calibtic transformations
             domain = self.get_domain(xs)
             transformations[neuron] = create_pycalibtic_transformation(coeffs, domain, trafo_type)
@@ -277,6 +280,7 @@ class I_gl_Calibrator(BaseCalibrator):
             self.logger.WARN("Could not fit results of I_gl because: {}".format(e))
             fit_coeffs = None
         return fit_coeffs
+
 class I_gl_charging_Calibrator(I_gl_Calibrator):
     pass
 
