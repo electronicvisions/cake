@@ -82,6 +82,7 @@ if __name__ == "__main__":
         pylogging.log_to_file(args.logfile, pylogging.LogLevel.ALL)
 
     config = load_config(args)
+    config.parameters['bigcap'] = not args.smallcap
 
     builder = Capacitance_Experimentbuilder(config)
 
