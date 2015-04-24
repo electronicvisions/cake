@@ -252,6 +252,20 @@ def read_voltages(wafer=1):
 
         return data
 
+    elif wafer == 3:
+
+        data = {}
+
+        cmd = ["ssh", "pi@magi-09", "/home/pi/systemControlSoftware/reticleStatus r 11"]
+
+        cmd_out = subprocess.check_output(cmd)
+
+        for l in cmd_out.rstrip('\n').split('\n'):
+
+            data.update({ l.split('\t')[0]: float(l.split('\t')[3]) })
+
+        return data
+
     else:
 
         print "no voltage information for wafer {}".format(wafer)
