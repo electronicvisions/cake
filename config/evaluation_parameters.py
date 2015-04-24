@@ -18,6 +18,10 @@ import numpy as np
 # Time constants roughly correspond to ideal transformations of:
 # I_pl = [10, 30, 50, 70, 90, 350, 2500] nA
 tau_refs = [4.0e-6, 1.3e-6, 0.8e-6, 0.6e-6, 0.4e-6, 0.1e-6, 0.0]
+# membrane time constants corresponding to ideal trafos of:
+# I_gl = [100, 300, 900, 1500, 2500] nA
+tau_mems = [1.654e-6, 1.126e-6, 7.171e-7, 6.851e-7, 4.543e-7]
+
 
 eval_parameters = {
 # Which neurons and blocks do you want to calibrate?
@@ -31,7 +35,7 @@ eval_parameters = {
         "E_l_range":      [{neuron_parameter.E_l : Volt(v) } for v in [E_l_target-E_syn_distance/2, E_l_target, E_l_target+E_syn_distance/2]],
         "V_t_range":      [{neuron_parameter.V_t : v} for v in linspace_voltage(E_l_target, E_synx_target, 3)],
 
-        "I_gl_range":     [{neuron_parameter.I_gl : Ampere(0)}], # dummy
+        "I_gl_range":     [{neuron_parameter.I_gl : Second(tau_mem)} for tau_mem in tau_mems],
         "V_syntcx_range": [{neuron_parameter.V_syntcx : Volt(1.44)} ], # dummy
         "V_syntci_range": [{neuron_parameter.V_syntci : Volt(1.44)} ], # dummy
 
