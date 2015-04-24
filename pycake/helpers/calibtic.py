@@ -301,8 +301,13 @@ class Calibtic(object):
 
             self.logger.TRACE("Calibrated {} parameter {}: {} --> {} DAC".format(coord, parameter.name, value, calib_dac_value))
         else:
-            calib_dac_value = value.toDAC().value
-            self.logger.WARN("Calibration for {} parameter {} not found. Using uncalibrated DAC value {}".format(coord, parameter.name, calib_dac_value))
+            try:
+                ideal = self.get_calibration(coord, True)
+                calib_dac_value = ideal.at(parameter).apply(value.value)
+                self.logger.WARN("Calibration for {} parameter {} not found. Using ideal transformation -> DAC value {}".format(coord, parameter.name, calib_dac_value))
+            except RuntimeError, e:
+                calib_dac_value = value.toDAC().value
+                self.logger.WARN("Calibration for {} parameter {} not found: {}. Using toDAC() value {}".format(coord, parameter.name, e, calib_dac_value))
 
         if calib_dac_value < lower_boundary:
             self.logger.WARN("Coord {} Parameter {} value {} calibrated to {} is lower than {}. Clipping.".format(coord, parameter, value, calib_dac_value, lower_boundary))
