@@ -28,7 +28,7 @@ class TestNeuronCalibration(unittest.TestCase):
             "c_wafer": Coordinate.Wafer(Enum(0)),
             "c_hicann": Coordinate.HICANNOnWafer(Enum(280)),
             "c_nrn": Coordinate.NeuronOnHICANN(Enum(23)),
-            "hw_vreset": 500,  # mV
+            "hw_vreset": 0.5,  # mV
             "xmlbackendpath": "/wang/data/calibration/fake/"  # use fake data
         }
 
