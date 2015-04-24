@@ -22,7 +22,7 @@ def is_defect_potential(slope, offset, slope_from_one=1, offset_cut=100):
 
     """
 
-    slope_not_close_to_one = (slope/1023.*1.8 - 1) > slope_from_one
+    slope_not_close_to_one = abs(slope/1023.*1.8 - 1) > slope_from_one
     offset_too_large = abs(offset) > offset_cut
 
     defect =  slope_not_close_to_one or offset_too_large
@@ -214,8 +214,8 @@ class E_synx_Calibrator(BaseCalibrator):
     def get_domain(self, data):
         return [0,1.8]
 
-    def is_defect(self, coeffs):
-        return is_defect_potential(coeffs[1], coeffs[0])
+    def is_defect(self, coeffs, domain):
+        return is_defect_potential(coeffs[1], coeffs[0], slope_from_one=0.5)
 
 class E_syni_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.E_syni
@@ -223,14 +223,17 @@ class E_syni_Calibrator(BaseCalibrator):
     def get_domain(self, data):
         return [0,1.8]
 
-    def is_defect(self, coeffs):
-        return is_defect_potential(coeffs[1], coeffs[0])
+    def is_defect(self, coeffs, domain):
+        return is_defect_potential(coeffs[1], coeffs[0], slope_from_one=0.5)
 
 class E_l_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.E_l
 
     def get_domain(self, data):
         return [0,1.8]
+
+    def is_defect(self, coeffs, domain):
+        return is_defect_potential(coeffs[1], coeffs[0], slope_from_one=0.5)
 
 
 class Spikes_Calibrator(BaseCalibrator):
