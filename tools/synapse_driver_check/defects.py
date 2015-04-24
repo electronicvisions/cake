@@ -37,53 +37,6 @@ import argparse
 
 import ana_defects
 
-parser = argparse.ArgumentParser()
-parser.add_argument('hicann', type=int)
-parser.add_argument('--wafer', type=int, default=0)
-parser.add_argument('--freq', type=int, default=100)
-parser.add_argument('--bkgisi', type=int, default=10000)
-parser.add_argument('--calibpath', type=str, default="/wang/data/calibration/")
-parser.add_argument('--extrasuffix', type=str, default=None)
-parser.add_argument('--dumpwafercfg', action="store_true", default=False)
-parser.add_argument('--ana', action="store_true", default=False)
-parser.add_argument('--drivers', type=int, nargs="+", default=range(224))
-parser.add_argument('--V_ccas', type=int, default=600)
-parser.add_argument('--V_dllres', type=int, default=1023)
-parser.add_argument('--nooutput', action="store_true", default=False)
-parser.add_argument('--ninputspikes', type=int, default=200)
-parser.add_argument('--inputspikeisi', type=float, default=0.1e-6)
-args = parser.parse_args()
-
-WAFER = args.wafer
-HICANN = args.hicann
-FREQ = args.freq
-BKGISI = args.bkgisi
-
-suffix='_'.join(["w{}","h{}","f{}","bkgisi{}","Vccas{}","Vdllres{}","ninputspikes{}","inputspikeisi{}"]).format(WAFER,HICANN,FREQ,BKGISI,args.V_ccas,args.V_dllres,args.ninputspikes,args.inputspikeisi)
-if args.extrasuffix:
-    suffix += "_"+args.extrasuffix
-
-PATH = '_'.join(["defects", suffix])
-mkdir_p(PATH)
-
-from pycake.helpers.units import DAC, Volt, Ampere
-
-params = shallow.Parameters()
-
-for i in range(512):
-
-    params.neuron[i].E_l = Volt(0.7)
-    params.neuron[i].V_t = Volt(0.745)
-    params.neuron[i].E_synx = Volt(0.8)
-    params.neuron[i].E_syni = Volt(0.6)
-    params.neuron[i].V_syntcx = DAC(800)
-    params.neuron[i].V_syntci = DAC(800)
-    params.neuron[i].I_gl = DAC(0)
-
-params.shared.V_reset = Volt(0.5)
-params.shared.V_ccas = DAC(args.V_ccas)
-params.shared.V_dllres = DAC(args.V_dllres)
-
 import resource
 
 def get_neurons(driver):
@@ -324,6 +277,54 @@ def store_voltages(filename):
 """
 
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('hicann', type=int)
+    parser.add_argument('--wafer', type=int, default=0)
+    parser.add_argument('--freq', type=int, default=100)
+    parser.add_argument('--bkgisi', type=int, default=10000)
+    parser.add_argument('--calibpath', type=str, default="/wang/data/calibration/")
+    parser.add_argument('--extrasuffix', type=str, default=None)
+    parser.add_argument('--dumpwafercfg', action="store_true", default=False)
+    parser.add_argument('--ana', action="store_true", default=False)
+    parser.add_argument('--drivers', type=int, nargs="+", default=range(224))
+    parser.add_argument('--V_ccas', type=int, default=600)
+    parser.add_argument('--V_dllres', type=int, default=1023)
+    parser.add_argument('--nooutput', action="store_true", default=False)
+    parser.add_argument('--ninputspikes', type=int, default=200)
+    parser.add_argument('--inputspikeisi', type=float, default=0.1e-6)
+    args = parser.parse_args()
+
+    WAFER = args.wafer
+    HICANN = args.hicann
+    FREQ = args.freq
+    BKGISI = args.bkgisi
+
+    suffix='_'.join(["w{}","h{}","f{}","bkgisi{}","Vccas{}","Vdllres{}","ninputspikes{}","inputspikeisi{}"]).format(WAFER,HICANN,FREQ,BKGISI,args.V_ccas,args.V_dllres,args.ninputspikes,args.inputspikeisi)
+    if args.extrasuffix:
+        suffix += "_"+args.extrasuffix
+
+    PATH = '_'.join(["defects", suffix])
+    mkdir_p(PATH)
+
+    from pycake.helpers.units import DAC, Volt, Ampere
+
+    params = shallow.Parameters()
+
+    for i in range(512):
+
+        params.neuron[i].E_l = Volt(0.7)
+        params.neuron[i].V_t = Volt(0.745)
+        params.neuron[i].E_synx = Volt(0.8)
+        params.neuron[i].E_syni = Volt(0.6)
+        params.neuron[i].V_syntcx = DAC(800)
+        params.neuron[i].V_syntci = DAC(800)
+        params.neuron[i].I_gl = DAC(0)
+
+    params.shared.V_reset = Volt(0.5)
+    params.shared.V_ccas = DAC(args.V_ccas)
+    params.shared.V_dllres = DAC(args.V_dllres)
+
 
     random.seed(1)
 
