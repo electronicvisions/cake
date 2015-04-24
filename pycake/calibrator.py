@@ -95,7 +95,7 @@ class BaseCalibrator(object):
             coeffs = coeffs[::-1] # coeffs are reversed in calibtic transformations
             domain = self.get_domain(xs)
             transformations[neuron] = create_pycalibtic_transformation(coeffs, domain, trafo_type)
-            if self.is_defect(coeffs):
+            if self.is_defect(coeffs, domain):
                 transformations[neuron] = None
         return [(self.target_parameter, transformations)]
 
@@ -132,8 +132,13 @@ class BaseCalibrator(object):
         fit_coeffs = np.polyfit(xs, ys, 1)
         return fit_coeffs
 
-    def is_defect(self, coeffs):
-        return False
+    def is_defect(self, coeffs, domain):
+        """ Returns True if an entry in domain or coeffs is nan.
+        """
+        if len(np.where(np.isnan(coeffs))[0])>0 or len(np.where(np.isnan(domain))[0])>0:
+            return True
+        else:
+            return False
 
     def get_neurons(self):
         # TODO: Improve this
@@ -245,7 +250,7 @@ class V_t_Calibrator(BaseCalibrator):
     def get_domain(self, data):
         return [0,1.8]
 
-    def is_defect(self, coeffs):
+    def is_defect(self, coeffs, domain):
         return is_defect_potential(coeffs[1], coeffs[0])
 
 class I_gl_Calibrator(BaseCalibrator):
@@ -258,7 +263,7 @@ class I_gl_Calibrator(BaseCalibrator):
         return 'tau_m'
 
     def get_domain(self, data):
-        return [np.min(data), np.max(data)]
+        return [np.nanmin(data), np.nanmax(data)]
 
     def get_trafo_type(self):
         """ Returns the pycalibtic.transformation type that is used for calibration.
@@ -450,9 +455,9 @@ class I_pl_Calibrator(BaseCalibrator):
             # Extract function coefficients and domain from measured data
             coeffs = self.do_fit(xs, ys, tau0)
             coeffs = coeffs[::-1] # coeffs are reversed in calibtic transformations
-            domain = [tau0, max(xs)*1.1] # domain slightly larger than max value
+            domain = [tau0, np.nanmax(xs)*1.1] # domain slightly larger than max value
             transformations[neuron] = create_pycalibtic_transformation(coeffs, domain, trafo_type)
-            if self.is_defect(coeffs):
+            if self.is_defect(coeffs, domain):
                 transformations[neuron] = None
         return [(self.target_parameter, transformations)]
 
