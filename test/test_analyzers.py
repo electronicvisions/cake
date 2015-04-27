@@ -6,6 +6,8 @@ import numpy as np
 import pycake.analyzer
 from pycake.helpers.TraceAverager import TraceAverager
 
+import Coordinate
+import pickle
 
 class TestAnalyzers(unittest.TestCase):
     def assertEqualNumpyArrays(self, A, B, message=None):
@@ -100,6 +102,12 @@ class TestAnalyzers(unittest.TestCase):
         self.assertArrayElementsAlmostEqual(res["slopes_falling"], slope_falling)
         self.assertArrayElementsAlmostEqual(res["slopes_rising"], slope_rising)
 
+        # If there is only one peak in the trace, analyzer should return dt = inf
+        t = np.arange(10)
+        v = [1,2,3,4,5,1,2,3,3,3]
+        result = a(neuron=neuron, t=t, v=v)
+        self.assertTrue(np.isinf(result['mean_dt']))
+
     @unittest.skip("WIP")
     def test_I_gl_Analyzer(self):
         """analyze exponentially decaying trace"""
@@ -119,6 +127,23 @@ class TestAnalyzers(unittest.TestCase):
         res = a(neuron=coord_neuron, t=time, v=voltage)
         print res
         # TODO continue test
+
+    def test_V_reset_Analyzer(self):
+        """ Test baseline detection in V_reset_Analyzer
+        """
+        a = pycake.analyzer.V_reset_Analyzer()
+
+        # neuron should not matter, thus false
+        neuron = False
+
+        time = np.linspace(0, 10, 60, False)
+        dt = time[1]
+
+        voltage = np.array([1, 2, 3, 4, 5, 6, 1, 1, 1, 1, 1]*5)
+        res = a(neuron=neuron, t=time, v=voltage)
+        self.assertAlmostEqual(res['baseline'], 1)
+        self.assertAlmostEqual(res['mean_min'], 1)
+        self.assertAlmostEqual(res['mean_max'], 6)
 
     def test_ISI_Analyzer(self):
         a = pycake.analyzer.ISI_Analyzer()
@@ -143,6 +168,72 @@ class TestAnalyzers(unittest.TestCase):
         self.assertAlmostEqual(tau_ref, actual_tau_ref)
         self.assertAlmostEqual(res["std_isi"], 0)
 
+    def test_MeanOfTraceAnalyzer_realtrace(self):
+        """
+        Test MeanOfTraceAnalyzer using a previously measured dataset.
+        """
+        neuron = False
+        data = pickle.load(open('/wang/data/calibration/testdata/testdata.p'))['E_l']
+        analyzer = pycake.analyzer.MeanOfTraceAnalyzer()
+
+        result = analyzer(neuron, data['t'], data['v'])
+
+        for key in result:
+            self.assertAlmostEqual(result[key], data['result'][key], places=2)
+
+    def test_V_reset_realtrace(self):
+        """
+        Test V_reset_Analyzer using a previously measured dataset.
+        """
+        neuron = False
+        data = pickle.load(open('/wang/data/calibration/testdata/testdata.p'))['V_reset']
+        analyzer = pycake.analyzer.V_reset_Analyzer()
+
+        result = analyzer(neuron, data['t'], data['v'])
+
+        for key in result:
+            self.assertAlmostEqual(result[key], data['result'][key], places=2)
+
+    def test_I_pl_realtrace(self):
+        """
+        Test I_pl_Analyzer using a previously measured dataset.
+        """
+        neuron = Coordinate.NeuronOnHICANN(Coordinate.Enum(100))
+        data = pickle.load(open('/wang/data/calibration/testdata/testdata.p'))['I_pl']
+        analyzer = pycake.analyzer.I_pl_Analyzer()
+        initial_data = data['initial_data'][neuron]
+
+        result = analyzer(neuron, data['t'], data['v'], **initial_data)
+
+        for key in result:
+            self.assertAlmostEqual(result[key], data['result'][key], places=2)
+
+    def test_I_gl_realtrace(self):
+        """
+        Test I_pl_Analyzer using a previously measured dataset.
+        """
+        neuron = Coordinate.NeuronOnHICANN(Coordinate.Enum(100))
+        data = pickle.load(open('/wang/data/calibration/testdata/testdata.p'))['I_gl']
+        analyzer = pycake.analyzer.I_gl_Analyzer()
+        analyzer.set_adc_freq(data['adc_freq'])
+
+        result = analyzer(neuron, data['t'], data['v'], 0.004, current=5, save_mean=True)
+
+        for key in ['tau_m', 'V_rest', 'std_tau', 'reduced_chisquare', 'height']:
+            self.assertAlmostEqual(result[key], data['result'][key], places=2)
+
+    def test_adc_freq_analyzer(self):
+        """ Test ADCFreq_Analyzer
+        """
+        v = np.array([0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.9]*5)
+        t = np.linspace(0, 1e-6, len(v))
+
+        a = pycake.analyzer.ADCFreq_Analyzer()
+
+        # Check if correct adc freq is detected and fail if unlikely freq is detected
+        res = a(t, v, 13.7e6)
+        self.assertAlmostEqual(res['adc_freq'], 13.7e6*7)
+        self.assertRaises(RuntimeError, a, t, v, 5e6)
 
 if __name__ == '__main__':
     unittest.main()
