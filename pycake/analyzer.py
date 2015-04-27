@@ -145,13 +145,6 @@ class PeakAnalyzer(Analyzer):
             std_min = 0
         return mean_max, mean_min, std_max, std_min
 
-    def get_mean_dt(self, t, v, maxtab, mintab):
-        spike_indices = np.array(maxtab[:, 0], dtype=int)
-        spiketimes = t[spike_indices]
-        dts = np.roll(spiketimes, -1) - spiketimes
-        dts = dts[0:-1]
-        return np.mean(dts)
-
     def find_baseline(self, t, v):
             """ find baseline of trace
 
