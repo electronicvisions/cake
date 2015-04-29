@@ -474,6 +474,8 @@ class I_pl_Calibrator(BaseCalibrator):
         """
         def func(x, a):
             return 1/(a*x - a*tau0 + 1/1023.)
+        xs = xs[np.isfinite(xs)]
+        ys = ys[np.isfinite(xs)]
         fit_coeffs = curve_fit(func, xs, ys, [0.025e6])[0]
         fit_coeffs = [fit_coeffs[0], 1/1023. - fit_coeffs[0] * tau0]
         return fit_coeffs
