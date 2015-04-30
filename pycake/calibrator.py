@@ -11,7 +11,7 @@ import Coordinate
 import pycalibtic
 from pycake.helpers.calibtic import create_pycalibtic_transformation
 
-def is_defect_potential(slope, offset, slope_from_one=1, offset_cut=100):
+def is_defect_potential(slope, offset, slope_from_one=1, offset_cut=1000):
     """
 
     returns true if slope is not close to one or offset is too large
@@ -96,6 +96,7 @@ class BaseCalibrator(object):
             domain = self.get_domain(xs)
             transformations[neuron] = create_pycalibtic_transformation(coeffs, domain, trafo_type)
             if self.is_defect(coeffs, domain):
+                self.logger.WARN("Neuron {} with coeffs {} and domain {} marked as defect".format(neuron, coeffs, domain))
                 transformations[neuron] = None
         return [(self.target_parameter, transformations)]
 
@@ -215,7 +216,7 @@ class E_synx_Calibrator(BaseCalibrator):
         return [0,1.8]
 
     def is_defect(self, coeffs, domain):
-        return is_defect_potential(coeffs[1], coeffs[0], slope_from_one=0.5)
+        return is_defect_potential(coeffs[1], coeffs[0])
 
 class E_syni_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.E_syni
@@ -224,7 +225,7 @@ class E_syni_Calibrator(BaseCalibrator):
         return [0,1.8]
 
     def is_defect(self, coeffs, domain):
-        return is_defect_potential(coeffs[1], coeffs[0], slope_from_one=0.5)
+        return is_defect_potential(coeffs[1], coeffs[0])
 
 class E_l_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.E_l
@@ -233,7 +234,7 @@ class E_l_Calibrator(BaseCalibrator):
         return [0,1.8]
 
     def is_defect(self, coeffs, domain):
-        return is_defect_potential(coeffs[1], coeffs[0], slope_from_one=0.5)
+        return is_defect_potential(coeffs[1], coeffs[0], slope_from_one=1.5)
 
 
 class Spikes_Calibrator(BaseCalibrator):
