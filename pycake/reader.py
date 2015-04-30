@@ -90,10 +90,6 @@ class Reader(object):
 
         unit = self.get_calibration_unit(name=parameter, recurrence=recurrence)
 
-        if key=='tau_ref':
-            calib = unit.get_calibrator()
-            tau_refs = {neuron: calib.get_tau_refs(neuron)[0] for neuron in neurons}
-            return tau_refs
         ex = unit.experiment
         nsteps = len(self.runner.config.copy(parameter).get_steps())
 
