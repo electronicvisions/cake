@@ -43,3 +43,4 @@ if args.logfile is not None:
 
 runner = CalibrationRunner.load(args.runner)
 runner.continue_calibration()
+runner.finalize()

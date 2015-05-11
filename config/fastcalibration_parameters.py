@@ -146,6 +146,20 @@ parameters = {
 
                           },
 
+    "technical_parameters" : [neuron_parameter.I_convi,
+                              neuron_parameter.I_convx,
+                              neuron_parameter.I_intbbi,
+                              neuron_parameter.I_intbbx,
+                              neuron_parameter.I_spikeamp,
+                              shared_parameter.int_op_bias,
+                              shared_parameter.V_dllres,
+                              shared_parameter.V_bout,
+                              shared_parameter.I_breset,
+                              shared_parameter.I_bstim,
+                              shared_parameter.V_bstdf,
+                              shared_parameter.V_dtc,
+                              shared_parameter.V_br],
+
     "readout_shift_parameters": { neuron_parameter.V_t: Volt(1.4),
                                   neuron_parameter.I_convx: Ampere(0),
                                   neuron_parameter.I_convi: Ampere(0),

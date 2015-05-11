@@ -4,7 +4,7 @@
 import unittest
 import os
 from pycake.config import Config
-
+import Coordinate
 
 class TestConfig(unittest.TestCase):
     """Test Config class."""
@@ -26,11 +26,11 @@ class TestConfig(unittest.TestCase):
 
         # preset values
         self.assertEqual(cfg.get_target(), "random-name")
-        self.assertEqual(cfg.get_blocks(), "blocks-value")
+        self.assertEqual(cfg.get_blocks(), [block for block in Coordinate.iter_all(Coordinate.FGBlockOnHICANN)])
         self.assertEqual(cfg.get_config("foo"), "foo-value")
         self.assertEqual(cfg.get_config_with_default("foo", "other-value"), "foo-value")
         self.assertEqual(cfg.get_config_with_default("missing", "default-value"), "default-value")
-        self.assertEqual(cfg.get_neurons(), "neurons-value")
+        self.assertEqual(cfg.get_neurons(), [neuron for neuron in Coordinate.iter_all(Coordinate.NeuronOnHICANN)])
         self.assertEqual(cfg.get_steps(), "steps-value")
         self.assertEqual(cfg.get_folder(), "folder-value")
         self.assertEqual(cfg.get_calibtic_backend(), ("backend-value", "w17-h222"))

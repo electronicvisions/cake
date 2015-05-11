@@ -12,6 +12,7 @@ import pycake.helpers.calibtic
 import pycake.helpers.redman
 import pycake.helpers.misc
 from pycake.helpers.StorageProcess import StorageProcess
+import pycalibtic
 
 # Import everything needed for saving:
 import time
@@ -21,7 +22,8 @@ import errno
 from collections import OrderedDict
 
 from pyhalbe import Coordinate
-
+from pyhalbe.HICANN import neuron_parameter
+from pyhalbe.HICANN import shared_parameter
 
 class UnitNotFound(RuntimeError):
     pass
@@ -262,6 +264,40 @@ class CalibrationRunner(object):
         loaded from an previous run."""
         self.logger.INFO("Continue calibration")
         self._run_measurements()
+
+    def finalize(self):
+        """to be called after calibration is finished
+           writes technical paramaters
+        """
+
+        self.logger.INFO("Finalizing")
+
+        base_parameters = self.config.parameters['base_parameters']
+        technical_parameters = self.config.parameters['technical_parameters']
+
+        neurons = self.config.get_neurons()
+        blocks = self.config.get_blocks()
+
+        for parameter in technical_parameters:
+
+            if parameter not in base_parameters:
+                raise RuntimeError("technical parameter {} not set".format(parameter))
+
+            if isinstance(parameter, shared_parameter):
+
+                trafo = pycalibtic.Constant(base_parameters[parameter].toDAC().value)
+                data = {block: trafo for block in blocks}
+                self.calibtic.write_calibration(parameter, data)
+
+            elif isinstance(parameter, neuron_parameter):
+
+                trafo = pycalibtic.Constant(base_parameters[parameter].toDAC().value)
+                data = {neuron: trafo for neuron in neurons}
+                self.calibtic.write_calibration(parameter, data)
+
+            else:
+
+                raise RuntimeError("parameter {} neither shared nor of type neuron".format(parameter))
 
     def _run_measurements(self):
         """execute the measurement loop"""

@@ -123,6 +123,7 @@ config = load_config(args)
 if config.get_run_calibration():
     runner = CalibrationRunner(config)
     runner.run_calibration()
+    runner.finalize()
 
 if config.get_run_test():
     test_runner = TestRunner(config)
