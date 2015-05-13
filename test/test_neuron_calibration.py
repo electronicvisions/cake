@@ -28,7 +28,7 @@ class TestNeuronCalibration(unittest.TestCase):
             "c_wafer": Coordinate.Wafer(Enum(0)),
             "c_hicann": Coordinate.HICANNOnWafer(Enum(280)),
             "c_nrn": Coordinate.NeuronOnHICANN(Enum(23)),
-            "hw_vreset": 0.5,  # mV
+            "hw_vreset": 0.5,  # 500mV
             "xmlbackendpath": "/wang/data/calibration/fake/"  # use fake data
         }
 
@@ -52,7 +52,9 @@ class TestNeuronCalibration(unittest.TestCase):
         c_nrn = self.config["c_nrn"]
         ncal_params = pycalibtic.NeuronCalibrationParameters()
         hwparam_n = neuron_cal.applyNeuronCalibration(parameters, c_nrn.id().value(), ncal_params)
-        hwparam_s = shared_cal.applySharedCalibration(self.config["hw_vreset"], c_nrn.toSharedFGBlockOnHICANN().id())
+
+        block_id = int(c_nrn.toSharedFGBlockOnHICANN().id())
+        hwparam_s = shared_cal.applySharedCalibration(self.config["hw_vreset"], block_id)
 
         # modify FGControl using calibrated parameters
         fgc = pyhalbe.HICANN.FGControl()
