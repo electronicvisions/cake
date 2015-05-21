@@ -9,6 +9,7 @@ import unittest
 import pickle
 import os
 import tempfile
+import numpy
 
 from pycake.helpers.sthal import StHALContainer
 from pycake.helpers.sthal import SimStHALContainer
@@ -103,6 +104,37 @@ class TestSimSthal(unittest.TestCase):
     def test_wafer_status(self):
         status = self.sthal.read_wafer_status()
         self.assertEqual(list(status.hicanns)[0], self.coord_hicann)
+
+    def test_resample(self):
+        """Test resampling of result data"""
+
+        adc_interval = 1. / 96e6
+
+        x = numpy.logspace(-2, 2, 100) * 1e-7
+        y = numpy.linspace(0, 10, 100)
+
+        result = dict(
+            t=x,
+            a=y,
+            b=y,
+            c=y)
+
+        resampled = self.sthal.resample_simulation_result(result)
+
+        for key in "a b c".split():
+            self.assertEqual(
+                len(resampled['t']), len(resampled['a']),
+                "re-sampled signal data has the same lenght as time")
+
+        self.assertAlmostEqual(
+            resampled['t'][1] - resampled['t'][0],
+            adc_interval,
+            "re-sampled interval is sufficiently close to adc sampling interval")
+
+        intervals = numpy.diff(resampled['t'])
+        self.assertLess(
+            (max(intervals) - min(intervals)) / numpy.mean(intervals),
+            1e-10)
 
 
 if __name__ == "__main__":

@@ -4,9 +4,11 @@ import math
 import os
 import hashlib
 import cPickle
+import numpy
 import pyhalbe
 import pysthal
 import pylogging
+import scipy.interpolate
 import Coordinate
 from pyhalbe import HICANN
 from Coordinate import Enum, X, Y
@@ -641,7 +643,8 @@ class SimStHALContainer(StHALContainer):
                  wafer_cfg="",
                  PLL=100e6,
                  dump_file=None,
-                 config=None):
+                 config=None,
+                 resample_output=True):
         """Initialize StHAL. kwargs default to vertical setup configuration.
 
         Args:
@@ -653,6 +656,9 @@ class SimStHALContainer(StHALContainer):
             dump_file: filename for StHAL dump handle instead of hardware
             remote_host: host
             remote_port: port
+            resample_output: bool
+                if True, resample the result of read_adc to the adc
+                sampling frequency
         """
         super(SimStHALContainer, self).__init__(
             coord_wafer, coord_hicann, coord_analog, recording_time,
@@ -661,6 +667,8 @@ class SimStHALContainer(StHALContainer):
         host, port = config.get_sim_denmem().split(':')
         self.remote_host = host
         self.remote_port = int(port)
+
+        self.resample_output = resample_output
 
         # 10 times simulation reset
         self.simulation_init_time = 10.0e-07
@@ -716,12 +724,61 @@ class SimStHALContainer(StHALContainer):
             coord_neuron, enable_firing, l1address)
         self.current_neuron = coord_neuron
 
+    def resample_simulation_result(self, adc_result,
+                                   adc_sampling_interval=1. / 96e6):
+        """Re-sample the result of self.read_adc().
+
+        adc_result: Dictionary as returned by self.read_adc(). Must
+            contain the key "t". All values must be numpy arrays of
+            same length.
+
+        adc_sampling_interval: float. adc sampling interval in
+            seconds.
+
+        Returns a dictionary with the same keys as `adc_result`.
+            self.resample_simulation_result(data)['t'] covers the
+            linear range between min(data['t']) and max(data['t']) in
+            steps corresponding to the adc sampling interval.
+
+            For x != 't', self.resample_simulation_result(data)[x] is
+            the interpolated value of data[x] at the corresponding
+            time values.
+        """
+        time = numpy.arange(min(adc_result['t']), max(adc_result['t']),
+                            adc_sampling_interval)
+
+        if len(adc_result['t']) < 2:
+            raise ValueError("simulated ADC output too short")
+
+        self.logger.info(
+            "resampling simulation adc_result from {} to {} samples".format(
+                len(adc_result['t']), len(time)))
+        self.logger.info(
+            "new sampling interval is {} s".format(
+                adc_sampling_interval))
+
+        resampled = dict(t=time)
+        signals = adc_result.keys()
+        signals.remove('t')
+
+        for signal in signals:
+            resampled[signal] = scipy.interpolate.interp1d(
+                adc_result['t'],
+                adc_result[signal])(time)
+
+        return resampled
+
     def read_adc(self):
         """Fake ADC readout by evaluating a denmem_sim run."""
 
         param = self.build_TBParameters(self.current_neuron)
         json = param.to_json()
-        return self.run_simulation(self.current_neuron, param)
+        result = self.run_simulation(self.current_neuron, param)
+
+        if self.resample_output:
+            return self.resample_simulation_result(result)
+        else:
+            return result
 
     def read_adc_and_spikes(self):
         return self.read_adc()
