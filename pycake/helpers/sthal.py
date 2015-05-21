@@ -887,8 +887,8 @@ class SimStHALContainer(StHALContainer):
     def get_neuron_size(self):
         return 1
 
-    def switch_current_stimulus_and_output(self, coord_neuron, l1address=None):
+    def switch_current_stimulus_and_output(self, coord_neuron, enable_firing=True, l1address=None):
         def do_nothing(*args, **kwargs):
             pass
         self.wafer.configure = do_nothing
-        super(SimStHALContainer, self).switch_current_stimulus_and_output(coord_neuron, l1address)
+        super(SimStHALContainer, self).switch_current_stimulus_and_output(coord_neuron, enable_firing, l1address)
