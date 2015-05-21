@@ -273,7 +273,7 @@ class CalibrationRunner(object):
         self.logger.INFO("Finalizing")
 
         base_parameters = self.config.parameters['base_parameters']
-        technical_parameters = self.config.parameters['technical_parameters']
+        technical_parameters = self.config.parameters.get('technical_parameters', [])
 
         neurons = self.config.get_neurons()
         blocks = self.config.get_blocks()
