@@ -46,6 +46,31 @@ class BaseExperimentBuilder(object):
         self.blocks = self.config.get_blocks()
         self.test = test
 
+    def get_sthal(self):
+        """
+        returns sthal helper depending on config (e.g. hw vs. sim)
+        """
+
+        coord_wafer, coord_hicann = self.config.get_coordinates()
+        wafer_cfg = self.config.get_wafer_cfg()
+        PLL = self.config.get_PLL()
+
+        sim_denmem_cfg = self.config.get_sim_denmem()
+        if sim_denmem_cfg:
+            sthal = SimStHALContainer(
+                coord_wafer, coord_hicann, wafer_cfg=wafer_cfg, PLL=PLL,
+                config=self.config)
+        else:
+            sthal = StHALContainer(
+                coord_wafer, coord_hicann, wafer_cfg=wafer_cfg, PLL=PLL)
+
+        sthal.set_bigcap(self.config.get_bigcap())
+        # Get the SpeedUp type from string
+        speedup = pysthal.SpeedUp.names[self.config.get_speedup().upper()]
+        sthal.set_speedup(speedup)
+
+        return sthal
+
     def generate_measurements(self):
         self.logger.INFO("Building experiment {}".format(self.config.get_target()))
         measurements = []
@@ -57,25 +82,15 @@ class BaseExperimentBuilder(object):
         readout_shifts = self.get_readout_shifts(self.neurons)
 
         wafer_cfg = self.config.get_wafer_cfg()
-        PLL = self.config.get_PLL()
 
         # Create one sthal container for each step
         # order is step 1, step 2, step 3, ..., step 1, step 2, step 3, ...
         for rep, step in product(range(repetitions), steps):
             self.logger.INFO(
                 "Building step {}, repetition {}".format(step, rep))
-            sim_denmem_cfg = self.config.get_sim_denmem()
-            if sim_denmem_cfg:
-                sthal = SimStHALContainer(
-                    coord_wafer, coord_hicann, wafer_cfg=wafer_cfg, PLL=PLL,
-                    config=self.config)
-            else:
-                sthal = StHALContainer(
-                    coord_wafer, coord_hicann, wafer_cfg=wafer_cfg, PLL=PLL)
-                sthal.set_bigcap(self.config.get_bigcap())
-                # Get the SpeedUp type from string
-                speedup = pysthal.SpeedUp.names[self.config.get_speedup().upper()]
-                sthal.set_speedup(speedup)
+
+            sthal = self.get_sthal()
+
             # TODO maybe find better solution
             if self.test:
                 step = step.copy()
@@ -316,12 +331,8 @@ class I_pl_Experimentbuilder(BaseExperimentBuilder):
         steps = self.config.get_steps()
         readout_shifts = self.get_readout_shifts(self.neurons)
         wafer_cfg = self.config.get_wafer_cfg()
-        PLL = self.config.get_PLL()
-        sthal = StHALContainer(
-            coord_wafer, coord_hicann, wafer_cfg=wafer_cfg, PLL=PLL)
-        sthal.set_bigcap(self.config.get_bigcap())
-        speedup = pysthal.SpeedUp.names[self.config.get_speedup().upper()]
-        sthal.set_speedup(speedup)
+
+        sthal = self.get_sthal()
 
         # get a step with I_pl = 1023 DAC
         parameters = self.get_step_parameters({neuron_parameter.I_pl: DAC(1023, apply_calibration=False)})
