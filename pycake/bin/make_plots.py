@@ -346,254 +346,283 @@ if args.backenddir:
     plt.savefig(os.path.join(fig_dir,"analog_readout_offset.png"))
 
 ## V reset
+try:
+    r_v_reset = reader if args.v_reset_runner == None else Reader(args.v_reset_runner)
 
-r_v_reset = reader if args.v_reset_runner == None else Reader(args.v_reset_runner)
+    if r_v_reset:
 
-if r_v_reset:
+        uncalibrated_hist("$V_{reset}$ [V]",
+                          r_v_reset,
+                          parameter="V_reset",
+                          key="baseline",
+                          bins=100,
+                          range=(0.4,0.8),
+                          show_legend=True)
 
-    uncalibrated_hist("$V_{reset}$ [V]",
-                      r_v_reset,
-                      parameter="V_reset",
-                      key="baseline",
-                      bins=100,
-                      range=(0.4,0.8),
-                      show_legend=True)
+        trace("$V_{mem}$ [mV]", r_v_reset, "V_reset", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=2000, suffix="_uncalibrated")
 
-    trace("$V_{mem}$ [mV]", r_v_reset, "V_reset", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=2000, suffix="_uncalibrated")
+        result("$V_{{reset}}$ {inout}", reader=r_v_reset, parameter="V_reset",key="baseline",alpha=0.05)
+except Exception as e:
+    logger.ERROR("problem with uncalibrated V_reset plots: {}".format(e))
 
-    result("$V_{{reset}}$ {inout}", reader=r_v_reset, parameter="V_reset",key="baseline",alpha=0.05)
+try:
+    r_test_v_reset = test_reader if args.v_reset_testrunner == None else Reader(args.v_reset_testrunner)
 
-r_test_v_reset = test_reader if args.v_reset_testrunner == None else Reader(args.v_reset_testrunner)
+    if r_test_v_reset:
 
-if r_test_v_reset:
+        calibrated_hist("$V_{reset}$ [V]",
+                          r_test_v_reset,
+                          parameter="V_reset",
+                          key="baseline",
+                          bins=100,
+                          range=(0.4,0.6),
+                          show_legend=True)
 
-    calibrated_hist("$V_{reset}$ [V]",
-                      r_test_v_reset,
-                      parameter="V_reset",
-                      key="baseline",
-                      bins=100,
-                      range=(0.4,0.6),
-                      show_legend=True)
-
-    trace("$V_{mem}$ [V]", r_test_v_reset, "V_reset", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_calibrated")
+        trace("$V_{mem}$ [V]", r_test_v_reset, "V_reset", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_calibrated")
+except Exception as e:
+    logger.ERROR("problem with calibrated V_reset plots: {}".format(e))
 
 ## E synx
 
-r_e_synx = reader if args.e_synx_runner == None else Reader(args.e_synx_runner)
+try:
+    r_e_synx = reader if args.e_synx_runner == None else Reader(args.e_synx_runner)
 
-if r_e_synx:
+    if r_e_synx:
 
-    uncalibrated_hist("$E_{synx}$ [V]",
-                      r_e_synx,
-                      parameter="E_synx",
-                      key="mean",
-                      bins=100,
-                      range=(0.55,0.95),
-                      show_legend=True);
+        uncalibrated_hist("$E_{synx}$ [V]",
+                          r_e_synx,
+                          parameter="E_synx",
+                          key="mean",
+                          bins=100,
+                          range=(0.55,0.95),
+                          show_legend=True);
 
-    result("$E_{{synx}}$ {inout}", reader=r_e_synx, ylim=[0.5,1], parameter="E_synx",key="mean",alpha=0.05)
+        result("$E_{{synx}}$ {inout}", reader=r_e_synx, ylim=[0.5,1], parameter="E_synx",key="mean",alpha=0.05)
 
-    trace("$V_{mem}$ [V]", r_e_synx, "E_synx", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_uncalibrated")
+        trace("$V_{mem}$ [V]", r_e_synx, "E_synx", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_uncalibrated")
+except Exception as e:
+    logger.ERROR("problem with uncalibrated E_synx plots: {}".format(e))
 
-r_test_e_synx = test_reader if args.e_synx_testrunner == None else Reader(args.e_synx_testrunner)
+try:
+    r_test_e_synx = test_reader if args.e_synx_testrunner == None else Reader(args.e_synx_testrunner)
 
-if r_test_e_synx:
+    if r_test_e_synx:
 
-    calibrated_hist("$E_{synx}$ [V]",
-                    r_test_e_synx,
-                    parameter="E_synx",
-                    key="mean",
-                    bins=100,
-                    range=(0.55,0.85),
-                    show_legend=True);
+        calibrated_hist("$E_{synx}$ [V]",
+                        r_test_e_synx,
+                        parameter="E_synx",
+                        key="mean",
+                        bins=100,
+                        range=(0.55,0.85),
+                        show_legend=True);
 
-    result("$E_{{synx}}$ {inout}", reader=r_test_e_synx, suffix="_calibrated", xlim=[0.55/1.8*1023,0.85/1.8*1023], ylim=[0.55,0.85], parameter="E_synx",key="mean",alpha=0.05)
+        result("$E_{{synx}}$ {inout}", reader=r_test_e_synx, suffix="_calibrated", xlim=[0.55/1.8*1023,0.85/1.8*1023], ylim=[0.55,0.85], parameter="E_synx",key="mean",alpha=0.05)
 
-    trace("$V_{mem}$ [V]", r_test_e_synx, "E_synx", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_calibrated")
+        trace("$V_{mem}$ [V]", r_test_e_synx, "E_synx", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_calibrated")
 
-#for k,v in r_test_e_synx.get_results("E_synx", r_test_e_synx.get_neurons(), "mean").iteritems():
-#        if v[0] < 0.78 or v[0] > 0.82:
-#            print k, k.id(), v[0]
+    #for k,v in r_test_e_synx.get_results("E_synx", r_test_e_synx.get_neurons(), "mean").iteritems():
+    #        if v[0] < 0.78 or v[0] > 0.82:
+    #            print k, k.id(), v[0]
+except Exception as e:
+    logger.ERROR("problem with calibrated E_synx plots: {}".format(e))
 
 ## E syni
 
-r_e_syni = reader if args.e_syni_runner == None else Reader(args.e_syni_runner)
+try:
+    r_e_syni = reader if args.e_syni_runner == None else Reader(args.e_syni_runner)
 
-if r_e_syni:
+    if r_e_syni:
 
-    uncalibrated_hist("$E_{syni}$ [V]",
-                      r_e_syni,
-                      parameter="E_syni",
-                      key="mean",
-                      bins=100,
-                      range=(0.4, 0.9),
-                      show_legend=True);
+        uncalibrated_hist("$E_{syni}$ [V]",
+                          r_e_syni,
+                          parameter="E_syni",
+                          key="mean",
+                          bins=100,
+                          range=(0.4, 0.9),
+                          show_legend=True);
 
-    result("$E_{{syni}}$ {inout}", reader=r_e_syni, ylim=[0.4,0.9], parameter="E_syni",key="mean",alpha=0.05)
+        result("$E_{{syni}}$ {inout}", reader=r_e_syni, ylim=[0.4,0.9], parameter="E_syni",key="mean",alpha=0.05)
 
-    trace("$V_{mem}$ [V]", r_e_syni, "E_syni", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_uncalibrated")
+        trace("$V_{mem}$ [V]", r_e_syni, "E_syni", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_uncalibrated")
+except Exception as e:
+    logger.ERROR("problem with uncalibrated E_syni plots: {}".format(e))
 
-r_test_e_syni = test_reader if args.e_syni_testrunner == None else Reader(args.e_syni_testrunner)
+try:
+    r_test_e_syni = test_reader if args.e_syni_testrunner == None else Reader(args.e_syni_testrunner)
 
-if r_test_e_syni:
+    if r_test_e_syni:
 
-    calibrated_hist("$E_{syni}$ [V]",
-                    r_test_e_syni,
-                    parameter="E_syni",
-                    key="mean",
-                    bins=100,
-                    range=(0.55, 0.85),
-                    show_legend=True);
+        calibrated_hist("$E_{syni}$ [V]",
+                        r_test_e_syni,
+                        parameter="E_syni",
+                        key="mean",
+                        bins=100,
+                        range=(0.55, 0.85),
+                        show_legend=True);
 
-    result("$E_{{syni}}$ {inout}", reader=r_test_e_syni, suffix="_calibrated", xlim=[0.55/1.8*1023,0.85/1.8*1023], ylim=[0.55,0.85], parameter="E_syni",key="mean",alpha=0.05)
+        result("$E_{{syni}}$ {inout}", reader=r_test_e_syni, suffix="_calibrated", xlim=[0.55/1.8*1023,0.85/1.8*1023], ylim=[0.55,0.85], parameter="E_syni",key="mean",alpha=0.05)
 
-    trace("$V_{mem}$ [V]", r_test_e_syni, "E_syni", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_calibrated")
+        trace("$V_{mem}$ [V]", r_test_e_syni, "E_syni", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_calibrated")
+except Exception as e:
+    logger.ERROR("problem with calibrated E_syni plots: {}".format(e))
 
 ## E l
 
-r_e_l = reader if args.e_l_runner == None else Reader(args.e_l_runner)
+try:
+    r_e_l = reader if args.e_l_runner == None else Reader(args.e_l_runner)
 
-if r_e_l:
+    if r_e_l:
 
-    uncalibrated_hist("$E_{l}$ [V]",
-                      r_e_l,
-                      parameter="E_l",
-                      key="mean",
-                      bins=100,
-                      range=(0.45,0.9),
-                      show_legend=True)
+        uncalibrated_hist("$E_{l}$ [V]",
+                          r_e_l,
+                          parameter="E_l",
+                          key="mean",
+                          bins=100,
+                          range=(0.45,0.9),
+                          show_legend=True)
 
-    result("$E_{{l}}$ {inout}", reader=r_e_l, ylim=[0.4,0.9], parameter="E_l",key="mean",alpha=0.05)
+        result("$E_{{l}}$ {inout}", reader=r_e_l, ylim=[0.4,0.9], parameter="E_l",key="mean",alpha=0.05)
 
-    trace("$V_{mem}$ [V]", r_e_l, "E_l", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_uncalibrated")
+        trace("$V_{mem}$ [V]", r_e_l, "E_l", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_uncalibrated")
 
-    """
+        """
 
-    r_e_l.include_defects = True
-    r_e_l.plot_result("E_l","mean");
+        r_e_l.include_defects = True
+        r_e_l.plot_result("E_l","mean");
 
-    r_e_l.include_defects = False
+        r_e_l.include_defects = False
 
-    neurons = r_e_l.get_neurons()[132:135]
+        neurons = r_e_l.get_neurons()[132:135]
 
-    fig = r_e_l.plot_result("E_l","mean",neurons,marker='o',linestyle="None");
+        fig = r_e_l.plot_result("E_l","mean",neurons,marker='o',linestyle="None");
 
-    print r_e_l.runner.coeffs.keys()
+        print r_e_l.runner.coeffs.keys()
 
-    coeffs = r_e_l.runner.coeffs["E_l"]
+        coeffs = r_e_l.runner.coeffs["E_l"]
 
-    xs = np.array([500,900])
+        xs = np.array([500,900])
 
-    for n in neurons:
-        #print len(coeffs), len(coeffs[0]), len(coeffs[0][1])
-        c = coeffs[0][1][n]
-        if c == None:
-            #print c
-            #continue
-            pass
-        a = c[0]
-        b = c[1]
-        #print a,b, 1/a, -b/a
-        polynomial = numpy.poly1d([1/a,-b/a])
-        #print polynomial
-        plt.plot(xs,np.array(polynomial(xs/1800.*1023.)*1800./1023.), label="Neuron {}".format(n.id().value()))
+        for n in neurons:
+            #print len(coeffs), len(coeffs[0]), len(coeffs[0][1])
+            c = coeffs[0][1][n]
+            if c == None:
+                #print c
+                #continue
+                pass
+            a = c[0]
+            b = c[1]
+            #print a,b, 1/a, -b/a
+            polynomial = numpy.poly1d([1/a,-b/a])
+            #print polynomial
+            plt.plot(xs,np.array(polynomial(xs/1800.*1023.)*1800./1023.), label="Neuron {}".format(n.id().value()))
 
-    plt.xlabel("Input [DAC]")
-    plt.ylabel("Output [V]")
-    plt.subplots_adjust(**margins)
-    plt.xlim(500,900)
-    plt.ylim(500,900)
-    plt.legend(loc="upper left")
-    plt.grid(True)
-    fig.savefig(os.path.join(fig_dir,"calib_example_lines.pdf"))
-    """
+        plt.xlabel("Input [DAC]")
+        plt.ylabel("Output [V]")
+        plt.subplots_adjust(**margins)
+        plt.xlim(500,900)
+        plt.ylim(500,900)
+        plt.legend(loc="upper left")
+        plt.grid(True)
+        fig.savefig(os.path.join(fig_dir,"calib_example_lines.pdf"))
+        """
+except Exception as e:
+    logger.ERROR("problem with uncalibrated E_l plots: {}".format(e))
 
-r_test_e_l = test_reader if args.e_l_testrunner == None else Reader(args.e_l_testrunner)
+try:
+    r_test_e_l = test_reader if args.e_l_testrunner == None else Reader(args.e_l_testrunner)
 
-if r_test_e_l:
+    if r_test_e_l:
 
-    calibrated_hist("$E_{l}$ [V]",
-                    r_test_e_l,
-                    parameter="E_l",
-                    key="mean",
-                    show_legend=True,
-                    bins=100,
-                    range=(0.6,0.8))
+        calibrated_hist("$E_{l}$ [V]",
+                        r_test_e_l,
+                        parameter="E_l",
+                        key="mean",
+                        show_legend=True,
+                        bins=100,
+                        range=(0.6,0.8))
 
-    result("$E_{{l}}$ {inout}", reader=r_test_e_l, suffix="_calibrated", xlim=[0.6/1.8*1023,0.8/1.8*1023], ylim=[0.6,0.8], parameter="E_l",key="mean",alpha=0.05)
+        result("$E_{{l}}$ {inout}", reader=r_test_e_l, suffix="_calibrated", xlim=[0.6/1.8*1023,0.8/1.8*1023], ylim=[0.6,0.8], parameter="E_l",key="mean",alpha=0.05)
 
-    trace("$V_{mem}$ [V]", r_test_e_l, "E_l", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_calibrated")
+        trace("$V_{mem}$ [V]", r_test_e_l, "E_l", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_calibrated")
+except Exception as e:
+    logger.ERROR("problem with calibrated E_l plots: {}".format(e))
 
 ## V t
 
-r_v_t = reader if args.v_t_runner == None else Reader(args.v_t_runner)
+try:
+    r_v_t = reader if args.v_t_runner == None else Reader(args.v_t_runner)
 
-if r_v_t:
+    if r_v_t:
 
-    uncalibrated_hist("$V_{t}$ [V]",
-                      r_v_t,
-                      parameter="V_t",
-                      key="max",
-                      bins=100,
-                      range=(0.5,1),
-                      show_legend=True)
+        uncalibrated_hist("$V_{t}$ [V]",
+                          r_v_t,
+                          parameter="V_t",
+                          key="max",
+                          bins=100,
+                          range=(0.5,1),
+                          show_legend=True)
 
-    result("$V_{{t}}$ {inout}", reader=r_v_t, ylim=[0.5,1], parameter="V_t",key="max",alpha=0.05)
+        result("$V_{{t}}$ {inout}", reader=r_v_t, ylim=[0.5,1], parameter="V_t",key="max",alpha=0.05)
 
-    trace("$V_{mem}$ [V]", r_v_t, "V_t", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_uncalibrated")
+        trace("$V_{mem}$ [V]", r_v_t, "V_t", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_uncalibrated")
+except Exception as e:
+    logger.ERROR("problem with uncalibrated V_t plots: {}".format(e))
 
-r_test_v_t = test_reader if args.v_t_testrunner == None else Reader(args.v_t_testrunner)
+try:
+    r_test_v_t = test_reader if args.v_t_testrunner == None else Reader(args.v_t_testrunner)
 
-if  r_test_v_t:
+    if  r_test_v_t:
 
-    calibrated_hist("$V_{t}$ [V]",
-                    r_test_v_t,
-                    parameter="V_t",
-                    key="max",
-                    bins=100,
-                    range=(0.65,0.85),
-                    show_legend=True)
+        calibrated_hist("$V_{t}$ [V]",
+                        r_test_v_t,
+                        parameter="V_t",
+                        key="max",
+                        bins=100,
+                        range=(0.65,0.85),
+                        show_legend=True)
 
-    #for k,v in r_test_v_t.get_results("V_t", range(512), "max").iteritems():
-    #        if v[0] < 0.675 or v[0] > 0.725:
-    #            print 0.7, k.id(), v[0]
-    #            print
-    #        if v[1] < 0.725 or v[1] > 0.775:
-    #            print 0.75, k.id(), v[1]
-    #            print
-    #        if v[2] < 0.775 or v[2] > 0.825:
-    #            print 0.8, k.id(), v[2]
-    #            print
+        #for k,v in r_test_v_t.get_results("V_t", range(512), "max").iteritems():
+        #        if v[0] < 0.675 or v[0] > 0.725:
+        #            print 0.7, k.id(), v[0]
+        #            print
+        #        if v[1] < 0.725 or v[1] > 0.775:
+        #            print 0.75, k.id(), v[1]
+        #            print
+        #        if v[2] < 0.775 or v[2] > 0.825:
+        #            print 0.8, k.id(), v[2]
+        #            print
 
-    result("$V_{{t}}$ {inout}", reader=r_test_v_t, suffix="_calibrated", xlim=[0.65/1.8*1023,0.85/1.8*1023], ylim=[0.65,0.85], parameter="V_t",key="max",alpha=0.05)
+        result("$V_{{t}}$ {inout}", reader=r_test_v_t, suffix="_calibrated", xlim=[0.65/1.8*1023,0.85/1.8*1023], ylim=[0.65,0.85], parameter="V_t",key="max",alpha=0.05)
 
-    trace("$V_{mem}$ [V]", r_test_v_t, parameter="V_t", neuron=C.NeuronOnHICANN(C.Enum(args.neuron_enum)), start=500, end=700, suffix="_calibrated")
+        trace("$V_{mem}$ [V]", r_test_v_t, parameter="V_t", neuron=C.NeuronOnHICANN(C.Enum(args.neuron_enum)), start=500, end=700, suffix="_calibrated")
 
-    #r_v_t.include_defects = False
+        #r_v_t.include_defects = False
 
-    #neurons = r_v_t.get_neurons()[0:1]
+        #neurons = r_v_t.get_neurons()[0:1]
 
-    #fig = r_v_t.plot_result("V_t","max",neurons,marker='o',linestyle="None");
+        #fig = r_v_t.plot_result("V_t","max",neurons,marker='o',linestyle="None");
 
-    #print r_v_t.runner.coeffs.keys()
+        #print r_v_t.runner.coeffs.keys()
 
-    #coeffs = r_v_t.runner.coeffs["V_t"]
-    #
-    #xs = np.array([550,850])
-    #
-    #for n in neurons:
-    #    #print len(coeffs), len(coeffs[0]), len(coeffs[0][1])
-    #    c = coeffs[0][1][n]
-    #    if c == None:
-    #        #print c
-    #        continue
-    #        pass
-    #    a = c[0]
-    #    b = c[1]
-    #    #print a,b, 1/a, -b/a
-    #    polynomial = numpy.poly1d([1/a,-b/a])
-    #    #print polynomial
-    #    plt.plot(xs,np.array(polynomial(xs/1800.*1023.)*1800./1023.))
+        #coeffs = r_v_t.runner.coeffs["V_t"]
+        #
+        #xs = np.array([550,850])
+        #
+        #for n in neurons:
+        #    #print len(coeffs), len(coeffs[0]), len(coeffs[0][1])
+        #    c = coeffs[0][1][n]
+        #    if c == None:
+        #        #print c
+        #        continue
+        #        pass
+        #    a = c[0]
+        #    b = c[1]
+        #    #print a,b, 1/a, -b/a
+        #    polynomial = numpy.poly1d([1/a,-b/a])
+        #    #print polynomial
+        #    plt.plot(xs,np.array(polynomial(xs/1800.*1023.)*1800./1023.))
+except Exception as e:
+    logger.ERROR("problem with calibrated V_t plots: {}".format(e))
 
 ## E l, I gl
 
@@ -612,40 +641,64 @@ if  r_test_v_t:
 
 ## V syntcx psp max
 
-r_v_syntcx = reader if args.v_syntcx_runner == None else Reader(args.v_syntcx_runner)
+try:
+    r_v_syntcx = reader if args.v_syntcx_runner == None else Reader(args.v_syntcx_runner)
 
-if r_v_syntcx:
+    if r_v_syntcx:
 
-    """
+        """
 
-    e = r_v_syntcx.runner.experiments["V_syntcx_psp_max"]
+        e = r_v_syntcx.runner.experiments["V_syntcx_psp_max"]
 
-    x = 3000
+        x = 3000
 
-    neuron = C.NeuronOnHICANN(C.Enum(103))
+        neuron = C.NeuronOnHICANN(C.Enum(103))
 
-    for m in [e.measurements[idx] for idx in [0,-1,3]]:
-        t = m.get_trace(neuron)
-        plt.plot(np.array(t[0][:x])*1e6,t[1][:x], label="$V_{{syntcx}}$ {:.0f} [mV]".format(#np.std(t[1]),
-                 m.sthal.hicann.floating_gates.getNeuron(neuron, pyhalbe.HICANN.neuron_parameter.V_syntcx)/1023.*1800))
-    plt.legend()
-    plt.ylabel("$V_{mem}$ [mV]")
-    plt.xlabel("t [$\mu$s]")
-    plt.ylim(0.69, 0.78)
-    plt.subplots_adjust(**margins)
-    plt.savefig(os.path.join(fig_dir,"V_syntcx_trace.pdf"))
+        for m in [e.measurements[idx] for idx in [0,-1,3]]:
+            t = m.get_trace(neuron)
+            plt.plot(np.array(t[0][:x])*1e6,t[1][:x], label="$V_{{syntcx}}$ {:.0f} [mV]".format(#np.std(t[1]),
+                     m.sthal.hicann.floating_gates.getNeuron(neuron, pyhalbe.HICANN.neuron_parameter.V_syntcx)/1023.*1800))
+        plt.legend()
+        plt.ylabel("$V_{mem}$ [mV]")
+        plt.xlabel("t [$\mu$s]")
+        plt.ylim(0.69, 0.78)
+        plt.subplots_adjust(**margins)
+        plt.savefig(os.path.join(fig_dir,"V_syntcx_trace.pdf"))
 
-    data = t[1]
+        data = t[1]
 
-    max_std = -1
-    current_std = 0
+        max_std = -1
+        current_std = 0
 
-    period_index = 6000
+        period_index = 6000
 
-    stds = []
-    period_indices = []
+        stds = []
+        period_indices = []
 
-    for period_index in range(1,len(data)):
+        for period_index in range(1,len(data)):
+
+            nperiods = len(data)/period_index
+            max_index = nperiods*period_index
+            data_cut = data[:max_index]
+            data_split = np.array_split(data_cut, len(data_cut)/period_index)
+            avg_raw = np.mean([ds for ds in data_split], axis=0)
+            current_std = np.std(avg_raw)
+
+            period_indices.append(period_index)
+            stds.append(current_std)
+
+        plt.plot(period_indices, stds)
+
+        #plt.scatter(np.array(maxtab)[:,0][:x], np.array(maxtab)[:,1][:x], color='blue')
+
+
+        maxtab, mintab = peakdet(stds, 0.003)
+
+        # In[57]:
+
+        data = t[1]
+
+        period_index = 959
 
         nperiods = len(data)/period_index
         max_index = nperiods*period_index
@@ -654,182 +707,164 @@ if r_v_syntcx:
         avg_raw = np.mean([ds for ds in data_split], axis=0)
         current_std = np.std(avg_raw)
 
-        period_indices.append(period_index)
-        stds.append(current_std)
+        plt.plot(avg_raw)
 
-    plt.plot(period_indices, stds)
+        print np.std(avg_raw), np.std(t[1])
 
-    #plt.scatter(np.array(maxtab)[:,0][:x], np.array(maxtab)[:,1][:x], color='blue')
+        maxtab, mintab = peakdet(avg_raw, np.std(avg_raw))
 
+        print maxtab, mintab
 
-    maxtab, mintab = peakdet(stds, 0.003)
+        plt.scatter(np.array(maxtab)[:,0], np.array(maxtab)[:,1], color='red')
 
-    # In[57]:
+        def my_exp(x):
+            return 0.745 + 0.04*(np.exp(-1/70.*(x-113)) - 1)
 
-    data = t[1]
+        exp_range = np.arange(113,400)
 
-    period_index = 959
+        plt.plot(exp_range, my_exp(exp_range))
 
-    nperiods = len(data)/period_index
-    max_index = nperiods*period_index
-    data_cut = data[:max_index]
-    data_split = np.array_split(data_cut, len(data_cut)/period_index)
-    avg_raw = np.mean([ds for ds in data_split], axis=0)
-    current_std = np.std(avg_raw)
+        # In[43]:
 
-    plt.plot(avg_raw)
+        m.sthal.hicann.floating_gates.getNeuron(neuron, pyhalbe.HICANN.neuron_parameter.V_syntcx)
 
-    print np.std(avg_raw), np.std(t[1])
+        """
 
-    maxtab, mintab = peakdet(avg_raw, np.std(avg_raw))
+        # In[222]:
+        #r_v_syntcx.plot_hists("V_syntcx_psp_max", "std", bins=100, range=(0,0.03), draw_target_line=False);
 
-    print maxtab, mintab
+        # In[223]:
+        #r_v_syntcx.plot_result("V_syntcx_psp_max","mean", color='b', alpha=0.1);
 
-    plt.scatter(np.array(maxtab)[:,0], np.array(maxtab)[:,1], color='red')
+        # In[310]:
 
-    def my_exp(x):
-        return 0.745 + 0.04*(np.exp(-1/70.*(x-113)) - 1)
-
-    exp_range = np.arange(113,400)
-
-    plt.plot(exp_range, my_exp(exp_range))
-
-    # In[43]:
-
-    m.sthal.hicann.floating_gates.getNeuron(neuron, pyhalbe.HICANN.neuron_parameter.V_syntcx)
-
-    """
-
-    # In[222]:
-    #r_v_syntcx.plot_hists("V_syntcx_psp_max", "std", bins=100, range=(0,0.03), draw_target_line=False);
-
-    # In[223]:
-    #r_v_syntcx.plot_result("V_syntcx_psp_max","mean", color='b', alpha=0.1);
-
-    # In[310]:
-
-    result(label=None,
-           xlabel="$V_{syntcx}$ [mV]",
-           ylabel="$\sigma$(trace) [mV]",
-           reader=r_v_syntcx,
-           parameter="V_syntcx_psp_max",
-           key="std",
-           mark_top_bottom=True,
-           alpha=0.5,
-           marker="None",
-           yfactor=1000)
+        result(label=None,
+               xlabel="$V_{syntcx}$ [mV]",
+               ylabel="$\sigma$(trace) [mV]",
+               reader=r_v_syntcx,
+               parameter="V_syntcx_psp_max",
+               key="std",
+               mark_top_bottom=True,
+               alpha=0.5,
+               marker="None",
+               yfactor=1000)
 
 
-    trace("$V_{mem}$ [mV]", r_v_syntcx, "V_syntcx_psp_max", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=4000)
+        trace("$V_{mem}$ [mV]", r_v_syntcx, "V_syntcx_psp_max", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=4000)
 
-    # In[311]:
+        # In[311]:
 
-    fig = plt.figure()
-    r_v_syntcx.include_defects = False
-    results_v_syntcx = r_v_syntcx.get_results("V_syntcx_psp_max",r_v_syntcx.get_neurons(),"std")
+        fig = plt.figure()
+        r_v_syntcx.include_defects = False
+        results_v_syntcx = r_v_syntcx.get_results("V_syntcx_psp_max",r_v_syntcx.get_neurons(),"std")
 
-    bins = np.linspace(0,50,101)
+        bins = np.linspace(0,50,101)
 
-    top_max_stds = [np.max(stds)*1000 for n, stds in results_v_syntcx.iteritems() if n.y() == C.Y(0)]
-    plt.hist(top_max_stds,bins=bins,color='b',label="top")
+        top_max_stds = [np.max(stds)*1000 for n, stds in results_v_syntcx.iteritems() if n.y() == C.Y(0)]
+        plt.hist(top_max_stds,bins=bins,color='b',label="top")
 
-    bottom_max_stds = [np.max(stds)*1000 for n, stds in results_v_syntcx.iteritems() if n.y() == C.Y(1)]
-    plt.hist(bottom_max_stds,bins=bins,color='g',alpha=0.8,label="bottom")
+        bottom_max_stds = [np.max(stds)*1000 for n, stds in results_v_syntcx.iteritems() if n.y() == C.Y(1)]
+        plt.hist(bottom_max_stds,bins=bins,color='g',alpha=0.8,label="bottom")
 
-    plt.xlabel("max $\sigma$(trace) [mV]")
-    plt.ylabel("#")
-    plt.xlim(0,50)
-    plt.ylim(0,23)
-    plt.legend()
-    plt.subplots_adjust(**margins)
-    plt.savefig(os.path.join(fig_dir,"V_syntcx_psp_stds.pdf"))
-    plt.savefig(os.path.join(fig_dir,"V_syntcx_psp_stds.png"))
+        plt.xlabel("max $\sigma$(trace) [mV]")
+        plt.ylabel("#")
+        plt.xlim(0,50)
+        plt.ylim(0,23)
+        plt.legend()
+        plt.subplots_adjust(**margins)
+        plt.savefig(os.path.join(fig_dir,"V_syntcx_psp_stds.pdf"))
+        plt.savefig(os.path.join(fig_dir,"V_syntcx_psp_stds.png"))
 
-    # In[242]:
+        # In[242]:
 
-    # sum(np.array(max_stds) < 0.005)
+        # sum(np.array(max_stds) < 0.005)
+except Exception as e:
+    logger.ERROR("problem with V_syntcx plots: {}".format(e))
 
 ## V syntci psp max
 
-r_v_syntci = reader if args.v_syntci_runner == None else Reader(args.v_syntci_runner)
+try:
+    r_v_syntci = reader if args.v_syntci_runner == None else Reader(args.v_syntci_runner)
 
-if r_v_syntci:
+    if r_v_syntci:
 
-    e = r_v_syntci.runner.get_single(name="V_syntci_psp_max").experiment
+        e = r_v_syntci.runner.get_single(name="V_syntci_psp_max").experiment
+
+        """
+
+        x = 3000
+
+        neuron = C.NeuronOnHICANN(C.Enum(401))
+
+        for m in [e.measurements[idx] for idx in [0,3,-1]]:
+            t = m.get_trace(neuron)
+            plt.plot(np.array(t[0][:x])*1e6,t[1][:x], label="$V_{{syntci}}$ {:.0f} [mV]".format(#np.std(t[1]),
+                     m.sthal.hicann.floating_gates.getNeuron(neuron, pyhalbe.HICANN.neuron_parameter.V_syntci)/1023.*1800))
+        plt.legend()
+        plt.ylabel("$V_{mem}$ [mV]")
+        plt.xlabel("t [$\mu$s]")
+        plt.ylim(0.64, 0.76)
+        plt.subplots_adjust(**margins)
+        plt.savefig(os.path.join(fig_dir,"V_syntci_trace.pdf"))
+
+        """
+
+        # In[318]:
+
+        result(label=None,
+               xlabel="$V_{syntci}$ [mV]",
+               ylabel="$\sigma$(trace) [mV]",
+               reader=r_v_syntci,
+               parameter="V_syntci_psp_max",
+               key="std",
+               mark_top_bottom=True,
+               alpha=0.5,
+               marker="None",
+               yfactor=1000)
+
+        trace("$V_{mem}$ [mV]", r_v_syntci, "V_syntci_psp_max", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510)
+
+        # In[319]:
+
+        fig = plt.figure()
+        r_v_syntci.include_defects = False
+        results_v_syntci = r_v_syntci.get_results("V_syntci_psp_max",r_v_syntci.get_neurons(),"std")
+
+        bins = np.linspace(0,50,101)
+
+        top_max_stds = [np.max(stds)*1000 for n, stds in results_v_syntci.iteritems() if n.y() == C.Y(0)]
+        plt.hist(top_max_stds,bins=bins,color='b',label="top")
+
+        bottom_max_stds = [np.max(stds)*1000 for n, stds in results_v_syntci.iteritems() if n.y() == C.Y(1)]
+        plt.hist(bottom_max_stds,bins=bins,color='g',alpha=0.8,label="bottom")
+
+        plt.xlabel("max $\sigma$(trace) [mV]")
+        plt.ylabel("#")
+        plt.xlim(0,50)
+        plt.ylim(0,23)
+        plt.legend()
+        plt.subplots_adjust(**margins)
+        plt.savefig(os.path.join(fig_dir,"V_syntci_psp_stds.pdf"))
+        plt.savefig(os.path.join(fig_dir,"V_syntci_psp_stds.png"))
 
     """
+        # In[247]:
 
-    x = 3000
+        sum(np.array(max_stds) < 0.005)
 
-    neuron = C.NeuronOnHICANN(C.Enum(401))
 
-    for m in [e.measurements[idx] for idx in [0,3,-1]]:
-        t = m.get_trace(neuron)
-        plt.plot(np.array(t[0][:x])*1e6,t[1][:x], label="$V_{{syntci}}$ {:.0f} [mV]".format(#np.std(t[1]),
-                 m.sthal.hicann.floating_gates.getNeuron(neuron, pyhalbe.HICANN.neuron_parameter.V_syntci)/1023.*1800))
-    plt.legend()
-    plt.ylabel("$V_{mem}$ [mV]")
-    plt.xlabel("t [$\mu$s]")
-    plt.ylim(0.64, 0.76)
-    plt.subplots_adjust(**margins)
-    plt.savefig(os.path.join(fig_dir,"V_syntci_trace.pdf"))
+        # In[253]:
 
+        bad_syntci = [n  for n, stds in results_v_syntci.iteritems() if np.max(stds) < 0.005];
+        bad_syntcx = [n  for n, stds in results_v_syntcx.iteritems() if np.max(stds) < 0.005]
+
+
+        # In[255]:
+
+        set(bad_syntcx).intersection(bad_syntci)
     """
-
-    # In[318]:
-
-    result(label=None,
-           xlabel="$V_{syntci}$ [mV]",
-           ylabel="$\sigma$(trace) [mV]",
-           reader=r_v_syntci,
-           parameter="V_syntci_psp_max",
-           key="std",
-           mark_top_bottom=True,
-           alpha=0.5,
-           marker="None",
-           yfactor=1000)
-
-    trace("$V_{mem}$ [mV]", r_v_syntci, "V_syntci_psp_max", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510)
-
-    # In[319]:
-
-    fig = plt.figure()
-    r_v_syntci.include_defects = False
-    results_v_syntci = r_v_syntci.get_results("V_syntci_psp_max",r_v_syntci.get_neurons(),"std")
-
-    bins = np.linspace(0,50,101)
-
-    top_max_stds = [np.max(stds)*1000 for n, stds in results_v_syntci.iteritems() if n.y() == C.Y(0)]
-    plt.hist(top_max_stds,bins=bins,color='b',label="top")
-
-    bottom_max_stds = [np.max(stds)*1000 for n, stds in results_v_syntci.iteritems() if n.y() == C.Y(1)]
-    plt.hist(bottom_max_stds,bins=bins,color='g',alpha=0.8,label="bottom")
-
-    plt.xlabel("max $\sigma$(trace) [mV]")
-    plt.ylabel("#")
-    plt.xlim(0,50)
-    plt.ylim(0,23)
-    plt.legend()
-    plt.subplots_adjust(**margins)
-    plt.savefig(os.path.join(fig_dir,"V_syntci_psp_stds.pdf"))
-    plt.savefig(os.path.join(fig_dir,"V_syntci_psp_stds.png"))
-
-"""
-    # In[247]:
-
-    sum(np.array(max_stds) < 0.005)
-
-
-    # In[253]:
-
-    bad_syntci = [n  for n, stds in results_v_syntci.iteritems() if np.max(stds) < 0.005];
-    bad_syntcx = [n  for n, stds in results_v_syntcx.iteritems() if np.max(stds) < 0.005]
-
-
-    # In[255]:
-
-    set(bad_syntcx).intersection(bad_syntci)
-"""
+except Exception as e:
+    logger.ERROR("problem with V_syntci plots: {}".format(e))
 
 logger.WARN("spike plots disabled until readout is stable")
 """
