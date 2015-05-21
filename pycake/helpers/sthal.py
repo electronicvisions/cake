@@ -711,9 +711,9 @@ class SimStHALContainer(StHALContainer):
         """Write full configuration."""
         pass
 
-    def switch_analog_output(self, coord_neuron, l1address=None):
+    def switch_analog_output(self, coord_neuron, enable_firing=True, l1address=None):
         super(SimStHALContainer, self).switch_analog_output(
-            coord_neuron, l1address)
+            coord_neuron, enable_firing, l1address)
         self.current_neuron = coord_neuron
 
     def read_adc(self):
