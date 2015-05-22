@@ -13,7 +13,7 @@ from sim_denmem_parameters import parameters
 
 
 eval_parameters = {
-    "filename_prefix": "eval",
+    "folder_prefix": "sim_evaluation",
 
     # For the evaluation of the calibration, sometimes only one point is
     # targeted, usually 3

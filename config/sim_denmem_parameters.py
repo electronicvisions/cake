@@ -43,6 +43,8 @@ E_synx_target = E_l_target + 300
 E_syni_target = E_l_target - 300
 
 parameters = {
+    "folder_prefix": "sim_calibration",
+
     # host and port of your simulator server
     "sim_denmem": "vtitan:8123",  # host and port of your simulator
 
