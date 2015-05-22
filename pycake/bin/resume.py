@@ -21,8 +21,8 @@ init_logger(pylogging.LogLevel.WARN, [
     ("pycake.experimentbuilder", pylogging.LogLevel.DEBUG),
     ("pycake.calibtic", pylogging.LogLevel.DEBUG),
     ("pycake.redman", pylogging.LogLevel.DEBUG),
-    ("pycake.sthal", pylogging.LogLevel.DEBUG),
     ("pycake.helper.sthal", pylogging.LogLevel.INFO),
+    ("pycake.helper.simsthal", pylogging.LogLevel.INFO),
     ("sthal", pylogging.LogLevel.INFO),
     ("sthal.AnalogRecorder", pylogging.LogLevel.WARN),
     ("sthal.HICANNConfigurator.Time", pylogging.LogLevel.INFO)
