@@ -47,7 +47,7 @@ font = {#'family' : 'normal',
         #'weight' : 'bold',
         'size'   : 12}
 matplotlib.rc('font', **font)
-margins={"left":0.1, "right":0.95, "top":0.95, "bottom":0.08}
+margins={"left":0.2, "right":0.95, "top":0.95, "bottom":0.08}
 
 parser = argparse.ArgumentParser()
 parser.add_argument("runner", help="path of calibration runner directory (can be empty)")

@@ -154,7 +154,7 @@ class Reader(object):
 
             results_list.append(results[n])
 
-        p = plt.plot(*zip(*sorted(zip(x_values, results_list), key=itemgetter(0))))
+        p = plt.plot(*zip(*sorted(zip(x_values, results_list), key=itemgetter(0))), marker='x', linestyle="None")
 
         config = self.runner.config.copy(parameter)
 
