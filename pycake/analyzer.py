@@ -132,17 +132,27 @@ class PeakAnalyzer(Analyzer):
         return slopes_rising, slopes_falling
 
     def get_mean_peak(self, t, v, maxtab, mintab):
-        try:
-            mean_max = np.mean(maxtab[:, 1])
-            std_max = np.std(maxtab[:, 1])
-            mean_min = np.mean(mintab[:, 1])
-            std_min = np.std(mintab[:, 1])
-        except IndexError:
-            self.logger.INFO("No mean min/max found. Using hard min/max.")
+
+        # ignore, possibly truncated, peaks at the beginning and end of trace
+        trunc_maxtab = maxtab[1:-1]
+        trunc_mintab = mintab[1:-1]
+
+        if len(trunc_maxtab) > 0:
+            mean_max = np.mean(trunc_maxtab[:, 1])
+            std_max = np.std(trunc_maxtab[:, 1])
+        else:
+            self.logger.WARN("No mean max found. Using hard min/max.")
             mean_max = np.max(v)
-            mean_min = np.min(v)
             std_max = 0
+
+        if len(trunc_mintab) > 0:
+            mean_min = np.mean(trunc_mintab[:, 1])
+            std_min = np.std(trunc_mintab[:, 1])
+        else:
+            self.logger.WARN("No mean min found. Using hard min/max.")
+            mean_min = np.min(v)
             std_min = 0
+
         return mean_max, mean_min, std_max, std_min
 
     def find_baseline(self, t, v):

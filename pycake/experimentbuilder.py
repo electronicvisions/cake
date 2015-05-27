@@ -285,7 +285,7 @@ class V_t_Experimentbuilder(BaseExperimentBuilder):
 
     def prepare_specific_config(self, sthal):
         sthal.set_recording_time(25.0e-6, 4)
-        sthal.maximum_spikes = 3
+        sthal.maximum_spikes = 10
         return sthal
 
 
