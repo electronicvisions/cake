@@ -504,3 +504,52 @@ class I_pl_Analyzer(ISI_Analyzer):
             self.logger.WARN("calculated tau_ref smaller than zero. Returning nan")
             return np.nan
         return tau_ref
+
+class SimplePSPAnalyzer(Analyzer):
+    """ Calculates basic properties of a PSP without fitting
+    """
+
+    # FIXME:
+    # spike times are not needed but requested to exist by V_convoff_Experimentbuilder
+    def __init__(self, spiketimes):
+
+        # fraction of time at the beginning of the trace where
+        # the membrane is assumed to be at rest
+        self.baseline_fraction = 10
+
+        # fraction of psp height for rise and drop criteria
+        self.rise_fraction = np.e
+        self.fall_fraction = np.e
+
+    def __call__(self, neuron, t, v, **traces):
+
+        baseline = np.mean(v[0:len(v)/self.baseline_fraction])
+
+        delta = np.std(v)
+        maxtab, mintab = peakdet(v, delta)
+
+        # without maximum, we cannot return anything
+        if len(maxtab) == 0:
+            return {}
+
+        first_peak_idx = maxtab[0][0]
+        first_peak_value = maxtab[0][1]
+
+        psp_height = first_peak_value-baseline
+
+        rise_idx = np.argmax(np.array(v[:first_peak_idx])-baseline > psp_height/self.rise_fraction)
+        fall_idx = np.argmax(np.array(v[first_peak_idx:])-baseline < psp_height/self.fall_fraction) + first_peak_idx
+
+        rise_time = t[first_peak_idx] - t[rise_idx]
+        fall_time = t[fall_idx] - t[first_peak_idx]
+
+        # subtract baseline from trace and integrate -> area of PSP
+        area = simps(v - baseline, t)
+
+        return {'baseline' : baseline,
+                'pspheight' : psp_height,
+                'peakvalue' : first_peak_value,
+                'risetime' : rise_time,
+                'falltime' : fall_time,
+                'psparea' : area
+            }
