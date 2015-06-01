@@ -3,11 +3,13 @@ matplotlib.use("agg")
 
 import unittest
 import pylab as p
+import numpy
 from numpy.random import seed
 from pycake.helpers.psp_shapes import DoubleExponentialPSP
 from test_psp_shapes import noisy_psp
 from pycake.helpers.psp_fit import fit
 from pycake.helpers import psp_fit
+import mock
 
 
 class TestFit(unittest.TestCase):
@@ -132,6 +134,163 @@ class TestFit(unittest.TestCase):
             fname = "/tmp/test_param_estimate.pdf"
             p.savefig(fname)
             print "plot saved to:", fname
+
+
+    def test_errors(self):
+        """
+        Test behavior of fit in various error cases
+        """
+
+        noise = .1
+
+        times = p.arange(0, 100, .1)
+
+        height = 1.
+        tau_1 = 10.
+        tau_2 = 5.
+        start = 30.
+        offset = 50.
+
+        voltage = noisy_psp(height, tau_1, tau_2, start, offset, times, noise)
+
+        with mock.patch('pycake.helpers.psp_fit.optimize.leastsq', side_effect=FloatingPointError):
+            success, fitres, cov, red_chi2 = fit(
+                DoubleExponentialPSP(),
+                times,
+                voltage,
+                noise,
+                fail_on_negative_cov=[True, True, True, False, False])
+
+            self.assertEqual(success, False)
+            self.assertEqual(fitres, None)
+            self.assertEqual(cov, None)
+            self.assertEqual(red_chi2, None)
+
+
+        with mock.patch('pycake.helpers.psp_fit.optimize.leastsq', side_effect=RuntimeError):
+            success, fitres, cov, red_chi2 = fit(
+                DoubleExponentialPSP(),
+                times,
+                voltage,
+                noise,
+                fail_on_negative_cov=[True, True, True, False, False])
+
+            self.assertEqual(success, False)
+            self.assertEqual(fitres, None)
+            self.assertEqual(cov, None)
+            self.assertEqual(red_chi2, None)
+
+
+        fake_ret = [
+            numpy.array([31., 5., 10., 51., 2.]),
+            numpy.ones((5, 5)),
+            "",
+            "",
+            6]
+
+        with mock.patch('pycake.helpers.psp_fit.optimize.leastsq', return_value=fake_ret):
+            success, fitres, cov, red_chi2 = fit(
+                DoubleExponentialPSP(),
+                times,
+                voltage,
+                noise,
+                fail_on_negative_cov=[True, True, True, False, False])
+
+            self.assertEqual(success, False)
+
+
+        # good result and valid ier -> success must equal True
+        fake_ret = [
+            numpy.array([
+                height,
+                tau_1,
+                tau_2,
+                start,
+                offset,]),
+            numpy.ones((5, 5)),
+            "",
+            "",
+            2]
+
+        with mock.patch('pycake.helpers.psp_fit.optimize.leastsq', return_value=fake_ret):
+            success, fitres, cov, red_chi2 = fit(
+                DoubleExponentialPSP(),
+                times,
+                voltage,
+                noise,
+                fail_on_negative_cov=[True, True, True, False, False])
+
+            self.assertEqual(success, True)
+
+
+        # bad result (large chi2) but valid ier -> success == False
+        fake_ret = [
+            numpy.array([
+                height * 100.,
+                tau_1,
+                tau_2,
+                start,
+                offset + 100.,]),
+            numpy.ones((5, 5)),
+            "",
+            "",
+            2]
+
+        with mock.patch('pycake.helpers.psp_fit.optimize.leastsq', return_value=fake_ret):
+            success, fitres, cov, red_chi2 = fit(
+                DoubleExponentialPSP(),
+                times,
+                voltage,
+                noise,
+                fail_on_negative_cov=[True, True, True, False, False])
+
+            self.assertEqual(success, False)
+
+        # good result, negative covariance matrix -> success == False
+        fake_ret = [
+            numpy.array([
+                height,
+                tau_1,
+                tau_2,
+                start,
+                offset,]),
+            -1.0 * numpy.ones((5, 5)),
+            "",
+            "",
+            2]
+
+        with mock.patch('pycake.helpers.psp_fit.optimize.leastsq', return_value=fake_ret):
+            success, fitres, cov, red_chi2 = fit(
+                DoubleExponentialPSP(),
+                times,
+                voltage,
+                noise,
+                fail_on_negative_cov=[True, True, True, False, False])
+
+            self.assertEqual(success, False)
+
+        # no covariance matrix -> success == False
+        fake_ret = [
+            numpy.array([
+                height,
+                tau_1,
+                tau_2,
+                start,
+                offset,]),
+            None,
+            "",
+            "",
+            2]
+
+        with mock.patch('pycake.helpers.psp_fit.optimize.leastsq', return_value=fake_ret):
+            success, fitres, cov, red_chi2 = fit(
+                DoubleExponentialPSP(),
+                times,
+                voltage,
+                noise,
+                fail_on_negative_cov=[True, True, True, False, False])
+
+            self.assertEqual(success, False)
 
 
 if __name__ == '__main__':
