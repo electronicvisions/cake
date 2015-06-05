@@ -534,7 +534,7 @@ class SimplePSPAnalyzer(Analyzer):
 
         # subtract baseline and remove signs
         v_copy_mod = v_copy - baseline
-        v_copy_mod = abs(v_copy)
+        v_copy_mod = abs(v_copy_mod)
 
         # find peaks
         delta = np.std(v_copy_mod)
@@ -545,8 +545,8 @@ class SimplePSPAnalyzer(Analyzer):
             return {}
 
         # calc rise and falltimes
-        peak_idx = tab[0][0]
-        peak_value = tab[0][1]
+        peak_idx = maxtab[0][0]
+        peak_value = maxtab[0][1]
         peak_value_signed = v_orig[peak_idx]
 
         rise_idx = np.argmax(v_copy_mod[:peak_idx] > peak_value / self.rise_fraction)
