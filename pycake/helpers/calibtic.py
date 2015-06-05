@@ -294,7 +294,7 @@ class Calibtic(object):
                 self.logger.WARN("Coord {} value {} larger than domain maximum {}. Clipping value.".format(coord, value.value, max(domain)))
                 value.value = max(domain)
             if value.value < min(domain):
-                self.logger.WARN("Coord {} value {} smaller than domain minimum {}. Clipping value.".format(coord, value.value, max(domain)))
+                self.logger.WARN("Coord {} value {} smaller than domain minimum {}. Clipping value.".format(coord, value.value, min(domain)))
                 value.value = min(domain)
             # Apply calibration
             calib_dac_value = calib.to_dac(value.value, parameter)
