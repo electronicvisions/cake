@@ -207,7 +207,7 @@ class Reader(object):
 
         return hist
 
-    def plot_result(self, parameter, key, neurons=None, yfactor=1, mark_top_bottom=True, average=False, marker='o', **kwargs):
+    def plot_result(self, parameter, key, neurons=None, yfactor=1, mark_top_bottom=True, average=False, marker='o', step_key=None, **kwargs):
         import matplotlib.pyplot as plt
 
         fig = plt.figure()
@@ -247,7 +247,11 @@ class Reader(object):
 
                 for step, step_value in enumerate(config.get_steps()):
 
-                    val = step_value.values()[0]
+                    if step_key is None:
+                        val = step_value.values()[0]
+                    else:
+                        val = step_value[step_key]
+
                     if not isinstance(val, Second):
                         xs.append(val.toDAC().value)
                     else:
