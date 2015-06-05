@@ -507,11 +507,13 @@ class I_pl_Analyzer(ISI_Analyzer):
 
 class SimplePSPAnalyzer(Analyzer):
     """ Calculates basic properties of a PSP without fitting
+        works for excitatory and inhibitory PSP
+        the sign of `pspheight` keeps the "direction" of the PSP
     """
 
     # FIXME:
     # spike times are not needed but requested to exist by V_convoff_Experimentbuilder
-    def __init__(self, spiketimes):
+    def __init__(self, spiketimes=None):
 
         # fraction of time at the beginning of the trace where
         # the membrane is assumed to be at rest
@@ -523,32 +525,42 @@ class SimplePSPAnalyzer(Analyzer):
 
     def __call__(self, neuron, t, v, **traces):
 
+        # calc baseline from the beginning of the trace
         baseline = np.mean(v[0:len(v)/self.baseline_fraction])
 
-        delta = np.std(v)
-        maxtab, mintab = peakdet(v, delta)
+        # shallow copy to allow modification
+        v_orig = v
+        v_copy = v.copy()
+
+        # subtract baseline and remove signs
+        v_copy_mod = v_copy - baseline
+        v_copy_mod = abs(v_copy)
+
+        # find peaks
+        delta = np.std(v_copy_mod)
+        maxtab, mintab = peakdet(v_copy_mod, delta)
 
         # without maximum, we cannot return anything
         if len(maxtab) == 0:
             return {}
 
-        first_peak_idx = maxtab[0][0]
-        first_peak_value = maxtab[0][1]
+        # calc rise and falltimes
+        peak_idx = tab[0][0]
+        peak_value = tab[0][1]
+        peak_value_signed = v_orig[peak_idx]
 
-        psp_height = first_peak_value-baseline
+        rise_idx = np.argmax(v_copy_mod[:peak_idx] > peak_value / self.rise_fraction)
+        fall_idx = np.argmax(v_copy_mod[peak_idx:] < peak_value / self.fall_fraction) + peak_idx
 
-        rise_idx = np.argmax(np.array(v[:first_peak_idx])-baseline > psp_height/self.rise_fraction)
-        fall_idx = np.argmax(np.array(v[first_peak_idx:])-baseline < psp_height/self.fall_fraction) + first_peak_idx
-
-        rise_time = t[first_peak_idx] - t[rise_idx]
-        fall_time = t[fall_idx] - t[first_peak_idx]
+        rise_time = t[peak_idx] - t[rise_idx]
+        fall_time = t[fall_idx] - t[peak_idx]
 
         # subtract baseline from trace and integrate -> area of PSP
-        area = simps(v - baseline, t)
+        area = abs(simps(v_copy_mod, t))
 
         return {'baseline' : baseline,
-                'pspheight' : psp_height,
-                'peakvalue' : first_peak_value,
+                'pspheight' : np.sign(peak_value_signed - baseline)*peak_value,
+                'peakvalue' : peak_value_signed,
                 'risetime' : rise_time,
                 'falltime' : fall_time,
                 'psparea' : area

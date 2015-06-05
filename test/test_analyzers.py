@@ -256,13 +256,60 @@ class TestAnalyzers(unittest.TestCase):
         v = np.array([1,1,1,1,1,1,1,1,2,3,4,5,6,7,6,6,5,5,4,4,3,3,2,2,1,1], dtype='float')
         t = np.linspace(0., 1e-6, len(v)) # dT = 4e-8
 
-        a = pycake.analyzer.SimplePSPAnalyzer([])
+        a = pycake.analyzer.SimplePSPAnalyzer()
+
+        # excitatory (1)
 
         res = a(Coordinate.NeuronOnHICANN(), t, v)
 
         self.assertEqual(res['baseline'], 1)
         self.assertEqual(res['peakvalue'], 7)
         self.assertEqual(res['pspheight'], 6)
+        self.assertEqual(res['risetime'], t[13]-t[10])
+        self.assertEqual(res['falltime'], t[20]-t[13])
+        self.assertEqual(res['psparea'], 51*4e-8)
+
+        # excitatory (2)
+
+        # use the same PSP as for excitatory (1)
+        # make baseline negative
+        v -= 3
+
+        res = a(Coordinate.NeuronOnHICANN(), t, v)
+
+        self.assertEqual(res['baseline'], -2)
+        self.assertEqual(res['peakvalue'], 4)
+        self.assertEqual(res['pspheight'], 6)
+        self.assertEqual(res['risetime'], t[13]-t[10])
+        self.assertEqual(res['falltime'], t[20]-t[13])
+        self.assertEqual(res['psparea'], 51*4e-8)
+
+        # inhibitory (1)
+
+        # use the same PSP as for excitatory (2) but
+        # mirror
+        v *= -1
+
+        res = a(Coordinate.NeuronOnHICANN(), t, v)
+
+        self.assertEqual(res['baseline'], 2)
+        self.assertEqual(res['peakvalue'], -4)
+        self.assertEqual(res['pspheight'], -6)
+        self.assertEqual(res['risetime'], t[13]-t[10])
+        self.assertEqual(res['falltime'], t[20]-t[13])
+        self.assertEqual(res['psparea'], 51*4e-8)
+
+        # inhibitory (2)
+
+        # use the same PSP as for inhibitory (1) but
+        # make baseline negative
+        v -= 4
+
+        res = a(Coordinate.NeuronOnHICANN(), t, v)
+
+        self.assertEqual(res['baseline'], -2)
+        self.assertEqual(res['peakvalue'], -8)
+        self.assertEqual(res['pspheight'], -6)
         self.assertEqual(res['risetime'], t[13]-t[10])
         self.assertEqual(res['falltime'], t[20]-t[13])
         self.assertEqual(res['psparea'], 51*4e-8)
