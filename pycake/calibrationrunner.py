@@ -64,7 +64,11 @@ class CalibrationUnit(object):
         self.logger.INFO("Running measurements for {}".format(self.name))
         for measured in self.experiment.iter_measurements():
             if measured:
-                self.save()
+                if self.config.get_save_after_each_measurement():
+                    self.save()
+
+        if not self.config.get_save_after_each_measurement():
+            self.save()
 
     def generate_transformations(self):
         """ Get the calibrator and apply it on the finished experiment.

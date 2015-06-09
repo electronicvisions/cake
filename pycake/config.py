@@ -92,6 +92,9 @@ class Config(object):
     def get_PLL(self):
         return self.parameters.get("PLL", 100e6)
 
+    def get_save_after_each_measurement(self):
+        return self.parameters.get("save_after_each_measurement", True)
+
     def get_parameters(self):
         """ Returns the parameter dictionary.
         """
