@@ -160,10 +160,10 @@ parameters = {
                               shared_parameter.V_dtc,
                               shared_parameter.V_br],
 
-    "readout_shift_parameters": { neuron_parameter.V_t: Volt(1.4),
-                                  neuron_parameter.I_convx: Ampere(0),
-                                  neuron_parameter.I_convi: Ampere(0),
-                                },
+    "readout_shift_parameters": {neuron_parameter.V_t: Volt(1.4),
+                                 neuron_parameter.I_convx: Ampere(0),
+                                 neuron_parameter.I_convi: Ampere(0),
+                                 },
 
     "E_synx_parameters": {neuron_parameter.I_gl: Ampere(0),  # I_gl and I_convi MUST be set to 0
                           neuron_parameter.I_convx: Ampere(1e-9*2500),
@@ -264,7 +264,6 @@ parameters = {
                              neuron_parameter.I_pl.name,
                              neuron_parameter.V_syntcx.name,
                              neuron_parameter.V_syntci.name,
-                             neuron_parameter.E_l.name
+                             neuron_parameter.E_l.name,  # V_syntc calibration might shift E_l, recalibrate
                              ],
 }
-
