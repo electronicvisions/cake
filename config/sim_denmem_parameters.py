@@ -180,6 +180,22 @@ parameters = {
         shared_parameter.V_br:          DAC(0),         # Bias for STDP readout circuit
     },
 
+    # parameters listed below will be written to the calibration with
+    # the constant value set in base parameters
+    "technical_parameters" : [neuron_parameter.I_convi,
+                              neuron_parameter.I_convx,
+                              neuron_parameter.I_intbbi,
+                              neuron_parameter.I_intbbx,
+                              neuron_parameter.V_syni,
+                              neuron_parameter.V_synx,
+                              neuron_parameter.I_spikeamp,
+                              shared_parameter.I_breset,
+                              shared_parameter.I_bstim,
+                              shared_parameter.int_op_bias,
+                              shared_parameter.V_bout,
+                              shared_parameter.V_bexp,
+                              shared_parameter.V_dllres],
+
     "V_reset_parameters":  {
         neuron_parameter.I_convi: Ampere(MIN_CUR_FG),
         neuron_parameter.I_convx: Ampere(MIN_CUR_FG),

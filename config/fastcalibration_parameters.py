@@ -146,19 +146,21 @@ parameters = {
 
                           },
 
+    # parameters listed below will be written to the calibration with
+    # the constant value set in base parameters
     "technical_parameters" : [neuron_parameter.I_convi,
                               neuron_parameter.I_convx,
                               neuron_parameter.I_intbbi,
                               neuron_parameter.I_intbbx,
+                              neuron_parameter.V_syni,
+                              neuron_parameter.V_synx,
                               neuron_parameter.I_spikeamp,
-                              shared_parameter.int_op_bias,
-                              shared_parameter.V_dllres,
-                              shared_parameter.V_bout,
                               shared_parameter.I_breset,
                               shared_parameter.I_bstim,
-                              shared_parameter.V_bstdf,
-                              shared_parameter.V_dtc,
-                              shared_parameter.V_br],
+                              shared_parameter.int_op_bias,
+                              shared_parameter.V_bout,
+                              shared_parameter.V_bexp,
+                              shared_parameter.V_dllres],
 
     "readout_shift_parameters": {neuron_parameter.V_t: Volt(1.4),
                                  neuron_parameter.I_convx: Ampere(0),
