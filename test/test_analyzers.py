@@ -9,6 +9,7 @@ from pycake.helpers.TraceAverager import TraceAverager
 import Coordinate
 import pickle
 
+
 class TestAnalyzers(unittest.TestCase):
     def assertEqualNumpyArrays(self, A, B, message=None):
         """compares two numpy arrays for equality"""
@@ -37,7 +38,9 @@ class TestAnalyzers(unittest.TestCase):
         neuron = False
 
         a = pycake.analyzer.MeanOfTraceAnalyzer()
-        res = a(neuron=neuron, t=time, v=voltage)
+
+        data = {"t": time, "v": voltage}
+        res = a(neuron=neuron, **data)
 
         # make sure analyzer returns all values
         for key in ["std", "max", "min", "mean"]:
@@ -104,7 +107,7 @@ class TestAnalyzers(unittest.TestCase):
 
         # If there is only one peak in the trace, analyzer should return dt = inf
         t = np.arange(10)
-        v = [1,2,3,4,5,1,2,3,3,3]
+        v = [1, 2, 3, 4, 5, 1, 2, 3, 3, 3]
         result = a(neuron=neuron, t=t, v=v)
         self.assertTrue(np.isinf(result['mean_dt']))
 
@@ -173,54 +176,59 @@ class TestAnalyzers(unittest.TestCase):
         Test MeanOfTraceAnalyzer using a previously measured dataset.
         """
         neuron = False
-        data = pickle.load(open('/wang/data/calibration/testdata/testdata.p'))['E_l']
+        testdata = pickle.load(open('/wang/data/calibration/testdata/testdata.p'))['E_l']
         analyzer = pycake.analyzer.MeanOfTraceAnalyzer()
 
-        result = analyzer(neuron, data['t'], data['v'])
+        data = {"t": testdata["t"], "v": testdata["v"]}
+        result = analyzer(neuron, **data)
 
         for key in result:
-            self.assertAlmostEqual(result[key], data['result'][key], places=2)
+            self.assertAlmostEqual(result[key], testdata['result'][key], places=2)
 
     def test_V_reset_realtrace(self):
         """
         Test V_reset_Analyzer using a previously measured dataset.
         """
         neuron = False
-        data = pickle.load(open('/wang/data/calibration/testdata/testdata.p'))['V_reset']
+        testdata = pickle.load(open('/wang/data/calibration/testdata/testdata.p'))['V_reset']
         analyzer = pycake.analyzer.V_reset_Analyzer()
 
-        result = analyzer(neuron, data['t'], data['v'])
+        data = {"t": testdata["t"], "v": testdata["v"]}
+        result = analyzer(neuron, **data)
 
         for key in result:
-            self.assertAlmostEqual(result[key], data['result'][key], places=2)
+            self.assertAlmostEqual(result[key], testdata['result'][key], places=2)
 
     def test_I_pl_realtrace(self):
         """
         Test I_pl_Analyzer using a previously measured dataset.
         """
         neuron = Coordinate.NeuronOnHICANN(Coordinate.Enum(100))
-        data = pickle.load(open('/wang/data/calibration/testdata/testdata.p'))['I_pl']
+        testdata = pickle.load(open('/wang/data/calibration/testdata/testdata.p'))['I_pl']
         analyzer = pycake.analyzer.I_pl_Analyzer()
-        initial_data = data['initial_data'][neuron]
+        data = testdata['initial_data'][neuron]
+        data['t'] = testdata['t']
+        data['v'] = testdata['v']
 
-        result = analyzer(neuron, data['t'], data['v'], **initial_data)
+        result = analyzer(neuron, **data)
 
         for key in result:
-            self.assertAlmostEqual(result[key], data['result'][key], places=2)
+            self.assertAlmostEqual(result[key], testdata['result'][key], places=2)
 
     def test_I_gl_realtrace(self):
         """
         Test I_pl_Analyzer using a previously measured dataset.
         """
         neuron = Coordinate.NeuronOnHICANN(Coordinate.Enum(100))
-        data = pickle.load(open('/wang/data/calibration/testdata/testdata.p'))['I_gl']
+        testdata = pickle.load(open('/wang/data/calibration/testdata/testdata.p'))['I_gl']
         analyzer = pycake.analyzer.I_gl_Analyzer()
-        analyzer.set_adc_freq(data['adc_freq'])
+        analyzer.set_adc_freq(testdata['adc_freq'])
 
-        result = analyzer(neuron, data['t'], data['v'], 0.004, current=5, save_mean=True)
+        data = {"t": testdata["t"], "v": testdata["v"]}
+        result = analyzer(neuron, 0.004, current=5, save_mean=True, **data)
 
         for key in ['tau_m', 'V_rest', 'std_tau', 'reduced_chisquare', 'height']:
-            self.assertAlmostEqual(result[key], data['result'][key], places=2)
+            self.assertAlmostEqual(result[key], testdata['result'][key], places=2)
 
     def test_adc_freq_analyzer(self):
         """ Test ADCFreq_Analyzer
@@ -253,14 +261,14 @@ class TestAnalyzers(unittest.TestCase):
         # rise to (psp height)/e at index 13
         # fall to (psp height)/e at index 20
 
-        v = np.array([1,1,1,1,1,1,1,1,2,3,4,5,6,7,6,6,5,5,4,4,3,3,2,2,1,1], dtype='float')
+        v = np.array([1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 4, 5, 6, 7, 6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 1, 1],  dtype='float')
         t = np.linspace(0., 1e-6, len(v)) # dT = 4e-8
 
         a = pycake.analyzer.SimplePSPAnalyzer()
 
         # excitatory (1)
 
-        res = a(Coordinate.NeuronOnHICANN(), t, v)
+        res = a(Coordinate.NeuronOnHICANN(), t=t, v=v)
 
         self.assertEqual(res['baseline'], 1)
         self.assertEqual(res['peakvalue'], 7)
@@ -275,7 +283,7 @@ class TestAnalyzers(unittest.TestCase):
         # make baseline negative
         v -= 3
 
-        res = a(Coordinate.NeuronOnHICANN(), t, v)
+        res = a(Coordinate.NeuronOnHICANN(), t=t, v=v)
 
         self.assertEqual(res['baseline'], -2)
         self.assertEqual(res['peakvalue'], 4)
@@ -290,7 +298,7 @@ class TestAnalyzers(unittest.TestCase):
         # mirror
         v *= -1
 
-        res = a(Coordinate.NeuronOnHICANN(), t, v)
+        res = a(Coordinate.NeuronOnHICANN(), t=t, v=v)
 
         self.assertEqual(res['baseline'], 2)
         self.assertEqual(res['peakvalue'], -4)
@@ -305,7 +313,7 @@ class TestAnalyzers(unittest.TestCase):
         # make baseline negative
         v -= 4
 
-        res = a(Coordinate.NeuronOnHICANN(), t, v)
+        res = a(Coordinate.NeuronOnHICANN(), t=t, v=v)
 
         self.assertEqual(res['baseline'], -2)
         self.assertEqual(res['peakvalue'], -8)
@@ -315,4 +323,10 @@ class TestAnalyzers(unittest.TestCase):
         self.assertEqual(res['psparea'], 51*4e-8)
 
 if __name__ == '__main__':
+    import pylogging
+    for module in ["pycake.analyzer", "pycake.helper.TraceAverager"]:
+        logger = pylogging.get(module)
+        pylogging.set_loglevel(logger, pylogging.LogLevel.INFO)
+        pylogging.append_to_cout(logger)
+
     unittest.main()

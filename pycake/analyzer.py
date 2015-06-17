@@ -27,7 +27,8 @@ class Analyzer(object):
 class MeanOfTraceAnalyzer(Analyzer):
     """ Analyzes traces for E_l measurement.
     """
-    def __call__(self, neuron, t, v, **traces):
+    def __call__(self, neuron, **traces):
+        v = traces.get("v")
         spike_counter = traces.get(NETS_AND_PINS.SpikeCounter, None)
         spikes = -1.0 if spike_counter is None else spike_counter[-1]
 
@@ -66,7 +67,9 @@ class PeakAnalyzer(Analyzer):
         super(PeakAnalyzer, self).__init__()
         self.analyze_slopes = analyze_slopes
 
-    def __call__(self, neuron, t, v, **traces):
+    def __call__(self, neuron, **traces):
+        t = traces.get("t")
+        v = traces.get("v")
         maxtab, mintab = self.get_peaks(t, v)
         mean_max, mean_min, std_max, std_min = self.get_mean_peak(t, v, maxtab, mintab)
         maxindex = maxtab[:, 0]
@@ -226,7 +229,9 @@ class V_convoff_Analyzer(Analyzer):
     def __init__(self, spiketimes):
         self.spiketimes = spiketimes
 
-    def __call__(self, neuron, t, v, **traces):
+    def __call__(self, neuron, **traces):
+        t = traces.get("t")
+        v = traces.get("v")
 
         spike_counter = traces.get(NETS_AND_PINS.SpikeCounter, None)
         spikes = -1.0 if spike_counter is None else spike_counter[-1]
@@ -279,7 +284,9 @@ class V_reset_Analyzer(PeakAnalyzer):
                 baseline: baseline of trace. use only if refractory period is non-zero!
                 delta_t : time between spikes
     """
-    def __call__(self, neuron, t, v, **traces):
+    def __call__(self, neuron, **traces):
+        t = traces.get("t")
+        v = traces.get("v")
         baseline, delta_t = self.find_baseline(t, v)
         maxtab, mintab = self.get_peaks(t, v)
         mean_max, mean_min, std_max, std_min = self.get_mean_peak(t, v, maxtab, mintab)
@@ -298,7 +305,9 @@ class V_t_Analyzer(PeakAnalyzer):
                 max: mean maximum of spikes
                 old_max: hard maximum of complete trace
     """
-    def __call__(self, neuron, t, v, **traces):
+    def __call__(self, neuron, **traces):
+        t = traces.get("t")
+        v = traces.get("v")
         maxtab, mintab = self.get_peaks(t, v)
         mean_max, mean_min, std_max, std_min = self.get_mean_peak(t, v, maxtab, mintab)
 
@@ -326,11 +335,11 @@ class I_gl_Analyzer(Analyzer):
     def set_adc_freq(self, freq):
         self.trace_averager.set_adc_freq(freq)
 
-    def __call__(self, neuron, t, v, std, current=None, save_mean=False, **traces):
+    def __call__(self, neuron, std, current=None, save_mean=False, **traces):
         # average over all periods, reduce to one smooth period
         if 'adc_freq' in traces:
             self.set_adc_freq(traces['adc_freq'])
-        mean_trace, std_trace, n_chunks = self.trace_averager.get_average(v, self.dt)
+        mean_trace, std_trace, n_chunks = self.trace_averager.get_average(traces['v'], self.dt)
 
         # edge detection of decay,
         cut_t, cut_v = get_decay_fit_range(mean_trace, self.trace_averager.adc_freq, fwidth=64)
@@ -376,7 +385,9 @@ class ISI_Analyzer(Analyzer):
     Please note that mean_reset_time only gives valid results if refractory period is very small
     """
 
-    def __call__(self, neuron, t, v, **traces):
+    def __call__(self, neuron, **traces):
+        t = traces.get("t")
+        v = traces.get("v")
         delta = np.std(v)
         maxtab, mintab = peakdet(v, delta)
 
@@ -385,13 +396,13 @@ class ISI_Analyzer(Analyzer):
         isi = np.diff(spike_times)
         mean_isi = np.mean(isi)
         std_isi = np.std(isi)
-        mean_max = np.mean(maxtab[:,1])
-        mean_min = np.mean(mintab[:,1])
+        mean_max = np.mean(maxtab[:, 1])
+        mean_min = np.mean(mintab[:, 1])
         amplitude = mean_max - mean_min
 
         dt = np.mean(t[1:] - t[:-1])
         l = len(mintab)
-        mean_reset_time = abs(np.mean(mintab[:,0][:l] - maxtab[:,0][:l]) * dt)
+        mean_reset_time = abs(np.mean(mintab[:, 0][:l] - maxtab[:, 0][:l]) * dt)
 
         return {"mean_isi": mean_isi,
                 "std_isi": std_isi,
@@ -453,6 +464,7 @@ class ADCFreq_Analyzer(Analyzer):
             positions.append(pos)
         return np.array(positions)
 
+
 class I_pl_Analyzer(ISI_Analyzer):
     """Calculate ISIs from trace and their standard deviation.
 
@@ -466,7 +478,9 @@ class I_pl_Analyzer(ISI_Analyzer):
     Please note that mean_reset_time only gives valid results if refractory period is very small
     """
 
-    def __call__(self, neuron, t, v, **traces):
+    def __call__(self, neuron, **traces):
+        t = traces.get("t")
+        v = traces.get("v")
         delta = np.std(v)
         maxtab, mintab = peakdet(v, delta)
 
@@ -475,13 +489,13 @@ class I_pl_Analyzer(ISI_Analyzer):
         isi = np.diff(spike_times)
         mean_isi = np.mean(isi)
         std_isi = np.std(isi)
-        mean_max = np.mean(maxtab[:,1])
-        mean_min = np.mean(mintab[:,1])
+        mean_max = np.mean(maxtab[:, 1])
+        mean_min = np.mean(mintab[:, 1])
         amplitude = mean_max - mean_min
 
         dt = np.mean(t[1:] - t[:-1])
         l = len(mintab)
-        mean_reset_time = abs(np.mean(mintab[:,0][:l] - maxtab[:,0][:l]) * dt)
+        mean_reset_time = abs(np.mean(mintab[:, 0][:l] - maxtab[:, 0][:l]) * dt)
 
         result = {"mean_isi": mean_isi,
                   "std_isi": std_isi,
@@ -490,8 +504,8 @@ class I_pl_Analyzer(ISI_Analyzer):
                   }
 
         result['tau_ref'] = self.calculate_tau_ref(result, traces['mean_isi'],
-                                    traces['mean_reset_time'], traces['amplitude'])
-
+                                                   traces['mean_reset_time'],
+                                                   traces['amplitude'])
         return result
 
     def calculate_tau_ref(self, result, ISI0, tau0, amp0):
@@ -504,6 +518,7 @@ class I_pl_Analyzer(ISI_Analyzer):
             self.logger.WARN("calculated tau_ref smaller than zero. Returning nan")
             return np.nan
         return tau_ref
+
 
 class SimplePSPAnalyzer(Analyzer):
     """ Calculates basic properties of a PSP without fitting
@@ -523,7 +538,9 @@ class SimplePSPAnalyzer(Analyzer):
         self.rise_fraction = np.e
         self.fall_fraction = np.e
 
-    def __call__(self, neuron, t, v, **traces):
+    def __call__(self, neuron, **traces):
+        t = traces.get("t")
+        v = traces.get("v")
 
         # calc baseline from the beginning of the trace
         baseline = np.mean(v[0:len(v)/self.baseline_fraction])
@@ -570,4 +587,4 @@ class SimplePSPAnalyzer(Analyzer):
                 'risetime' : rise_time,
                 'falltime' : fall_time,
                 'psparea' : area
-            }
+                }
