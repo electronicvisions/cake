@@ -545,8 +545,14 @@ class SimplePSPAnalyzer(Analyzer):
             return {}
 
         # calc rise and falltimes
-        peak_idx = maxtab[0][0]
-        peak_value = maxtab[0][1]
+
+        # find highest peak
+        peak_values = [maxtab[i][1] for i in xrange(len(maxtab))]
+        highest_peak_idx = peak_values.index(max(peak_values))
+
+        peak_idx = maxtab[highest_peak_idx][0]
+        peak_value = maxtab[highest_peak_idx][1]
+
         peak_value_signed = v_orig[peak_idx]
 
         rise_idx = np.argmax(v_copy_mod[:peak_idx] > peak_value / self.rise_fraction)
