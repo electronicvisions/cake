@@ -892,3 +892,6 @@ class SimStHALContainer(StHALContainer):
             pass
         self.wafer.configure = do_nothing
         super(SimStHALContainer, self).switch_current_stimulus_and_output(coord_neuron, enable_firing, l1address)
+
+        # remove non-C++ entry for pickling
+        del self.wafer.__dict__['configure']
