@@ -1,7 +1,10 @@
 import imp
 import os
 import copy
+import errno
+import pylogging
 
+logger = pylogging.get("pycake.config")
 
 class Config(object):
     """Stores all calibration run configuration."""
@@ -20,7 +23,32 @@ class Config(object):
         return Config(config_name, self.parameters)
 
     def read_parameter_file(self, parameters_file):
-        return imp.load_source('parameters', parameters_file).parameters
+        to_load = [parameters_file]
+        loaded = []
+        while to_load:
+            filename = os.path.abspath(to_load.pop(0))
+            try:
+                mod = imp.load_source('parameters{}'.format(len(loaded)),
+                                      filename)
+            except IOError as err:
+                if err.errno == errno.ENOENT:
+                    logger.error(str(err))
+                    raise RuntimeError("Config file '{}' not found!".format(
+                        filename))
+                else:
+                    raise
+
+            loaded.append((filename, mod.parameters))
+            for dep in getattr(mod, "extends", []):
+                if not os.path.isabs(dep):
+                    dep = os.path.join(os.path.dirname(filename), dep)
+                to_load.append(dep)
+
+        parameters = {}
+        for filename, parameter in reversed(loaded):
+            logger.info("Loaded parameters from {}".format(filename))
+            parameters.update(parameter)
+        return parameters
 
     def get_config(self, config_key):
         """ Returns a given key for experiment
@@ -150,7 +178,7 @@ class Config(object):
     def get_repetitions(self):
         """ Returns the number of repetitions as an int.
         """
-        return self.parameters["repetitions"]
+        return self.parameters.get("repetitions", 1)
 
     def get_save_traces(self):
         """ Returns wheter or not traces should be saved.
