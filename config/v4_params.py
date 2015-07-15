@@ -11,7 +11,7 @@ from pycake.helpers.units import linspace_voltage, linspace_current
 from pyhalbe.HICANN import neuron_parameter
 from pyhalbe.HICANN import shared_parameter
 
-folder = "/wang/users/koke/cluster_home/calibration/v4_vsetup1"
+folder = "/tmp"
 
 parameters = {
     # Where do you want to save the measurements (folder) and calibration data 
