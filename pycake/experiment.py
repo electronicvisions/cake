@@ -3,7 +3,10 @@ import time
 import numpy
 import copy
 import os
+import pandas
 
+from Coordinate import iter_all
+from Coordinate import NeuronOnHICANN
 from pyhalbe.HICANN import neuron_parameter
 
 class Experiment(object):
@@ -97,7 +100,39 @@ class Experiment(object):
         """ Read out parameters and result for the given neuron.
         Shared parameters are read from the corresponding FGBlock.
         If any of the given keys could not be obtained from a measurement,
-        this measurement is ignored.
+        NaN is returned. If no result at all could be found, a ValueError is
+        raised.
+
+        Args:
+            neuron: parameters matching this neuron
+            parameter: [list] parameters to read (neuron_parameter or
+                       shared_parameter)
+
+        Return:
+            pandas.DataFrame: Each requested parameter/result is one column,
+                              indexed with the measurement step number.
+
+        Raises:
+            ValueError, if no results are found for the given neuron.
+        """
+        names = [p.name for p in parameters]
+        names.extend(result_keys)
+        result_keys = list(result_keys)
+        values = []
+        for msr, result in zip(self.measurements, self.results):
+            value = msr.get_parameters(neuron, parameters)
+            nrn_results = result.get(neuron, {})
+            value.extend(nrn_results.get(key, numpy.nan) for key in result_keys)
+            values.append(numpy.array(value))
+        values = pandas.DataFrame(values, columns=names)
+        if values[result_keys].isnull().values.all():
+            raise ValueError("Could not find any requested results")
+        return values
+
+    def get_all_data(self, parameters, result_keys):
+        """ Read out parameters and result for all neurons.
+        The results of get_data are concatenated for all neurons. Neurons
+        without any results are ignored.
 
         Args:
             neuron: parameters matching this neuron
@@ -106,22 +141,19 @@ class Experiment(object):
             result_keys: [list] result keys to append
 
         Return:
-            2D numpy array: each row contains the containing parameters
-                in the requested order, followed by the requested keys
-
-        Raises:
-            ValueError, if no results are found for the given neuron.
+            pandas.DataFrame: Each requested parameter/result is one column.
+                              The DataFrame is indexed with a multi index, the
+                              first level is the NeuronOnHICANN coordinate, the
+                              second level the measurement step.
         """
-        import pandas
-        names = [p.name for p in parameters]
-        names.extend(result_keys)
-        values = []
-        for msr, result in zip(self.measurements, self.results):
-            value = msr.get_parameters(neuron, parameters)
-            nrn_results = result[neuron]
-            value.extend(nrn_results.get(key, numpy.nan) for key in result_keys)
-            values.append(numpy.array(value))
-        return pandas.DataFrame(values, columns=names)
+        result_keys = list(result_keys)
+        data = {}
+        for nrn in iter_all(NeuronOnHICANN):
+            try:
+                data[nrn] = self.get_data(nrn, parameters, result_keys)
+            except ValueError:
+                pass
+        return pandas.concat(data)
 
     def get_mean_results(self, neuron, parameter, result_keys):
         """ Read out parameters and result for the given neuron.
