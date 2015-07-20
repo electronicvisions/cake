@@ -11,11 +11,15 @@ import pylogging
 import scipy.interpolate
 import Coordinate
 from pyhalbe import HICANN
+from Coordinate import iter_all
 from Coordinate import Enum, X, Y
 from Coordinate import NeuronOnHICANN
 from Coordinate import BackgroundGeneratorOnHICANN
 from Coordinate import SynapseDriverOnHICANN
 from Coordinate import GbitLinkOnHICANN
+from Coordinate import FGBlockOnHICANN
+from Coordinate import FGRowOnFGBlock
+from Coordinate import FGCellOnFGBlock
 from collections import defaultdict
 from sims.sim_denmem_lib import NETS_AND_PINS
 from sims.sim_denmem_lib import TBParameters
@@ -620,6 +624,47 @@ class StHALContainer(object):
 
     def get_bigcap(self):
         return self.hicann.get_bigcap_setting()
+
+    def read_floating_gates(self):
+        """
+        Read back floating gate values from hardware.
+
+        Returns:
+            pandas.DataFrame containing the raw voltages read from hardware
+        """
+        from pyhalbe.HICANN import getNeuronParameter, getSharedParameter
+        from pysthal import ReadFloatingGates
+
+        def get_row_names(block, row):
+            try:
+                shared = getSharedParameter(block, row).name
+            except IndexError:
+                shared = 'n.c.'
+            try:
+                neuron = getNeuronParameter(block, row).name
+            except IndexError:
+                neuron = 'n.c.'
+            return (shared, neuron, int(row))
+
+        self.adc.freeHandle()
+        self.adc = None
+        cfg = ReadFloatingGates(False)
+        self.write_config(configurator=cfg)
+
+        fg_values = {}
+        for block in iter_all(FGBlockOnHICANN):
+            tmp = numpy.empty((FGCellOnFGBlock.y_type.size, FGCellOnFGBlock.x_type.size))
+            for cell in iter_all(FGCellOnFGBlock):
+                tmp[cell.y()][cell.x()] = cfg.getMean(block, cell)
+
+            index = pandas.MultiIndex.from_tuples(
+                [get_row_names(block, row) for row in iter_all(FGRowOnFGBlock)],
+                names=['shared', 'neuron', 'row'])
+            fg_values[int(block.id())] = pandas.DataFrame(tmp, index=index)
+        result = pandas.concat(fg_values, names=['block'])
+        self.connect_adc()
+        return result
+
 
 class SimStHALContainer(StHALContainer):
     """Contains StHAL objects for hardware access. Multiple experiments can
