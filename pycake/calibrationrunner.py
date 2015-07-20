@@ -33,6 +33,8 @@ class InvalidPathToUnit(RuntimeError):
     pass
 
 
+progress = pylogging.get("progress.cake")
+
 class CalibrationUnit(object):
     logger = pylogging.get("pycake.calibrationrunner")
 
@@ -50,6 +52,7 @@ class CalibrationUnit(object):
         self.experiment = experiment
         self.set_storage_folder(storage_path)
         self.save()
+        progress.info("Running measurements for {}".format(self.name))
 
     def finished(self):
         if self.experiment:
@@ -61,7 +64,7 @@ class CalibrationUnit(object):
         """ Run the measurement and use calibrator on the measured data.
             If measurement is already done, it is skipped.
             Returns the generated transformation"""
-        self.logger.INFO("Running measurements for {}".format(self.name))
+        progress.info("Running measurements for {}".format(self.name))
         for measured in self.experiment.iter_measurements():
             if measured:
                 if self.config.get_save_after_each_measurement():
@@ -94,7 +97,7 @@ class CalibrationUnit(object):
         if not self.finished():
             raise RuntimeError("The calibration has not been finished yet")
         trafos = self.generate_transformations()
-        self.logger.INFO("Writing calibration data for {}".format(self.name))
+        progress.debug("Writing calibration data for {}".format(self.name))
         self.write_calibration(calibtic, trafos)
         self.write_defects(redman, trafos)
 
@@ -160,6 +163,7 @@ class CalibrationUnit(object):
         if not isinstance(data, cls):
             raise InvalidPathToUnit("'{}' contained invalid data")
         data.set_storage_folder(path)
+        progress.debug("Loaded calibration unit from '{}'".format(path))
         return data
 
 
