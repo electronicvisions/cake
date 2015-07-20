@@ -198,6 +198,7 @@ class StHALContainer(object):
         self._connected = False
         self.input_spikes = {}
         self.neuron_size = 1
+        self.set_fg_biasn(0)
 
     def connect(self):
         """Connect to the hardware."""
@@ -256,7 +257,6 @@ class StHALContainer(object):
 
         for _ in range(3):
             try:
-                # self.set_fg_biasn(0)
                 self.wafer.configure(configurator)
                 return
             except RuntimeError as err:
@@ -386,7 +386,7 @@ class StHALContainer(object):
         fg = self.hicann.floating_gates
         for ii in range(fg.getNoProgrammingPasses()):
             cfg = fg.getFGConfig(Enum(ii))
-            cfg.fg_biasn = 0
+            cfg.fg_biasn = biasn
             fg.setFGConfig(Enum(ii), cfg)
 
     def stimulateNeurons(self, rate, no_generators, excitatory=True):
