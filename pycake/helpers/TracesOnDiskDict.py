@@ -4,6 +4,7 @@ import os
 import collections
 
 import numpy as np
+import pandas
 
 class TracesOnDiskDict(collections.MutableMapping):
     """A dictonary that stores traces on disc"""
@@ -14,7 +15,7 @@ class TracesOnDiskDict(collections.MutableMapping):
         self.h5file_filter_args = {
                 'complib' : 'blosc', 'complevel' : 9}
         self.reverse_keys = {}
-        self.__h5file = None
+        self._h5file = None
 
     def __del__(self):
         self.close()
@@ -27,25 +28,25 @@ class TracesOnDiskDict(collections.MutableMapping):
     @property
     def h5file(self):
         """file object, will be lazy opened"""
-        if self.__h5file is None:
+        if self._h5file is None:
             filters = tables.Filters(**self.h5file_filter_args)
             try:
-                self.__h5file = tables.openFile(
+                self._h5file = tables.openFile(
                         self.fullpath, mode="a", title="TracesOnDisk",
                         filters=filters)
             except IOError:
                 # The file might be only read only, in this case try to open
                 # as read only
-                self.__h5file = tables.openFile(
+                self._h5file = tables.openFile(
                         self.fullpath, mode="r", title="TracesOnDisk",
                         filters=filters)
-        return self.__h5file
+        return self._h5file
 
     def close(self):
         """closes the underlying file object"""
-        if self.__h5file:
-            self.__h5file.close()
-        self.__h5file = None
+        if self._h5file:
+            self._h5file.close()
+        self._h5file = None
 
     @property
     def root(self):
@@ -66,8 +67,12 @@ class TracesOnDiskDict(collections.MutableMapping):
 
     def __getstate__(self):
         odict = self.__dict__.copy()
-        odict['_TracesOnDiskDict__h5file'] = None
+        del odict['_h5file']
         return odict
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self._h5file = None
 
     def __len__(self):
         return self.root._v_nchildren
@@ -127,3 +132,67 @@ class RecordsOnDiskDict(TracesOnDiskDict):
             tarr = self.h5file.createCArray(group, dkey, atom, arr.shape)
             tarr[:] = arr
 
+    def get_trace(self, key, item='v'):
+        """
+        Returns a specific trace from the dictionary assoiciated with key.
+        """
+        try:
+            group = getattr(self.root, self.get_key(key))
+            return np.array(getattr(group, item))
+        except tables.NoSuchNodeError:
+            raise KeyError(key)
+
+class PandasRecordsOnDiskDict(RecordsOnDiskDict):
+    """A dictonary that stores traces on disc, using pandas HDFStore
+
+    This dictonary expects either a pandas dataframe as value or a dictionary
+    with numpy arrays of equal length. The entry 't', will be used as index
+    of the DataFrame.
+    """
+
+    @property
+    def h5file(self):
+        """file object, will be lazy opened"""
+        if self._h5file is None:
+            self._h5file = pandas.HDFStore(
+                self.fullpath, mode="a", **self.h5file_filter_args)
+        return self._h5file
+
+    root = None
+
+    def get_key(self, key):
+        """Generates a uniqeu key from a coordinate"""
+        new_key = "/trace_{:0>3}".format(key.id().value())
+        self.reverse_keys[new_key] = key
+        return new_key
+
+    def __len__(self):
+        return len(self.h5file)
+
+    def __delitem__(self, key):
+        del self.h5file[self.get_key(key)]
+
+    def __getitem__(self, key):
+        return self.h5file[self.get_key(key)]
+
+    def __setitem__(self, key, arrays):
+        if isinstance(arrays, dict):
+            times = arrays.pop('t')
+            arrays = pandas.DataFrame(arrays, index=times)
+        elif not isinstance(arrays, pandas.DataFrame):
+            raise TypeError("Invalid data type")
+        self.h5file[self.get_key(key)] = arrays
+
+    def __iter__(self):
+        for value in self.reverse_keys.itervalues():
+            yield value
+
+    def get_trace(self, key, item='v'):
+        """
+        Returns a specific trace from the dictionary assoiciated with key.
+        """
+        try:
+            group = getattr(self.root, self.get_key(key))
+            return np.array(getattr(group, item))
+        except tables.NoSuchNodeError:
+            raise KeyError(key)

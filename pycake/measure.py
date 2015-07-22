@@ -8,7 +8,7 @@ import pysthal
 import pycake
 
 from helpers.WorkerPool import WorkerPool
-from helpers.TracesOnDiskDict import RecordsOnDiskDict
+from helpers.TracesOnDiskDict import PandasRecordsOnDiskDict
 from helpers.sthal import ADCFreqConfigurator
 
 import time
@@ -54,17 +54,11 @@ class Measurement(object):
     def save_traces(self, storage_path):
         """Enabling saving of traces to the given file"""
         dirname, filename = os.path.split(storage_path)
-        if self.traces and self.traces.directory != dirname:
-            self.logger.info(
-                "Update traces storage location from '{}'".format(dirname))
-            self.traces.close()
-            self.traces = None
-
-        if self.traces is None:
-            self.logger.info("Storing traces at '{}'".format(storage_path))
-            self.traces = RecordsOnDiskDict(dirname, filename)
+        if self.traces:
+            self.traces.update_directory(dirname)
         else:
-            self.logger.warn("traces are already stored, ignoring second call")
+            self.logger.info("Storing traces at '{}'".format(storage_path))
+            self.traces = PandasRecordsOnDiskDict(dirname, filename)
 
     def update_traces_folder(self, folder):
         """Updates the folder the traces are stored. This might be required

@@ -5,6 +5,7 @@ import os
 import hashlib
 import cPickle
 import numpy
+import pandas
 import pyhalbe
 import pysthal
 import pylogging
@@ -337,7 +338,8 @@ class StHALContainer(object):
         for ii in range(max_tries):
             try:
                 self.adc.record()
-                return {'t': self.adc.getTimestamps(), 'v': self.adc.trace()}
+                return pandas.DataFrame({'v': self.adc.trace()},
+                                        index=self.adc.getTimestamps())
             except RuntimeError as e:
                 print e
                 print "retry"
@@ -354,12 +356,17 @@ class StHALContainer(object):
                 runner = pysthal.ExperimentRunner(runtime)
                 self.wafer.restart(runner)  # Clears received spikes
                 self.adc.record()  # TODO triggered
-                recv_spikes = {}
+                traces = pandas.DataFrame({'v': self.adc.trace()},
+                                        index=self.adc.getTimestamps())
+
+                recv_spikes = []
                 for link in Coordinate.iter_all(GbitLinkOnHICANN):
-                    recv_spikes[link] = self.hicann.receivedSpikes(link)
-                return {'t': self.adc.getTimestamps(),
-                        'v': self.adc.trace(),
-                        's': recv_spikes}
+                    times, addrs = self.hicann.receivedSpikes(link)
+                    recv_spikes.append(pandas.DataFrame(
+                        {'L1Address': addr, 'GbitLink': link},
+                        index=times, dtype=numpy.int8))
+
+                return traces, pandas.concat(data)
             except RuntimeError as e:
                 print e
                 print "retry"
@@ -802,7 +809,7 @@ class SimStHALContainer(StHALContainer):
             "new sampling interval is {} s".format(
                 adc_sampling_interval))
 
-        resampled = dict(t=time)
+        resampled = dict()
         signals = adc_result.keys()
         signals.remove('t')
 
@@ -811,7 +818,7 @@ class SimStHALContainer(StHALContainer):
                 adc_result['t'],
                 adc_result[signal])(time)
 
-        return resampled
+        return pandas.DataFrame(resampled, index=time)
 
     def read_adc(self):
         """Fake ADC readout by evaluating a denmem_sim run."""
@@ -891,6 +898,8 @@ class SimStHALContainer(StHALContainer):
                 json_loaded, lresult, rresult = cPickle.load(infile)
                 assert json_loaded == json
         else:
+            self.logger.info("Run simulation on {}:{}".format(
+                self.remote_host, self.remote_port))
             lresult, rresult = run_remote_simulation(
                 param, self.remote_host, self.remote_port,
                 init_time=self.simulation_init_time)

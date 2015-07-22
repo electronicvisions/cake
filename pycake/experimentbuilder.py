@@ -388,7 +388,7 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
         return sthal
 
     def make_measurement(self, sthal, neurons, readout_shifts):
-        return ADCMeasurementWithSpikes(sthal, neurons, readout_shifts)
+        return ADCMeasurement(sthal, neurons, readout_shifts)
 
     def get_analyzer(self):
         "get analyzer"
