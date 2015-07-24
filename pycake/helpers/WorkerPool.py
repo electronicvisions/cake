@@ -32,6 +32,9 @@ class WorkerPool(object):
     def is_alive(self):
         return all(w.is_alive() for w in self.workers)
 
+    def exited_clearly(self):
+        return all(w.exitcode == 0 for w in self.workers)
+
     def do(self, key, *args, **kwargs):
         if not self.is_alive():
             self.terminate()
@@ -42,7 +45,7 @@ class WorkerPool(object):
         for w in self.workers:
             self.q_in.put(None)
         # TODO potential dead lock, if a worker or queue process dies unexpectedly
-        if not self.is_alive():
+        if not self.is_alive() and not self.exited_clearly():
             self.terminate()
             raise RuntimeError("Worker process died unexpectedly.")
         self.q_in.join()
