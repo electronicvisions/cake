@@ -6,17 +6,21 @@ import copy
 from itertools import product
 import numpy
 
+import pycake.helpers.TraceAverager as TraceAverager
 from pycake.helpers.sthal import StHALContainer
 from pycake.helpers.sthal import SimStHALContainer
-from pycake.helpers.TraceAverager import TraceAverager
+from pycake.helpers.sthal import UpdateParameterUp
 from pycake.measure import ADCMeasurement
 from pycake.measure import ADCMeasurementWithSpikes
 from pycake.measure import SpikeMeasurement
 from pycake.measure import I_gl_Measurement
 from pycake.experiment import SequentialExperiment, I_pl_Experiment
+from pycake.experiment import IncrementalExperiment
 import pycake.analyzer
 from pycake.helpers.units import Unit, Ampere, Volt, DAC
 from pycake.helpers.trafos import DACtoHW
+from pycake.measure import ADCFreq_Measurement
+from pycake.analyzer import ADCFreq_Analyzer
 
 # shorter names
 Enum = Coordinate.Enum
@@ -367,6 +371,27 @@ class E_synx_Experimentbuilder(E_syn_Experimentbuilder):
     EXCITATORY = True
 
 
+class V_convoff_MeasurementGenerator(object):
+    def __init__(self, parameter, floating_gates,
+                 neurons, readout_shifts):
+        self.floating_gates = floating_gates
+        self.neurons = neurons
+        self.readout_shifts = readout_shifts
+        self.parameter = parameter
+
+    def __len__(self):
+        return len(self.floating_gates)
+
+    def __call__(self, sthal):
+        for fg_params in self.floating_gates:
+            sthal.hicann.floating_gates = fg_params
+            configurator = UpdateParameterUp(self.parameter)
+            measurement = ADCMeasurement(sthal,
+                                         self.neurons,
+                                         self.readout_shifts)
+            yield configurator, measurement
+
+
 class V_convoff_Experimentbuilder(BaseExperimentBuilder):
     EXCITATORY = None
     ANALYZER = None
@@ -374,13 +399,15 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
     def __init__(self, *args, **kwargs):
         super(V_convoff_Experimentbuilder, self).__init__(*args, **kwargs)
         self.init_time = 300.0e-6
-        self.recording_time = 60e-6
+        self.recording_time = 0.4e-6
         self.spikes = numpy.array([20e-6])
         self.gmax_div = 30
 
     def prepare_specific_config(self, sthal):
         sthal.simulation_init_time = self.init_time
-        sthal.set_recording_time(self.recording_time, 1)
+        sthal.set_recording_time(self.recording_time, 100)
+        sthal.stimulateNeurons(1.0/self.recording_time, 4,
+                               excitatory=self.EXCITATORY)
         sthal.send_spikes_to_all_neurons(
             self.spikes, excitatory=self.EXCITATORY, gmax_div=self.gmax_div)
         sthal.maximum_spikes = 2
@@ -389,6 +416,51 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
 
     def make_measurement(self, sthal, neurons, readout_shifts):
         return ADCMeasurement(sthal, neurons, readout_shifts)
+
+    def generate_measurements(self):
+        self.logger.INFO("Building experiment {}".format(self.config.get_target()))
+        coord_wafer, coord_hicann = self.config.get_coordinates()
+        steps = self.config.get_steps()
+        if not steps:
+            raise RuntimeError("Missing steps for {}".format(type(self)))
+
+        readout_shifts = self.get_readout_shifts(self.neurons)
+        wafer_cfg = self.config.get_wafer_cfg()
+
+        parameters = set(sum((s.keys() for s in steps), []))
+        if len(parameters) != 1:
+            raise RuntimeError("You have to sweep exactly one parameter")
+        parameter = next(iter(parameters))
+
+        floating_gates = [self.prepare_parameters(self.get_step_parameters(s))
+                          for s in steps]
+
+        sthal = StHALContainer(coord_wafer, coord_hicann, wafer_cfg=wafer_cfg)
+        sthal = self.prepare_specific_config(sthal)
+        sthal.hicann.floating_gates = copy.copy(floating_gates[0])
+
+        readout_shifts = self.get_readout_shifts(self.neurons)
+        generator = V_convoff_MeasurementGenerator(
+                parameter, floating_gates, self.neurons, readout_shifts)
+        return sthal, generator
+
+    def get_experiment(self):
+        """
+        """
+        sthal, generator = self.generate_measurements()
+        analyzer = self.get_analyzer()
+        experiment = IncrementalExperiment(sthal, generator, analyzer)
+
+        coord_wafer, coord_hicann = self.config.get_coordinates()
+        wafer_cfg = self.config.get_wafer_cfg()
+        PLL = self.config.get_PLL()
+        sthal = StHALContainer(
+            coord_wafer, coord_hicann, wafer_cfg=wafer_cfg, PLL=PLL)
+        experiment.add_initial_measurement(
+                ADCFreq_Measurement(sthal, self.neurons, bg_rate=100e3),
+                ADCFreq_Analyzer())
+
+        return experiment
 
     def get_analyzer(self):
         "get analyzer"
@@ -440,13 +512,12 @@ class I_gl_Experimentbuilder(BaseExperimentBuilder):
         """ Add the initial measurement to I_gl experiment.
             This measurement determines the ADC frequency needed for the TraceAverager
         """
-        from pycake.measure import ADCFreq_Measurement
-        from pycake.analyzer import ADCFreq_Analyzer
         coord_wafer, coord_hicann = self.config.get_coordinates()
         wafer_cfg = self.config.get_wafer_cfg()
         PLL = self.config.get_PLL()
         sthal = StHALContainer(
-            coord_wafer, coord_hicann, wafer_cfg=wafer_cfg, PLL=PLL)
+            coord_wafer, coord_hicann, wafer_cfg=wafer_cfg, PLL=PLL,
+            coord_analog=Coordinate.AnalogOnHICANN(1))
         measurement = ADCFreq_Measurement(sthal, self.neurons, bg_rate=100e3)
         analyzer = ADCFreq_Analyzer()
         experiment.add_initial_measurement(measurement, analyzer)
@@ -454,7 +525,7 @@ class I_gl_Experimentbuilder(BaseExperimentBuilder):
 
 
 class I_gl_sim_Experimentbuilder(I_gl_Experimentbuilder):
-    class FakeTraceAverager(TraceAverager):
+    class FakeTraceAverager(TraceAverager.TraceAverager):
         def get_average(self, v, period):
             """
             Instead of averaging, just return the full trace.

@@ -1,3 +1,4 @@
+import numpy
 import numpy as np
 np.seterr(all='raise')
 np.seterr(under='warn')
@@ -12,13 +13,25 @@ from sims.sim_denmem_lib import NETS_AND_PINS
 
 
 class Analyzer(object):
-    """ Takes a measurement and analyses it.
+    """
+    Base class for measurements. An analyzer gets the results, e.g. membrane
+    traces or spikes, of an measurement and returns it results as dictionary.
+
+    This results are then passed to the calibrator, which will interpret them.
+
+    Classes inheriting from Analyzer must implement __call__.
     """
     logger = pylogging.get("pycake.analyzer")
 
-    def __call__(self, neuron, **traces):
-        """ Returns a dictionary of results:
-            {neuron: value}
+    def __call__(self, neuron, **other):
+        """Process the results of an measurement.
+        The measurement will pass different measures via keyword args, e.g.
+        traces or spikes. The Analyzer should use the required arguments
+        explicit in the signature of __call__, but also except further keywords
+        as **others, e.g.: __call__(self, neuron, trace, spikes, **other)
+
+        Returns:
+            [dict] containing extracted results
         """
         raise NotImplementedError("Not implemented in {}".format(
             type(self).__name__))
@@ -27,10 +40,10 @@ class Analyzer(object):
 class MeanOfTraceAnalyzer(Analyzer):
     """ Analyzes traces for E_l measurement.
     """
-    def __call__(self, neuron, **traces):
-        v = traces.get("v")
-        spike_counter = traces.get(NETS_AND_PINS.SpikeCounter, None)
+    def __call__(self, neuron, trace, **other):
+        spike_counter = trace.get(NETS_AND_PINS.SpikeCounter, None)
         spikes = -1.0 if spike_counter is None else spike_counter[-1]
+        v = trace['v'].values
 
         if spikes > 0.0:
             return {
@@ -39,10 +52,10 @@ class MeanOfTraceAnalyzer(Analyzer):
         else:
             return {
                 "spikes": spikes,
-                "mean": np.mean(v),
-                "std": np.std(v),
-                "max": np.max(v),
-                "min": np.min(v)
+                "mean": numpy.mean(v),
+                "std": numpy.std(v),
+                "max": numpy.max(v),
+                "min": numpy.min(v),
             }
 
 
@@ -54,6 +67,7 @@ class PeakAnalyzer(Analyzer):
                             This takes more time, so deactivate if not needed
         Args:
             t, v, neuron: times, voltage trace, neuron coordinate.
+
         Returns:
             Result dictionary containing:
                 hard_max : max(v)
@@ -67,9 +81,9 @@ class PeakAnalyzer(Analyzer):
         super(PeakAnalyzer, self).__init__()
         self.analyze_slopes = analyze_slopes
 
-    def __call__(self, neuron, **traces):
-        t = traces.get("t")
-        v = traces.get("v")
+    def __call__(self, neuron, trace, **other):
+        t = trace.index.values
+        v = trace['v'].values
         maxtab, mintab = self.get_peaks(t, v)
         mean_max, mean_min, std_max, std_min = self.get_mean_peak(t, v, maxtab, mintab)
         maxindex = maxtab[:, 0]
@@ -229,11 +243,11 @@ class V_convoff_Analyzer(Analyzer):
     def __init__(self, spiketimes):
         self.spiketimes = spiketimes
 
-    def __call__(self, neuron, **traces):
-        t = traces.get("t")
-        v = traces.get("v")
+    def __call__(self, neuron, trace, **other):
+        t = trace.index.values
+        v = trace["v"]
 
-        spike_counter = traces.get(NETS_AND_PINS.SpikeCounter, None)
+        spike_counter = trace.get(NETS_AND_PINS.SpikeCounter, None)
         spikes = -1.0 if spike_counter is None else spike_counter[-1]
 
         if spikes > 0.0:
@@ -253,12 +267,16 @@ class V_convoff_Analyzer(Analyzer):
             "baseline_std": baseline_std,
             "psp_area": area,
             "spikes": spikes,
+            "ptp": v.ptp(),
+            "max": v.max(),
+            "min": v.min(),
+            "std": v.std(),
         }
 
-        ota_current = traces.get(self.NET_SYN_OTA_OUTPUT, None)
+        ota_current = trace.get(self.NET_SYN_OTA_OUTPUT, None)
         if ota_current is not None:
             result["ota_resting_current"] = np.mean(ota_current[:t0])
-        syn_current = traces.get(self.NET_SYN_CURRENT, None)
+        syn_current = trace.get(self.NET_SYN_CURRENT, None)
         if syn_current is not None:
             result["syn_resting_current"] = np.mean(syn_current[:t0])
 
@@ -284,9 +302,9 @@ class V_reset_Analyzer(PeakAnalyzer):
                 baseline: baseline of trace. use only if refractory period is non-zero!
                 delta_t : time between spikes
     """
-    def __call__(self, neuron, **traces):
-        t = traces.get("t")
-        v = traces.get("v")
+    def __call__(self, neuron, trace, **others):
+        t = trace.index.values
+        v = trace['v'].values
         baseline, delta_t = self.find_baseline(t, v)
         maxtab, mintab = self.get_peaks(t, v)
         mean_max, mean_min, std_max, std_min = self.get_mean_peak(t, v, maxtab, mintab)
@@ -305,9 +323,9 @@ class V_t_Analyzer(PeakAnalyzer):
                 max: mean maximum of spikes
                 old_max: hard maximum of complete trace
     """
-    def __call__(self, neuron, **traces):
-        t = traces.get("t")
-        v = traces.get("v")
+    def __call__(self, neuron, trace, **others):
+        t = trace.index.values
+        v = trace['v'].values
         maxtab, mintab = self.get_peaks(t, v)
         mean_max, mean_min, std_max, std_min = self.get_mean_peak(t, v, maxtab, mintab)
 
@@ -335,11 +353,15 @@ class I_gl_Analyzer(Analyzer):
     def set_adc_freq(self, freq):
         self.trace_averager.set_adc_freq(freq)
 
-    def __call__(self, neuron, std, current=None, save_mean=False, **traces):
+    def __call__(self, neuron, traces, additional_data, **other):
         # average over all periods, reduce to one smooth period
+        current = additional_data['current']
+        save_mean = additional_data['save_mean']
+        std = additional_data['std']
         if 'adc_freq' in traces:
             self.set_adc_freq(traces['adc_freq'])
-        mean_trace, std_trace, n_chunks = self.trace_averager.get_average(traces['v'], self.dt)
+        mean_trace, std_trace, n_chunks = self.trace_averager.get_average(
+                traces['v'], self.dt)
 
         # edge detection of decay,
         cut_t, cut_v = get_decay_fit_range(mean_trace, self.trace_averager.adc_freq, fwidth=64)
@@ -385,9 +407,9 @@ class ISI_Analyzer(Analyzer):
     Please note that mean_reset_time only gives valid results if refractory period is very small
     """
 
-    def __call__(self, neuron, **traces):
-        t = traces.get("t")
-        v = traces.get("v")
+    def __call__(self, neuron, traces, **others):
+        t = traces.index.values
+        v = traces['v'].values
         delta = np.std(v)
         maxtab, mintab = peakdet(v, delta)
 
@@ -412,7 +434,7 @@ class ISI_Analyzer(Analyzer):
 
 
 class Spikes_Analyzer(Analyzer):
-    def __call__(self, spikes, neuron):
+    def __call__(self, neuron, spikes, **other):
 
         n_spikes = len(spikes)
 
@@ -433,12 +455,12 @@ class Spikes_Analyzer(Analyzer):
 
 
 class ADCFreq_Analyzer(Analyzer):
-    def __call__(self, t, v, bg_rate):
+    def __call__(self, traces, bg_rate, **other):
         """Detects spikes in a trace of the HICANN preout
 
         The signal of the preout seems to be usually quite strong.
         """
-        pos = self._find_spikes_in_preout(v)
+        pos = self._find_spikes_in_preout(traces['v'].values)
         n = len(pos)
         expected_t = np.arange(n) / bg_rate
         adc_freq, _ = np.polyfit(expected_t, pos, 1)
@@ -478,9 +500,9 @@ class I_pl_Analyzer(ISI_Analyzer):
     Please note that mean_reset_time only gives valid results if refractory period is very small
     """
 
-    def __call__(self, neuron, **traces):
-        t = traces.get("t")
-        v = traces.get("v")
+    def __call__(self, neuron, traces, **other):
+        t = traces.index.values
+        v = traces["v"].values
         delta = np.std(v)
         maxtab, mintab = peakdet(v, delta)
 
@@ -538,9 +560,9 @@ class SimplePSPAnalyzer(Analyzer):
         self.rise_fraction = np.e
         self.fall_fraction = np.e
 
-    def __call__(self, neuron, **traces):
-        t = traces.get("t")
-        v = traces.get("v")
+    def __call__(self, neuron, traces, **others):
+        t = traces.index.values
+        v = traces["v"]
 
         # calc baseline from the beginning of the trace
         baseline = np.mean(v[0:len(v)/self.baseline_fraction])

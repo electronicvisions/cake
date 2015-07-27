@@ -14,14 +14,15 @@ import Coordinate
 from pyhalbe import HICANN
 from Coordinate import iter_all
 from Coordinate import Enum, X, Y
-from Coordinate import NeuronOnHICANN
+from Coordinate import AnalogOnHICANN
 from Coordinate import BackgroundGeneratorOnHICANN
-from Coordinate import SynapseDriverOnHICANN
-from Coordinate import GbitLinkOnHICANN
 from Coordinate import FGBlockOnHICANN
-from Coordinate import FGRowOnFGBlock
 from Coordinate import FGCellOnFGBlock
+from Coordinate import FGRowOnFGBlock
+from Coordinate import GbitLinkOnHICANN
 from Coordinate import NeuronOnFGBlock
+from Coordinate import NeuronOnHICANN
+from Coordinate import SynapseDriverOnHICANN
 from collections import defaultdict
 from sims.sim_denmem_lib import NETS_AND_PINS
 from sims.sim_denmem_lib import TBParameters
@@ -76,7 +77,6 @@ class HICANNConfigurator(pysthal.HICANNConfigurator):
     def config_floating_gates(self, handle, hicann):
         fpga_handle = self.fpga_handle
         low, high = self.get_current_rows(hicann)
-
         self.zero_fg(handle)
         self.programm_normal(handle, hicann, self.V_ROWS + low)
         self.programm_high(handle, hicann, high)
@@ -197,6 +197,23 @@ class HICANNConfigurator(pysthal.HICANNConfigurator):
                 pyhalbe.HICANN.set_fg_row_values(
                     handle, row, data, fgconfig.writeDown)
 
+
+class UpdateParameterUp(HICANNConfigurator):
+    """
+    New HICANN configurator, could do stuff better or worse...
+
+    Warning: It is assumend that the paramter is growing!
+    """
+    def __init__(self, parameter, readout_block=None):
+        HICANNConfigurator.__init__(self, Coordinate.FGBlockOnHICANN())
+        self.rows = [tuple(HICANN.getNeuronRow(b, parameter)
+                           for b in iter_all(FGBlockOnHICANN))]
+
+    def config_fpga(self, fpga_handle, fpga):
+        pass
+
+    def config(self, fpga_handle, handle, hicann):
+        self.programm_normal(handle, hicann, self.rows)
 
 
 class SpikeReadoutHICANNConfigurator(pysthal.HICANNConfigurator):
@@ -327,6 +344,8 @@ class StHALContainer(object):
     def __getstate__(self):
         odict = self.__dict__.copy()
         del odict['hicann']
+        odict['adc'] = None
+        odict['_connected'] = False
         return odict
 
     def __setstate__(self, dic):
@@ -376,6 +395,10 @@ class StHALContainer(object):
         self.input_spikes = {}
         self.neuron_size = 1
         self.set_fg_biasn(0)
+
+    def __del__(self):
+        if self._connected:
+            self.disconnect()
 
     def connect(self):
         """Connect to the hardware."""
@@ -505,8 +528,9 @@ class StHALContainer(object):
         for ii in range(max_tries):
             try:
                 self.adc.record()
-                return pandas.DataFrame({'v': self.adc.trace()},
-                                        index=self.adc.getTimestamps())
+                v = self.adc.trace()
+                t = numpy.arange(len(v)) * self.adc.getTimestamp()
+                return pandas.DataFrame({'v': v}, index=t)
             except RuntimeError as e:
                 print e
                 print "retry"
@@ -577,6 +601,7 @@ class StHALContainer(object):
         assert(no_generators >= 0 and no_generators <= 4)
         assert(rate <= 5.0e6)
 
+        self.hicann.clear_complete_l1_routing()
         l1address = pyhalbe.HICANN.L1Address(0)
 
         PLL = self.getPLL()
@@ -612,6 +637,49 @@ class StHALContainer(object):
                 self.disable_synapse_line(drv_top)
                 self.disable_synapse_line(drv_bottom)
         return links
+
+    def stimulatePreout(self, rate):
+        """
+        Stimulate the synapse drivers, which have the debug output. And connects
+        the debug output to the analog output.
+
+        Note:
+            This function will only work on HICANNv4, because the synapse drivers
+            with debug outputs differ (v2: 111 and 112; v4: 109 and 114).
+
+        Returns:
+            outputbuffer used for stimulus
+        """
+        assert(rate <= 5.0e6)
+        self.hicann.clear_complete_l1_routing()
+
+        l1address = pyhalbe.HICANN.L1Address(0)
+        gmax_div = 2
+        drivers = (SynapseDriverOnHICANN(Enum(109)),
+                   SynapseDriverOnHICANN(Enum(114)))
+        bg = Coordinate.BackgroundGeneratorOnHICANN(6)
+        output = bg.toOutputBufferOnHICANN()
+
+        PLL = self.getPLL()
+        bg_period = int(math.floor(PLL/rate) - 1)
+        self.logger.info("Stimulating preaout from {} with isi {}".format(
+            bg, bg_period))
+
+        generator = self.hicann.layer1[bg]
+        generator.enable(True)
+        generator.random(False)
+        generator.period(bg_period)
+        generator.address(l1address)
+        self.logger.DEBUG("activate {!s} with period {}".format(bg, bg_period))
+
+        for drv in drivers:
+            self.route(output, drv)
+            self.configure_synapse_driver(drv, l1address, gmax_div, 0)
+
+        for analog in iter_all(AnalogOnHICANN):
+            self.hicann.analog.set_preout(analog)
+
+        return output
 
     def configure_synapse_driver(self, driver_c, l1address, gmax_div, gmax=0):
         """

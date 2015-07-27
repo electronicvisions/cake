@@ -9,6 +9,8 @@ from Coordinate import iter_all
 from Coordinate import NeuronOnHICANN
 from pyhalbe.HICANN import neuron_parameter
 
+plogger = pylogging.get('progress.experiment')
+
 class Experiment(object):
     """Base class for running experiments
 
@@ -107,7 +109,6 @@ class Experiment(object):
             neuron: parameters matching this neuron
             parameter: [list] parameters to read (neuron_parameter or
                        shared_parameter)
-
         Return:
             pandas.DataFrame: Each requested parameter/result is one column,
                               indexed with the measurement step number.
@@ -129,7 +130,7 @@ class Experiment(object):
             raise ValueError("Could not find any requested results")
         return values
 
-    def get_all_data(self, parameters, result_keys):
+    def get_all_data(self, parameters, result_keys, numeric_index=False):
         """ Read out parameters and result for all neurons.
         The results of get_data are concatenated for all neurons. Neurons
         without any results are ignored.
@@ -139,6 +140,8 @@ class Experiment(object):
             parameter: [list] parameters to read (neuron_parameter or
                        shared_parameter)
             result_keys: [list] result keys to append
+            numeric_index: [bool] don't use NeuronOnHICANN as index, but ints,
+                           this allows to save/load the data with plain pandas
 
         Return:
             pandas.DataFrame: Each requested parameter/result is one column.
@@ -150,10 +153,15 @@ class Experiment(object):
         data = {}
         for nrn in iter_all(NeuronOnHICANN):
             try:
-                data[nrn] = self.get_data(nrn, parameters, result_keys)
+                idx = nrn, nrn.toSharedFGBlockOnHICANN()
+                if numeric_index:
+                    idx = tuple(int(v.id()) for v in idx)
+                data[idx] = self.get_data(nrn, parameters, result_keys)
             except ValueError:
                 pass
-        return pandas.concat(data)
+        return pandas.concat(
+            data,
+            names=['neuron', 'shared block', 'step'])
 
     def get_mean_results(self, neuron, parameter, result_keys):
         """ Read out parameters and result for the given neuron.
@@ -205,6 +213,7 @@ class Experiment(object):
             lines.append("| " + " | ".join(f) + " |")
         return "\n".join(lines)
 
+
 class SequentialExperiment(Experiment):
     """ Takes a list of measurements and analyzers.
         Then, it runs the measurements and analyzes them.
@@ -234,19 +243,26 @@ class SequentialExperiment(Experiment):
     def run_initial_measurements(self):
         """ Dummy f/or preparation measurements.
         """
-        if len(self.initial_measurements) > 0:
+        if self.initial_measurements:
             self.logger.INFO("Running initial measurements.")
-            for measurement, analyzer in self.initial_measurements:
-                if measurement.done:
-                    self.logger.INFO("Initial measurement already done. Going on with next one.")
-                    continue
-                else:
-                    self.initial_data.update(measurement.run_measurement(analyzer, None))
+            plogger.debug("Running initial measurements.")
+        for measurement, analyzer in self.initial_measurements:
+            if measurement.done:
+                self.logger.INFO("Initial measurement already done. "
+                                 "Going on with next one.")
+                continue
+            else:
+                self.initial_data.update(measurement.run_measurement(
+                    analyzer, self.initial_data))
 
     def save_traces(self, path):
         for mid, measurement in enumerate(self.measurements_to_run):
             filename = os.path.join(path, "{}.hdf5".format(mid))
             measurement.save_traces(filename)
+        for mid, measurement in enumerate(self.initial_measurements):
+            filename = os.path.join(path, "intial_{}.hdf5".format(mid))
+            measurement.save_traces(filename)
+
 
     def iter_measurements(self):
         self.run_initial_measurements()
@@ -254,6 +270,7 @@ class SequentialExperiment(Experiment):
         for i, measurement in enumerate(self.measurements_to_run):
             if not measurement.done:
                 self.logger.INFO("Running measurement {}/{}".format(i+1, i_max))
+                plogger.debug("Running measurement {}/{}".format(i+1, i_max))
                 result = measurement.run_measurement(self.analyzer, self.initial_data)
                 self.append_measurement_and_result(measurement, result)
                 yield True # Used to save state of runner 
@@ -311,22 +328,23 @@ class I_pl_Experiment(SequentialExperiment):
 BaseExperiment = SequentialExperiment
 
 
-class IncrementalExperiment(Experiment):
+class IncrementalExperiment(SequentialExperiment):
 
     def __init__(self, initial_configuration, generator, analyzer):
-        Experiment.__init__(self, analyzer)
+        SequentialExperiment.__init__(self, [], analyzer, repetitions=1)
         self.initial_configuration = initial_configuration
         self.generator = generator
         self.traces_folder = None
+        self.is_finished = False
 
     def finished(self):
-        # TODO@CK fix this
-        return False
+        return self.is_finished
 
     def save_traces(self, path):
         self.traces_folder = path
 
     def iter_measurements(self):
+        self.run_initial_measurements()
         self.logger.INFO("Connecting to hardware and configuring.")
         sthal = self.initial_configuration
         sthal.write_config()
@@ -335,8 +353,12 @@ class IncrementalExperiment(Experiment):
             if self.traces_folder is not None:
                 filename = os.path.join(self.traces_folder, "{}.hdf5".format(i))
                 measurement.save_traces(filename)
-            self.logger.INFO("Running measurement {}/{}".format(i+1, i_max))
-            result = measurement.run_measurement(self.analyzer, configurator)
+            plogger.debug("Running measurement {}/{}".format(i+1, i_max))
+            result = measurement.run_measurement(
+                self.analyzer, additional_data=self.initial_data,
+                configurator=configurator, disconnect=False)
             measurement.sthal = copy.deepcopy(measurement.sthal)
             self.append_measurement_and_result(measurement, result)
             yield True # Used to save state of runner
+        sthal.disconnect()
+        self.is_finished = True

@@ -154,15 +154,17 @@ class Measurement(object):
         raise NotImplementedError("Not implemented in {}".format(
             type(self).__name__))
 
-    def run_measurement(self, analyzer, additional_data, configurator=None):
+    def run_measurement(self, analyzer, additional_data,
+                        configurator=None, disconnect=True):
         """ First configure, then measure
         """
         self.logger.INFO("Connecting to hardware and configuring.")
         self.configure(configurator)
         result = self._measure(analyzer, additional_data)
-        self.logger.INFO("Measurement done, disconnecting from hardware.")
         self.finish()
-        self.sthal.disconnect()
+        if disconnect:
+            self.sthal.disconnect()
+        self.logger.INFO("Measurement done.")
         return result
 
 
@@ -314,7 +316,7 @@ class ADCMeasurement(Measurement):
         data = self.traces[neuron]
         if apply_readout_shift:
             data['v'] = self.readout_shifts(neuron, data['v'])
-        return data['t'], data['v']
+        return data.index.values, data['v'].values
 
     def iter_traces(self):
         """
@@ -330,8 +332,12 @@ class ADCMeasurement(Measurement):
         return
 
     def read_adc(self):
-        """Read ADC. Override for spikes."""
-        return self.sthal.read_adc()
+        """Read ADC. Override for spikes.
+
+        Returns:
+            tuple: (traces, None)
+        """
+        return self.sthal.read_adc(), None
 
     def pre_measure(self, neuron, l1address=None):
         """Hook to be execute before a measurement is taken"""
@@ -346,20 +352,22 @@ class ADCMeasurement(Measurement):
         """
         self.last_trace = np.array([])
         self.adc_status = []
+        # self.logger.INFO("Measure FG values.")
+        # self.fg_values = self.sthal.read_floating_gates()
         self.logger.INFO("Measuring.")
 
         self.logger.INFO("Reading out traces")
         with WorkerPool(analyzer) as worker:
             for neuron in self.neurons:
                 self.pre_measure(neuron)
-                readout = self.read_adc()
+                readout, spikes = self.read_adc()
                 if not self.traces is None:
                     self.traces[neuron] = readout
                 readout['v'] = self.readout_shifts(neuron, readout['v'])
                 if additional_data is not None:
                     if additional_data.has_key(neuron):
                         readout.update(additional_data[neuron])
-                worker.do(neuron, neuron=neuron, **readout)
+                worker.do(neuron, neuron=neuron, trace=readout, spikes=spikes)
 
                 # DEBUG stuff
                 self.adc_status.append(self.sthal.read_adc_status())
@@ -382,7 +390,11 @@ class ADCMeasurement(Measurement):
 
 class ADCMeasurementWithSpikes(ADCMeasurement):
     def read_adc(self):
-        """Read ADC. Override for spikes."""
+        """Read ADC. Override for spikes.
+
+        Returns:
+            tuple: (traces, spikes)
+        """
         return self.sthal.read_adc_and_spikes()
 
 
@@ -464,16 +476,17 @@ class I_gl_Measurement(ADCMeasurement):
             readout = self.read_adc()
 
             # these are just an integers/floats, convert to array for TracesOnDiskDict
-            readout['current'] = np.array([current])
-            readout['std'] = np.array([std])
-            readout['V_rest'] = np.array([V_rest])
+            tmp = additional_data.copy()
+            tmp['current'] = np.array([current])
+            tmp['std'] = np.array([std])
+            tmp['V_rest'] = np.array([V_rest])
 
             if not self.traces is None:
                 self.traces[neuron] = readout
 
             readout['v'] = self.readout_shifts(neuron, readout['v'])
-            readout.update(additional_data)
-            worker.do(neuron, neuron=neuron, **readout)
+            worker.do(neuron, neuron=neuron, traces=readout,
+                      additional_data=additional_data)
         self.logger.INFO("Wait for analysis to complete.")
         return worker.join()
 
@@ -512,21 +525,21 @@ class I_gl_Measurement_multiple_currents(I_gl_Measurement):
                 if not self.traces is None:
                     self.traces[neuron] = readout
                 readout['v'] = self.readout_shifts(neuron, readout['v'])
-                readout.update(additional_data)
-                worker.do(neuron, neuron=neuron, **readout)
+                worker.do(neuron, neuron=neuron, traces=readout,
+                          additional_data=additional_data)
         self.logger.INFO("Wait for analysis to complete.")
         return worker.join()
 
 class ADCFreq_Measurement(ADCMeasurement):
     def __init__(self, sthal, neurons, bg_rate=100e3, readout_shifts=None):
-        super(ADCFreq_Measurement, self).__init__(sthal, neurons, readout_shifts=readout_shifts)
+        super(ADCFreq_Measurement, self).__init__(
+            sthal, neurons, readout_shifts=readout_shifts)
         self.bg_rate = bg_rate
 
     def pre_measure(self):
         """ Set analog recorder to preout """
         recording_time = 1000.0 / self.bg_rate
-        self.sthal.stimulateNeurons(self.bg_rate, 4)
-        self.sthal.hicann.analog.set_preout(Coordinate.AnalogOnHICANN(0))
+        self.sthal.stimulatePreout(self.bg_rate)
 
     def _measure(self, analyzer, additional_data):
         """ Measure traces and correct each value for readout shift.
@@ -536,14 +549,17 @@ class ADCFreq_Measurement(ADCMeasurement):
                 self.traces = {neuron: trace}
         """
         time.sleep(1)  # Settle driver locking
-        readout = self.read_adc()
-        result = analyzer(readout['t'], readout['v'], self.bg_rate)
+        readout, _ = self.read_adc()
+        readout.to_hdf('dump.hdf', 'ADCFreq')
+        result = analyzer(traces=readout, bg_rate=self.bg_rate)
         self.logger.INFO("ADC Frequency measured: {}".format(result))
         return result
 
-    def run_measurement(self, analyzer, additional_data):
+    def run_measurement(self, analyzer, additional_data,
+                        configurator=None, disconnect=True):
         """ First configure, then measure
         """
+        print "START"
         self.logger.INFO("Connecting to hardware and configuring.")
         self.pre_measure()
         self.configure(ADCFreqConfigurator())
