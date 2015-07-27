@@ -3,25 +3,41 @@ import time
 import traceback
 import cPickle
 
-workers = multiprocessing.cpu_count() - 1
+def process(f, key, *args, **kwargs):
+    """
+    Helper function to be called by the process pool. This function will
+    print any exception and then reraise it. This is helpful in debugging,
+    because AsyncResult.get will not print the stacktrace of the subprocess.
+    """
+    try:
+        return key, f(*args, **kwargs)
+    except Exception as e:
+        import traceback
+        print "{}\nERROR in worker thread:\n{} ({})\n{}\n{}".format(
+            '-' * 80, e, type(e), traceback.format_exc(), '-' * 80)
+        # Exception is propagated by worker tree
+        raise
 
 class WorkerPool(object):
-    """A worker pool"""
+    """A worker pool
+
+    If a child process of multiprocessing.Pool dies, e.g. due to memory
+    restrictions, the join method will wait forever. This WorkerPool is designed
+    to avoid this. We keep track of the pids of the worker and can check
+    if any died.
+    """
 
     def __init__(self, f, workers = None):
         if workers is None:
             workers = multiprocessing.cpu_count()
 
-        self.q_in = multiprocessing.JoinableQueue()
-        manager = multiprocessing.Manager()
-        self.result = manager.dict()
-        self.workers = [self._make_worker(f) for ii in range(workers)]
-        for w in self.workers:
-            w.start()
+        self.pool = multiprocessing.Pool(workers)
+        self.poolpids = tuple(proc.pid for proc in self.pool._pool)
+        self.callback = f
+        self.tasks = []
 
     def __del__(self):
-        for w in self.workers:
-            w.terminate()
+        self.pool.terminate()
 
     def __enter__(self):
         return self
@@ -30,65 +46,33 @@ class WorkerPool(object):
         self.terminate()
 
     def is_alive(self):
-        return all(w.is_alive() for w in self.workers)
-
-    def exited_clearly(self):
-        return all(w.exitcode == 0 for w in self.workers)
+        # If a worker dies a new one is started, but the thread pool is not
+        # working reliable anymore.
+        return self.poolpids == tuple(proc.pid for proc in self.pool._pool)
 
     def do(self, key, *args, **kwargs):
         if not self.is_alive():
-            self.terminate()
-            raise RuntimeError("Worker process died unexpectedly.")
-        self.q_in.put_nowait((key, args, kwargs))
+            raise SystemError("Worker process died unexpectedly.")
+        self.tasks.append(self.pool.apply_async(
+            process, (self.callback, key) + args, kwargs))
 
     def join(self):
-        for w in self.workers:
-            self.q_in.put(None)
-        # TODO potential dead lock, if a worker or queue process dies unexpectedly
-        if not self.is_alive() and not self.exited_clearly():
-            self.terminate()
-            raise RuntimeError("Worker process died unexpectedly.")
-        self.q_in.join()
-        self.q_in.close()
-
-        result = dict(self.result)
-        for k, r in result.iteritems():
-            if isinstance(r, Exception):
-                raise r
-
-        for w in self.workers:
-            w.join(0.5)
-            if w.is_alive():
-                print "Fucking Zombies..."
-            w.terminate()
-        return result
+        self.pool.close()
+        results = []
+        # We want to raise exceptions from subprocesses early, so we start
+        # by checking the first element.
+        # It is important to use get only when the result is ready, otherwise
+        # the child process might have died and we are stuck in the get method
+        # forever
+        while self.tasks:
+            if self.tasks[0].ready():
+                results.append(self.tasks.pop(0).get())
+            elif not self.is_alive():
+                raise SystemError("Worker process died unexpectedly.")
+            else:
+                time.sleep(0.5)
+        self.terminate()
+        return dict(results)
 
     def terminate(self):
-        for w in self.workers:
-            w.terminate()
-
-    def _make_worker(self, f):
-        return multiprocessing.Process(
-            target=self._process,
-            args = (f, self.q_in, self.result)
-            )
-
-    @staticmethod
-    def _process(f, q_in, out_list):
-        for key, args, kwargs in iter(q_in.get, None):
-            try:
-                out_list[key] = f(*args, **kwargs)
-            except Exception as e:
-                import traceback
-                print "{}\nERROR in worker thread:\n{} ({})\n{}\n{}".format(
-                    '-' * 80, e, type(e), traceback.format_exc(), '-' * 80)
-                try:
-                    out_list[key] = e
-                except cPickle.PicklingError:
-                    out_list[key] = RuntimeError(str(e))
-            finally:
-                q_in.task_done()
-        else:
-            q_in.task_done()
-            q_in.close()
-            q_in.join_thread()
+        self.pool.terminate()
