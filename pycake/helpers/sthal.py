@@ -662,7 +662,7 @@ class StHALContainer(object):
 
         PLL = self.getPLL()
         bg_period = int(math.floor(PLL/rate) - 1)
-        self.logger.info("Stimulating preaout from {} with isi {}".format(
+        self.logger.info("Stimulating preout from {} with isi {}".format(
             bg, bg_period))
 
         generator = self.hicann.layer1[bg]

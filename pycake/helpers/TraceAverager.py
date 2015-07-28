@@ -37,6 +37,8 @@ def _find_spikes_in_preout(trace):
     spike_pos = tmp.reshape((len(tmp)/2, 2))
     positions = []
     for begin, end in spike_pos:
+        if begin == 0:
+            continue
         begin, end = begin - 1, end + 1
         t = np.arange(begin, end)
         pos = np.dot(trace[begin:end], t) / np.sum(trace[begin:end])
