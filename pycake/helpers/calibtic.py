@@ -2,6 +2,7 @@ import pycalibtic
 import pywrapstdvector
 import pylogging
 import os
+import getpass
 
 import Coordinate
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
@@ -25,54 +26,39 @@ def create_pycalibtic_transformation(coefficients, domain=None, trafo_type=pycal
 class Calibtic(object):
     logger = pylogging.get("pycake.calibtic")
 
-    def __getstate__(self):
-        """ Disable stuff from getting pickled that cannot be pickled.
-        """
-        odict = self.__dict__.copy()
-        del odict['backend']
-        del odict['hc']
-        del odict['nc']
-        del odict['bc']
-        del odict['md']
-        del odict['ideal_nc']
-        del odict['ideal_bc']
-        return odict
-
     def __setstate__(self, dic):
-        # TODO fix for hc, nc, bc, md
-        # Initialize logger and calibtic backend when unpickling
-        self.path = dic['path']
-        dic['backend'] = self.init_backend()
-        if 'pll' not in dic:
-            dic['pll'] = 0.0
-        dic['ideal_nc'] = pycalibtic.NeuronCollection()
-        dic['ideal_nc'].setDefaults()
-        dic['ideal_bc'] = pycalibtic.BlockCollection()
-        dic['ideal_bc'].setDefaults()
         # For old pickles: just set bigcap and speedup to default values
         # Otherwise, unpickling of old calibtic helpers does not work
+        if 'pll' not in dic:
+            dic['pll'] = 0.0
+        if 'ideal_nc' not in dic:
+            dic['ideal_nc'] = pycalibtic.NeuronCollection()
+            dic['ideal_nc'].setDefaults()
+        if 'ideal_bc' not in dic:
+            dic['ideal_bc'] = pycalibtic.BlockCollection()
+            dic['ideal_bc'].setDefaults()
         if not (dic.has_key('bigcap') and dic.has_key('speedup')):
             dic['bigcap'] = True
             dic['speedup'] = 'normal'
-        self.__dict__.update(dic)
-        self._load_calibration()
+            dic['hc'] = None
+        if 'hc' not in dic:
+            self.hc = self.load_calibration()
 
     def __init__(self, path, wafer, hicann, pll=100e6, bigcap=True, speedup='normal'):
-        self.path = self._make_path(os.path.expanduser(path))
-        self.backend = self.init_backend()
+        self.path = self.make_path(path)
         self.wafer = wafer
         self.hicann = hicann
         self.pll = pll
         self.bigcap = bigcap
         self.speedup = speedup
 
-        self._load_calibration()
         self.ideal_nc = pycalibtic.NeuronCollection()
         self.ideal_nc.setDefaults()
         self.ideal_bc = pycalibtic.BlockCollection()
         self.ideal_bc.setDefaults()
+        self.hc = self.load_calibration()
 
-    def init_backend(self, type='xml'):
+    def get_backend(self, type='xml'):
         if type == 'xml':
             lib = pycalibtic.loadLibrary('libcalibtic_xml.so')
             backend = pycalibtic.loadBackend(lib)
@@ -82,9 +68,11 @@ class Calibtic(object):
         else:
             raise ValueError("unknown backend type")
 
-    def _make_path(self, path):
+    @staticmethod
+    def make_path(path):
+        path = os.path.expanduser(path)
         if not os.path.isdir(path):
-            self.logger.INFO("Creating backend path {}".format(path))
+            Calibtic.logger.INFO("Creating backend path {}".format(path))
             os.makedirs(path)
         return path
 
@@ -92,7 +80,7 @@ class Calibtic(object):
         """ Clears all calibration data.
         """
         name = self.get_calibtic_name()
-        fullname = name+".xml"
+        fullname = name + ".xml"
         fullpath = os.path.join(self.path, fullname)
         if os.path.isfile(fullpath):
             msg = "Clearing calibration data by removing file {}"
@@ -102,9 +90,6 @@ class Calibtic(object):
     def clear_one_calibration(self, parameter):
         """ Only clears the calibration for one parameter.
         """
-        if not self._loaded:
-            self._load_calibration()
-
         if isinstance(parameter, shared_parameter):
             collection = self.bc
             ids = range(4)
@@ -126,49 +111,49 @@ class Calibtic(object):
         name = "w{}-h{}_{}_{}".format(int(wafer_id), int(hicann_id), cap_prefix, self.speedup)
         return name
 
-    def _load_calibration(self):
+    def load_calibration(self):
         """ Load existing calibration data from backend.
         """
 
+        hc = pycalibtic.HICANNCollection()
+        md = pycalibtic.MetaData()
+
         # load existing calibration
         try:
-            hc = pycalibtic.HICANNCollection()
-            md = pycalibtic.MetaData()
             name = self.get_calibtic_name()
-            self.backend.load(name, md, hc)
+            backend = self.get_backend()
+            backend.load(name, md, hc)
             calibration_existed = True
         except RuntimeError, e:
-            if e.message == "data set not found":
-                calibration_existed = False
-            else:
-                raise RuntimeError(e)
+            if e.message != "data set not found":
+                raise
 
-        if calibration_existed == False:
-            # create new (and empty) calibration
-            hc = pycalibtic.HICANNCollection()
-            md = pycalibtic.MetaData()
-            hc.setPLLFrequency(int(self.pll))
-
-        # hc (and md) are now either loaded or created
-        nc = hc.atNeuronCollection()
-        bc = hc.atBlockCollection()
-
-        if calibration_existed == False:
             # Delete all standard entries.
             #TODO: fix calibtic to use proper standard entries
+
+            nc = hc.atNeuronCollection()
             for nid in range(512):
                 nc.erase(nid)
+            bc = hc.atBlockCollection()
             for bid in range(4):
                 bc.erase(bid)
+            hc.setPLLFrequency(int(self.pll))
 
         if hc.getPLLFrequency() != self.pll:
-            self.logger.WARN("PLL stored in HICANNCollection {} MHz != {} MHz set here".format(hc.getPLLFrequency()/1e6, self.pll/1e6))
+            msg  = "PLL stored in HICANNCollection {} MHz != {} MHz set here"
+            self.logger.ERROR(
+                msg.format(hc.getPLLFrequency()/1e6, self.pll/1e6))
+        return hc
 
-        self.hc = hc
-        self.nc = nc
-        self.bc = bc
-        self.md = md
-        self._loaded = True
+    @property
+    def nc(self):
+        """Returns a pycalibtic.NeuronCollection"""
+        return self.hc.atNeuronCollection()
+
+    @property
+    def bc(self):
+        """Returns a pycalibtic.BlockCollection"""
+        return self.hc.atBlockCollection()
 
     def write_calibration(self, parameter, trafos):
         """ Writes calibration data to backend
@@ -177,8 +162,6 @@ class Calibtic(object):
                 parameter: which neuron or hicann parameter
                 trafos: dict { coord : pycalibtic.transformation }
         """
-        if not self._loaded:
-            self._load_calibration()
         name = self.get_calibtic_name()
 
         for coord, trafo in trafos.iteritems():
@@ -207,7 +190,9 @@ class Calibtic(object):
                 collection.insert(index, cal)
             collection.at(index).reset(param_id, trafo)
             self.logger.TRACE("Resetting coordinate {} parameter {} to {}".format(coord, param_name, trafo))
-        self.backend.store(name, self.md, self.hc)
+        md = pycalibtic.MetaData()
+        backend = self.get_backend()
+        backend.store(name, md, self.hc)
 
     def get_calibration(self, coord, use_ideal=False):
         """ Returns NeuronCalibration or SharedCalibration object for one coordinate.
@@ -216,8 +201,6 @@ class Calibtic(object):
             This is turned off by default.
             If no calibration is found for a coordinate, it returns an empty calibration.
         """
-        if not self._loaded:
-            self._load_calibration()
         c_id = coord.id().value()
 
         if isinstance(coord, Coordinate.FGBlockOnHICANN):
@@ -244,9 +227,6 @@ class Calibtic(object):
     def get_readout_shift(self, neuron):
         """
         """
-        if not self._loaded:
-            self._load_calibration()
-
         calib = self.get_calibration(neuron)
         if not calib:
             return 0.0
@@ -273,9 +253,6 @@ class Calibtic(object):
                 Calibrated DAC value
                 If the calibrated value exceeds the boundaries, it is clipped.
         """
-        if not self._loaded:
-            self._load_calibration()
-
         if not isinstance(value, Unit):
             value = Unit(value)
 

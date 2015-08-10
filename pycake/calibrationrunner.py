@@ -335,13 +335,16 @@ class CalibrationRunner(object):
         self.storage_folder = folder
 
     @classmethod
-    def load(cls, path):
+    def load(cls, path, backend_path=None):
         filename = os.path.join(path, cls.filename)
         cls.logger.INFO("Loading '{}'".format(filename))
         data = pycake.helpers.misc.load_pickled_file(filename)
         if not isinstance(data, cls):
             raise RuntimeError("Invalid class loaded!")
         data.set_storage_folder(path)
+        # TODO handle redman
+        if backend_path is not None:
+            self.calibtic.path = self.calibtic.make_path(path)
         return data
 
     def save(self):
