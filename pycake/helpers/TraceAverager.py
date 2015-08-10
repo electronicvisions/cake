@@ -19,6 +19,10 @@ class Configurator(pysthal.HICANNConfigurator):
     def hicann_init(self, h):
         pyhalbe.HICANN.init(h, False)
 
+    def config(*args):
+        pysthal.HICANNConfigurator.config(*args)
+        time.sleep(0.5)  # Settle driver locking
+
     def config_synapse_array(self, handle, data):
         pass
 
@@ -61,11 +65,9 @@ def _get_preout_trace(coord_wafer, coord_hicann, bg_rate, recording_time):
     sthal.hicann.analog.set_preout(analog)
     # TODO skip floating gates to speed up
     sthal.write_config(configurator=Configurator())
-    time.sleep(1)  # Settle driver locking
     times, trace = sthal.read_adc()
     sthal.disconnect()
     return trace
-
 
 def createTraceAverager(coord_wafer, coord_hicann):
     """

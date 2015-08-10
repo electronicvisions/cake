@@ -455,6 +455,7 @@ class Spikes_Analyzer(Analyzer):
 
 
 class ADCFreq_Analyzer(Analyzer):
+    KEY = "adc_freq"
     def __call__(self, traces, bg_rate, **other):
         """Detects spikes in a trace of the HICANN preout
 
@@ -467,7 +468,7 @@ class ADCFreq_Analyzer(Analyzer):
         if not 95e6 < adc_freq < 97e6:
             raise RuntimeError("Found ADC frequency of {}, this is unlikly".format(
                 adc_freq))
-        return {"adc_freq": adc_freq}
+        return {self.KEY: adc_freq}
 
     def _find_spikes_in_preout(self, trace):
         """Detects spikes in a trace of the HICANN preout

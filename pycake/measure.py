@@ -535,11 +535,9 @@ class ADCFreq_Measurement(ADCMeasurement):
         super(ADCFreq_Measurement, self).__init__(
             sthal, neurons, readout_shifts=readout_shifts)
         self.bg_rate = bg_rate
-
-    def pre_measure(self):
-        """ Set analog recorder to preout """
-        recording_time = 1000.0 / self.bg_rate
         self.sthal.stimulatePreout(self.bg_rate)
+        # Record about 2000 spikes
+        self.sthal.set_recording_time(1.0/self.bg_rate, 2000.0)
 
     def _measure(self, analyzer, additional_data):
         """ Measure traces and correct each value for readout shift.
@@ -559,12 +557,5 @@ class ADCFreq_Measurement(ADCMeasurement):
                         configurator=None, disconnect=True):
         """ First configure, then measure
         """
-        print "START"
-        self.logger.INFO("Connecting to hardware and configuring.")
-        self.pre_measure()
-        self.configure(ADCFreqConfigurator())
-        result = self._measure(analyzer, additional_data)
-        self.logger.INFO("Measurement done, disconnecting from hardware.")
-        self.finish()
-        self.sthal.disconnect()
-        return result
+        return ADCMeasurement.run_measurement(
+             self, analyzer, additional_data, configurator=ADCFreqConfigurator())

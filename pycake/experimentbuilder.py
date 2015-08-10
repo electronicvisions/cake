@@ -50,7 +50,7 @@ class BaseExperimentBuilder(object):
         self.blocks = self.config.get_blocks()
         self.test = test
 
-    def get_sthal(self):
+    def get_sthal(self, analog=Coordinate.AnalogOnHICANN(0)):
         """
         returns sthal helper depending on config (e.g. hw vs. sim)
         """
@@ -435,7 +435,7 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
         floating_gates = [self.prepare_parameters(self.get_step_parameters(s))
                           for s in steps]
 
-        sthal = StHALContainer(coord_wafer, coord_hicann, wafer_cfg=wafer_cfg)
+        sthal = self.get_sthal()
         sthal = self.prepare_specific_config(sthal)
         sthal.hicann.floating_gates = copy.copy(floating_gates[0])
 
@@ -454,11 +454,15 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
         coord_wafer, coord_hicann = self.config.get_coordinates()
         wafer_cfg = self.config.get_wafer_cfg()
         PLL = self.config.get_PLL()
-        sthal = StHALContainer(
-            coord_wafer, coord_hicann, wafer_cfg=wafer_cfg, PLL=PLL)
-        experiment.add_initial_measurement(
+        sthal = self.get_sthal(Coordinate.AnalogOnHICANN(1))
+        if sthal.is_hardware():
+            experiment.add_initial_measurement(
                 ADCFreq_Measurement(sthal, self.neurons, bg_rate=100e3),
                 ADCFreq_Analyzer())
+        else:
+            experiment.initial_data.update(
+                {ADCFreq_Analyzer.KEY: 96e6})
+
 
         return experiment
 
@@ -515,9 +519,7 @@ class I_gl_Experimentbuilder(BaseExperimentBuilder):
         coord_wafer, coord_hicann = self.config.get_coordinates()
         wafer_cfg = self.config.get_wafer_cfg()
         PLL = self.config.get_PLL()
-        sthal = StHALContainer(
-            coord_wafer, coord_hicann, wafer_cfg=wafer_cfg, PLL=PLL,
-            coord_analog=Coordinate.AnalogOnHICANN(1))
+        sthal = self.get_sthal(Coordinate.AnalogOnHICANN(1))
         measurement = ADCFreq_Measurement(sthal, self.neurons, bg_rate=100e3)
         analyzer = ADCFreq_Analyzer()
         experiment.add_initial_measurement(measurement, analyzer)

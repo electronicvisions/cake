@@ -126,7 +126,7 @@ class Experiment(object):
             value.extend(nrn_results.get(key, numpy.nan) for key in result_keys)
             values.append(numpy.array(value))
         values = pandas.DataFrame(values, columns=names)
-        if values[result_keys].isnull().values.all():
+        if result_keys and values[result_keys].isnull().values.all():
             raise ValueError("Could not find any requested results")
         return values
 
@@ -160,8 +160,7 @@ class Experiment(object):
             except ValueError:
                 pass
         return pandas.concat(
-            data,
-            names=['neuron', 'shared block', 'step'])
+            data, names=['neuron', 'shared block', 'step'])
 
     def get_mean_results(self, neuron, parameter, result_keys):
         """ Read out parameters and result for the given neuron.
@@ -338,7 +337,7 @@ class IncrementalExperiment(SequentialExperiment):
         self.is_finished = False
 
     def finished(self):
-        return self.is_finished
+        return len(self.generator) == len(self.measurements)
 
     def save_traces(self, path):
         self.traces_folder = path

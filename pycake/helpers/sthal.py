@@ -274,6 +274,22 @@ class UpdateAnalogOutputConfigurator(pysthal.HICANNConfigurator):
         self.flush_fpga(fpga_handle)
 
 
+class SetFGCell(pysthal.HICANNConfigurator):
+    """Puts the given FG cell to the analog output
+    """
+    def __init__(self, nrn, parameter):
+        pysthal.HICANNConfigurator.__init__(self)
+        self.coords = (nrn, parameter)
+
+    def config_fpga(self, *args):
+        """do not reset FPGA"""
+        pass
+
+    def config(self, fpga_handle, h, hicann):
+        """Call analog output related configuration functions."""
+        HICANN.set_fg_cell(h, *self.coords)
+
+
 class UpdateParameter(pysthal.HICANNConfigurator):
     def __init__(self, neuron_parameters):
         pysthal.HICANNConfigurator.__init__(self)
@@ -395,6 +411,7 @@ class StHALContainer(object):
         self.input_spikes = {}
         self.neuron_size = 1
         self.set_fg_biasn(0)
+        self.ideal_adc_freq = 96e6
 
     def __del__(self):
         if self._connected:
@@ -519,15 +536,17 @@ class StHALContainer(object):
 
             self.hicann.sendSpikes(link, spikes)
 
-    def read_adc(self):
+    def read_adc(self, recording_time=None):
         """Run experiment, read out ADC.
         """
         if not self._connected:
             self.connect()
         max_tries = 10
+        if recording_time is None:
+            recording_time = self.recording_time
         for ii in range(max_tries):
             try:
-                self.adc.record()
+                self.adc.record(recording_time)
                 v = self.adc.trace()
                 t = numpy.arange(len(v)) * self.adc.getTimestamp()
                 return pandas.DataFrame({'v': v}, index=t)
@@ -548,7 +567,7 @@ class StHALContainer(object):
                 self.wafer.restart(runner)  # Clears received spikes
                 self.adc.record()  # TODO triggered
                 traces = pandas.DataFrame({'v': self.adc.trace()},
-                                        index=self.adc.getTimestamps())
+                                           index=self.adc.getTimestamps())
 
                 recv_spikes = []
                 for link in Coordinate.iter_all(GbitLinkOnHICANN):
@@ -908,6 +927,10 @@ class StHALContainer(object):
         return result
 
 
+    def is_hardware(self):
+        return True
+
+
 class SimStHALContainer(StHALContainer):
     """Contains StHAL objects for hardware access. Multiple experiments can
     share one container.
@@ -1012,7 +1035,7 @@ class SimStHALContainer(StHALContainer):
         self.current_neuron = coord_neuron
 
     def resample_simulation_result(self, adc_result,
-                                   adc_sampling_interval=1. / 96e6):
+                                   adc_sampling_interval):
         """Re-sample the result of self.read_adc().
 
         adc_result: Dictionary as returned by self.read_adc(). Must
@@ -1063,7 +1086,8 @@ class SimStHALContainer(StHALContainer):
         result = self.run_simulation(self.current_neuron, param)
 
         if self.resample_output:
-            return self.resample_simulation_result(result)
+            return self.resample_simulation_result(
+                result, adc_sampling_interval=1.0/self.ideal_adc_freq)
         else:
             return result
 
@@ -1184,3 +1208,9 @@ class SimStHALContainer(StHALContainer):
 
         # remove non-C++ entry for pickling
         del self.wafer.__dict__['configure']
+
+    def read_floating_gates(self, parameter):
+        return pandas.DataFrame()
+
+    def is_hardware(self):
+        return False
