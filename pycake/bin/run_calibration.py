@@ -95,7 +95,9 @@ init_logger(pylogging.LogLevel.WARN, [
     ("pycake.helper.simsthal", pylogging.LogLevel.INFO),
     ("sthal", pylogging.LogLevel.INFO),
     ("sthal.AnalogRecorder", pylogging.LogLevel.WARN),
-    ("sthal.HICANNConfigurator.Time", pylogging.LogLevel.INFO)
+    ("sthal.HICANNConfigurator.Time", pylogging.LogLevel.INFO),
+    ("progress", pylogging.LogLevel.DEBUG),
+    ("progress.sthal", pylogging.LogLevel.INFO),
     ])
 
 parser = argparse.ArgumentParser(description='HICANN Calibration tool. Takes a parameter file as input. See pycake/bin/parameters.py to see an example.')
@@ -114,7 +116,9 @@ parser.add_argument('--overwrite', required=False, action=DictionaryAction,
 args = parser.parse_args()
 
 if args.logfile is not None:
-    pylogging.append_to_cout(pylogging.get_root())
+    progress = pylogging.get('progress')
+    pylogging.append_to_cout(progress)
+    progress.warn("Write logs to {}".format(args.logfile))
 
 config = load_config(args)
 
