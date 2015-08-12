@@ -343,8 +343,9 @@ class IncrementalExperiment(SequentialExperiment):
         self.traces_folder = path
 
     def iter_measurements(self):
+        if self.finished():
+            return
         self.run_initial_measurements()
-        self.logger.INFO("Connecting to hardware and configuring.")
         sthal = self.initial_configuration
         sthal.write_config()
         i_max = len(self.generator)
@@ -360,4 +361,3 @@ class IncrementalExperiment(SequentialExperiment):
             self.append_measurement_and_result(measurement, result)
             yield True # Used to save state of runner
         sthal.disconnect()
-        self.is_finished = True
