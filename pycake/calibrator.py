@@ -10,6 +10,8 @@ from pyhalbe.HICANN import neuron_parameter, shared_parameter
 import Coordinate
 import pycalibtic
 from pycake.helpers.calibtic import create_pycalibtic_transformation
+from pycalibtic import Constant
+from lmfit import Parameters, minimize, fit_report
 
 def is_defect_potential(slope, offset, slope_from_one=1, offset_cut=1000):
     """
@@ -423,15 +425,115 @@ class V_convoff_Calibrator(BaseCalibrator):
     def debug_plot(self, neuron):
         pass
 
+class V_convoff_Calibrator(BaseCalibrator):
+    target_parameter = None
+
+    def __init__(self, experiment, config=None):
+        self.experiment = experiment
+
+    @staticmethod
+    def f(params, x):
+        a = params['a'].value
+        b = params['b'].value
+        c = params['c'].value
+        k = params['k'].value
+        return numpy.clip(a * (x - b) + c, c, numpy.inf)
+
+    @staticmethod
+    def residual(params, x, data, eps_data):
+        model = V_convoff_Calibrator.f(params, x)
+        return (data - model) / eps_data
+
+    def prepare_data(self, data, v_range):
+        raise NotImplemented(self)
+
+    def find_optimum(self, data, v_range=0.150):
+
+        fit_data = self.prepare_data(data.copy(), v_range)
+
+        results = []
+        for ii in range(1, fit_data.shape[1] - 1):
+            params = Parameters()
+            params.add('a', value=0.0)
+            params.add('b', value=fit_data[0][ii])
+            params.add('c', value=0.0)
+            params.add('k', value=ii, vary=False)
+
+            out = minimize(self.residual, params,
+                           args=(fit_data[0], fit_data[1], 1.0))
+            results.append((numpy.sum(out.residual**2), out, params))
+
+        return fit_data, results
+
+    def plt_fits(axis, fit_data, results, legend=False):
+        x, y = fit_data
+        axis.plot(x, y, color='k')
+        for res, out, params in results:
+            if res < 0.1:
+                # print fit_report(out)
+                #axis.plot(
+                #    x, f(params, x), 'x', 
+                #    label='Res**2: {:.2f}, b: {:.2f}, chi2: {:.5f}'.format(
+                #        res, params['b'].value, out.chisqr))
+                l = axis.plot(x, f(params, x), '--',
+                              label='b: {:.2f}'.format(params['b'].value))
+                axis.plot([params['b'].value], [params['c'].value], 'x',
+                          color=l[0].get_color())
+        if legend:
+            axis.legend(loc='lower right')
+
+    def plt_residuals(axis, results):
+        axis.plot([res for res, _, _ in results])
+
+    @staticmethod
+    def V_convoff(results):
+        if len(results) > 0:
+            idx = numpy.argmin([res for res, _, _ in results])
+            res, out, params = results[idx]
+            return params['b'].value * 1023
+        else:
+            return None
+
+    def generate_transformations(self):
+        fits = {}
+        data = self.experiment.get_all_data(
+            (self.target_parameter,), ('mean', 'std'))
+        for nrn, data in data.groupby(level='neuron'):
+            fit_data, results = self.find_optimum(data)
+            value = self.V_convoff(results)
+            fits[nrn] = Constant(value) if value is not None else None
+        return [(self.target_parameter, fits)]
+
 
 class V_convoffi_Calibrator(V_convoff_Calibrator):
     target_parameter = neuron_parameter.V_convoffi
-    MEMBRANE_SHIFT = -10.0e-3
+
+    def prepare_data(self, data, v_range):
+        """scales data from -1.0 to 0.0 and removes spiking traces"""
+        data['V_convoffi'] /= 1023
+        idx = (data['std'] < 0.020)  # not spiking
+        if not idx.any():
+            return numpy.empty((2, 0))
+
+        data['mean'] = (data['mean'][idx].max() - data['mean']) / v_range
+        idx &= (data['mean'] >= -1.0)
+
+        return data[['V_convoffi', 'mean']][idx].values.T
 
 
 class V_convoffx_Calibrator(V_convoff_Calibrator):
     target_parameter = neuron_parameter.V_convoffx
-    MEMBRANE_SHIFT = 10.0e-3
+
+    def prepare_data(self, data, v_range):
+        """scales data from 0.0 to 1.0 and removes spiking traces"""
+        data['V_convoffx'] /= 1023
+        idx = (data['std'] < 0.020)  # not spiking
+        if not idx.any():
+            return numpy.empty((2, 0))
+
+        data['mean'] = (data['mean'] - data['mean'][idx].min())/v_range
+        idx &= (data['mean'] <= 1.0)
+        return data[['V_convoffx', 'mean']][idx].values.T
 
 
 class I_pl_Calibrator(BaseCalibrator):

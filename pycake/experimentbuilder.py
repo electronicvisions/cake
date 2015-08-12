@@ -394,24 +394,91 @@ class V_convoff_MeasurementGenerator(object):
 
 class V_convoff_Experimentbuilder(BaseExperimentBuilder):
     EXCITATORY = None
+
+    def __init__(self, *args, **kwargs):
+        super(V_convoff_Experimentbuilder, self).__init__(*args, **kwargs)
+        self.init_time = 400.0e-6
+        self.recording_time = 1e-4
+
+    def prepare_specific_config(self, sthal):
+        sthal.simulation_init_time = self.init_time
+        sthal.set_recording_time(self.recording_time, 1)
+        return sthal
+
+    def make_measurement(self, sthal, neurons, readout_shifts):
+        return ADCMeasurement(sthal, neurons, readout_shifts)
+
+    def generate_measurements(self):
+        self.logger.INFO("Building experiment {}".format(self.config.get_target()))
+        coord_wafer, coord_hicann = self.config.get_coordinates()
+        steps = self.config.get_steps()
+        if not steps:
+            raise RuntimeError("Missing steps for {}".format(type(self)))
+
+        readout_shifts = self.get_readout_shifts(self.neurons)
+        wafer_cfg = self.config.get_wafer_cfg()
+
+        parameters = set(sum((s.keys() for s in steps), []))
+        if len(parameters) != 1:
+            raise RuntimeError("You have to sweep exactly one parameter")
+        parameter = next(iter(parameters))
+
+        floating_gates = [self.prepare_parameters(self.get_step_parameters(s))
+                          for s in steps]
+
+        sthal = self.get_sthal()
+        sthal = self.prepare_specific_config(sthal)
+        sthal.hicann.floating_gates = copy.copy(floating_gates[0])
+
+        readout_shifts = self.get_readout_shifts(self.neurons)
+        generator = V_convoff_MeasurementGenerator(
+                parameter, floating_gates, self.neurons, readout_shifts)
+        return sthal, generator
+
+    def get_experiment(self):
+        """
+        """
+        sthal, generator = self.generate_measurements()
+        analyzer = self.get_analyzer()
+        return IncrementalExperiment(sthal, generator, analyzer)
+
+
+class V_convoffi_Experimentbuilder(V_convoff_Experimentbuilder):
+    EXCITATORY = False
+    ANALYZER = pycake.analyzer.V_convoffi_Analyzer
+
+
+class V_convoffx_Experimentbuilder(V_convoff_Experimentbuilder):
+    EXCITATORY = True
+    ANALYZER = pycake.analyzer.V_convoffx_Analyzer
+
+#FIXME: #1615
+#from calibration.vsyntc import SimplePSPAnalyzer
+
+
+class V_syntc_Experimentbuilder(BaseExperimentBuilder):
+    EXCITATORY = None
     ANALYZER = None
 
     def __init__(self, *args, **kwargs):
         super(V_convoff_Experimentbuilder, self).__init__(*args, **kwargs)
         self.init_time = 300.0e-6
-        self.recording_time = 0.4e-6
+        self.recording_time = 400.0e-6
         self.spikes = numpy.array([20e-6])
-        self.gmax_div = 30
+        self.gmax_div = 2
+
+        self.recording_time = 1e-4
 
     def prepare_specific_config(self, sthal):
         sthal.simulation_init_time = self.init_time
-        sthal.set_recording_time(self.recording_time, 100)
-        sthal.stimulateNeurons(1.0/self.recording_time, 4,
-                               excitatory=self.EXCITATORY)
-        sthal.send_spikes_to_all_neurons(
-            self.spikes, excitatory=self.EXCITATORY, gmax_div=self.gmax_div)
-        sthal.maximum_spikes = 2
-        sthal.spike_counter_offset = 0.0
+        sthal.set_recording_time(self.recording_time, 1)
+        # sthal.set_recording_time(self.recording_time, 10)
+        # sthal.stimulateNeurons(1.0/self.recording_time, 4,
+        #                        excitatory=self.EXCITATORY)
+        # sthal.send_spikes_to_all_neurons(
+        #     self.spikes, excitatory=self.EXCITATORY, gmax_div=self.gmax_div)
+        # sthal.maximum_spikes = 2
+        # sthal.spike_counter_offset = 0.0
         return sthal
 
     def make_measurement(self, sthal, neurons, readout_shifts):
@@ -470,25 +537,12 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
         "get analyzer"
         return self.ANALYZER(self.spikes)
 
-
-class V_convoffi_Experimentbuilder(V_convoff_Experimentbuilder):
-    EXCITATORY = False
-    ANALYZER = pycake.analyzer.V_convoffi_Analyzer
-
-
-class V_convoffx_Experimentbuilder(V_convoff_Experimentbuilder):
-    EXCITATORY = True
-    ANALYZER = pycake.analyzer.V_convoffx_Analyzer
-
-#FIXME: #1615
-#from calibration.vsyntc import SimplePSPAnalyzer
-
-class V_syntcx_Experimentbuilder(V_convoff_Experimentbuilder):
+class V_syntcx_Experimentbuilder(V_syntc_Experimentbuilder):
     EXCITATORY = True
     ANALYZER = None#SimplePSPAnalyzer #FIXME: #1615
 
 
-class V_syntci_Experimentbuilder(V_convoff_Experimentbuilder):
+class V_syntci_Experimentbuilder(V_syntc_Experimentbuilder):
     EXCITATORY = False
     ANALYZER = None#SimplePSPAnalyzer #FIXME: #1615
 
