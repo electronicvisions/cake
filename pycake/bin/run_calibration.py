@@ -106,9 +106,6 @@ parser.add_argument('parameter_file', type=check_file,
 parser.add_argument('--outdir', type=str, default=None,
                     help="output folder. default is the one specified in the "
                          "config file.")
-parser.add_argument('--logfile', default=None,
-                    help="Specify a logfile where all the logger output will "
-                         "be stored")
 parser.add_argument('--parameter', type=str, default=None, action='append',
                     help='Runs the specified calibrations in the given order')
 parser.add_argument('--overwrite', required=False, action=DictionaryAction,
@@ -116,7 +113,7 @@ parser.add_argument('--overwrite', required=False, action=DictionaryAction,
 args = parser.parse_args()
 
 if args.logfile is not None:
-    pylogging.append_to_file(args.logfile, pylogging.get_root())
+    pylogging.append_to_cout(pylogging.get_root())
 
 config = load_config(args)
 
