@@ -77,7 +77,7 @@ class HICANNConfigurator(pysthal.HICANNConfigurator):
     def config_floating_gates(self, handle, hicann):
         fpga_handle = self.fpga_handle
         low, high = self.get_current_rows(hicann)
-        self.zero_fg(handle)
+        self.zero_fg(handle, hicann)
         self.programm_normal(handle, hicann, self.V_ROWS + low)
         self.programm_high(handle, hicann, high)
 
@@ -134,21 +134,19 @@ class HICANNConfigurator(pysthal.HICANNConfigurator):
                 for p in high]
         return low, high
 
-    def zero_fg(self, handle):
+    def zero_fg(self, handle, hicann):
         """
         Writes floating gates fast to zero values
 
         First current cells than voltage cells.
         """
-        fgconfig = pysthal.FGConfig()
+        fgconfig = hicann.floating_gates.getFGConfig(Enum(0))
         fgconfig.voltagewritetime = 63
         fgconfig.currentwritetime = 63
         fgconfig.maxcycle = 15
         fgconfig.pulselength = 15
         fgconfig.readtime = 30
         fgconfig.acceleratorstep = 2
-        fgconfig.fg_bias = 0
-        fgconfig.fg_biasn = 0
         fgconfig.writeDown = fgconfig.WRITE_DOWN
 
         for block in iter_all(FGBlockOnHICANN):
@@ -161,15 +159,13 @@ class HICANNConfigurator(pysthal.HICANNConfigurator):
 
     def programm_high(self, handle, hicann, rows):
         # Zero fgs
-        fgconfig = pysthal.FGConfig()
+        fgconfig = hicann.floating_gates.getFGConfig(Enum(0))
         fgconfig.voltagewritetime = 63
         fgconfig.currentwritetime = 63
         fgconfig.maxcycle = 31
         fgconfig.pulselength = 15
         fgconfig.readtime = 30
         fgconfig.acceleratorstep = 2
-        fgconfig.fg_bias = 0
-        fgconfig.fg_biasn = 0
         fgconfig.writeDown = fgconfig.WRITE_UP
         for block in iter_all(FGBlockOnHICANN):
             pyhalbe.HICANN.set_fg_config(handle, block, fgconfig)
@@ -185,8 +181,6 @@ class HICANNConfigurator(pysthal.HICANNConfigurator):
         fgc = hicann.floating_gates
         for step in (1, 2):
             fgconfig = hicann.floating_gates.getFGConfig(Enum(step))
-            fgconfig.fg_bias = 0
-            fgconfig.fg_biasn = 0
 
             for block in iter_all(FGBlockOnHICANN):
                 pyhalbe.HICANN.set_fg_config(handle, block, fgconfig)
@@ -362,63 +356,59 @@ class StHALContainer(object):
     """Contains StHAL objects for hardware access. Multiple experiments can share one container."""
     def __getstate__(self):
         odict = self.__dict__.copy()
-        del odict['hicann']
         odict['adc'] = None
         odict['_connected'] = False
         return odict
 
-    def __setstate__(self, dic):
-        coord_hicann = dic['coord_hicann']
-        wafer = dic['wafer']
-        dic['hicann'] = wafer[coord_hicann]
-        self.__dict__.update(dic)
-
     logger = pylogging.get("pycake.helper.sthal")
 
-    def __init__(self, coord_wafer,
-                 coord_hicann,
+    def __init__(self,
+                 config,
                  coord_analog=Coordinate.AnalogOnHICANN(0),
-                 recording_time=1.e-4,
-                 wafer_cfg="",
-                 PLL=100e6,
-                 dump_file=None):
+                 recording_time=1.e-4):
         """Initialize StHAL. kwargs default to vertical setup configuration.
 
         Args:
-            coord_hicann: HICANN Coordinate
+            config: Config instance, used to determine Wafer, HICANN, PLL,
+                    big_cap, dump_file, wafer_cfg, speedup, fg_biasn
+                wafer_cfg: load wafer configuration from this file, ignore rest
+                dump_file: filename for StHAL dump handle instead of hardware
             coord_analog: AnalogOnHICANN Coordinate
             recording_time: ADC recording time in seconds
-            wafer_cfg: ?
-            PLL: HICANN PLL frequency in Hz
-            dump_file: filename for StHAL dump handle instead of hardware
         """
 
-        self.coord_wafer = coord_wafer
-        self.coord_hicann = coord_hicann
-        self.dump_file = dump_file
+        self.coord_wafer, self.coord_hicann = config.get_coordinates()
+        self.wafer_cfg = config.get_wafer_cfg()
+        self.dump_file = None  # TODO add to config
+        self.wafer_cfg = config.get_wafer_cfg()
 
-        self.wafer_cfg = wafer_cfg
-
-        self.wafer = pysthal.Wafer(coord_wafer)  # Stateful HICANN Container
-
+        self.wafer = pysthal.Wafer(self.coord_wafer)
         if self.wafer_cfg:
             self.logger.info("Loading {}".format(wafer_cfg))
             self.wafer.load(wafer_cfg)
+        else:
+            self.setPLL(config.get_PLL())
+            self.set_bigcap(config.get_bigcap())
+            # Get the SpeedUp type from string
+            speedup = pysthal.SpeedUp.names[config.get_speedup().upper()]
+            self.set_speedup(speedup)
+            self.set_fg_biasn(config.get_fg_biasn())
 
-        self.setPLL(PLL)
-        self.hicann = self.wafer[coord_hicann]
         self.adc = None
         self.recording_time = recording_time
         self.coord_analog = coord_analog
         self._connected = False
         self.input_spikes = {}
         self.neuron_size = 1
-        self.set_fg_biasn(0)
         self.ideal_adc_freq = 96e6
 
     def __del__(self):
         if self._connected:
             self.disconnect()
+
+    @property
+    def hicann(self):
+        return self.wafer[self.coord_hicann]
 
     def connect(self):
         """Connect to the hardware."""
@@ -647,9 +637,9 @@ class StHALContainer(object):
             links.append(GbitLinkOnHICANN(2 * ii))
 
             drv_top = Coordinate.SynapseDriverOnHICANN(
-                Coordinate.Enum(99 + ii * 4))
+                Coordinate.Enum(83 + ii * 4))
             drv_bottom = Coordinate.SynapseDriverOnHICANN(
-                Coordinate.Enum(126 - ii * 4))
+                Coordinate.Enum(142 - ii * 4))
             if ii < no_generators:
                 self.route(bg_top, drv_top)
                 self.route(bg_bottom, drv_bottom)
@@ -929,6 +919,32 @@ class StHALContainer(object):
         self.connect_adc()
         return result
 
+    def read_floating_gates(self, parameter):
+
+
+        fgblocks = [
+            FGBlockOnHICANN(X(0), Y(self.coord_analog.value())),
+            FGBlockOnHICANN(X(1), Y(self.coord_analog.value())),
+        ]
+
+        result = {}
+        for fgblock in fgblocks:
+            if fgblock.x() == X(0):
+                self.hicann.analog.set_fg_left(self.coord_analog)
+            else:
+                self.hicann.analog.set_fg_left(self.coord_analog)
+
+            self.write_config(configurator=UpdateAnalogOutputConfigurator())
+            data = []
+            for blk_nrn in iter_all(NeuronOnFGBlock):
+                nrn = blk_nrn.toNeuronOnHICANN(fgblock)
+                self.write_config(configurator=SetFGCell(nrn, parameter))
+                trace = self.read_adc(1.0e-4)
+                data.append((nrn, trace['v'].mean(), trace['v'].std()))
+            result[fgblock] = pandas.DataFrame(
+                data, columns=['neuron', 'mean', 'variance'])
+            result[fgblock].set_index('neuron', inplace=True)
+        return pandas.concat(result)
 
     def is_hardware(self):
         return True
@@ -949,33 +965,23 @@ class SimStHALContainer(StHALContainer):
     """
     logger = pylogging.get("pycake.helper.simsthal")
 
-    def __init__(self, coord_wafer,
-                 coord_hicann,
+    def __init__(self,
+                 config,
                  coord_analog=Coordinate.AnalogOnHICANN(0),
                  recording_time=30.0e-6,
-                 wafer_cfg="",
-                 PLL=100e6,
-                 dump_file=None,
-                 config=None,
                  resample_output=True):
         """Initialize StHAL. kwargs default to vertical setup configuration.
 
         Args:
-            coord_hicann: HICANN Coordinate
-            coord_analog: AnalogOnHICANN Coordinate
+            config: Config instance
             recording_time: ADC recording time in seconds
             wafer_cfg: ?
-            PLL: HICANN PLL frequency in Hz
-            dump_file: filename for StHAL dump handle instead of hardware
-            remote_host: host
-            remote_port: port
             resample_output: bool
                 if True, resample the result of read_adc to the adc
                 sampling frequency
         """
         super(SimStHALContainer, self).__init__(
-            coord_wafer, coord_hicann, coord_analog, recording_time,
-            wafer_cfg, PLL, dump_file)
+            config, coord_analog, recording_time)
         self.current_neuron = Coordinate.NeuronOnHICANN()
         host, port = config.get_sim_denmem().split(':')
         self.remote_host = host

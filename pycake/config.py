@@ -224,3 +224,9 @@ class Config(object):
 
     def get_bigcap(self):
         return self.parameters['bigcap']
+
+    def get_fg_bias(self):
+        return self.parameters.get('fg_bias', 0)
+
+    def get_fg_biasn(self):
+        return self.parameters.get('fg_biasn', 0)

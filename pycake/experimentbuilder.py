@@ -42,7 +42,6 @@ class BaseExperimentBuilder(object):
     def __init__(self, config, test, calibtic_helper):
         self.config = config
 
-        path, name = self.config.get_calibtic_backend()
         wafer, hicann = self.config.get_coordinates()
         self.calibtic = calibtic_helper
 
@@ -55,25 +54,11 @@ class BaseExperimentBuilder(object):
         returns sthal helper depending on config (e.g. hw vs. sim)
         """
 
-        coord_wafer, coord_hicann = self.config.get_coordinates()
-        wafer_cfg = self.config.get_wafer_cfg()
-        PLL = self.config.get_PLL()
-
+        StHAL = StHALContainer
         sim_denmem_cfg = self.config.get_sim_denmem()
         if sim_denmem_cfg:
-            sthal = SimStHALContainer(
-                coord_wafer, coord_hicann, wafer_cfg=wafer_cfg, PLL=PLL,
-                config=self.config)
-        else:
-            sthal = StHALContainer(
-                coord_wafer, coord_hicann, wafer_cfg=wafer_cfg, PLL=PLL)
-
-        sthal.set_bigcap(self.config.get_bigcap())
-        # Get the SpeedUp type from string
-        speedup = pysthal.SpeedUp.names[self.config.get_speedup().upper()]
-        sthal.set_speedup(speedup)
-
-        return sthal
+            StHAL = SimStHALContainer
+        return StHAL(config=self.config)
 
     def generate_measurements(self):
         self.logger.INFO("Building experiment {}".format(self.config.get_target()))
@@ -145,6 +130,11 @@ class BaseExperimentBuilder(object):
         """
 
         floating_gates = pysthal.FloatingGates()
+        for ii in range(floating_gates.getNoProgrammingPasses()):
+            cfg = floating_gates.getFGConfig(Coordinate.Enum(ii))
+            cfg.fg_bias = self.config.get_fg_bias()
+            cfg.fg_biasn = self.config.get_fg_biasn()
+            floating_gates.setFGConfig(Coordinate.Enum(ii), cfg)
 
         self.calibtic.set_calibrated_parameters(
             parameters, self.neurons, self.blocks, floating_gates)

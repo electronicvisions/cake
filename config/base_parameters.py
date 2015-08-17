@@ -41,6 +41,10 @@ parameters = {
     "speedup": 'normal',
     "bigcap": True,
 
+    # Default floating gate biases, MAXIMUM POWER!
+    "fg_bias": 0,
+    "fg_biasn": 0,
+
     # Here you can set the fixed parameters for each calibration.
     # base_parameters are set for all calibrations
     "base_parameters":   {
