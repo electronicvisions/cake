@@ -204,16 +204,19 @@ class UpdateParameterUp(HICANNConfigurator):
 
     Warning: It is assumend that the paramter is growing!
     """
-    def __init__(self, parameter, readout_block=None):
+    def __init__(self, parameters, readout_block=None):
         HICANNConfigurator.__init__(self, Coordinate.FGBlockOnHICANN())
-        self.rows = [tuple(HICANN.getNeuronRow(b, parameter)
-                           for b in iter_all(FGBlockOnHICANN))]
+        self.rows = [
+            tuple(HICANN.getNeuronRow(b, parameter)
+                  for b in iter_all(FGBlockOnHICANN))
+            for parameter in parameters]
 
     def config_fpga(self, fpga_handle, fpga):
         pass
 
     def config(self, fpga_handle, handle, hicann):
-        self.programm_normal(handle, hicann, self.rows)
+        for rows in self.rows:
+            self.programm_normal(handle, hicann, self.rows)
 
 
 class SpikeReadoutHICANNConfigurator(pysthal.HICANNConfigurator):
