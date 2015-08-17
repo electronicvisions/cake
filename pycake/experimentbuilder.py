@@ -145,46 +145,9 @@ class BaseExperimentBuilder(object):
         """
 
         floating_gates = pysthal.FloatingGates()
-        for neuron in self.neurons:
-            neuron_params = copy.deepcopy(parameters)
-            for param, value in neuron_params.iteritems():
-                if (not isinstance(param, neuron_parameter)) or param.name[0] == '_':
-                    # e.g. __last_neuron
-                    continue
 
-                if value.apply_calibration:
-                    self.logger.TRACE("Applying calibration to coord {} value {}".format(neuron, value))
-                    value_dac = self.calibtic.apply_calibration(value, param, neuron)
-                else:
-                    value_dac = value.toDAC().value
-
-                self.logger.TRACE("Setting FGValue of {} parameter {} to {}.".format(neuron, param, value_dac))
-                floating_gates.setNeuron(neuron, param, value_dac)
-
-        for block in self.blocks:
-            block_parameters = copy.deepcopy(parameters)
-            for param, value in block_parameters.iteritems():
-                if (not isinstance(param, shared_parameter)) or param.name[0] == '_':
-                    # e.g. __last_*
-                    continue
-                # Check if parameter exists for this block
-                even = block.id().value() % 2
-                if even and param.name in ['V_clra', 'V_bout']:
-                    continue
-                if not even and param.name in ['V_clrc', 'V_bexp']:
-                    continue
-
-                if value.apply_calibration:
-                    self.logger.TRACE("Applying calibration to coord {} value {}".format(block, value))
-                    value_dac = self.calibtic.apply_calibration(value, param, block)
-                else:
-                    if type(value) in [Ampere, Volt, DAC]:
-                        value_dac = value.toDAC().value
-                    else:
-                        value_dac = self.calibtic.apply_calibration(value.value, param, block, use_ideal=True)
-
-                self.logger.TRACE("Setting FGValue of {} parameter {} to {}.".format(block, param, value))
-                floating_gates.setShared(block, param, value_dac)
+        self.calibtic.set_calibrated_parameters(
+            parameters, self.neurons, self.blocks, floating_gates)
         return floating_gates
 
     def prepare_specific_config(self, sthal):

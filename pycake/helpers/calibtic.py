@@ -3,6 +3,7 @@ import pywrapstdvector
 import pylogging
 import os
 import getpass
+import copy
 
 import Coordinate
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
@@ -240,7 +241,7 @@ class Calibtic(object):
 
         return shift
 
-    def apply_calibration(self, value, parameter, coord, use_ideal=False):
+    def apply_calibration(self, value, parameter, coord, use_ideal=False, report=False):
         """ Apply calibration to one value. If no calibration is found, use ideal calibration.
             Also, if parameter value is given in a unit that does not support calibration, e.g.
             I_pl given in Ampere instead of microseconds, apply direct translation to DAC.
@@ -252,11 +253,17 @@ class Calibtic(object):
             Returns:
                 Calibrated DAC value
                 If the calibrated value exceeds the boundaries, it is clipped.
+
+                If report_status is set, also a integer is retured, discribing the
+                actuale transformation used: 0 ok, 1 ideal, 2 none, and a bool
+                indicating if the value is clipped
         """
         if not isinstance(value, Unit):
             value = Unit(value)
 
         calib = self.get_calibration(coord, use_ideal)
+        status = 0
+        clipped = False
 
         lower_boundary = 0
         if parameter is neuron_parameter.I_pl:
@@ -265,14 +272,23 @@ class Calibtic(object):
             lower_boundary = 4
 
         if calib.exists(parameter):
+            trafo = calib.at(parameter)
             # Check domain
-            domain = list(calib.at(parameter).getDomainBoundaries())
-            if value.value > max(domain):
-                self.logger.WARN("Coord {} value {} larger than domain maximum {}. Clipping value.".format(coord, value.value, max(domain)))
-                value.value = max(domain)
-            if value.value < min(domain):
-                self.logger.WARN("Coord {} value {} smaller than domain minimum {}. Clipping value.".format(coord, value.value, min(domain)))
-                value.value = min(domain)
+            if hasattr(trafo, 'getDomainBoundaries'):
+                domain = list(trafo.getDomainBoundaries())
+                if value.value > max(domain):
+                    self.logger.WARN(
+                        "Coord {} value {} larger than domain maximum {}. "
+                        "Clipping value.".format(coord, value.value, max(domain)))
+                    value.value = max(domain)
+                    clipped = True
+                if value.value < min(domain):
+                    self.logger.WARN(
+                        "Coord {} value {} smaller than domain minimum {}. "
+                        "Clipping value.".format(coord, value.value, min(domain)))
+                    value.value = min(domain)
+                    clipped = True
+
             # Apply calibration
             calib_dac_value = calib.to_dac(value.value, parameter)
 
@@ -282,15 +298,79 @@ class Calibtic(object):
                 ideal = self.get_calibration(coord, True)
                 calib_dac_value = ideal.at(parameter).apply(value.value)
                 self.logger.WARN("Calibration for {} parameter {} not found. Using ideal transformation -> DAC value {}".format(coord, parameter.name, calib_dac_value))
+                status = 2
             except RuntimeError, e:
                 calib_dac_value = value.toDAC().value
                 self.logger.WARN("Calibration for {} parameter {} not found: {}. Using toDAC() value {}".format(coord, parameter.name, e, calib_dac_value))
+                status = 3
+
+        calib_dac_value = int(round(calib_dac_value)) + value.dac_offset
 
         if calib_dac_value < lower_boundary:
             self.logger.WARN("Coord {} Parameter {} value {} calibrated to {} is lower than {}. Clipping.".format(coord, parameter, value, calib_dac_value, lower_boundary))
             calib_dac_value = lower_boundary
+            clipped = True
         if calib_dac_value > 1023:
             self.logger.WARN("Coord {} Parameter {} value {} calibrated to {} is larger than 1023. Clipping.".format(coord, parameter, value, calib_dac_value))
             calib_dac_value = 1023
+            clipped = True
 
-        return int(round(calib_dac_value))
+
+        if report:
+            return calib_dac_value, status, clipped
+        else:
+            return calib_dac_value
+
+    def set_calibrated_parameters(self, parameters, neurons, blocks, floating_gates):
+        """Writes floating gate parameters into a sthal FloatingGates container.
+            This includes calibration and transformation from V or nA to DAC values.
+
+        Parameters:
+            parameters: dictionary containg the parameters to be written
+            floating_gates: pysthal.FloatingGates to be updated
+
+        Returns:
+            pysthal.FloatingGates with given parameters
+        """
+
+        for neuron in neurons:
+            neuron_params = copy.deepcopy(parameters)
+            for param, value in neuron_params.iteritems():
+                if (not isinstance(param, neuron_parameter)) or param.name[0] == '_':
+                    # e.g. __last_neuron
+                    continue
+
+                if value.apply_calibration:
+                    self.logger.TRACE("Applying calibration to coord {} value {}".format(neuron, value))
+                    value_dac, status, clipped  = self.apply_calibration(
+                        value, param, neuron, report=True)
+                else:
+                    value_dac = value.toDAC().value
+
+                self.logger.TRACE("Setting FGValue of {} parameter {} to {}.".format(neuron, param, value_dac))
+                floating_gates.setNeuron(neuron, param, value_dac)
+
+        for block in blocks:
+            block_parameters = copy.deepcopy(parameters)
+            for param, value in block_parameters.iteritems():
+                if (not isinstance(param, shared_parameter)) or param.name[0] == '_':
+                    # e.g. __last_*
+                    continue
+                # Check if parameter exists for this block
+                even = block.id().value() % 2
+                if even and param.name in ['V_clra', 'V_bout']:
+                    continue
+                if not even and param.name in ['V_clrc', 'V_bexp']:
+                    continue
+
+                if value.apply_calibration:
+                    self.logger.TRACE("Applying calibration to coord {} value {}".format(block, value))
+                    value_dac = self.apply_calibration(value, param, block)
+                else:
+                    if type(value) in [Ampere, Volt, DAC]:
+                        value_dac = value.toDAC().value
+                    else:
+                        value_dac = self.apply_calibration(value.value, param, block, use_ideal=True)
+
+                self.logger.TRACE("Setting FGValue of {} parameter {} to {}.".format(block, param, value))
+                floating_gates.setShared(block, param, value_dac)
