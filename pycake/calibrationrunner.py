@@ -48,7 +48,9 @@ class CalibrationUnit(object):
         self.storage_folder = None
         self.storage = StorageProcess(compresslevel=9)
         if experiment is None:
+            # Store calibtic instance just for debugging
             experiment = self.get_experiment(calibitic)
+            experiment.calibtic = calibitic
         self.experiment = experiment
         self.set_storage_folder(storage_path)
         self.save()
@@ -189,20 +191,12 @@ class CalibrationRunner(object):
         self.to_run = self.config.get_enabled_calibrations()
 
         wafer, hicann = self.config.get_coordinates()
-        pll = self.config.get_PLL()
-        pll_in_MHz = int(pll/1e6)
-
-        if config.get_bigcap():
-            cap_prefix = 'bigcap'
-        else:
-            cap_prefix = 'smallcap'
-
         name_details = "_".join([s for s in [
             self.config.get_folder_prefix(),
-            "f{}".format(pll_in_MHz),
+            "f{}".format(self.config.get_PLL()/1e6),  # PLL in MHz
             "w{}".format(wafer.value()),
             "h{}".format(hicann.id().value()),
-            cap_prefix,
+            'bigcap' if config.get_bigcap() else 'smallcap',
             config.get_speedup(),
             time.strftime('%m%d_%H%M'),
         ] if s != ""])
@@ -213,13 +207,22 @@ class CalibrationRunner(object):
         else:
             self.set_storage_folder(storage_path)
 
-        path, _ = self.config.get_calibtic_backend()
-        self.calibtic = pycake.helpers.calibtic.Calibtic(
-            path, wafer, hicann, pll, config.get_bigcap(), config.get_speedup())
-        self.redman = pycake.helpers.redman.Redman(
-            path, Coordinate.HICANNGlobal(hicann,wafer))
-
         self.save()
+
+    def load_calibtic(self):
+        """Load calibtic object"""
+        path = self.config.get_backend_path()
+        wafer, hicann = self.config.get_coordinates()
+        return pycake.helpers.calibtic.Calibtic(
+            path, wafer, hicann, self.config.get_PLL(),
+            self.config.get_bigcap(), self.config.get_speedup())
+
+    def load_redman(self):
+        """Load redman helper"""
+        path = self.config.get_backend_path()
+        wafer, hicann = self.config.get_coordinates()
+        return pycake.helpers.redman.Redman(
+            path, Coordinate.HICANNGlobal(hicann,wafer))
 
     def get(self, **kwargs):
         return [self.load_calibration_unit(ii) for ii in
@@ -255,14 +258,16 @@ class CalibrationRunner(object):
         """ Clears calibration if this is set in the configuration
         """
         if self.config.get_clear():
-            self.calibtic.clear_calibration()
+            calibtic = self.load_calibtic()
+            calibtic.clear_calibration()
 
     def clear_defects(self):
         """ Clears defects if this is set in the configuration
         """
 
         if self.config.get_clear_defects():
-            self.redman.clear_defects()
+            redman = self.load_redman()
+            redman.clear_defects()
 
     def run_calibration(self):
         """entry method for regular calibrations
@@ -288,6 +293,7 @@ class CalibrationRunner(object):
 
         self.logger.INFO("Finalizing")
 
+        calibtic = self.load_calibtic()
         base_parameters = self.config.parameters['base_parameters']
         technical_parameters = self.config.parameters.get('technical_parameters', [])
 
@@ -303,13 +309,13 @@ class CalibrationRunner(object):
 
                 trafo = pycalibtic.Constant(base_parameters[parameter].toDAC().value)
                 data = {block: trafo for block in blocks}
-                self.calibtic.write_calibration(parameter, data)
+                calibtic.write_calibration(parameter, data)
 
             elif isinstance(parameter, neuron_parameter):
 
                 trafo = pycalibtic.Constant(base_parameters[parameter].toDAC().value)
                 data = {neuron: trafo for neuron in neurons}
-                self.calibtic.write_calibration(parameter, data)
+                calibtic.write_calibration(parameter, data)
 
             else:
 
@@ -320,7 +326,9 @@ class CalibrationRunner(object):
         for ii, name in enumerate(self.to_run):
             measurement = self.create_or_load_unit(ii)
             measurement.run()
-            measurement.generate_calibration_data(self.calibtic, self.redman)
+            calibtic = self.load_calibtic()
+            redman = self.load_redman()
+            measurement.generate_calibration_data(calibtic, redman)
 
     def get_unit_folder(self, ii):
         return os.path.join(self.storage_folder, str(ii))
@@ -335,7 +343,7 @@ class CalibrationRunner(object):
         except UnitNotFound:
             name = self.to_run[ii]
             return CalibrationUnit(
-                self.config.copy(name), self.get_unit_folder(ii), self.calibtic)
+                self.config.copy(name), self.get_unit_folder(ii), self.load_calibtic())
 
     def set_storage_folder(self, folder):
         """Update the pathes to calibration units results"""
@@ -350,9 +358,11 @@ class CalibrationRunner(object):
         if not isinstance(data, cls):
             raise RuntimeError("Invalid class loaded!")
         data.set_storage_folder(path)
-        # TODO handle redman
         if backend_path is not None:
-            self.calibtic.path = self.calibtic.make_path(path)
+            if not os.path.isdir(packend_path):
+                raise RuntimeError("Backend path '{}' not found".format(
+                    backend_path))
+            self.config['backend'] = backend_path
         return data
 
     def save(self):

@@ -165,8 +165,15 @@ class Config(object):
         wafer_id = coord_wafer.value()
         hicann_id = coord_hicann.id().value()
         name = "w{}-h{}".format(int(wafer_id), int(hicann_id))
-        path = self.parameters["backend_c"]
+        path = self.get_backend_path()
         return (path, name)
+
+    def get_backend_path(self):
+        """Return path to the calibtic database"""
+        try:
+            return self.parameters["backend"]
+        except KeyError:
+            return self.parameters["backend_c"]
 
     def get_coordinates(self):
         """ Returns coordinates of wafer and hicann.
