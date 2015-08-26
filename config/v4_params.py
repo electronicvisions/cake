@@ -18,13 +18,12 @@ parameters = {
     # (backend_c for calibtic, backend_r for redman)?
     # Folders will be created if they do not exist already
     "folder":       folder,
-    "backend_c":    os.path.join(folder, "backends"),
-    "backend_r":    os.path.join(folder, "backends"),
+    "backend":      os.path.join(folder, "backends"),
 
     # Which neurons and blocks do you want to calibrate?
     "folder_prefix": "calibration",
     "calibrate":    True,
-    "save_traces":  True,
+    # "save_traces":  True,
     "clear_defects" : True,
 
     "parameter_order": [
@@ -83,10 +82,13 @@ parameters = {
     "E_l_range": [
         {
             neuron_parameter.E_l : v,
-        } for v in linspace_voltage(700e-3, 1000e-3, 4)
+        } for v in linspace_voltage(700e-3, 900e-3, 3)
     ],
 
     "E_l_parameters": {
+        neuron_parameter.I_convi: Ampere(0.0),
+        neuron_parameter.I_convx: Ampere(0.0),
+        neuron_parameter.I_gl: Volt(0.2, apply_calibration=True),
         neuron_parameter.V_t: Volt(1.2, apply_calibration=True),
         shared_parameter.V_reset:  Volt(0.9, apply_calibration=True),
     },
@@ -99,7 +101,7 @@ parameters = {
     ],
 
     "E_syni_parameters": {
-        neuron_parameter.E_l : Volt(0.8),
+        neuron_parameter.E_l : Volt(0.8, apply_calibration=True),
         neuron_parameter.I_convx: Ampere(0.0),
         neuron_parameter.I_gl: Ampere(0.0e-6),
         neuron_parameter.V_convoffi: Volt(0.1),
@@ -117,7 +119,7 @@ parameters = {
     ],
 
     "E_synx_parameters": {
-        neuron_parameter.E_l : Volt(0.8),
+        neuron_parameter.E_l : Volt(0.8, apply_calibration=True),
         neuron_parameter.I_convi: Ampere(0.0),
         neuron_parameter.I_gl: Ampere(0.0),
         neuron_parameter.V_convoffx: Volt(0.1),
@@ -138,13 +140,13 @@ parameters = {
         neuron_parameter.E_l : Volt(0.8, apply_calibration=True),
         neuron_parameter.E_syni : Volt(0.6, apply_calibration=True),
         neuron_parameter.I_convx: Ampere(0.0),
-        neuron_parameter.I_gl: Ampere(0.3e-6),
+        neuron_parameter.I_gl: Ampere(0.2e-6),
         neuron_parameter.V_convoffx: Volt(1.8),
         neuron_parameter.V_t: Volt(1.2, apply_calibration=True),
         shared_parameter.V_reset: Volt(0.9, apply_calibration=True),
     },
 
-    # V_convoffx
+    # V_convoffx 
     "V_convoffx_range": [
         {
             neuron_parameter.V_convoffx: Volt(v),
@@ -155,11 +157,13 @@ parameters = {
         neuron_parameter.E_l : Volt(0.8, apply_calibration=True),
         neuron_parameter.E_synx : Volt(1.3),
         neuron_parameter.I_convi: Ampere(0.0),
-        neuron_parameter.I_gl: Ampere(1.0e-6),
+        neuron_parameter.I_gl: Ampere(0.2e-6),
         neuron_parameter.V_t: Volt(1.12, apply_calibration=True),
         # Low to make spiking traces easier to detect
         shared_parameter.V_reset:  Volt(0.3, apply_calibration=True),
     },
+
+    # V_syntcx
 
     # values between 10 and 100 can be used, 2500 is for zero refractory time
     "I_pl_range":   [

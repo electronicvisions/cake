@@ -48,9 +48,9 @@ parameters = {
     # Here you can set the fixed parameters for each calibration.
     # base_parameters are set for all calibrations
     "base_parameters":   {
-        neuron_parameter.E_l: Volt(0.9),
-        neuron_parameter.E_syni: Volt(0.7),     # synapse
-        neuron_parameter.E_synx: Volt(1.1),    # synapse
+        neuron_parameter.E_l: Volt(0.8),
+        neuron_parameter.E_syni: Volt(0.6),     # synapse
+        neuron_parameter.E_synx: Volt(1.3),    # synapse
         neuron_parameter.I_bexp: Ampere(2500e-9),       # turn off exp by setting this to 2500 and see I_rexp and V_bexp
         neuron_parameter.I_convi: Ampere(2500e-9),   # bias current for synaptic input
         neuron_parameter.I_convx: Ampere(2500e-9),   # bias current for synaptic input
@@ -66,10 +66,10 @@ parameters = {
         neuron_parameter.V_convoffi: Volt(1.8), # Correction shift of internal synaptic integrator voltage
         neuron_parameter.V_convoffx: Volt(1.8), # Correction shift of internal synaptic integrator voltage
         neuron_parameter.V_exp: Volt(1.8),      # exponential term
-        neuron_parameter.V_syni: Volt(1.),    # inhibitory synaptic reversal potential
+        neuron_parameter.V_syni: Volt(0.7),    # inhibitory synaptic reversal potential
         neuron_parameter.V_syntci: Volt(1.42),   # inhibitory synapse time constant
         neuron_parameter.V_syntcx: Volt(1.42),   # excitatory synapse time constant
-        neuron_parameter.V_synx: Volt(1.),    # excitatory synaptic reversal potential
+        neuron_parameter.V_synx: Volt(0.7),    # excitatory synaptic reversal potential
         neuron_parameter.V_t: Volt(1.),       # recommended threshold, maximum is 1.1
 
         shared_parameter.V_reset:       Volt(0.5),   # * Neuron reset voltage
