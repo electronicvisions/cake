@@ -10,6 +10,7 @@ import pycake.helpers.TraceAverager as TraceAverager
 from pycake.helpers.sthal import StHALContainer
 from pycake.helpers.sthal import SimStHALContainer
 from pycake.helpers.sthal import UpdateParameterUp
+from pycake.helpers.sthal import UpdateParameterUpAndConfigure
 from pycake.measure import ADCMeasurement
 from pycake.measure import ADCMeasurementWithSpikes
 from pycake.measure import SpikeMeasurement
@@ -92,11 +93,11 @@ class BaseExperimentBuilder(object):
             if not wafer_cfg:
                 self.prepare_hicann(sthal.hicann, step_parameters)
                 sthal.hicann.floating_gates = self.prepare_parameters(step_parameters)
-            sthal = self.prepare_specific_config(sthal)
+            sthal = self.prepare_specific_config(sthal, step_parameters)
 
             measurement = self.make_measurement(sthal, self.neurons, readout_shifts)
+            measurement.step_parameters = step_parameters
             measurements.append(measurement)
-
         return measurements, repetitions
 
     def get_step_parameters(self, step):
@@ -140,7 +141,7 @@ class BaseExperimentBuilder(object):
             parameters, self.neurons, self.blocks, floating_gates)
         return floating_gates
 
-    def prepare_specific_config(self, sthal):
+    def prepare_specific_config(self, sthal, parameters):
         """ Hook function to specify additional stuff, e.g. current injection, spike generation, ...
         """
         return sthal
@@ -188,7 +189,7 @@ class BaseExperimentBuilder(object):
 
 class InputSpike_Experimentbuilder(BaseExperimentBuilder):
     """Send input spikes to neurons"""
-    def prepare_specific_config(self, sthal):
+    def prepare_specific_config(self, sthal, parameters):
         spikes = self.config.get_input_spikes()
         sthal.set_input_spikes(spikes)
         sthal.stimulateNeurons(100000., 4)
@@ -229,7 +230,7 @@ class V_reset_Experimentbuilder(BaseExperimentBuilder):
         "get analyzer"
         return pycake.analyzer.V_reset_Analyzer()
 
-    def prepare_specific_config(self, sthal):
+    def prepare_specific_config(self, sthal, parameters):
         sthal.set_recording_time(25.0e-6, 4)
         sthal.maximum_spikes = 3
         return sthal
@@ -240,7 +241,7 @@ class V_t_Experimentbuilder(BaseExperimentBuilder):
         "get analyzer"
         return pycake.analyzer.V_t_Analyzer()
 
-    def prepare_specific_config(self, sthal):
+    def prepare_specific_config(self, sthal, parameters):
         sthal.set_recording_time(25.0e-6, 4)
         sthal.maximum_spikes = 10
         return sthal
@@ -258,7 +259,7 @@ class I_pl_Experimentbuilder(BaseExperimentBuilder):
     """Longer recording time than parent class.
 
     To be used with hardware."""
-    def prepare_specific_config(self, sthal):
+    def prepare_specific_config(self, sthal, parameters):
         I_pl_DAC = sthal.hicann.floating_gates.getNeuron(Coordinate.NeuronOnHICANN(Enum(0)), neuron_parameter.I_pl)
         expected_ISI = DACtoHW(I_pl_DAC, neuron_parameter.I_pl) + 1e-8 # estimate 1e-8 as minimum ISI
         # Record at least 50 but not more than 5000 microseconds
@@ -307,7 +308,7 @@ class I_pl_Experimentbuilder(BaseExperimentBuilder):
 class E_syn_Experimentbuilder(BaseExperimentBuilder):
     EXCITATORY = None
 
-    def prepare_specific_config(self, sthal):
+    def prepare_specific_config(self, sthal, parameters):
         sthal.simulation_init_time = 100.0e-6
         sthal.set_recording_time(10e-6, 10)
         sthal.stimulateNeurons(5.0e6, 1, excitatory=self.EXCITATORY)
@@ -324,27 +325,6 @@ class E_synx_Experimentbuilder(E_syn_Experimentbuilder):
     EXCITATORY = True
 
 
-class V_convoff_MeasurementGenerator(object):
-    def __init__(self, parameters, floating_gates,
-                 neurons, readout_shifts):
-        self.floating_gates = floating_gates
-        self.neurons = neurons
-        self.readout_shifts = readout_shifts
-        self.parameters = parameters
-
-    def __len__(self):
-        return len(self.floating_gates)
-
-    def __call__(self, sthal):
-        for fg_params in self.floating_gates:
-            sthal.hicann.floating_gates = fg_params
-            configurator = UpdateParameterUp(self.parameters)
-            measurement = ADCMeasurement(sthal,
-                                         self.neurons,
-                                         self.readout_shifts)
-            yield configurator, measurement
-
-
 class V_convoff_Experimentbuilder(BaseExperimentBuilder):
     EXCITATORY = None
     WITH_SPIKES = False
@@ -356,58 +336,65 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
         self.recording_time = 80.0e-6
         self.no_spikes = 100 if self.WITH_SPIKES else 1
 
-    def prepare_specific_config(self, sthal):
+    def prepare_specific_config(self, sthal, parameters):
         sthal.simulation_init_time = self.init_time
         sthal.set_recording_time(self.recording_time, self.no_spikes)
         if self.no_spikes > 1:
+            weight = parameters.get('synapse_weight', 15)
+            gmax = parameters.get('gmax', 0)
+            gmax_div = parameters.get('gmax_div', 4)
             sthal.stimulateNeurons(1.0/self.recording_time, 1,
-                                   excitatory=self.EXCITATORY)
+                                   excitatory=self.EXCITATORY, gmax_div=gmax_div,
+                                   gmax=gmax, weight=weight)
         return sthal
 
     def make_measurement(self, sthal, neurons, readout_shifts):
         return ADCMeasurement(sthal, neurons, readout_shifts)
 
-    def generate_measurements(self):
-        self.logger.INFO("Building experiment {}".format(self.config.get_target()))
-        coord_wafer, coord_hicann = self.config.get_coordinates()
-        steps = self.config.get_steps()
-        if not steps:
-            raise RuntimeError("Missing steps for {}".format(type(self)))
-
-        readout_shifts = self.get_readout_shifts(self.neurons)
-        wafer_cfg = self.config.get_wafer_cfg()
-
-        parameters = set(sum((s.keys() for s in steps), []))
-        floating_gates = [self.prepare_parameters(self.get_step_parameters(s))
-                          for s in steps]
-
-        sthal = self.get_sthal()
-        sthal = self.prepare_specific_config(sthal)
-        sthal.hicann.floating_gates = copy.copy(floating_gates[0])
-
-        readout_shifts = self.get_readout_shifts(self.neurons)
-        generator = V_convoff_MeasurementGenerator(
-                parameters, floating_gates, self.neurons, readout_shifts)
-        return sthal, generator
-
     def get_experiment(self):
         """
         """
-        sthal, generator = self.generate_measurements()
-        analyzer = self.get_analyzer()
-        experiment = IncrementalExperiment(sthal, generator, analyzer)
+        parameters = set(sum((s.keys() for s in self.config.get_steps()), []))
+        measurements, _ = self.generate_measurements()
 
-        coord_wafer, coord_hicann = self.config.get_coordinates()
-        wafer_cfg = self.config.get_wafer_cfg()
-        PLL = self.config.get_PLL()
-        sthal = self.get_sthal(Coordinate.AnalogOnHICANN(1))
-        if sthal.is_hardware():
-            experiment.add_initial_measurement(
-                ADCFreq_Measurement(sthal, self.neurons, bg_rate=100e3),
-                ADCFreq_Analyzer())
-        else:
-            experiment.initial_data.update(
-                {ADCFreq_Analyzer.KEY: 96e6})
+        configurator = UpdateParameterUp
+        if parameters & set(['synapse_weight', 'gmax', 'gmax_div']):
+             configurator = UpdateParameterUpAndConfigure
+
+        configurator_args = {
+            'parameters': [p for p in parameters
+                           if isinstance(p, neuron_parameter)]
+        }
+
+        experiment = IncrementalExperiment(
+            measurements, self.get_analyzer(),
+            configurator, configurator_args)
+
+        if self.no_spikes > 1:
+            experiment.initial_data['spike_interval'] = self.recording_time
+            sthal = self.get_sthal(Coordinate.AnalogOnHICANN(0))
+            if sthal.is_hardware():
+                experiment.add_initial_measurement(
+                    ADCFreq_Measurement(sthal, self.neurons, bg_rate=100e3),
+                    ADCFreq_Analyzer())
+            else:
+                experiment.initial_data.update(
+                    {ADCFreq_Analyzer.KEY: 96e6})
+
+            measurement = copy.deepcopy(measurements[0])
+            measurement.sthal.hicann.clear_complete_l1_routing()
+            measurement.sthal.set_recording_time(self.recording_time, 1)
+            for nrn in Coordinate.iter_all(Coordinate.NeuronOnHICANN):
+                measurement.sthal.hicann.floating_gates.setNeuron(
+                    nrn, neuron_parameter.V_syntci, 511)
+                measurement.sthal.hicann.floating_gates.setNeuron(
+                    nrn, neuron_parameter.V_syntcx, 511)
+            if sthal.is_hardware():
+                experiment.add_initial_measurement(
+                    measurement, pycake.analyzer.MeanOfTraceAnalyzer())
+            else:
+                assert False
+
         return experiment
 
 
@@ -438,101 +425,29 @@ class V_convoffx_S_Experimentbuilder(V_convoff_Experimentbuilder):
 class V_convoff_test_Experimentbuilder(BaseExperimentBuilder):
     ANALYZER = pycake.analyzer.MeanOfTraceAnalyzer
 
-    def prepare_specific_config(self, sthal):
+    def prepare_specific_config(self, sthal, parameters):
         sthal.init_time = 400.0e-6
         sthal.recording_time = 1e-4
         sthal.maximum_spikes = 1
         return sthal
 
-
-class V_syntc_Experimentbuilder(BaseExperimentBuilder):
-    EXCITATORY = None
-    ANALYZER = None
-
-    def __init__(self, *args, **kwargs):
-        super(V_syntc_Experimentbuilder, self).__init__(*args, **kwargs)
-        self.init_time = 300.0e-6
-        self.recording_time = 400.0e-6
-        #self.spikes = numpy.array([20e-6])
-        self.gmax_div = 10
-
-    def prepare_specific_config(self, sthal):
-        sthal.simulation_init_time = self.init_time
-        sthal.set_recording_time(self.recording_time, 100)
-        sthal.stimulateNeurons(1.0/self.recording_time, 1,
-                               excitatory=self.EXCITATORY)
-        # sthal.send_spikes_to_all_neurons(
-        #     self.spikes, excitatory=self.EXCITATORY, gmax_div=self.gmax_div)
-        # sthal.maximum_spikes = 2
-        # sthal.spike_counter_offset = 0.0
-        return sthal
-
-    def make_measurement(self, sthal, neurons, readout_shifts):
-        return ADCMeasurement(sthal, neurons, readout_shifts)
-
-    def generate_measurements(self):
-        self.logger.INFO("Building experiment {}".format(self.config.get_target()))
-        coord_wafer, coord_hicann = self.config.get_coordinates()
-        steps = self.config.get_steps()
-        if not steps:
-            raise RuntimeError("Missing steps for {}".format(type(self)))
-
-        readout_shifts = self.get_readout_shifts(self.neurons)
-        wafer_cfg = self.config.get_wafer_cfg()
-
-        parameters = set(sum((s.keys() for s in steps), []))
-        floating_gates = [self.prepare_parameters(self.get_step_parameters(s))
-                          for s in steps]
-
-        sthal = self.get_sthal()
-        sthal = self.prepare_specific_config(sthal)
-        sthal.hicann.floating_gates = copy.copy(floating_gates[0])
-
-        readout_shifts = self.get_readout_shifts(self.neurons)
-        generator = V_convoff_MeasurementGenerator(
-                parameters, floating_gates, self.neurons, readout_shifts)
-        return sthal, generator
-
-    def get_experiment(self):
-        """
-        """
-        sthal, generator = self.generate_measurements()
-        analyzer = self.get_analyzer()
-        experiment = IncrementalExperiment(sthal, generator, analyzer)
-
-        coord_wafer, coord_hicann = self.config.get_coordinates()
-        wafer_cfg = self.config.get_wafer_cfg()
-        PLL = self.config.get_PLL()
-        sthal = self.get_sthal(Coordinate.AnalogOnHICANN(1))
-        if sthal.is_hardware():
-            experiment.add_initial_measurement(
-                ADCFreq_Measurement(sthal, self.neurons, bg_rate=100e3),
-                ADCFreq_Analyzer())
-        else:
-            experiment.initial_data.update(
-                {ADCFreq_Analyzer.KEY: 96e6})
-
-
-        return experiment
-
-    def get_analyzer(self):
-        "get analyzer"
-        return self.ANALYZER(self.spikes)
-
-class V_syntcx_Experimentbuilder(V_syntc_Experimentbuilder):
+class V_syntcx_Experimentbuilder(V_convoff_Experimentbuilder):
     EXCITATORY = True
-    ANALYZER = None#SimplePSPAnalyzer #FIXME: #1615
+    ANALYZER = None  # SimplePSPAnalyzer #FIXME: #1615
+    WITH_SPIKES = True
 
 
-class V_syntci_Experimentbuilder(V_syntc_Experimentbuilder):
+class V_syntci_Experimentbuilder(V_convoff_Experimentbuilder):
     EXCITATORY = False
-    ANALYZER = None#SimplePSPAnalyzer #FIXME: #1615
+    ANALYZER = None  # SimplePSPAnalyzer #FIXME: #1615
+    WITH_SPIKES = True
+
 
 class I_gl_Experimentbuilder(BaseExperimentBuilder):
     def __init__(self, *args, **kwargs):
         super(I_gl_Experimentbuilder, self).__init__(*args, **kwargs)
 
-    def prepare_specific_config(self, sthal):
+    def prepare_specific_config(self, sthal, parameters):
         sthal.recording_time = 5e-3
         return sthal
 
@@ -576,7 +491,7 @@ class I_gl_sim_Experimentbuilder(I_gl_Experimentbuilder):
             # original function does not work with non-equidistant times
             raise NotImplemented
 
-    def prepare_specific_config(self, sthal):
+    def prepare_specific_config(self, sthal, parameters):
         # set recording time to one stimulation period
         sthal.recording_time = self.get_analyzer().dt
         return sthal
@@ -607,19 +522,19 @@ class E_l_I_gl_fixed_Experimentbuilder(E_l_Experimentbuilder):
 
 
 class V_syntci_psp_max_Experimentbuilder(BaseExperimentBuilder):
-    def prepare_specific_config(self, sthal):
+    def prepare_specific_config(self, sthal, parameters):
         sthal.stimulateNeurons(0.1e6, 1, excitatory=False)
         return sthal
 
 
 class V_syntcx_psp_max_Experimentbuilder(BaseExperimentBuilder):
-    def prepare_specific_config(self, sthal):
+    def prepare_specific_config(self, sthal, parameters):
         sthal.stimulateNeurons(0.1e6, 1, excitatory=True)
         return sthal
 
 
 class readout_shift_Experimentbuilder(BaseExperimentBuilder):
-    def prepare_specific_config(self, sthal):
+    def prepare_specific_config(self, sthal, parameters):
         sthal.set_neuron_size(64)
         return sthal
 

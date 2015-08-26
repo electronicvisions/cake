@@ -213,6 +213,27 @@ class UpdateParameterUp(HICANNConfigurator):
             self.programm_normal(handle, hicann, self.rows)
 
 
+class UpdateParameterUpAndConfigure(UpdateParameterUp):
+    def config(self, fpga_handle, handle, hicann):
+
+        for rows in self.rows:
+            self.programm_normal(handle, hicann, self.rows)
+
+        self.config_neuron_quads(handle, hicann)
+        self.config_phase(handle, hicann)
+        self.config_gbitlink(handle, hicann)
+        self.config_synapse_array(handle, hicann)
+        self.config_synapse_drivers(handle, hicann)
+        self.config_synapse_switch(handle, hicann)
+        self.config_crossbar_switches(handle, hicann)
+        self.config_repeater(handle, hicann)
+        self.config_merger_tree(handle, hicann)
+        self.config_dncmerger(handle, hicann)
+        self.config_background_generators(handle, hicann)
+        self.lock_repeater(handle, hicann)
+        self.flush_fpga(fpga_handle)
+
+
 class SpikeReadoutHICANNConfigurator(pysthal.HICANNConfigurator):
 
     def config_fpga(self, fpga_handle, fpga):
@@ -410,6 +431,10 @@ class StHALContainer(object):
     @property
     def hicann(self):
         return self.wafer[self.coord_hicann]
+
+    @hicann.setter
+    def hicann(self, hicann):
+        self.wafer[self.coord_hicann] = hicann
 
     def connect(self):
         """Connect to the hardware."""
@@ -678,7 +703,6 @@ class StHALContainer(object):
         self.hicann.clear_complete_l1_routing()
 
         l1address = pyhalbe.HICANN.L1Address(0)
-        gmax_div = 2
         drivers = (SynapseDriverOnHICANN(Enum(109)),
                    SynapseDriverOnHICANN(Enum(114)))
         bg = Coordinate.BackgroundGeneratorOnHICANN(6)

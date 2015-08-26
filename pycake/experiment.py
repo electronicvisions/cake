@@ -54,6 +54,10 @@ class Experiment(object):
         self.measurements.append(measurement)
         self.results.append(result)
 
+    def clear_measurements_and_results(self):
+        self.measurements[:] = []
+        self.results[:] = []
+
     def get_parameters_and_results(self, neuron, parameters, result_keys):
         """ Read out parameters and result for the given neuron.
         Shared parameters are read from the corresponding FGBlock.
@@ -261,7 +265,7 @@ class SequentialExperiment(Experiment):
         for mid, measurement in enumerate(self.measurements_to_run):
             filename = os.path.join(path, "{}.hdf5".format(mid))
             measurement.save_traces(filename)
-        for mid, measurement in enumerate(self.initial_measurements):
+        for mid, (measurement, _) in enumerate(self.initial_measurements):
             filename = os.path.join(path, "intial_{}.hdf5".format(mid))
             measurement.save_traces(filename)
 
@@ -334,37 +338,34 @@ BaseExperiment = SequentialExperiment
 
 class IncrementalExperiment(SequentialExperiment):
 
-    def __init__(self, initial_configuration, generator, analyzer):
-        SequentialExperiment.__init__(self, [], analyzer, repetitions=1)
-        self.initial_configuration = initial_configuration
-        self.generator = generator
-        self.traces_folder = None
+    def __init__(self, measurements, analyzer, configurator, configurator_args):
+        SequentialExperiment.__init__(self, measurements, analyzer, repetitions=1)
         self.is_finished = False
-
-    def finished(self):
-        return len(self.generator) == len(self.measurements)
-
-    def save_traces(self, path):
-        self.traces_folder = path
+        self.configurator = configurator
+        self.configurator_args = configurator_args
 
     def iter_measurements(self):
         if self.finished():
             return
+
+        self.clear_measurements_and_results()
+
         self.run_initial_measurements()
         t_start = time.time()
-        sthal = self.initial_configuration
+        sthal = copy.deepcopy(self.measurements_to_run[0].sthal)
         sthal.write_config()
-        i_max = len(self.generator)
-        for i, (configurator, measurement) in enumerate(self.generator(sthal)):
-            if self.traces_folder is not None:
-                filename = os.path.join(self.traces_folder, "{}.hdf5".format(i))
-                measurement.save_traces(filename)
+        configurator = self.configurator(**self.configurator_args)
+        i_max = len(self.measurements_to_run)
+        for i, measurement in enumerate(self.measurements_to_run):
             plogger.debug("Running measurement {}/{}".format(i+1, i_max))
+            sthal.hicann = measurement.sthal.hicann
+            measurement.sthal = sthal
             result = measurement.run_measurement(
                 self.analyzer, additional_data=self.initial_data,
                 configurator=configurator, disconnect=False)
             measurement.sthal = copy.deepcopy(measurement.sthal)
             self.append_measurement_and_result(measurement, result)
-            yield True # Used to save state of runner
+            yield False # No need to save, because we can't resume any way
         sthal.disconnect()
         self.run_time += time.time() - t_start
+        yield True

@@ -52,6 +52,7 @@ class MeanOfTraceAnalyzer(Analyzer):
         else:
             return {
                 "spikes": spikes,
+                "size": len(v),
                 "mean": numpy.mean(v),
                 "std": numpy.std(v),
                 "max": numpy.max(v),
@@ -247,8 +248,8 @@ class V_convoff_Analyzer(Analyzer):
         t = trace.index.values
         v = trace["v"]
 
-        spike_counter = trace.get(NETS_AND_PINS.SpikeCounter, None)
-        spikes = -1.0 if spike_counter is None else spike_counter[-1]
+        spike_counter = trace.get(NETS_AND_PINS.SpikeCounter)
+        spikes = -1.0 if spike_counter is None else spike_counter.iloc[-1]
 
         if spikes > 0.0:
             return {
@@ -256,8 +257,8 @@ class V_convoff_Analyzer(Analyzer):
             }
 
         t0 = t.searchsorted(0.9 * self.spiketimes[0])
-        baseline = np.mean(v[:t0])
-        baseline_std = np.std(v[:t0])
+        baseline = np.mean(v.iloc[:t0])
+        baseline_std = np.std(v.iloc[:t0])
         area = simps(v - baseline, t)
 
         result = {
