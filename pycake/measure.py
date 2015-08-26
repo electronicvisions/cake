@@ -46,8 +46,10 @@ class Measurement(object):
         # TODO: callable readout_shifter instead of dict
         # readout_shifter(neuron, trace)
         self.sthal = sthal
+        self.step_parameters = {}
         self.neurons = neurons
         self.time_created = time.asctime()
+        self.run_time = -1.0
         self.traces = None
         self.done = False
 
@@ -156,14 +158,15 @@ class Measurement(object):
 
     def run_measurement(self, analyzer, additional_data,
                         configurator=None, disconnect=True):
-        """ First configure, then measure
-        """
+        """First configure, then measure"""
+        t_start = time.time()
         self.logger.INFO("Connecting to hardware and configuring.")
         self.configure(configurator)
         result = self._measure(analyzer, additional_data)
         self.finish()
         if disconnect:
             self.sthal.disconnect()
+        self.tun_time = time.time() - t_start
         self.logger.INFO("Measurement done.")
         return result
 

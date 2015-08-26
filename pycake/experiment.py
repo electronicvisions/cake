@@ -25,6 +25,7 @@ class Experiment(object):
         self.analyzer = analyzer
         self.measurements = []
         self.results = []
+        self.run_time = 0.0
 
     def run(self):
         """Run the experiment and process results."""
@@ -240,8 +241,8 @@ class SequentialExperiment(Experiment):
         self.initial_measurements.append((measurement, analyzer))
 
     def run_initial_measurements(self):
-        """ Dummy f/or preparation measurements.
-        """
+        """Run preparation measurements."""
+
         if self.initial_measurements:
             self.logger.INFO("Running initial measurements.")
             plogger.debug("Running initial measurements.")
@@ -251,8 +252,10 @@ class SequentialExperiment(Experiment):
                                  "Going on with next one.")
                 continue
             else:
+                t_start = time.time()
                 self.initial_data.update(measurement.run_measurement(
                     analyzer, self.initial_data))
+                self.run_time += time.time() - t_start
 
     def save_traces(self, path):
         for mid, measurement in enumerate(self.measurements_to_run):
@@ -268,10 +271,12 @@ class SequentialExperiment(Experiment):
         i_max = len(self.measurements_to_run)
         for i, measurement in enumerate(self.measurements_to_run):
             if not measurement.done:
+                t_start = time.time()
                 self.logger.INFO("Running measurement {}/{}".format(i+1, i_max))
                 plogger.debug("Running measurement {}/{}".format(i+1, i_max))
                 result = measurement.run_measurement(self.analyzer, self.initial_data)
                 self.append_measurement_and_result(measurement, result)
+                self.run_time += time.time() - t_start
                 yield True # Used to save state of runner 
             else:
                 self.logger.INFO("Measurement {}/{} already done. Going on with next one.".format(i+1, i_max))
@@ -346,6 +351,7 @@ class IncrementalExperiment(SequentialExperiment):
         if self.finished():
             return
         self.run_initial_measurements()
+        t_start = time.time()
         sthal = self.initial_configuration
         sthal.write_config()
         i_max = len(self.generator)
@@ -361,3 +367,4 @@ class IncrementalExperiment(SequentialExperiment):
             self.append_measurement_and_result(measurement, result)
             yield True # Used to save state of runner
         sthal.disconnect()
+        self.run_time += time.time() - t_start

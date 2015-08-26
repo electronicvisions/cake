@@ -43,6 +43,7 @@ class CalibrationUnit(object):
         Arguments:
             experiment: needed for conversion of old experiments
         """
+        t_start = time.time()
         self.config = config
         self.name = config.config_name
         self.storage_folder = None
@@ -53,6 +54,8 @@ class CalibrationUnit(object):
             experiment.calibtic = calibitic
         self.experiment = experiment
         self.set_storage_folder(storage_path)
+        self.measure_time = -1.0
+        self.setup_time = time.time() - t_start
         self.save()
         progress.info("Create CalibrationUnit {}".format(self.name))
 
@@ -67,6 +70,7 @@ class CalibrationUnit(object):
             If measurement is already done, it is skipped.
             Returns the generated transformation"""
         progress.info("Running measurements for {}".format(self.name))
+        t_start = time.time()
         for measured in self.experiment.iter_measurements():
             if measured:
                 if self.config.get_save_after_each_measurement():
@@ -74,6 +78,7 @@ class CalibrationUnit(object):
 
         if not self.config.get_save_after_each_measurement():
             self.save()
+        self.measure_time = time.time() - t_start
 
     def generate_transformations(self):
         """ Get the calibrator and apply it on the finished experiment.
