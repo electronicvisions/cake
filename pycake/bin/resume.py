@@ -33,13 +33,12 @@ parser = argparse.ArgumentParser(
 add_logger_options(parser)
 parser.add_argument('runner', type=folder,
         help='Pickled experiment to rerun')
-parser.add_argument('--logfile', default=None,
-                    help="Specify a logfile where all the logger output will "
-                         "be stored")
 args = parser.parse_args()
 
 if args.logfile is not None:
-    pylogging.append_to_file(args.logfile, pylogging.get_root())
+    progress = pylogging.get('progress')
+    pylogging.append_to_cout(progress)
+    progress.warn("Write logs to {}".format(args.logfile))
 
 runner = CalibrationRunner.load(args.runner)
 runner.continue_calibration()
