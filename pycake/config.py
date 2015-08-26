@@ -1,10 +1,57 @@
+"""
+cake configuration facilities.
+
+
+Note for authors: Add default values to DEFAULT_PARAMETERS and don't use get
+with a defautl value.
+"""
+
 import imp
 import os
 import copy
 import errno
 import pylogging
 
+from Coordinate import Enum
+from Coordinate import FGBlockOnHICANN
+from Coordinate import NeuronOnHICANN
+
 logger = pylogging.get("pycake.config")
+
+DEFAULT_PARAMETERS = {
+    "neurons": [NeuronOnHICANN(Enum(i)) for i in range(512)],
+    "blocks":  [FGBlockOnHICANN(Enum(i)) for i in range(4)],
+
+    "save_traces": False,
+    "save_raw_traces": False,
+    "save_after_each_measurement": True,
+
+    "PLL": 100e6,
+    "speedup": "normal",
+    "bigcap": True,
+    "fg_bias": 0,
+    "fg_biasn": 0,
+    "hicann_version": 4,
+
+    "folder_prefix": "",
+    "folder": "/tmp",
+    "backend": "/tmp/backend",
+
+    "clear": False,
+    "clear_defects": False,
+    "calibrate": True,
+    "measure": False,
+
+    "sim_denmem": None,
+    "sim_denmem_cache": None,
+    "sim_denmem_maximum_spikes": None,
+    "sim_denmem_mc_seed": None,
+
+    "wafer_cfg": "",
+    "repetitions": 1,
+    "input_spikes": {},
+}
+
 
 class Config(object):
     """Stores all calibration run configuration."""
@@ -44,7 +91,7 @@ class Config(object):
                     dep = os.path.join(os.path.dirname(filename), dep)
                 to_load.append(dep)
 
-        parameters = {}
+        parameters = copy.deepcopy(DEFAULT_PARAMETERS)
         for filename, parameter in reversed(loaded):
             logger.info("Loaded parameters from {}".format(filename))
             parameters.update(parameter)
@@ -115,13 +162,13 @@ class Config(object):
         return folder
 
     def get_wafer_cfg(self):
-        return self.parameters.get("wafer_cfg", "")
+        return self.parameters["wafer_cfg"]
 
     def get_PLL(self):
-        return self.parameters.get("PLL", 100e6)
+        return self.parameters["PLL"]
 
     def get_save_after_each_measurement(self):
-        return self.parameters.get("save_after_each_measurement", True)
+        return self.parameters["save_after_each_measurement"]
 
     def get_parameters(self):
         """ Returns the parameter dictionary.
@@ -185,13 +232,21 @@ class Config(object):
     def get_repetitions(self):
         """ Returns the number of repetitions as an int.
         """
-        return self.parameters.get("repetitions", 1)
+        return self.parameters["repetitions"]
 
     def get_save_traces(self):
         """ Returns wheter or not traces should be saved.
         """
         try:
             return self.get_config("save_traces")
+        except (KeyError, AttributeError):
+            return self.parameters["save_traces"]
+
+    def get_save_raw_traces(self):
+        """ Returns wheter or not traces should be saved.
+        """
+        try:
+            return self.get_config("save_raw_traces")
         except (KeyError, AttributeError):
             return self.parameters["save_traces"]
 
@@ -203,7 +258,7 @@ class Config(object):
     def get_clear_defects(self):
         """ Returns if calibration should be cleared.
         """
-        return self.parameters.get('clear_defects', False)
+        return self.parameters['clear_defects']
 
     def get_run_calibration(self):
         return self.parameters["calibrate"]
@@ -211,20 +266,23 @@ class Config(object):
     def get_run_test(self):
         return self.parameters["measure"]
 
+    def get_measure_floating_gates(self):
+        return self.parameters["measure_floating_gates"]
+
     def get_sim_denmem(self):
-        return self.parameters.get("sim_denmem", None)
+        return self.parameters["sim_denmem"]
 
     def get_sim_denmem_cache(self):
-        return self.parameters.get("sim_denmem_cache", None)
+        return self.parameters["sim_denmem_cache"]
 
     def get_hicann_version(self):
         return self.parameters["hicann_version"]
 
     def get_sim_denmem_maximum_spikes(self):
-        return self.parameters.get("sim_denmem_maximum_spikes", None)
+        return self.parameters["sim_denmem_maximum_spikes"]
 
     def get_sim_denmem_mc_seed(self):
-        return self.parameters.get("sim_denmem_mc_seed", None)
+        return self.parameters["sim_denmem_mc_seed"]
 
     def get_speedup(self):
         return self.parameters['speedup']
@@ -233,7 +291,7 @@ class Config(object):
         return self.parameters['bigcap']
 
     def get_fg_bias(self):
-        return self.parameters.get('fg_bias', 0)
+        return self.parameters['fg_bias']
 
     def get_fg_biasn(self):
-        return self.parameters.get('fg_biasn', 0)
+        return self.parameters['fg_biasn']

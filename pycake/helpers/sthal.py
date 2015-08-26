@@ -381,6 +381,7 @@ class StHALContainer(object):
         self.wafer_cfg = config.get_wafer_cfg()
         self.dump_file = None  # TODO add to config
         self.wafer_cfg = config.get_wafer_cfg()
+        self.save_raw_traces = config.get_save_raw_traces()
 
         self.wafer = pysthal.Wafer(self.coord_wafer)
         if self.wafer_cfg:
@@ -542,7 +543,10 @@ class StHALContainer(object):
                 self.adc.record(recording_time)
                 v = self.adc.trace()
                 t = numpy.arange(len(v)) * self.adc.getTimestamp()
-                return pandas.DataFrame({'v': v}, index=t)
+                df = pandas.DataFrame({'v': v}, index=t)
+                if self.save_raw_traces:
+                    df['v_raw'] = self.adc.traceRaw()
+                return df
             except RuntimeError as e:
                 print e
                 print "retry"
