@@ -607,7 +607,8 @@ class StHALContainer(object):
             cfg.fg_biasn = biasn
             fg.setFGConfig(Enum(ii), cfg)
 
-    def stimulateNeurons(self, rate, no_generators, excitatory=True):
+    def stimulateNeurons(self, rate, no_generators, excitatory=True,
+                         gmax=0, gmax_div=2, weight=15):
         """Stimulate neurons via background generators
 
         Args:
@@ -616,6 +617,9 @@ class StHALContainer(object):
         """
         assert(no_generators >= 0 and no_generators <= 4)
         assert(rate <= 5.0e6)
+        assert(2 <= gmax_div <= 30)
+        assert(0 <= weight <= 15)
+        assert(0 <= gmax <= 3)
 
         self.hicann.clear_complete_l1_routing()
         l1address = pyhalbe.HICANN.L1Address(0)
@@ -636,22 +640,26 @@ class StHALContainer(object):
         links = []
         for ii in range(4):
             bg_top = Coordinate.OutputBufferOnHICANN(2*ii+1)
-            bg_bottom = Coordinate.OutputBufferOnHICANN(2*ii)
+            bg_bot = Coordinate.OutputBufferOnHICANN(2*ii)
             links.append(GbitLinkOnHICANN(2 * ii + 1))
             links.append(GbitLinkOnHICANN(2 * ii))
 
             drv_top = Coordinate.SynapseDriverOnHICANN(
                 Coordinate.Enum(83 + ii * 4))
-            drv_bottom = Coordinate.SynapseDriverOnHICANN(
+            drv_bot = Coordinate.SynapseDriverOnHICANN(
                 Coordinate.Enum(142 - ii * 4))
             if ii < no_generators:
                 self.route(bg_top, drv_top)
-                self.route(bg_bottom, drv_bottom)
-                self.enable_synapse_line(drv_top, l1address, 2, excitatory)
-                self.enable_synapse_line(drv_bottom, l1address, 2, excitatory)
+                self.route(bg_bot, drv_bot)
+                self.enable_synapse_line(
+                    drv_top, l1address, gmax_div=gmax_div, excitatory=excitatory,
+                    gmax=gmax, weight=weight)
+                self.enable_synapse_line(
+                    drv_bot, l1address, gmax_div=gmax_div, excitatory=excitatory,
+                    gmax=gmax, weight=weight)
             else:
                 self.disable_synapse_line(drv_top)
-                self.disable_synapse_line(drv_bottom)
+                self.disable_synapse_line(drv_bot)
         return links
 
     def stimulatePreout(self, rate):
@@ -690,7 +698,7 @@ class StHALContainer(object):
 
         for drv in drivers:
             self.route(output, drv)
-            self.configure_synapse_driver(drv, l1address, gmax_div, 0)
+            self.configure_synapse_driver(drv, l1address, gmax_div=2, gmax=0)
 
         for analog in iter_all(AnalogOnHICANN):
             self.hicann.analog.set_preout(analog)
@@ -708,6 +716,7 @@ class StHALContainer(object):
             gmax_div: Gmax divider in range 2..30
             gmax: gmax fg value to use, default 0
         """
+        assert(0 <= gmax <= 3)
         assert(2 <= gmax_div <= 30)
 
         from Coordinate import left, right, top, bottom
@@ -733,19 +742,21 @@ class StHALContainer(object):
         driver[bottom].set_syn_in(left, 0)
         driver[bottom].set_syn_in(right, 1)
 
-    def enable_synapse_line(self, driver_c, l1address, gmax_div=2, excitatory=True):
+    def enable_synapse_line(self, driver_c, l1address, gmax_div=2,
+                            excitatory=True, weight=15, gmax=0):
         """
         """
         from Coordinate import top, bottom
+        assert(0 <= weight <= 15)
 
-        self.configure_synapse_driver(driver_c, l1address, gmax_div, 0)
+        self.configure_synapse_driver(driver_c, l1address, gmax_div, gmax)
 
         if excitatory:
-            w_top = [pyhalbe.HICANN.SynapseWeight(15)] * 256
+            w_top = [pyhalbe.HICANN.SynapseWeight(weight)] * 256
             w_bottom = [pyhalbe.HICANN.SynapseWeight(0)] * 256
         else:
             w_top = [pyhalbe.HICANN.SynapseWeight(0)] * 256
-            w_bottom = [pyhalbe.HICANN.SynapseWeight(15)] * 256
+            w_bottom = [pyhalbe.HICANN.SynapseWeight(weight)] * 256
 
         synapse_line_top = Coordinate.SynapseRowOnHICANN(driver_c, top)
         synapse_line_bottom = Coordinate.SynapseRowOnHICANN(driver_c, bottom)
