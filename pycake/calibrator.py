@@ -427,6 +427,7 @@ class V_convoff_Calibrator(BaseCalibrator):
 
 class V_convoff_Calibrator(BaseCalibrator):
     target_parameter = None
+    v_range=0.150
 
     def __init__(self, experiment, config=None):
         self.experiment = experiment
@@ -436,7 +437,6 @@ class V_convoff_Calibrator(BaseCalibrator):
         a = params['a'].value
         b = params['b'].value
         c = params['c'].value
-        k = params['k'].value
         return numpy.clip(a * (x - b) + c, c, numpy.inf)
 
     @staticmethod
@@ -450,56 +450,61 @@ class V_convoff_Calibrator(BaseCalibrator):
     def find_optimum(self, data, v_range=0.150):
 
         fit_data = self.prepare_data(data.copy(), v_range)
+        if len(fit_data[0]) < 4:
+            return fit_data, None, None, None
 
         results = []
-        for ii in range(1, fit_data.shape[1] - 1):
-            params = Parameters()
-            params.add('a', value=0.0)
-            params.add('b', value=fit_data[0][ii])
-            params.add('c', value=0.0)
-            params.add('k', value=ii, vary=False)
 
-            out = minimize(self.residual, params,
-                           args=(fit_data[0], fit_data[1], 1.0))
-            results.append((numpy.sum(out.residual**2), out, params))
+        params = Parameters()
+        params.add('a', value=0.0)
+        params.add('b', value=fit_data[0][len(fit_data)/2])
+        params.add('c', value=0.0)
 
-        return fit_data, results
+        out = minimize(self.residual, params,
+                       args=(fit_data[0], fit_data[1], 1.0))
+        return fit_data, numpy.sum(out.residual**2), out, params
 
-    def plt_fits(axis, fit_data, results, legend=False):
+    def plt_fits(self, axis, results, legend=False):
+        fit_data, res, out, params = results
         x, y = fit_data
         axis.plot(x, y, color='k')
-        for res, out, params in results:
-            if res < 0.1:
-                # print fit_report(out)
-                #axis.plot(
-                #    x, f(params, x), 'x', 
-                #    label='Res**2: {:.2f}, b: {:.2f}, chi2: {:.5f}'.format(
-                #        res, params['b'].value, out.chisqr))
-                l = axis.plot(x, f(params, x), '--',
-                              label='b: {:.2f}'.format(params['b'].value))
-                axis.plot([params['b'].value], [params['c'].value], 'x',
-                          color=l[0].get_color())
+        # print fit_report(out)
+        #axis.plot(
+        #    x, f(params, x), 'x', 
+        #    label='Res**2: {:.2f}, b: {:.2f}, chi2: {:.5f}'.format(
+        #        res, params['b'].value, out.chisqr))
+        if params is not None:
+            x = numpy.linspace(0, 1.0, 100)
+            l = axis.plot(x, self.f(params, x), '--',
+                          label='b: {:.2f}'.format(params['b'].value))
+            axis.plot([params['b'].value], [params['c'].value], 'x',
+                      color=l[0].get_color())
         if legend:
             axis.legend(loc='lower right')
 
-    def plt_residuals(axis, results):
+    def plt_residuals(self, axis, results):
         axis.plot([res for res, _, _ in results])
 
     @staticmethod
     def V_convoff(results):
-        if len(results) > 0:
-            idx = numpy.argmin([res for res, _, _ in results])
-            res, out, params = results[idx]
+        _, _, _, params = results
+        if params is not None:
             return params['b'].value * 1023
-        else:
-            return None
+
+    def plot_fit_for_neuron(self, nrn, axis, v_range=None):
+        if v_range is None:
+            v_range = self.v_range
+        data = self.experiment.get_data(
+            nrn, (self.target_parameter,), ('mean', 'std'))
+        results = self.find_optimum(data, v_range)
+        self.plt_fits(axis, results)
 
     def generate_transformations(self):
         fits = {}
         data = self.experiment.get_all_data(
             (self.target_parameter,), ('mean', 'std'))
         for nrn, data in data.groupby(level='neuron'):
-            fit_data, results = self.find_optimum(data)
+            results = self.find_optimum(data, self.v_range)
             value = self.V_convoff(results)
             fits[nrn] = Constant(value) if value is not None else None
         return [(self.target_parameter, fits)]
@@ -507,6 +512,7 @@ class V_convoff_Calibrator(BaseCalibrator):
 
 class V_convoffi_Calibrator(V_convoff_Calibrator):
     target_parameter = neuron_parameter.V_convoffi
+    v_range=0.120
 
     def prepare_data(self, data, v_range):
         """scales data from -1.0 to 0.0 and removes spiking traces"""
@@ -516,7 +522,7 @@ class V_convoffi_Calibrator(V_convoff_Calibrator):
             return numpy.empty((2, 0))
 
         data['mean'] = (data['mean'][idx].max() - data['mean']) / v_range
-        idx &= (data['mean'] >= -1.0)
+        idx &= (data['mean'] <= 1.0)
 
         return data[['V_convoffi', 'mean']][idx].values.T
 
