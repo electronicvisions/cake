@@ -276,7 +276,7 @@ class Config(object):
         return self.parameters["sim_denmem_cache"]
 
     def get_hicann_version(self):
-        return self.parameters["hicann_version"]
+        return int(self.parameters["hicann_version"])
 
     def get_sim_denmem_maximum_spikes(self):
         return self.parameters["sim_denmem_maximum_spikes"]

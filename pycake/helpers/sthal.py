@@ -374,7 +374,17 @@ class FakeAnalogRecorder(object):
 
 
 class StHALContainer(object):
-    """Contains StHAL objects for hardware access. Multiple experiments can share one container."""
+    """
+    Contains StHAL objects for hardware access.
+    Multiple experiments can share one container.
+
+    Attributes:
+        coord_analog: AnalogOnHICANN analog channel used for readout
+        coord_hicann: HICANNOnWafer HICANN used for measurements
+        coord_wafer: Wafer wafer used for measurements
+        hicann_version: int setting the HICANN version
+        recording_time: lenght of recorded traces
+    """
     def __getstate__(self):
         odict = self.__dict__.copy()
         odict['adc'] = None
@@ -396,9 +406,11 @@ class StHALContainer(object):
                 dump_file: filename for StHAL dump handle instead of hardware
             coord_analog: AnalogOnHICANN Coordinate
             recording_time: ADC recording time in seconds
+            neuron_size: Number of denmems to connect
         """
 
         self.coord_wafer, self.coord_hicann = config.get_coordinates()
+        self.hicann_version = config.get_hicann_version()
         self.wafer_cfg = config.get_wafer_cfg()
         self.dump_file = None  # TODO add to config
         self.wafer_cfg = config.get_wafer_cfg()
@@ -703,9 +715,18 @@ class StHALContainer(object):
         self.hicann.clear_complete_l1_routing()
 
         l1address = pyhalbe.HICANN.L1Address(0)
-        drivers = (SynapseDriverOnHICANN(Enum(109)),
-                   SynapseDriverOnHICANN(Enum(114)))
-        bg = Coordinate.BackgroundGeneratorOnHICANN(6)
+        if self.hicann_version == 2:
+            drivers = (SynapseDriverOnHICANN(Enum(111)),
+                       SynapseDriverOnHICANN(Enum(112)))
+            bg = Coordinate.BackgroundGeneratorOnHICANN(7)
+            output = bg.toOutputBufferOnHICANN()
+        elif self.hicann_version == 4:
+            drivers = (SynapseDriverOnHICANN(Enum(109)),
+                       SynapseDriverOnHICANN(Enum(114)))
+            bg = Coordinate.BackgroundGeneratorOnHICANN(6)
+        else:
+            raise RuntimeError("Invalid HICANN version")
+
         output = bg.toOutputBufferOnHICANN()
 
         PLL = self.getPLL()
@@ -1038,7 +1059,6 @@ class SimStHALContainer(StHALContainer):
         self.simulation_cache = config.get_sim_denmem_cache()
         if self.simulation_cache and not os.path.isdir(self.simulation_cache):
             raise RuntimeError("simulation_cache must be a folder")
-        self.hicann_version = config.get_hicann_version()
         self.mc_seed = config.get_sim_denmem_mc_seed()
         self.adc = FakeAnalogRecorder()
 
