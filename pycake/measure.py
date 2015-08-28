@@ -549,10 +549,10 @@ class ADCFreq_Measurement(ADCMeasurement):
             This will set:
                 self.traces = {neuron: trace}
         """
-        time.sleep(1)  # Settle driver locking
+        time.sleep(0.2)  # Settle driver locking
         readout, _ = self.read_adc()
-        readout.to_hdf('dump.hdf', 'ADCFreq')
-        result = analyzer(traces=readout, bg_rate=self.bg_rate)
+        # readout.to_hdf('dump.hdf', 'ADCFreq')
+        result = analyzer(trace=readout, bg_rate=self.bg_rate)
         self.logger.INFO("ADC Frequency measured: {}".format(result))
         return result
 

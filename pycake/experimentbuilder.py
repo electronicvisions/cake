@@ -379,7 +379,7 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
                     ADCFreq_Analyzer())
             else:
                 experiment.initial_data.update(
-                    {ADCFreq_Analyzer.KEY: 96e6})
+                    {ADCFreq_Analyzer.KEY: ADCFreq_Analyzer.IDEAL_FREQUENCY})
 
             measurement = copy.deepcopy(measurements[0])
             measurement.sthal.hicann.clear_complete_l1_routing()

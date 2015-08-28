@@ -457,6 +457,7 @@ class Spikes_Analyzer(Analyzer):
 
 class ADCFreq_Analyzer(Analyzer):
     KEY = "adc_freq"
+    IDEAL_FREQUENCY = 96e6
     def __call__(self, trace, bg_rate, **other):
         """Detects spikes in a trace of the HICANN preout
 
@@ -466,7 +467,7 @@ class ADCFreq_Analyzer(Analyzer):
         n = len(pos)
         expected_t = np.arange(n) / bg_rate
         adc_freq, _ = np.polyfit(expected_t, pos, 1)
-        if not 95e6 < adc_freq < 97e6:
+        if numpy.abs(self.IDEAL_FREQUENCY - adc_freq) > 1e6:
             raise RuntimeError("Found ADC frequency of {}, this is unlikly".format(
                 adc_freq))
         return {self.KEY: adc_freq}
