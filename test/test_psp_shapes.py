@@ -1,6 +1,7 @@
 import unittest
 import pylab as p
 from pycake.helpers.psp_shapes import DoubleExponentialPSP, jacobian
+from pycake.helpers.psp_model import double_exponetial_psp
 import scipy
 from numpy.testing import assert_array_almost_equal
 
@@ -33,6 +34,7 @@ class TestDoubleExponentialPSP(unittest.TestCase):
         std_thresh = 1e-13
 
         alpha_psp = DoubleExponentialPSP()
+        alpha_psp = double_exponetial_psp
 
         start = 50
         for height in [1, 10, 100]:

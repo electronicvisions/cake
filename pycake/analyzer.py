@@ -8,6 +8,9 @@ from pycake.helpers.peakdetect import peakdet
 from pycake.logic.spikes import spikes_to_frequency
 from pycake.logic.exponential_fit import fit_exponential, get_decay_fit_range, failed_dict
 from pycake.helpers.TraceAverager import TraceAverager
+from pycake.helpers.psp_shapes import DoubleExponentialPSP
+from pycake.helpers import psp_fit
+from pycake.helpers import psp_model
 
 from sims.sim_denmem_lib import NETS_AND_PINS
 
@@ -613,3 +616,41 @@ class SimplePSPAnalyzer(Analyzer):
                 'falltime' : fall_time,
                 'psparea' : area
                 }
+
+
+class PSPAnalyzer(Analyzer):
+    """Fit a PSP"""
+
+    def __init__(self):
+        Analyzer.__init__(self)
+        self.shape = DoubleExponentialPSP()
+
+    def __call__(self, neuron, trace, additional_data, **other):
+        t = trace.index.values
+        v = trace["v"].values
+
+        dt = additional_data['spike_interval']
+        averager = TraceAverager(additional_data['adc_freq'])
+        v_avg, _, cnt = averager.get_average(v, dt)
+        v_avg = self.align(v_avg)
+
+        t = numpy.arange(len(v_avg)) / 96e6  # TODO
+
+        err_estimate = additional_data[neuron]['std'] / numpy.sqrt(cnt)
+
+        result = self.psp_fit(t, v_avg, err_estimate)
+        result['v'] = v_avg
+        return result
+
+    def psp_fit(self, t, v, err_estimate):
+        fit_result = psp_model.fit(t, v, err_estimate)
+        if fit_result.success:
+            result = dict(fit_result.params.valuesdict())
+            result['chi2'] = fit_result.redchi
+            # result['psp_fit_result'] = fit_result
+            return result
+        else:
+            return {}
+
+    def align(self, v):
+        return numpy.roll(v, 1500 - numpy.argmax(v))  # TODO

@@ -326,6 +326,7 @@ class E_synx_Experimentbuilder(E_syn_Experimentbuilder):
 
 
 class V_convoff_Experimentbuilder(BaseExperimentBuilder):
+    ANALYZER = pycake.analyzer.MeanOfTraceAnalyzer
     EXCITATORY = None
     WITH_SPIKES = False
 
@@ -350,6 +351,10 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
 
     def make_measurement(self, sthal, neurons, readout_shifts):
         return ADCMeasurement(sthal, neurons, readout_shifts)
+
+    def get_analyzer(self):
+        "get analyzer"
+        return self.ANALYZER()
 
     def get_experiment(self):
         """
@@ -400,23 +405,19 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
 
 class V_convoffi_Experimentbuilder(V_convoff_Experimentbuilder):
     EXCITATORY = False
-    ANALYZER = pycake.analyzer.V_convoffi_Analyzer
 
 
 class V_convoffi_S_Experimentbuilder(V_convoff_Experimentbuilder):
     EXCITATORY = False
-    ANALYZER = pycake.analyzer.V_convoffi_Analyzer
     WITH_SPIKES = True
 
 
 class V_convoffx_Experimentbuilder(V_convoff_Experimentbuilder):
     EXCITATORY = True
-    ANALYZER = pycake.analyzer.V_convoffx_Analyzer
 
 
 class V_convoffx_S_Experimentbuilder(V_convoff_Experimentbuilder):
     EXCITATORY = True
-    ANALYZER = pycake.analyzer.V_convoffx_Analyzer
     WITH_SPIKES = True
 
 #FIXME: #1615
@@ -433,7 +434,7 @@ class V_convoff_test_Experimentbuilder(BaseExperimentBuilder):
 
 class V_syntcx_Experimentbuilder(V_convoff_Experimentbuilder):
     EXCITATORY = True
-    ANALYZER = None  # SimplePSPAnalyzer #FIXME: #1615
+    ANALYZER = pycake.analyzer.PSPAnalyzer
     WITH_SPIKES = True
 
 
