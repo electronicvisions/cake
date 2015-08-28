@@ -35,6 +35,7 @@ class WorkerPool(object):
         self.poolpids = tuple(proc.pid for proc in self.pool._pool)
         self.callback = f
         self.tasks = []
+        self.results = []
 
     def __del__(self):
         self.pool.terminate()
@@ -56,9 +57,13 @@ class WorkerPool(object):
         self.tasks.append(self.pool.apply_async(
             process, (self.callback, key) + args, kwargs))
 
+        # Start empting the queue, this allows to free memory needed by
+        # traces. Also we will see exceptions in workers earlier
+        while self.tasks and self.tasks[0].ready():
+            self.results.append(self.tasks.pop(0).get())
+
     def join(self):
         self.pool.close()
-        results = []
         # We want to raise exceptions from subprocesses early, so we start
         # by checking the first element.
         # It is important to use get only when the result is ready, otherwise
@@ -66,13 +71,13 @@ class WorkerPool(object):
         # forever
         while self.tasks:
             if self.tasks[0].ready():
-                results.append(self.tasks.pop(0).get())
+                self.results.append(self.tasks.pop(0).get())
             elif not self.is_alive():
                 raise SystemError("Worker process died unexpectedly.")
             else:
                 time.sleep(0.5)
         self.terminate()
-        return dict(results)
+        return dict(self.results)
 
     def terminate(self):
         self.pool.terminate()
