@@ -367,10 +367,9 @@ class ADCMeasurement(Measurement):
                 if not self.traces is None:
                     self.traces[neuron] = readout
                 readout['v'] = self.readout_shifts(neuron, readout['v'])
-                if additional_data is not None:
-                    if additional_data.has_key(neuron):
-                        readout.update(additional_data[neuron])
-                worker.do(neuron, neuron=neuron, trace=readout, spikes=spikes)
+                worker.do(
+                    neuron, neuron=neuron, trace=readout,
+                    spikes=spikes, additional_data=additional_data)
 
                 # DEBUG stuff
                 self.adc_status.append(self.sthal.read_adc_status())
@@ -488,7 +487,7 @@ class I_gl_Measurement(ADCMeasurement):
                 self.traces[neuron] = readout
 
             readout['v'] = self.readout_shifts(neuron, readout['v'])
-            worker.do(neuron, neuron=neuron, traces=readout,
+            worker.do(neuron, neuron=neuron, trace=readout,
                       additional_data=additional_data)
         self.logger.INFO("Wait for analysis to complete.")
         return worker.join()
@@ -528,7 +527,7 @@ class I_gl_Measurement_multiple_currents(I_gl_Measurement):
                 if not self.traces is None:
                     self.traces[neuron] = readout
                 readout['v'] = self.readout_shifts(neuron, readout['v'])
-                worker.do(neuron, neuron=neuron, traces=readout,
+                worker.do(neuron, neuron=neuron, trace=readout,
                           additional_data=additional_data)
         self.logger.INFO("Wait for analysis to complete.")
         return worker.join()
