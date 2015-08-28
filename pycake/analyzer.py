@@ -354,7 +354,7 @@ class I_gl_Analyzer(Analyzer):
     def set_adc_freq(self, freq):
         self.trace_averager.set_adc_freq(freq)
 
-    def __call__(self, neuron, traces, additional_data, **other):
+    def __call__(self, neuron, trace, additional_data, **other):
         # average over all periods, reduce to one smooth period
         current = additional_data['current']
         save_mean = additional_data['save_mean']
@@ -408,7 +408,7 @@ class ISI_Analyzer(Analyzer):
     Please note that mean_reset_time only gives valid results if refractory period is very small
     """
 
-    def __call__(self, neuron, traces, **others):
+    def __call__(self, neuron, trace, **others):
         t = traces.index.values
         v = traces['v'].values
         delta = np.std(v)
@@ -457,12 +457,12 @@ class Spikes_Analyzer(Analyzer):
 
 class ADCFreq_Analyzer(Analyzer):
     KEY = "adc_freq"
-    def __call__(self, traces, bg_rate, **other):
+    def __call__(self, trace, bg_rate, **other):
         """Detects spikes in a trace of the HICANN preout
 
         The signal of the preout seems to be usually quite strong.
         """
-        pos = self._find_spikes_in_preout(traces['v'].values)
+        pos = self._find_spikes_in_preout(trace['v'].values)
         n = len(pos)
         expected_t = np.arange(n) / bg_rate
         adc_freq, _ = np.polyfit(expected_t, pos, 1)
@@ -502,9 +502,9 @@ class I_pl_Analyzer(ISI_Analyzer):
     Please note that mean_reset_time only gives valid results if refractory period is very small
     """
 
-    def __call__(self, neuron, traces, **other):
-        t = traces.index.values
-        v = traces["v"].values
+    def __call__(self, neuron, trace, **other):
+        t = trace.index.values
+        v = trace["v"].values
         delta = np.std(v)
         maxtab, mintab = peakdet(v, delta)
 
@@ -562,9 +562,9 @@ class SimplePSPAnalyzer(Analyzer):
         self.rise_fraction = np.e
         self.fall_fraction = np.e
 
-    def __call__(self, neuron, traces, **others):
-        t = traces.index.values
-        v = traces["v"]
+    def __call__(self, neuron, trace, **other):
+        t = trace.index.values
+        v = trace["v"]
 
         # calc baseline from the beginning of the trace
         baseline = np.mean(v[0:len(v)/self.baseline_fraction])
