@@ -126,10 +126,10 @@ class Experiment(object):
         result_keys = list(result_keys)
         values = []
         for msr, result in zip(self.measurements, self.results):
-            value = msr.get_parameters(neuron, parameters)
+            row = msr.get_parameters(neuron, parameters)
             nrn_results = result.get(neuron, {})
-            value.extend(nrn_results.get(key, numpy.nan) for key in result_keys)
-            values.append(numpy.array(value))
+            row.extend(nrn_results.get(key, numpy.nan) for key in result_keys)
+            values.append(row)
         values = pandas.DataFrame(values, columns=names)
         if result_keys and values[result_keys].isnull().values.all():
             raise ValueError("Could not find any requested results")
