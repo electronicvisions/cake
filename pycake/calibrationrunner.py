@@ -214,6 +214,14 @@ class CalibrationRunner(object):
 
         self.save()
 
+    @property
+    def redman(self):
+        return self.load_redman()
+
+    @property
+    def calibtic(self):
+        return self.load_calibtic()
+
     def load_calibtic(self):
         """Load calibtic object"""
         path = self.config.get_backend_path()
