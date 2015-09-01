@@ -383,10 +383,10 @@ class ADCMeasurement(Measurement):
                         "log messages)")
                 self.last_trace = readout['v']
                 # DEBUG stuff end
+
             self.last_trace = None
-
             self.logger.INFO("Wait for analysis to complete.")
-
+            # return result
             return worker.join()
 
 
@@ -421,7 +421,7 @@ class I_gl_Measurement(ADCMeasurement):
         self.pre_measure(neuron, current=None)
         old_recording_time = self.sthal.recording_time
         self.sthal.adc.setRecordingTime(1e-4)
-        readout = self.read_adc()
+        readout, _ = self.read_adc()
         trace = self.readout_shifts(neuron, readout['v'])
         V_rest = np.mean(trace)
         std = np.std(trace)
@@ -448,7 +448,7 @@ class I_gl_Measurement(ADCMeasurement):
         highest_trace_max = None
         for current in currents:
             self.pre_measure(neuron, current=current)
-            readout = self.read_adc()
+            readout, _ = self.read_adc()
             trace = self.readout_shifts(neuron, readout['v'])
             trace_max = np.max(trace)
             if (trace_max - V_rest) < threshold:
@@ -475,7 +475,7 @@ class I_gl_Measurement(ADCMeasurement):
             current = self.find_best_current(neuron, V_rest, currents=self.currents)
             self.logger.TRACE("Measuring neuron {} with current {}".format(neuron, current))
             self.pre_measure(neuron, current=current)
-            readout = self.read_adc()
+            readout, _ = self.read_adc()
 
             # these are just an integers/floats, convert to array for TracesOnDiskDict
             tmp = additional_data.copy()
@@ -488,7 +488,7 @@ class I_gl_Measurement(ADCMeasurement):
 
             readout['v'] = self.readout_shifts(neuron, readout['v'])
             worker.do(neuron, neuron=neuron, trace=readout,
-                      additional_data=additional_data)
+                      additional_data=tmp)
         self.logger.INFO("Wait for analysis to complete.")
         return worker.join()
 
@@ -520,7 +520,7 @@ class I_gl_Measurement_multiple_currents(I_gl_Measurement):
             for current in self.currents:
                 self.logger.TRACE("Measuring neuron {} with current {}".format(neuron, current))
                 self.pre_measure(neuron, current)
-                readout = self.read_adc()
+                readout, _ = self.read_adc()
                 readout['current'] = current
                 readout['std'] = std
                 readout['V_rest'] = V_rest

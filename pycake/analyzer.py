@@ -343,9 +343,6 @@ class I_gl_Analyzer(Analyzer):
         super(I_gl_Analyzer, self).__init__()
         self.logger.INFO("I_gl_Analyzer is using pll={}".format(pll_freq))
 
-        # Create trace_averager with empty ADC frequency.
-        self.trace_averager = TraceAverager(None)
-
         # stimulation period
         # FG cell count * 1/(1/4) (pll_freq divider) * (pulse_length + 1)
         self.dt = 129 * 4 * 16 / pll_freq
@@ -354,28 +351,26 @@ class I_gl_Analyzer(Analyzer):
         self.C = 2.16456e-12  # Capacitance when bigcap is turned on
         self.logger.INFO("Initializing I_gl_analyzer using C={} (bigcap).".format(self.C))
 
-    def set_adc_freq(self, freq):
-        self.trace_averager.set_adc_freq(freq)
-
     def __call__(self, neuron, trace, additional_data, **other):
         # average over all periods, reduce to one smooth period
         current = additional_data['current']
-        save_mean = additional_data['save_mean']
+        save_mean = additional_data.get('save_mean', False)
         std = additional_data['std']
-        if 'adc_freq' in traces:
-            self.set_adc_freq(traces['adc_freq'])
-        mean_trace, std_trace, n_chunks = self.trace_averager.get_average(
-                traces['v'], self.dt)
+        trace_averager = TraceAverager(additional_data['adc_freq'])
+        mean_trace, std_trace, n_chunks = trace_averager.get_average(
+                trace['v'].values, self.dt)
 
         # edge detection of decay,
-        cut_t, cut_v = get_decay_fit_range(mean_trace, self.trace_averager.adc_freq, fwidth=64)
+        cut_t, cut_v = get_decay_fit_range(
+            mean_trace, trace_averager.adc_freq, fwidth=64)
 
         if len(cut_v) < (len(mean_trace)/4):
             # sanity check: if cut trace too short, something failed
             # return empty data and error
             result = failed_dict({'error': "Cut trace too short"})
         else:
-            result = fit_exponential(cut_t, cut_v, std, n_chunks=n_chunks, full_output=True)
+            result = fit_exponential(
+                    cut_t, cut_v, std, n_chunks=n_chunks, full_output=True)
 
         if result['ier'] > 0:
             # if fit was succesful, do not save infodict
