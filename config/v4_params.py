@@ -164,6 +164,24 @@ parameters = {
     },
 
     # V_syntcx
+    "V_syntcx_range": [
+        {
+            neuron_parameter.V_syntcx: Volt(v),
+        } for v in numpy.linspace(0.3, 1.8, 16)
+    ],
+
+    "V_syntcx_parameters": {
+        neuron_parameter.E_l : Volt(0.8, apply_calibration=True),
+        neuron_parameter.E_syni : Volt(0.6, apply_calibration=True),
+        neuron_parameter.E_synx : Volt(1.3),
+        neuron_parameter.I_gl: Ampere(0.3e-6),
+        neuron_parameter.V_convoffi : Volt(1.8, apply_calibration=True),
+        neuron_parameter.V_convoffx : Volt(1.8, apply_calibration=True),
+        neuron_parameter.V_t: Volt(1.2, apply_calibration=True),
+        shared_parameter.V_gmax0: Volt(0.05),
+        shared_parameter.V_reset: Volt(0.3, apply_calibration=True),
+        "gmax_div": 30,
+    },
 
     # values between 10 and 100 can be used, 2500 is for zero refractory time
     "I_pl_range":   [
@@ -171,6 +189,21 @@ parameters = {
             neuron_parameter.I_pl : Ampere(1e-9*I)
         } for I in [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 2500]
     ],
+
+    # I_gl
+    "I_gl_range": [
+        {
+            neuron_parameter.I_gl : Ampere(v),
+        } for v in numpy.linspace(100e-9, 800e-9, 8)
+    ],
+
+    "I_gl_parameters": {
+        neuron_parameter.E_l: Volt(0.8, apply_calibration=True),
+        neuron_parameter.V_t: Volt(1.2),
+        neuron_parameter.E_syni: Volt(0.6, apply_calibration=True),
+        neuron_parameter.E_synx: Volt(1.3, apply_calibration=True),
+        shared_parameter.V_reset:    Volt(.2, apply_calibration=True),
+    },
 }
 
 extends = ['base_parameters.py']
