@@ -418,8 +418,8 @@ class StHALContainer(object):
 
         self.wafer = pysthal.Wafer(self.coord_wafer)
         if self.wafer_cfg:
-            self.logger.info("Loading {}".format(wafer_cfg))
-            self.wafer.load(wafer_cfg)
+            self.logger.info("Loading {}".format(self.wafer_cfg))
+            self.wafer.load(self.wafer_cfg)
         else:
             self.setPLL(config.get_PLL())
             self.set_bigcap(config.get_bigcap())
