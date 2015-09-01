@@ -595,7 +595,7 @@ class StHALContainer(object):
         max_tries = 10
         for ii in range(max_tries):
             try:
-                self._sendSpikes(self.input_spikes)
+                # self._sendSpikes(self.input_spikes)
                 runtime = self.adc.getRecordingTime() + 1.e-5
                 runner = pysthal.ExperimentRunner(runtime)
                 self.wafer.restart(runner)  # Clears received spikes
@@ -605,12 +605,17 @@ class StHALContainer(object):
 
                 recv_spikes = []
                 for link in Coordinate.iter_all(GbitLinkOnHICANN):
-                    times, addrs = self.hicann.receivedSpikes(link)
-                    recv_spikes.append(pandas.DataFrame(
-                        {'L1Address': addr, 'GbitLink': link},
-                        index=times, dtype=numpy.int8))
-
-                return traces, pandas.concat(data)
+                    tmp = self.hicann.receivedSpikes(link)
+                    if len(tmp):
+                        times, addrs = tmp.T
+                        recv_spikes.append(pandas.DataFrame(
+                            {'L1Address': addrs, 'GbitLink': int(link)},
+                            index=times, dtype=numpy.int8))
+                if recv_spikes:
+                    return traces, pandas.concat(recv_spikes)
+                else:
+                    return traces, pandas.DataFrame(columns=['L1Address', 'GbitLink'],
+                                                    dtype=numpy.int8)
             except RuntimeError as e:
                 print e
                 print "retry"
