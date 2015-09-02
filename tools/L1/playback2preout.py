@@ -125,8 +125,9 @@ class PreoutTest(object):
         self.hicann = hicann
 
         if setup == "wafer":
-            if wafer:
+            if wafer != None:
                 coord_wafer = Coordinate.Wafer(int(wafer))
+                coord_hicann = Coordinate.HICANNOnWafer(Enum(int(hicann))) 
             else:
                 raise ValueError("wafer is {}, expected integer.".format(wafer))
             self.hicann_version = 2
@@ -157,6 +158,10 @@ class PreoutTest(object):
             "bigcap": True,
             "hicann_version": self.hicann_version,
             "speedup": "normal",
+            "wafer_cfg" :  None,
+            "save_traces" :  False,
+            "PLL" : 125e6,
+            "fg_biasn" : 0,
         }
 
         config = pycake.config.Config("random name", parameters)
@@ -207,7 +212,7 @@ class PreoutTest(object):
         elif self.setup == "vertical":
             self.sthal.wafer.configure(VOLVOHHICANNConfigurator(vol, voh))
         else:
-            raise NotImplemented("implement set_voltages for {} setup".format(self.setup))
+            raise NotImplementedError("implement set_voltages for {} setup".format(self.setup))
 
     def set_mux(self):
         if self.setup == "cube":
@@ -225,7 +230,13 @@ class PreoutTest(object):
             cube.switch_mux(mux)
 
     def sweep(self):
+
+        print "loop pll"
+
         for pll in [100, 150, 200, 250]:
+
+            print "PLL", pll
+
             # Use L1Address 16 because the driver part is 0b10 and the synapse part is 0b0000. We want a falling (or raising) edge in the driver part.
             for l1address in [16, 32, 48]:
                 self.run_experiment(l1address, pll)
@@ -272,6 +283,9 @@ class PreoutTest(object):
         runtime = spike_times[-1] + begin + 50e-6
 
         print "loop voltages"
+
+        voltages_can_be_set = True
+
         for common in np.arange(0.6, 1.2, 0.05):
             halfdiff = 0.15/2.
             vol = common - halfdiff
@@ -279,8 +293,13 @@ class PreoutTest(object):
 
             if not db.does_exist(vol, voh, pll, l1address):
                 # no cached results, run experiment
-                print "configure vol={}, voh={}".format(vol, voh)
-                self.set_voltages(vol, voh)
+
+                try:
+                    print "configure vol={}, voh={}".format(vol, voh)
+                    self.set_voltages(vol, voh)
+                except NotImplementedError as e:
+                    print e
+                    voltages_can_be_set = False
 
                 # wait for locking
                 time.sleep(0.5)
@@ -302,6 +321,8 @@ class PreoutTest(object):
 
                     db.add_measurement(vol, voh, pll, l1address, recvratio)
 
+            if not voltages_can_be_set:
+                break
 
 if __name__ == "__main__":
     import argparse
@@ -309,7 +330,8 @@ if __name__ == "__main__":
     parser.add_argument("dbname", help="database filename", type=str)
     parser.add_argument("setup", help="cube/vertical/wafer", type=str)
     parser.add_argument("--hicann", help="cube: first/second/third", type=str, default="")
+    parser.add_argument("--wafer", type=int, default=None)
     args = parser.parse_args()
 
-    test = PreoutTest(args.setup, dbfile=args.dbname)
+    test = PreoutTest(args.setup, hicann=args.hicann, wafer=args.wafer, dbfile=args.dbname)
     test.sweep()
