@@ -89,6 +89,7 @@ class CalibrationUnit(object):
         progress.debug("Fitting result data for {}".format(self.name))
         calibrator = self.get_calibrator()
         if calibrator.target_parameter is None:
+            calibrator.generate_transformations()
             return []
         else:
             return calibrator.generate_transformations()
@@ -383,6 +384,8 @@ class CalibrationRunner(object):
         filename = os.path.join(self.storage_folder, self.filename)
         self.logger.INFO("Save calibration runner '{}'".format(
             self.storage_folder))
+        progress.info("Save calibration runnter to {}".format(
+            filename))
         storage.save_object(filename, self)
 
 class TestRunner(CalibrationRunner):
