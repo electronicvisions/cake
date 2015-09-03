@@ -34,7 +34,7 @@ def mkdir_p(path):
             pass
         else: raise
 
-def categorize(addr, spikes, start_offset, addr_offset):
+def categorize(addr, spikes, start_offset, addr_offset, addr_position_map):
 
     start_offset = float(start_offset)
     addr_offset = float(addr_offset)
@@ -50,9 +50,9 @@ def categorize(addr, spikes, start_offset, addr_offset):
 
         t = float(t)
 
-        for o_addr in range(64):
+        for o_addr in addr_position_map.keys():
 
-            pos = start_offset + o_addr*addr_offset
+            pos = addr_position_map[o_addr]
 
             if np.abs(t - pos) <= addr_offset*safety:
                 if o_addr == addr:
@@ -78,6 +78,7 @@ def ana(seg, plotpath=None):
     addr_offset = seg.annotations["addr_offset"]*quantities.s
     addr_spikes_map = {spikes.annotations["addr"]: spikes.times for spikes in seg.spiketrains}
     addr_neuron_map = seg.annotations["addr_neuron_map"]
+    addr_position_map = seg.annotations["addr_position_map"]
     duration = seg.annotations["duration"]
 
     plot = True if plotpath else False
@@ -112,7 +113,7 @@ def ana(seg, plotpath=None):
         spikes = addr_spikes_map[i]
 
         if not early_abort:
-            correct, incorrect, addr_correlation_map = categorize(i, spikes, start_offset, addr_offset)
+            correct, incorrect, addr_correlation_map = categorize(i, spikes, start_offset, addr_offset, addr_position_map)
         else:
             correct = []
             incorrect = spikes

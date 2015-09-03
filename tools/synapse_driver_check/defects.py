@@ -158,10 +158,37 @@ def aquire(seg, driver):
 
     duration = 4e-3
 
-    for i in range(max_index+1):
-        train = np.arange(n_input_spikes) * input_spike_isi + start_offset + addr_offset*i
+    addr_position_map = {}
+
+    addresses = range(max_index+1)
+
+    # reverse
+    #addresses = reversed(addresses)
+
+    # shuffle addresses
+    #random.shuffle(addresses)
+
+    # remove addresses
+    #addresses.remove(32)
+    #addresses.remove(33)
+    #addresses.remove(34)
+    #addresses.remove(35)
+    #addresses.remove(36)
+
+    # manually select addresses
+    #addresses = [1,2,3,4,5,32,6,7,8,9,10,11,12,13,14,15]
+
+    for n, addr in enumerate(addresses):
+
+        position = start_offset + addr_offset*n
+
+        addr_position_map[addr] = position
+
+        train = np.arange(n_input_spikes) * input_spike_isi + position
         duration=max(train)+0.001
-        hardware.add_spike_train(bus, i, train)
+        hardware.add_spike_train(bus, addr, train)
+
+    seg.annotations["addr_position_map"] = addr_position_map
 
     seg.annotations["duration"] = duration
 
