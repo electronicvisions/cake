@@ -321,6 +321,73 @@ class Calibtic(object):
         else:
             return calib_dac_value
 
+    def set_neuron_parameters(self, parameters, neuron, floating_gates):
+        """Writes floating gate parameters for a single neuron into a sthal
+        FloatingGates container. This includes calibration and transformation
+        from V or nA to DAC values.
+
+        Parameters:
+            parameters: dictionary containg the parameters to be written
+            neuron: neuron to be updated
+            floating_gates: pysthal.FloatingGates to be updated
+
+        Returns:
+            pysthal.FloatingGates with given parameters
+        """
+        neuron_params = copy.deepcopy(parameters)
+        for param, value in neuron_params.iteritems():
+            if (not isinstance(param, neuron_parameter)) or param.name[0] == '_':
+                # e.g. __last_neuron
+                continue
+
+            if value.apply_calibration:
+                self.logger.TRACE("Applying calibration to coord {} value {}".format(neuron, value))
+                value_dac, status, clipped  = self.apply_calibration(
+                    value, param, neuron, report=True)
+            else:
+                value_dac = value.toDAC().value
+
+            self.logger.TRACE("Setting FGValue of {} parameter {} to {}.".format(neuron, param, value_dac))
+            floating_gates.setNeuron(neuron, param, value_dac)
+
+    def set_shared_parameters(self, parameters, block, floating_gates):
+        """Writes shared floating gate parameters for a single floating gate
+        block into a sthal FloatingGates container. This includes calibration
+        and transformation from V or nA to DAC values.
+
+        Parameters:
+            parameters: dictionary containg the parameters to be written
+            block: shared floating gate block to be updated
+            floating_gates: pysthal.FloatingGates to be updated
+
+        Returns:
+            pysthal.FloatingGates with given parameters
+        """
+        block_parameters = copy.deepcopy(parameters)
+        for param, value in block_parameters.iteritems():
+            if (not isinstance(param, shared_parameter)) or param.name[0] == '_':
+                # e.g. __last_*
+                continue
+            # Check if parameter exists for this block
+            even = block.id().value() % 2
+            if even and param.name in ['V_clra', 'V_bout']:
+                continue
+            if not even and param.name in ['V_clrc', 'V_bexp']:
+                continue
+
+            if value.apply_calibration:
+                self.logger.TRACE("Applying calibration to coord {} value {}".format(block, value))
+                value_dac = self.apply_calibration(value, param, block)
+            else:
+                if type(value) in [Ampere, Volt, DAC]:
+                    value_dac = value.toDAC().value
+                else:
+                    value_dac = self.apply_calibration(value.value, param, block, use_ideal=True)
+
+            self.logger.TRACE("Setting FGValue of {} parameter {} to {}.".format(block, param, value))
+            floating_gates.setShared(block, param, value_dac)
+
+
     def set_calibrated_parameters(self, parameters, neurons, blocks, floating_gates):
         """Writes floating gate parameters into a sthal FloatingGates container.
             This includes calibration and transformation from V or nA to DAC values.
@@ -334,43 +401,6 @@ class Calibtic(object):
         """
 
         for neuron in neurons:
-            neuron_params = copy.deepcopy(parameters)
-            for param, value in neuron_params.iteritems():
-                if (not isinstance(param, neuron_parameter)) or param.name[0] == '_':
-                    # e.g. __last_neuron
-                    continue
-
-                if value.apply_calibration:
-                    self.logger.TRACE("Applying calibration to coord {} value {}".format(neuron, value))
-                    value_dac, status, clipped  = self.apply_calibration(
-                        value, param, neuron, report=True)
-                else:
-                    value_dac = value.toDAC().value
-
-                self.logger.TRACE("Setting FGValue of {} parameter {} to {}.".format(neuron, param, value_dac))
-                floating_gates.setNeuron(neuron, param, value_dac)
-
+            self.set_neuron_parameters(parameters, neuron, floating_gates)
         for block in blocks:
-            block_parameters = copy.deepcopy(parameters)
-            for param, value in block_parameters.iteritems():
-                if (not isinstance(param, shared_parameter)) or param.name[0] == '_':
-                    # e.g. __last_*
-                    continue
-                # Check if parameter exists for this block
-                even = block.id().value() % 2
-                if even and param.name in ['V_clra', 'V_bout']:
-                    continue
-                if not even and param.name in ['V_clrc', 'V_bexp']:
-                    continue
-
-                if value.apply_calibration:
-                    self.logger.TRACE("Applying calibration to coord {} value {}".format(block, value))
-                    value_dac = self.apply_calibration(value, param, block)
-                else:
-                    if type(value) in [Ampere, Volt, DAC]:
-                        value_dac = value.toDAC().value
-                    else:
-                        value_dac = self.apply_calibration(value.value, param, block, use_ideal=True)
-
-                self.logger.TRACE("Setting FGValue of {} parameter {} to {}.".format(block, param, value))
-                floating_gates.setShared(block, param, value_dac)
+            self.set_shared_parameters(parameters, block, floating_gates)

@@ -649,3 +649,26 @@ class PSPAnalyzer(Analyzer):
 
     def align(self, v):
         return numpy.roll(v, 1500 - numpy.argmax(v))  # TODO
+
+
+class ParrotAnalyzer(Analyzer):
+    """Fit a PSP"""
+
+    def __call__(self, neuron, trace, spikes, additional_data, **other):
+        t = trace.index.values
+        v = trace["v"].values
+
+        dt = additional_data['spike_interval']
+        averager = TraceAverager(additional_data['adc_freq'])
+        v_avg, _, cnt = averager.get_average(v, dt)
+        v_avg = self.align(v_avg)
+
+        return {
+            'v': v_avg,
+            'spikes': spikes,
+        }
+
+    def align(self, v):
+        return numpy.roll(v, 1500 - numpy.argmax(v))  # TODO
+
+

@@ -3,11 +3,15 @@
 
 import time
 import numpy as np
- 
+import copy
+
 import pyhalbe
+from pyhalbe.HICANN import neuron_parameter
+from pyhalbe.HICANN import shared_parameter
 import pysthal
 from pycake.helpers.calibtic import Calibtic
 from pycake.helpers.units import DAC
+from pycake.helpers.sthal import HICANNConfigurator
 
 from utils import ValueStorage
 
@@ -30,27 +34,24 @@ BOT = Coordinate.bottom
 class Parameters(ValueStorage):
     def __init__(self):
         ValueStorage.__init__(self, {
-            'shared': ValueStorage({
-                'V_fac': DAC(1023),
-                'V_dep': DAC(0),
-                'V_stdf': DAC(0),
-                'V_reset': DAC(284),
-                'V_dtc': DAC(0),
-                'V_gmax0': DAC(50),
-                'V_gmax1': DAC(50),
-                'V_gmax2': DAC(50),
-                'V_gmax3': DAC(50),
-                'V_bstdf': DAC(0)
-                }),
-            'neuron': {i : ValueStorage({
-                #'V_t': 1023,
-                #'I_gl': 1023,
-                #'V_syntcx': 800,
-                #'V_syntci': 800,
-                'V_synx': DAC(511),
-                'V_syni': DAC(511),
-                #'E_l': 100
-                }) for i in range(512)},
+            'base_parameters': {
+                shared_parameter.V_fac: DAC(1023),
+                shared_parameter.V_dep: DAC(0),
+                shared_parameter.V_stdf: DAC(0),
+                shared_parameter.V_reset: DAC(284),
+                shared_parameter.V_dtc: DAC(0),
+                shared_parameter.V_gmax0: DAC(50),
+                shared_parameter.V_gmax1: DAC(50),
+                shared_parameter.V_gmax2: DAC(50),
+                shared_parameter.V_gmax3: DAC(50),
+                shared_parameter.V_bstdf: DAC(0),
+                },
+            'neuron_parameters': {
+                nrn : {} for nrn in
+                Coordinate.iter_all(Coordinate.NeuronOnHICANN)},
+            'shared_parameters': {
+                blk : {} for blk in
+                Coordinate.iter_all(Coordinate.FGBlockOnHICANN)},
             'synapse_driver': ValueStorage({
                 'stp': None,
                 'cap': DAC(0),
@@ -96,54 +97,45 @@ def get_bus_from_driver(driver):
         else:
             return 7 - (driver/2)%8
 
-class FastHICANNConfigurator(pysthal.HICANNConfigurator):
+class FastHICANNConfigurator(HICANNConfigurator):
     def __init__(self, configure_floating_gates=True, reset=True):
         pysthal.HICANNConfigurator.__init__(self)
         self._configure_floating_gates = configure_floating_gates
         self._reset = reset
 
-    def config_floating_gates(self, *args, **kwargs):
-        if self._configure_floating_gates:
-            pysthal.HICANNConfigurator.config_floating_gates(self, *args, **kwargs)
-
     def config_fpga(self, *args, **kwargs):
         if self._reset:
-            pysthal.HICANNConfigurator.config_fpga(self, *args, **kwargs)
+            HICANNConfigurator.config_fpga(self, *args, **kwargs)
 
-    def config(self, fpga, handle, data):
-
+    def hicann_init(self, h):
         if self._reset:
-            pyhalbe.HICANN.init(handle, False)
-
+            pyhalbe.HICANN.init(h, False)
         #pyhalbe.Support.Power.set_L1_voltages(handle,1.05,1.25)
 
-        self.config_floating_gates(handle, data);
-        self.config_fg_stimulus(handle, data);
+    def config_floating_gates(self, handle, data):
+        if self._configure_floating_gates:
+            HICANNConfigurator.config_floating_gates(self, handle, data);
 
+    def config_synapse_array(self, handle, data):
         # if floating gates are configured we also configure synapses
         # should be disentangled
-        if self._configure_floating_gates: # FIXME blacklist
-            self.config_synapse_array(handle, data);
+        if self._configure_floating_gates:
+            HICANNConfigurator.config_synapse_array(self, handle, data);
 
-        self.config_neuron_quads(handle, data)
-        self.config_phase(handle, data)
-        self.config_gbitlink(handle, data)
 
-        self.config_synapse_drivers(handle, data)
-        self.config_synapse_switch(handle, data)
-        self.config_stdp(handle, data);
-        self.config_crossbar_switches(handle, data)
-        self.config_repeater(handle, data)
-        self.config_merger_tree(handle, data)
-        self.config_dncmerger(handle, data)
-        self.config_background_generators(handle, data)
-        self.flush_fpga(fpga)
-        self.lock_repeater(handle, data)
-        
-        self.config_neuron_config(handle, data)
-        self.config_neuron_quads(handle, data)
-        self.config_analog_readout(handle, data)
-        self.flush_fpga(fpga)
+
+class VOLVOHHICANNConfigurator(pysthal.HICANNConfigurator):
+    def __init__(self, vol, voh):
+        pysthal.HICANNConfigurator.__init__(self)
+        self.vol = vol
+        self.voh = voh
+
+    def config_fpga(*args):
+        pass
+
+    def config(self, fpga, handle, data):
+        self.getLogger().info("SETTING VOL: {}, VOH: {}".format(self.vol, self.voh))
+        pyhalbe.Support.Power.set_L1_voltages(handle, self.vol, self.voh)
 
 
 class Hardware(object):
@@ -184,8 +176,9 @@ class Hardware(object):
             self.calibration = None
 
     def set_parameters(self, params):
-        if (params.shared != self.params.shared) \
-         | (params.neuron != self.params.neuron):
+        if (params.base_parameters != self.params.base_parameters
+                or params.neuron_parameters != self.params.neuron_parameters
+                or params.shared_parameters != self.params.shared_parameters):
              self._configured = False
              self._fg_written = False
         if (params.synapse_driver != self.params.synapse_driver):
@@ -292,9 +285,9 @@ class Hardware(object):
 
         # Enable a crossbar switch to route the signal into the first vertical line
         if side == Coordinate.left:
-            v_line_c = Coordinate.VLineOnHICANN(4*bus)# + 32)
+            v_line_c = Coordinate.VLineOnHICANN(4*bus + 32)
         else:
-            v_line_c = Coordinate.VLineOnHICANN(159 - 4*bus)# + 32)
+            v_line_c = Coordinate.VLineOnHICANN(159 - 4*bus + 32)
 
         self.hicann.crossbar_switches.set(v_line_c, h_line, True)
          
@@ -319,7 +312,7 @@ class Hardware(object):
         synapse_line_c = Coordinate.SynapseRowOnHICANN(Coordinate.SynapseDriverOnHICANN(driver_line_c.line(), side), line)
 
         synapse_line = self.hicann.synapses[synapse_line_c]
-         
+
         # … for first neuron
         synapse_line.weights[int(neuron_c.x())] = HICANN.SynapseWeight(15) # Set weights
         synapse_line.decoders[int(neuron_c.x())] = HICANN.SynapseDecoder(address.getSynapseDecoderMask())
@@ -352,8 +345,6 @@ class Hardware(object):
         #for r_c in Coordinate.iter_all(Coordinate.HRepeaterOnHICANN):
         #    self.hicann.repeater[r_c].setOutput(Coordinate.right, True)
 
-        time.sleep(0.5)
-    
     @reset_configuration()
     def enable_adc(self, neuron, adc):
         neuron_c = Coordinate.NeuronOnHICANN(Coordinate.Enum(neuron))
@@ -369,7 +360,6 @@ class Hardware(object):
 
     def clear_spike_trains(self):
         self.wafer.clearSpikes()
-        time.sleep(0.5)
 
     def add_spike_train(self, bus, address, times):
         # Construct spike train
@@ -393,45 +383,23 @@ class Hardware(object):
                 driver.set_stf()
             elif self.params.synapse_driver.stp == 'depression':
                 driver.set_std()
-            
+
             driver.stp_cap = self.params.synapse_driver.cap.toDAC().value
-        
+
         # Now we can set the floating gate parameters for the neurons
         if write_floating_gates:
-            fg = self.hicann.floating_gates
-            
-            for neuron_c in Coordinate.iter_all(Coordinate.NeuronOnHICANN):
-                fg_block = neuron_c.sharedFGBlock()
-                
-                neuron_params = self.params.neuron[neuron_c.id().value()]
+            for neuron in Coordinate.iter_all(Coordinate.NeuronOnHICANN):
+                params = copy.deepcopy(self.params.base_parameters)
+                params.update(self.params.neuron_parameters[neuron])
+                self.calibration.set_neuron_parameters(
+                    params, neuron, self.hicann.floating_gates)
+            for block in  Coordinate.iter_all(Coordinate.FGBlockOnHICANN):
+                params = copy.deepcopy(self.params.base_parameters)
+                params.update(self.params.shared_parameters[block])
+                self.calibration.set_shared_parameters(
+                    params, block, self.hicann.floating_gates)
+            print self.hicann.floating_gates
 
-                for k, v in neuron_params.iteritems():
-                    if self.calibration is not None:
-                        v_old = v
-                        v = self.calibration.apply_calibration(
-                                v,
-                                getattr(HICANN.neuron_parameter, k),
-                                neuron_c
-                                )
-                        #log.debug("Calibrating neuron parameter {0} ({1} → {2}).".format(k, v_old, v))
-                        print k,v,v_old
-                    fg.setNeuron(neuron_c, getattr(HICANN, k), v)
-
-                # Minimize influence of exponential term
-                # V_bexp (shared)
-                fg.setNeuron(neuron_c, HICANN.neuron_parameter.V_exp, 1023)
-                fg.setNeuron(neuron_c, HICANN.neuron_parameter.I_rexp, 1023)
-                fg.setNeuron(neuron_c, HICANN.neuron_parameter.I_bexp, 1023)
-
-                # Minimize influence of adaptation term
-                # Bias
-                fg.setNeuron(neuron_c, HICANN.neuron_parameter.I_gladapt, 0)
-                fg.setNeuron(neuron_c, HICANN.neuron_parameter.I_fire, 0)
-                fg.setNeuron(neuron_c, HICANN.neuron_parameter.I_radapt, 1023)
-
-            for fg_block in Coordinate.iter_all(Coordinate.FGBlockOnHICANN):
-                for k, v in self.params.shared.iteritems():
-                    fg.setShared(fg_block, getattr(HICANN, k), v.toDAC().value)
 
         # Write configuration
         self.wafer.configure(FastHICANNConfigurator(write_floating_gates, reset))
@@ -455,6 +423,7 @@ class Hardware(object):
 
     @run_configuration
     def run(self, duration):
+        time.sleep(1.0)
         runner = pysthal.ExperimentRunner(duration)
         self.wafer.start(runner)
 

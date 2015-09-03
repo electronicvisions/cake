@@ -1,7 +1,10 @@
 """Manages experiments
 
 """
+import os
+import cPickle
 import numpy
+import pandas
 import numpy as np
 from scipy.optimize import curve_fit
 import pylogging
@@ -12,6 +15,7 @@ import pycalibtic
 from pycake.helpers.calibtic import create_pycalibtic_transformation
 from pycalibtic import Constant
 from lmfit import Parameters, minimize, fit_report
+from pycake.helpers.units import Volt
 
 def is_defect_potential(slope, offset, slope_from_one=1, offset_cut=1000):
     """
@@ -42,6 +46,7 @@ class BaseCalibrator(object):
         experiments: list containing all experiments
     """
     logger = pylogging.get("pycake.calibrator")
+    target_parameter = None
 
     def __init__(self, experiments, config):
         if not isinstance(experiments, list):
@@ -640,3 +645,55 @@ class readout_shift_Calibrator(BaseCalibrator):
 
 class I_gladapt_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.I_gladapt
+
+
+class Parrot_Calibrator(BaseCalibrator):
+    """
+    Filter the neurons that are suitable as parrot neurons
+    """
+
+    def __init__(self, experiment, config=None):
+        self.experiment = experiment
+        backend = config.get_backend_path()
+        # TODO more unique?
+        self.blacklist = os.path.join(backend, 'parrot_blacklist.txt')
+        self.settings = os.path.join(backend, 'parrot_params.pkl')
+
+    def generate_transformations(self):
+        """Check which neurons spike via the min-max range of the membrane"""
+
+        # Aggregate data
+        data = self.experiment.get_all_data(tuple(), ('v', ))
+        amplitudes = data['v'].apply(numpy.ptp).groupby(level='neuron').aggregate([numpy.mean, numpy.std])
+        baselines = data['v'].apply(numpy.min).groupby(level='neuron').aggregate([numpy.mean, numpy.std])
+
+        # Mask neurons with to weak PSPs or to large variations in baseline
+        V_t = pandas.DataFrame({
+            'V_t': baselines['mean'] + amplitudes['mean']/5.0,
+            'good': ((amplitudes['mean'] > 0.1) & (baselines['std'] <= 0.015))})
+
+        p = neuron_parameter.V_t
+        parrot_calib = {
+            'base_parameters' : self.experiment.measurements[0].step_parameters,
+            'neuron_parameters' : {n: {p: Volt(V, apply_calibration=True)}
+                                   for n, V, ok in V_t.itertuples() if ok},
+        }
+        parrot_blacklist = [int(n.id()) for n in V_t.index[~V_t['good']]]
+
+        with open(self.settings, 'w') as out:
+            cPickle.dump(parrot_calib, out, -1)
+        numpy.savetxt(self.blacklist, parrot_blacklist, fmt='%d')
+        return []
+
+        threshold = 0.5
+        data = self.experiment.get_all_data(tuple(), ('v', ), numeric_index=True)
+        ptp = data['v'].groupby(level=['neuron', 'step']).aggregate(
+            lambda x: numpy.ptp(x.item()))
+        blacklist = (ptp <= threshold).groupby(level='neuron').aggregate(numpy.any)
+        neurons = blacklist[blacklist == True].index.get_level_values('neuron')
+        with open(self.blacklist, 'w') as blacklist:
+            for nrn in neurons:
+                blacklist.write('{}\n'.format(nrn))
+        with open(self.settings, 'w') as out:
+            cPickle.dump(self.experiment.measurements[0].step_parameters, out, -1)
+        return []

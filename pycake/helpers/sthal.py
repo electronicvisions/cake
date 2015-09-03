@@ -3,6 +3,7 @@
 import math
 import os
 import hashlib
+import time
 import cPickle
 import numpy
 import pandas
@@ -75,11 +76,16 @@ class HICANNConfigurator(pysthal.HICANNConfigurator):
         HICANN.init(h, False)
 
     def config_floating_gates(self, handle, hicann):
+        self.getLogger().debug("Configure floating gates.")
+        t0 = time.time()
         fpga_handle = self.fpga_handle
         low, high = self.get_current_rows(hicann)
         self.zero_fg(handle, hicann)
         self.programm_normal(handle, hicann, self.V_ROWS + low)
         self.programm_high(handle, hicann, high)
+        self.getTimeLogger().debug(
+            "configure floating gates took {:.0f}ms".format(
+                (time.time() - t0)*1000.0))
 
     @staticmethod
     def make_df(data, block):

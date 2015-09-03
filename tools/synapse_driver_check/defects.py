@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
 from neo.core import (Block, Segment, RecordingChannelGroup,
@@ -7,20 +7,21 @@ from neo.core import (Block, Segment, RecordingChannelGroup,
 from neo.io import NeoHdf5IO
 
 import quantities
-
 import os
 import time
+import cPickle
 import subprocess
-
 from collections import defaultdict
-
 import numpy as np
-
 import pyhalbe
 import pysthal
+import Coordinate
+from Coordinate import Enum, NeuronOnHICANN
+from pyhalbe.HICANN import neuron_parameter
 
 import pylogging
 pylogging.default_config(date_format='absolute')
+pylogging.set_loglevel(pylogging.get("pycake.calibtic"), pylogging.LogLevel.ERROR)
 pylogging.set_loglevel(pylogging.get("sthal"), pylogging.LogLevel.INFO)
 pylogging.set_loglevel(pylogging.get("sthal.HICANNConfigurator.Time"), pylogging.LogLevel.DEBUG)
 pylogging.set_loglevel(pylogging.get("Default"), pylogging.LogLevel.INFO)
@@ -38,6 +39,7 @@ import argparse
 import ana_defects
 
 import resource
+import shutil
 
 def get_neurons(driver):
 
@@ -200,7 +202,7 @@ def aquire(seg, driver):
 
     record_addr = 44
 
-    params.neuron[addr_neuron_map[record_addr]].V_t = 1023
+    # params.neuron[NeuronOnHICANN.Enum(addr_neuron_map[record_addr])].V_t = DAC(1023)
 
     # Configure floating gates and synapse drivers
     hardware.set_parameters(params)
@@ -230,6 +232,7 @@ def aquire(seg, driver):
         #print "addr {}, rls {}, len(rls) {}".format(addr, rls, len(rls))
         if len(rls) > 1 and addr != 0:
             #raise Exception("WTF")
+            print "addr {}, rls {}, len(rls) {}".format(addr, rls, len(rls))
             print "PROBLEM(?)"
 
     spikes = np.vstack([hardware.get_spikes(rl) for rl in recording_links])
@@ -237,7 +240,6 @@ def aquire(seg, driver):
     print "len(spikes):", len(spikes)
 
     for i in range(64):
-
         try:
             spikes_i = spikes[spikes[:,1] == i][:,0]
         except IndexError:
@@ -256,6 +258,17 @@ def aquire(seg, driver):
     print "aquiring done"
 
 def read_voltages(wafer=1):
+    """
+    Returns:
+        dict : {voltage: value}
+    """
+    # TODO add vertical setup
+    return {
+        'V9' : [VOL, VOL],
+        'V10' : [VOH, VOH],
+        'DAC_V9' : [int(VOL*1000), int(VOL*1000)],
+        'DAC_V10' : [int(VOH*1000), int(VOH*1000)],
+    }
 
     if wafer == 1:
 
@@ -327,13 +340,17 @@ if __name__ == "__main__":
     parser.add_argument('--calibpath', type=str, default="/wang/data/calibration/")
     parser.add_argument('--extrasuffix', type=str, default=None)
     parser.add_argument('--dumpwafercfg', action="store_true", default=False)
-    parser.add_argument('--ana', action="store_true", default=False)
+    parser.add_argument('--ana', action="store_true", default=False,
+        help="run ana_defects.py on the fly, to categorize correct/incorrect spiketimes")
     parser.add_argument('--drivers', type=int, nargs="+", default=range(224))
     parser.add_argument('--V_ccas', type=int, default=600)
     parser.add_argument('--V_dllres', type=int, default=1023)
     parser.add_argument('--nooutput', action="store_true", default=False)
     parser.add_argument('--ninputspikes', type=int, default=200)
     parser.add_argument('--inputspikeisi', type=float, default=0.1e-6)
+    parser.add_argument('--vol', type=float, required=True)
+    parser.add_argument('--voh', type=float, required=True)
+    parser.add_argument('--clearfolder', action="store_true", default=False)
     args = parser.parse_args()
 
     WAFER = args.wafer
@@ -341,46 +358,81 @@ if __name__ == "__main__":
     FREQ = args.freq
     BKGISI = args.bkgisi
 
+    VOL = args.vol
+    VOH = args.voh
+
     suffix='_'.join(["w{}","h{}","f{}","bkgisi{}","Vccas{}","Vdllres{}","ninputspikes{}","inputspikeisi{}"]).format(WAFER,HICANN,FREQ,BKGISI,args.V_ccas,args.V_dllres,args.ninputspikes,args.inputspikeisi)
     if args.extrasuffix:
         suffix += "_"+args.extrasuffix
 
     PATH = '_'.join(["defects", suffix])
+    FINISHED_TAG=os.path.join(PATH, "finished")
+
+    if os.path.exists(PATH):
+        if os.path.exists(FINISHED_TAG):
+            print "Skiping allready existing meassurement {}".format(PATH)
+            exit(0)
+        else:
+            print "Remove existing result folder {}..".format(PATH)
+            for ii in range(5, 0, -1):
+                print "in {}s...".format(ii)
+                time.sleep(1)
+            shutil.rmtree(PATH)
     mkdir_p(PATH)
+    print "START"
 
     from pycake.helpers.units import DAC, Volt, Ampere
 
+    parrot_params = os.path.join(
+        args.calibpath, 'parrot_params.pkl')
+    parrot_blacklist = os.path.join(
+        args.calibpath, 'parrot_blacklist.txt')
+
     params = shallow.Parameters()
+    if os.path.exists(parrot_params):
+        print "Setting parameters from parrot file!"
+        with open(parrot_params, 'r') as infile:
+            pparams = cPickle.load(infile)
+        base_parameters = pparams['base_parameters']
+        params.base_parameters.update(base_parameters)
+        # params.base_parameters[neuron_parameter.V_t] = Volt(0.7, apply_calibration=True)
+        params.synapse_driver.gmax_div = DAC(base_parameters['gmax_div'])
+        params.neuron_parameters.update(pparams['neuron_parameters'])
+        pprint({getattr(p, 'name', p): v for p, v in params.base_parameters.items()})
+        pprint(params.synapse_driver)
+        print params.neuron_parameters
+    else:
+        print "Setting default paramters"
+        params.base_parameters.E_l = Volt(0.7)
+        params.base_parameters.V_t = Volt(0.745)
+        params.base_parameters.E_synx = Volt(0.8)
+        params.base_parameters.E_syni = Volt(0.6)
+        params.base_parameters.V_syntcx = DAC(800)
+        params.base_parameters.V_syntci = DAC(800)
+        params.base_parameters.I_gl = DAC(0)
+        params.base_parameters.V_reset = Volt(0.5)
+        params.base_parameters.V_ccas = DAC(args.V_ccas)
+        params.base_parameters.V_dllres = DAC(args.V_dllres)
 
-    for i in range(512):
+    random.seed(4)  # chosen by fair dice roll.
 
-        params.neuron[i].E_l = Volt(0.7)
-        params.neuron[i].V_t = Volt(0.745)
-        params.neuron[i].E_synx = Volt(0.8)
-        params.neuron[i].E_syni = Volt(0.6)
-        params.neuron[i].V_syntcx = DAC(800)
-        params.neuron[i].V_syntci = DAC(800)
-        params.neuron[i].I_gl = DAC(0)
-
-    params.shared.V_reset = Volt(0.5)
-    params.shared.V_ccas = DAC(args.V_ccas)
-    params.shared.V_dllres = DAC(args.V_dllres)
+    if os.path.exists(parrot_blacklist):
+        neuron_blacklist = np.loadtxt(parrot_blacklist, dtype=int)
+    else:
+        neuron_blacklist = np.array([], dtype=int)
 
 
-    random.seed(1)
-
-    neuron_blacklist = np.loadtxt('blacklist_w{}_h{}.csv'.format(WAFER, HICANN), dtype=int) # no notion of freq and bkgisi
-
-    hardware = shallow.Hardware(WAFER, HICANN, os.path.join(args.calibpath,'wafer_{0}').format(WAFER), FREQ*1e6, BKGISI)
+    hardware = shallow.Hardware(WAFER, HICANN, args.calibpath, FREQ*1e6, BKGISI)
 
     fgc = hardware.hicann.floating_gates
 
-#    for p in range(0,int(fgc.getNoProgrammingPasses())):
-#
-#        f_p = fgc.getFGConfig(shallow.Coordinate.Enum(p))
-#        f_p.fg_biasn = 0
-#        fgc.setFGConfig(shallow.Coordinate.Enum(p), f_p)
-#        print fgc.getFGConfig(shallow.Coordinate.Enum(p))
+    for p in range(0, int(fgc.getNoProgrammingPasses())):
+        f_p = fgc.getFGConfig(shallow.Coordinate.Enum(p))
+        f_p.fg_bias = 0
+        f_p.fg_biasn = 0
+        f_p.pulselength = int(f_p.pulselength.to_ulong() * float(FREQ)/100.0)
+        fgc.setFGConfig(shallow.Coordinate.Enum(p), f_p)
+        print fgc.getFGConfig(shallow.Coordinate.Enum(p))
 
     hardware.connect()
 
@@ -394,11 +446,14 @@ if __name__ == "__main__":
     prepare_drivers(drivers)
 
     if not args.nooutput:
-        fname =os.path.join(PATH,suffix+".hdf5")
+        fname =os.path.join(PATH, "defects_data.hdf5")
         print "opening {}".format(fname)
         reader = NeoHdf5IO(filename=fname)
     # create a new block
     blk = Block(time=time.time(),wafer=WAFER,hicann=HICANN,freq=FREQ,bkgisi=BKGISI)
+
+    from shallow import VOLVOHHICANNConfigurator
+    hardware.wafer.configure(VOLVOHHICANNConfigurator(VOL, VOH))
 
     for driver in drivers:
 
@@ -434,6 +489,10 @@ if __name__ == "__main__":
 
     if not args.nooutput:
         reader.write(blk)
+
+    if not args.nooutput:
+        with open(FINISHED_TAG, 'w'):
+            pass
 
 #    readout_wafer = pysthal.Wafer()
 #

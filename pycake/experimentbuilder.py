@@ -444,6 +444,42 @@ class V_syntci_Experimentbuilder(V_convoff_Experimentbuilder):
     WITH_SPIKES = True
 
 
+class Parrot_Experimentbuilder(BaseExperimentBuilder):
+    EXCITATORY = True
+
+    def __init__(self, *args, **kwargs):
+        super(Parrot_Experimentbuilder, self).__init__(*args, **kwargs)
+        self.recording_time = 80.0e-6
+        self.no_spikes = 50
+
+    def prepare_specific_config(self, sthal, parameters):
+        sthal.set_recording_time(self.recording_time, self.no_spikes)
+        weight = parameters.get('synapse_weight', 15)
+        gmax = parameters.get('gmax', 0)
+        gmax_div = parameters.get('gmax_div', 2)
+        sthal.stimulateNeurons(1.0/self.recording_time, 1,
+                               excitatory=self.EXCITATORY,
+                               gmax_div=gmax_div,
+                               gmax=gmax, weight=weight)
+        for channel in Coordinate.iter_all(Coordinate.GbitLinkOnHICANN):
+            sthal.hicann.layer1[channel] = pyhalbe.HICANN.GbitLink.Direction.TO_DNC
+        return sthal
+
+    def get_analyzer(self):
+        return pycake.analyzer.ParrotAnalyzer()
+
+    def add_additional_measurements(self, experiment):
+        """ Add the initial measurement to I_gl experiment.
+            This measurement determines the ADC frequency needed for the TraceAverager
+        """
+        sthal = self.get_sthal(Coordinate.AnalogOnHICANN(1))
+        measurement = ADCFreq_Measurement(sthal, self.neurons, bg_rate=100e3)
+        analyzer = ADCFreq_Analyzer()
+        experiment.add_initial_measurement(measurement, analyzer)
+        experiment.initial_data['spike_interval'] = self.recording_time
+        return experiment
+
+
 class I_gl_Experimentbuilder(BaseExperimentBuilder):
     def __init__(self, *args, **kwargs):
         super(I_gl_Experimentbuilder, self).__init__(*args, **kwargs)
@@ -516,10 +552,6 @@ class E_l_I_gl_fixed_Experimentbuilder(E_l_Experimentbuilder):
         """ Get the appropriate analyzer for a specific parameter.
         """
         return pycake.analyzer.MeanOfTraceAnalyzer()
-
-
-#from calibration.vsyntc import V_syntci_Experimentbuilder
-#from calibration.vsyntc import V_syntcx_Experimentbuilder
 
 
 class V_syntci_psp_max_Experimentbuilder(BaseExperimentBuilder):
