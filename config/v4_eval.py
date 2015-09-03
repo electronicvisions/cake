@@ -16,9 +16,13 @@ parameters = {
 
     "V_reset_range":  [{
         shared_parameter.V_reset : Volt(v, apply_calibration=True),
+        neuron_parameter.E_l : Volt(v + 0.4),
+        neuron_parameter.V_t : Volt(v + 0.2)
     } for v in (0.6, 0.8)],
 
     "V_t_range":  [{
+        shared_parameter.V_reset : Volt(v-200e-3),
+        neuron_parameter.E_l : Volt(v + 200e-3),
         neuron_parameter.V_t : Volt(v, apply_calibration=True),
     } for v in (0.9, 1.0, 1.1)],
 
@@ -29,6 +33,11 @@ parameters = {
     "E_synx_range":   [{
         neuron_parameter.E_synx : Volt(v, apply_calibration=True),
         } for v in (1.0, 1.1)],
+
+    "E_l_range": [{
+        neuron_parameter.E_l : v,
+        } for v in linspace_voltage(700e-3, 900e-3, 3)
+    ],
 
     "parameter_order": [
         'readout_shift',
