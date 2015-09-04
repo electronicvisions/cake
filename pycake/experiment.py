@@ -358,7 +358,7 @@ class IncrementalExperiment(SequentialExperiment):
         i_max = len(self.measurements_to_run)
         for i, measurement in enumerate(self.measurements_to_run):
             plogger.debug("Running measurement {}/{}".format(i+1, i_max))
-            sthal.hicann = measurement.sthal.hicann
+            sthal.hicann.copy(measurement.sthal.hicann)
             measurement.sthal = sthal
             result = measurement.run_measurement(
                 self.analyzer, additional_data=self.initial_data,
