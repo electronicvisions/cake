@@ -14,7 +14,7 @@ import scipy.interpolate
 import Coordinate
 from pyhalbe import HICANN
 from Coordinate import iter_all
-from Coordinate import Enum, X, Y
+from Coordinate import Enum, X, Y, top, bottom
 from Coordinate import AnalogOnHICANN
 from Coordinate import BackgroundGeneratorOnHICANN
 from Coordinate import FGBlockOnHICANN
@@ -146,6 +146,7 @@ class HICANNConfigurator(pysthal.HICANNConfigurator):
 
         First current cells than voltage cells.
         """
+        t0 = time.time()
         fgconfig = hicann.floating_gates.getFGConfig(Enum(0))
         fgconfig.voltagewritetime = 63
         fgconfig.currentwritetime = 63
@@ -162,6 +163,9 @@ class HICANNConfigurator(pysthal.HICANNConfigurator):
         row_data = [pyhalbe.HICANN.FGRow()] * 4
         for row in self.C_ROWS + self.V_ROWS:
             pyhalbe.HICANN.set_fg_row_values(handle, row, row_data, writeDown)
+        self.getTimeLogger().debug(
+            "zeroing floating gates took {:.0f}ms".format(
+                (time.time() - t0)*1000.0))
 
     def programm_high(self, handle, hicann, rows):
         # Zero fgs
@@ -183,8 +187,9 @@ class HICANNConfigurator(pysthal.HICANNConfigurator):
             pyhalbe.HICANN.set_fg_row_values(
                 handle, row, data, fgconfig.writeDown)
 
-    def programm_normal(self, handle, hicann, rows):
+    def programm_normal(self, handle, hicann, rows, writeDown=None):
         fgc = hicann.floating_gates
+        t0 = time.time()
         for step in (1, 2):
             fgconfig = hicann.floating_gates.getFGConfig(Enum(step))
 
@@ -192,10 +197,17 @@ class HICANNConfigurator(pysthal.HICANNConfigurator):
                 pyhalbe.HICANN.set_fg_config(handle, block, fgconfig)
 
             for row in rows:
+                if writeDown is None:
+                    writeDown = fgconfig.writeDown
                 data = [fgc[blk].getFGRow(row[int(blk.id())])
                         for blk in iter_all(FGBlockOnHICANN)]
+                t0 = time.time()
                 pyhalbe.HICANN.set_fg_row_values(
-                    handle, row, data, fgconfig.writeDown)
+                    handle, row, data, writeDown)
+                self.getTimeLogger().debug(
+                    "update rows {} took {:.0f}ms".format(
+                        ", ".join(str(int(r)) for r in row),
+                        (time.time() - t0)*1000.0))
 
 
 class UpdateParameterUp(HICANNConfigurator):
@@ -205,7 +217,7 @@ class UpdateParameterUp(HICANNConfigurator):
     Warning: It is assumend that the paramter is growing!
     """
     def __init__(self, parameters, readout_block=None):
-        HICANNConfigurator.__init__(self, Coordinate.FGBlockOnHICANN())
+        HICANNConfigurator.__init__(self, readout_block)
         self.rows = [
             tuple(HICANN.getNeuronRow(b, parameter)
                   for b in iter_all(FGBlockOnHICANN))
@@ -219,11 +231,53 @@ class UpdateParameterUp(HICANNConfigurator):
             self.programm_normal(handle, hicann, self.rows)
 
 
+class UpdateParameterDown(HICANNConfigurator):
+    """
+    New HICANN configurator, could do stuff better or worse...
+
+    Warning: It is assumend that the paramter is falling!
+    """
+    def __init__(self, parameters, readout_block=None):
+        HICANNConfigurator.__init__(self, readout_block)
+        self.rows = [
+            tuple(HICANN.getNeuronRow(b, parameter)
+                  for b in iter_all(FGBlockOnHICANN))
+            for parameter in parameters]
+
+    def config_fpga(self, fpga_handle, fpga):
+        pass
+
+    def config(self, fpga_handle, handle, hicann):
+        for rows in self.rows:
+            self.programm_normal(handle, hicann, self.rows, writeDown=True)
+
+
 class UpdateParameterUpAndConfigure(UpdateParameterUp):
     def config(self, fpga_handle, handle, hicann):
 
         for rows in self.rows:
             self.programm_normal(handle, hicann, self.rows)
+
+        self.config_neuron_quads(handle, hicann)
+        self.config_phase(handle, hicann)
+        self.config_gbitlink(handle, hicann)
+        self.config_synapse_array(handle, hicann)
+        self.config_synapse_drivers(handle, hicann)
+        self.config_synapse_switch(handle, hicann)
+        self.config_crossbar_switches(handle, hicann)
+        self.config_repeater(handle, hicann)
+        self.config_merger_tree(handle, hicann)
+        self.config_dncmerger(handle, hicann)
+        self.config_background_generators(handle, hicann)
+        self.lock_repeater(handle, hicann)
+        self.flush_fpga(fpga_handle)
+
+
+class UpdateParameterDownAndConfigure(UpdateParameterDown):
+    def config(self, fpga_handle, handle, hicann):
+
+        for rows in self.rows:
+            self.programm_normal(handle, hicann, self.rows, writeDown=True)
 
         self.config_neuron_quads(handle, hicann)
         self.config_phase(handle, hicann)
@@ -709,6 +763,34 @@ class StHALContainer(object):
                 self.disable_synapse_line(drv_top)
                 self.disable_synapse_line(drv_bot)
         return links
+
+    def mirror_synapse_driver(self, driver, count, upwards=True, skip=0):
+        """
+        Connect a driver to its neighbour, the settings are copied from the
+        driver.
+        Works only for upper half
+
+        Args:
+            driver: [SynapseDriverOnHICANN] driver to mirror
+            count: Number of drivers to add
+            skip: Skip this drivers (unused? blacklist?)
+            upwards: direction (ignored, but would be nice)
+        """
+        if skip > 0 or not upwards:
+            raise NotImplementedError("skipping drivers is not yet implemeted")
+
+        self.hicann.synapses[driver].connect_neighbor = True
+        for ii in xrange(count):
+            target_driver = SynapseDriverOnHICANN(driver.x(), Y(int(driver.y()) - 2))
+            self.hicann.synapses[target_driver] = self.hicann.synapses[driver]
+            self.hicann.synapses[target_driver].locin = False
+
+            for ii in (top, bottom):
+                synapse_line = Coordinate.SynapseRowOnHICANN(driver, ii)
+                target_synapse_line = Coordinate.SynapseRowOnHICANN(target_driver, ii)
+                self.hicann.synapses[target_synapse_line].decoders = self.hicann.synapses[synapse_line].decoders
+                self.hicann.synapses[target_synapse_line].weights = self.hicann.synapses[synapse_line].weights
+            driver = target_driver
 
     def stimulatePreout(self, rate):
         """

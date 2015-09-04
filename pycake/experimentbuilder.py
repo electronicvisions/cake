@@ -347,6 +347,12 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
             sthal.stimulateNeurons(1.0/self.recording_time, 1,
                                    excitatory=self.EXCITATORY, gmax_div=gmax_div,
                                    gmax=gmax, weight=weight)
+            mirror_drivers = parameters.get('mirror_drivers', None)
+            if mirror_drivers is not None:
+                sthal.mirror_synapse_driver(
+                    Coordinate.SynapseDriverOnHICANN(Coordinate.Enum(83)),
+                    mirror_drivers)
+
         return sthal
 
     def make_measurement(self, sthal, neurons, readout_shifts):
