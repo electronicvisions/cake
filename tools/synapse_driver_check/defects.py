@@ -257,12 +257,48 @@ def aquire(seg, driver):
 
     print "aquiring done"
 
+def vt_calib(neuron_blacklist):
+    print "Run V_t calibration"
+    meassured = []
+    for neuron in Coordinate.iter_all(Coordinate.NeuronOnHICANN):
+        if int(neuron.id()) in neuron_blacklist:
+            continue
+        adc = 0
+        trace = hardware.record_neuron(neuron, adc, 1e-5)
+        v_t = np.mean(trace) + 0.06
+        meassured.append((int(neuron.id()), np.mean(trace)))
+        params.neuron_parameters[neuron] = {
+            neuron_parameter.V_t: Volt(v_t, apply_calibration=True)}
+
+    np.savetxt(os.path.join(PATH, 'vt_calib.dat'), meassured)
+
+    # print params.neuron_parameters
+    hardware.set_parameters(params)
+    cfg = UpdateParameterDownAndConfigure([neuron_parameter.V_t],
+            Coordinate.FGBlockOnHICANN())
+    hardware.configure(configurator=cfg)
+    print cfg.readout_values
+
+
 def read_voltages(wafer=1):
     """
     Returns:
         dict : {voltage: value}
     """
     # TODO add vertical setup
+    db = pysthal.MagicHardwareDatabase()
+    tmp = []
+    for channel in [Coordinate.ChannelOnADC(4), Coordinate.ChannelOnADC(1)]:
+        cfg = db.get_adc_of_hicann(hardware.hicann.index(), Coordinate.AnalogOnHICANN(0))
+        cfg.channel = channel
+        recorder = pysthal.AnalogRecorder(cfg)
+        recorder.record(1e-3)
+        data = recorder.trace()
+        recorder.freeHandle()
+        mean = np.mean(data)
+        tmp.append(mean)
+
+    VOL, VOH = tmp
     return {
         'V9' : [VOL, VOL],
         'V10' : [VOH, VOH],
@@ -351,6 +387,7 @@ if __name__ == "__main__":
     parser.add_argument('--vol', type=float, required=True)
     parser.add_argument('--voh', type=float, required=True)
     parser.add_argument('--clearfolder', action="store_true", default=False)
+    parser.add_argument('--no_vt_calib', action="store_true", default=False)
     args = parser.parse_args()
 
     WAFER = args.wafer
@@ -394,10 +431,12 @@ if __name__ == "__main__":
         with open(parrot_params, 'r') as infile:
             pparams = cPickle.load(infile)
         base_parameters = pparams['base_parameters']
+        #FIXME VDLL and VCCAS are missing
         params.base_parameters.update(base_parameters)
         # params.base_parameters[neuron_parameter.V_t] = Volt(0.7, apply_calibration=True)
         params.synapse_driver.gmax_div = DAC(base_parameters['gmax_div'])
-        params.neuron_parameters.update(pparams['neuron_parameters'])
+        if args.no_vt_calib:
+            params.neuron_parameters.update(pparams['neuron_parameters'])
         pprint({getattr(p, 'name', p): v for p, v in params.base_parameters.items()})
         pprint(params.synapse_driver)
         print params.neuron_parameters
@@ -444,6 +483,11 @@ if __name__ == "__main__":
     drivers = args.drivers
 
     prepare_drivers(drivers)
+
+    hardware.set_parameters(params)
+    hardware.configure()
+    if not args.no_vt_calib:
+        vt_calib(neuron_blacklist)
 
     if not args.nooutput:
         fname =os.path.join(PATH, "defects_data.hdf5")

@@ -141,6 +141,7 @@ def ana(seg, plotpath=None):
         plt.tick_params(axis='y', which='both', labelsize=5)
 
         if plotpath:
+            plt.savefig(os.path.join(plotpath, "driver_{:03d}.png".format(driver)))
             plt.savefig(os.path.join(plotpath, "driver_{:03d}.pdf".format(driver)))
         plt.close()
 
@@ -249,11 +250,11 @@ if __name__ == "__main__":
         addr_neuron_map = seg.annotations["addr_neuron_map"]
         voltages = seg.annotations["voltages"]
 
-        vols_board_0.append(voltages["V9"][0])
-        vohs_board_0.append(voltages["V10"][0])
+        vols_board_0.append(float(voltages["V9"][0]))
+        vohs_board_0.append(float(voltages["V10"][0]))
 
-        vols_board_1.append(voltages["V9"][1])
-        vohs_board_1.append(voltages["V10"][1])
+        vols_board_1.append(float(voltages["V9"][1]))
+        vohs_board_1.append(float(voltages["V10"][1]))
 
         vols_DAC_board_0.append(voltages["DAC_V9"][0])
         vohs_DAC_board_0.append(voltages["DAC_V10"][0])
@@ -264,11 +265,18 @@ if __name__ == "__main__":
         drv_correct = 0
         drv_incorrect = 0
 
+        good_addresses = 0
+
         for addr, (correct, incorrect, addr_correlation_map) in addr_result_map.iteritems():
             # address 0 will always see "false" background events
             if addr != 0 and addr_neuron_map[addr] not in args.ignore_neurons:
                 drv_correct += correct
                 drv_incorrect += incorrect
+
+            if addr != 0 and addr not in args.ignore_neurons:
+                if incorrect < 20 and correct > 1:
+                    good_addresses += 1
+
 
         threshold = 0.8
 
@@ -281,14 +289,15 @@ if __name__ == "__main__":
         #print "green_to_red", green_to_red
         green_to_reds.append(green_to_red)
 
-        if green_to_red > threshold:
+        # if green_to_red > threshold:
+        if good_addresses > 50:
             n_good_drv += 1
             is_good.append(True)
             if args.verbose:
                 print "driver {:03d} is good".format(driver)
 
             try:
-                os.symlink("../driver_{:03d}.pdf".format(driver), os.path.join(fdir,"good/driver_{:03d}.pdf".format(driver)))
+                os.symlink("../driver_{:03d}.png".format(driver), os.path.join(fdir,"good/driver_{:03d}.png".format(driver)))
             except OSError as e:
                 #print e
                 pass
@@ -299,7 +308,7 @@ if __name__ == "__main__":
                 print "driver {:03d} is bad".format(driver)
 
             try:
-                os.symlink("../driver_{:03d}.pdf".format(driver), os.path.join(fdir,"bad/driver_{:03d}.pdf".format(driver)))
+                os.symlink("../driver_{:03d}.png".format(driver), os.path.join(fdir,"bad/driver_{:03d}.png".format(driver)))
             except OSError as e:
                 #print e
                 pass
