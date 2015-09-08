@@ -295,3 +295,9 @@ class Config(object):
 
     def get_fg_biasn(self):
         return self.parameters['fg_biasn']
+
+    def get_recording_time(self, default):
+        return self.parameters.get('recording_time', default)
+
+    def get_no_of_spikes(self, default):
+        return self.parameters.get('no_of_spikes')

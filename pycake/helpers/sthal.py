@@ -13,6 +13,8 @@ import pylogging
 import scipy.interpolate
 import Coordinate
 from pyhalbe import HICANN
+from pyhalbe.HICANN import neuron_parameter
+from pyhalbe.HICANN import shared_parameter
 from Coordinate import iter_all
 from Coordinate import Enum, X, Y, top, bottom
 from Coordinate import AnalogOnHICANN
@@ -219,9 +221,13 @@ class UpdateParameterUp(HICANNConfigurator):
     def __init__(self, parameters, readout_block=None):
         HICANNConfigurator.__init__(self, readout_block)
         self.rows = [
-            tuple(HICANN.getNeuronRow(b, parameter)
+            tuple(HICANN.getNeuronRow(b, p)
                   for b in iter_all(FGBlockOnHICANN))
-            for parameter in parameters]
+            for p in parameters if isinstance(p, neuron_parameter)]
+        self.rows += [
+            tuple(HICANN.getSharedRow(b, p)
+                  for b in iter_all(FGBlockOnHICANN))
+            for p in parameters if isinstance(p, shared_parameter)]
 
     def config_fpga(self, fpga_handle, fpga):
         pass
@@ -366,6 +372,7 @@ class SetFGCell(pysthal.HICANNConfigurator):
     def config(self, fpga_handle, h, hicann):
         """Call analog output related configuration functions."""
         HICANN.set_fg_cell(h, *self.coords)
+        self.flush_fpga(fpga_handle)
 
 
 class UpdateParameter(pysthal.HICANNConfigurator):
@@ -1085,7 +1092,7 @@ class StHALContainer(object):
             if fgblock.x() == X(0):
                 self.hicann.analog.set_fg_left(self.coord_analog)
             else:
-                self.hicann.analog.set_fg_left(self.coord_analog)
+                self.hicann.analog.set_fg_right(self.coord_analog)
 
             self.write_config(configurator=UpdateAnalogOutputConfigurator())
             data = []

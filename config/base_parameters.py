@@ -66,10 +66,10 @@ parameters = {
         neuron_parameter.V_convoffi: Volt(1.8), # Correction shift of internal synaptic integrator voltage
         neuron_parameter.V_convoffx: Volt(1.8), # Correction shift of internal synaptic integrator voltage
         neuron_parameter.V_exp: Volt(1.8),      # exponential term
-        neuron_parameter.V_syni: Volt(0.7),    # inhibitory synaptic reversal potential
+        neuron_parameter.V_syni: Volt(0.9),    # inhibitory synaptic reversal potential
         neuron_parameter.V_syntci: Volt(1.42),   # inhibitory synapse time constant
         neuron_parameter.V_syntcx: Volt(1.42),   # excitatory synapse time constant
-        neuron_parameter.V_synx: Volt(0.7),    # excitatory synaptic reversal potential
+        neuron_parameter.V_synx: Volt(0.9),    # excitatory synaptic reversal potential
         neuron_parameter.V_t: Volt(1.),       # recommended threshold, maximum is 1.1
 
         shared_parameter.V_reset:       Volt(0.5),   # * Neuron reset voltage

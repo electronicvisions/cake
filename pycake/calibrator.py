@@ -547,6 +547,91 @@ class V_convoffx_Calibrator(V_convoff_Calibrator):
         return data[['V_convoffx', 'mean']][idx].values.T
 
 
+class V_syntc_Calibrator(BaseCalibrator):
+    target_parameter = None
+
+    def __init__(self, experiment, config=None):
+        self.experiment = experiment
+        self.offset_tol = 0.025
+        self.chi2_tol = 30
+        self.residual_tol = 4.0e-8
+
+    @staticmethod
+    def sort_tau(data):
+        tmp = data[['tau_1', 'tau_2']]
+        data['tau_1'] = tmp.min(axis='columns')
+        data['tau_2'] = tmp.max(axis='columns')
+
+    def get_mask(self, data):
+        upper_threshold = data['offset'].min() + self.offset_tol
+        return ((data['offset'] <= upper_threshold) &
+                (data['chi2'] <= self.chi2_tol))
+
+    def get_data(self):
+        data = self.experiment.get_all_data(
+            (neuron_parameter.V_syntcx, ),
+            ('v', 'tau_1', 'tau_2', 'start', 'offset', 'chi2'),
+            numeric_index=True)
+        self.sort_tau(data)
+        return data
+
+    def approximate_with_fit(self, nrn_data):
+        mask = self.get_mask(nrn_data)
+        data = nrn_data[mask]
+
+        vsyntc = data['V_syntcx'].astype(numpy.int).values
+
+        x = data['V_syntcx'] / 1023.0
+        y0 = data['tau_1'].min()
+        y_range = data['tau_1'].max()
+        y = data['tau_1'] / y_range
+
+        if len(x.values) < 7:
+            return None
+
+        model, result = fit_model(x, y - y0)
+
+        x0, x1 = vsyntc[[0, -1]]
+        xi = numpy.arange(int(x0), int(x1) + 1)
+        yi = model.eval(params=result.params, x=(xi / 1023.0) + y0) * y_range
+
+        diff = yi[vsyntc - x0] - data['tau_1']
+        res = numpy.sqrt(numpy.sum(diff**2)) / len(x)
+
+        return res, xi, yi
+
+    @staticmethod
+    def fit_model(x, y):
+        model = models.ExpressionModel('1 /(a * x + b)**d + c')
+        params = model.make_params(a=0.1, b=1.0, c=0.0, d=0.5)
+        result = model.fit(y, x=x, params=params)
+        return model, result
+
+    def make_trafo(self, fit_result):
+        if fit_result:
+            res, xi, yi = result
+            if res < self.residual_tol:
+                try:
+                    return pycalibtic.Lookup(yi, xi[0])
+                except RuntimeError:
+                    pass
+        return None
+
+    def generate_transformations(self):
+        data = self.get_data()
+        fits = {nrn : self.make_trafo(self.approximate_with_fit(nrn_data))
+                for nrn, nrn_data in data.groupby(level='neuron')}
+        return [(self.target_parameter, fits)]
+
+
+class V_syntci_Calibrator(V_syntc_Calibrator):
+    target_parameter = neuron_parameter.V_syntcx
+
+
+class V_syntcx_Calibrator(V_syntc_Calibrator):
+    target_parameter = neuron_parameter.V_syntcx
+
+
 class I_pl_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.I_pl
 

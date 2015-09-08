@@ -11,6 +11,7 @@ from pycake.helpers.units import linspace_voltage, linspace_current
 from pyhalbe.HICANN import neuron_parameter
 from pyhalbe.HICANN import shared_parameter
 
+extends = ['base_parameters.py']
 folder = "/tmp"
 
 parameters = {
@@ -35,6 +36,7 @@ parameters = {
         neuron_parameter.E_l.name,
         neuron_parameter.V_convoffx.name,
         neuron_parameter.V_convoffi.name,
+        neuron_parameter.V_syntcx.name,
     ],
 
     # readout shift: Set some realistic E_l value.
@@ -205,5 +207,3 @@ parameters = {
         shared_parameter.V_reset:    Volt(.2, apply_calibration=True),
     },
 }
-
-extends = ['base_parameters.py']

@@ -49,6 +49,7 @@ class BaseExperimentBuilder(object):
         self.neurons = self.config.get_neurons()
         self.blocks = self.config.get_blocks()
         self.test = test
+        self.calibration_status = {}
 
     def get_sthal(self, analog=Coordinate.AnalogOnHICANN(0)):
         """
@@ -59,7 +60,7 @@ class BaseExperimentBuilder(object):
         sim_denmem_cfg = self.config.get_sim_denmem()
         if sim_denmem_cfg:
             StHAL = SimStHALContainer
-        return StHAL(config=self.config)
+        return StHAL(config=self.config, coord_analog=analog)
 
     def generate_measurements(self):
         self.logger.INFO("Building experiment {}".format(self.config.get_target()))
@@ -374,7 +375,7 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
 
         configurator_args = {
             'parameters': [p for p in parameters
-                           if isinstance(p, neuron_parameter)]
+                           if isinstance(p, (neuron_parameter, shared_parameter))]
         }
 
         experiment = IncrementalExperiment(
@@ -383,7 +384,7 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
 
         if self.no_spikes > 1:
             experiment.initial_data['spike_interval'] = self.recording_time
-            sthal = self.get_sthal(Coordinate.AnalogOnHICANN(0))
+            sthal = self.get_sthal(Coordinate.AnalogOnHICANN(1))
             if sthal.is_hardware():
                 experiment.add_initial_measurement(
                     ADCFreq_Measurement(sthal, self.neurons, bg_rate=100e3),
