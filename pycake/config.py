@@ -300,4 +300,4 @@ class Config(object):
         return self.parameters.get('recording_time', default)
 
     def get_no_of_spikes(self, default):
-        return self.parameters.get('no_of_spikes')
+        return self.parameters.get('no_of_spikes', default)
