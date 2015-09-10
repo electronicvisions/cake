@@ -199,7 +199,7 @@ class CalibrationRunner(object):
         wafer, hicann = self.config.get_coordinates()
         name_details = "_".join([s for s in [
             self.config.get_folder_prefix(),
-            "f{}".format(self.config.get_PLL()/1e6),  # PLL in MHz
+            "f{}".format(int(self.config.get_PLL()/1e6)),  # PLL in MHz
             "w{}".format(wafer.value()),
             "h{}".format(hicann.id().value()),
             'bigcap' if config.get_bigcap() else 'smallcap',
