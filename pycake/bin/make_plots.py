@@ -20,6 +20,7 @@ matplotlib.use('Agg')
 
 from matplotlib import pyplot as plt
 import pycake
+import pycake.config
 from pycake.reader import Reader
 from pycake.helpers.peakdetect import peakdet
 import pycake.helpers.calibtic as calibtic
@@ -86,6 +87,9 @@ parser.add_argument("--spikes_testrunner", help="path to spikes test runner (if 
 
 parser.add_argument("--neuron_enum", help="neuron used for plots", default=0, type=int)
 
+parser.add_argument("--calib_params", help="calibration parameters file (to extract axis ranges)", default=None)
+parser.add_argument("--eval_params", help="evaluation parameters file (to extract axis ranges)", default=None)
+
 args = parser.parse_args()
 
 fig_dir = args.outdir
@@ -104,6 +108,21 @@ except Exception as e:
     logger.WARN("Cannot instantiate test reader because: {} in \"{}\"".format(e.message, args.testrunner))
     logger.WARN("Ok, if other runners are specified.")
     test_reader = None
+
+def extract_range(param_file, config_name, parameter):
+
+    if param_file == None or not os.path.isfile(param_file):
+        logger.ERROR("parameter file \"{}\" does not exist".format(param_file))
+        exit(1)
+
+    cfg = pycake.config.Config(config_name, param_file)
+    steps = [step[parameter].value for step in cfg.get_steps()]
+    xmin = min(steps) - 0.1
+    xmax = max(steps) + 0.1
+
+    print param_file, config_name, parameter, xmin, xmax
+
+    return xmin, xmax
 
 def uncalibrated_hist(xlabel, reader, **reader_kwargs):
 
@@ -352,12 +371,17 @@ try:
 
     if r_v_reset:
 
+        if args.calib_params:
+            xmin, xmax = extract_range(args.calib_params, "V_reset", pyhalbe.HICANN.shared_parameter.V_reset)
+        else:
+            xmin, xmax = 0.4, 0.8
+
         uncalibrated_hist("$V_{reset}$ [V]",
                           r_v_reset,
                           parameter="V_reset",
                           key="baseline",
                           bins=100,
-                          range=(0.4,0.8),
+                          range=(xmin, xmax),
                           show_legend=True)
 
         trace("$V_{mem}$ [mV]", r_v_reset, "V_reset", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=2000, suffix="_uncalibrated")
@@ -371,12 +395,17 @@ try:
 
     if r_test_v_reset:
 
+        if args.eval_params:
+            xmin, xmax = extract_range(args.eval_params, "V_reset", pyhalbe.HICANN.shared_parameter.V_reset)
+        else:
+            xmin, xmax = 0.4, 0.6
+
         calibrated_hist("$V_{reset}$ [V]",
                           r_test_v_reset,
                           parameter="V_reset",
                           key="baseline",
                           bins=100,
-                          range=(0.4,0.6),
+                          range=(xmin, xmax),
                           show_legend=True)
 
         trace("$V_{mem}$ [V]", r_test_v_reset, "V_reset", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_calibrated")
@@ -390,15 +419,20 @@ try:
 
     if r_e_synx:
 
+        if args.calib_params:
+            xmin, xmax = extract_range(args.calib_params, "E_synx", pyhalbe.HICANN.neuron_parameter.E_synx)
+        else:
+            xmin, xmax = 0.55, 0.95
+
         uncalibrated_hist("$E_{synx}$ [V]",
                           r_e_synx,
                           parameter="E_synx",
                           key="mean",
                           bins=100,
-                          range=(0.55,0.95),
+                          range=(xmin,xmax),
                           show_legend=True);
 
-        result("$E_{{synx}}$ {inout}", reader=r_e_synx, ylim=[0.5,1], parameter="E_synx",key="mean",alpha=0.05)
+        result("$E_{{synx}}$ {inout}", reader=r_e_synx, ylim=[xmin,xmax], parameter="E_synx",key="mean",alpha=0.05)
 
         trace("$V_{mem}$ [V]", r_e_synx, "E_synx", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_uncalibrated")
 except Exception as e:
@@ -409,15 +443,20 @@ try:
 
     if r_test_e_synx:
 
+        if args.eval_params:
+            xmin, xmax = extract_range(args.eval_params, "E_synx", pyhalbe.HICANN.neuron_parameter.E_synx)
+        else:
+            xmin, xmax = 0.55, 0.85
+
         calibrated_hist("$E_{synx}$ [V]",
                         r_test_e_synx,
                         parameter="E_synx",
                         key="mean",
                         bins=100,
-                        range=(0.55,0.85),
+                        range=(xmin, xmax),
                         show_legend=True);
 
-        result("$E_{{synx}}$ {inout}", reader=r_test_e_synx, suffix="_calibrated", xlim=[0.55/1.8*1023,0.85/1.8*1023], ylim=[0.55,0.85], parameter="E_synx",key="mean",alpha=0.05)
+        result("$E_{{synx}}$ {inout}", reader=r_test_e_synx, suffix="_calibrated", xlim=[xmin/1.8*1023,xmax/1.8*1023], ylim=[xmin,xmax], parameter="E_synx",key="mean",alpha=0.05)
 
         trace("$V_{mem}$ [V]", r_test_e_synx, "E_synx", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_calibrated")
 
@@ -434,15 +473,20 @@ try:
 
     if r_e_syni:
 
+        if args.calib_params:
+            xmin, xmax = extract_range(args.calib_params, "E_syni", pyhalbe.HICANN.neuron_parameter.E_syni)
+        else:
+            xmin, xmax = 0.4, 0.9
+
         uncalibrated_hist("$E_{syni}$ [V]",
                           r_e_syni,
                           parameter="E_syni",
                           key="mean",
                           bins=100,
-                          range=(0.4, 0.9),
+                          range=(xmin, xmax),
                           show_legend=True);
 
-        result("$E_{{syni}}$ {inout}", reader=r_e_syni, ylim=[0.4,0.9], parameter="E_syni",key="mean",alpha=0.05)
+        result("$E_{{syni}}$ {inout}", reader=r_e_syni, ylim=[xmin,xmax], parameter="E_syni",key="mean",alpha=0.05)
 
         trace("$V_{mem}$ [V]", r_e_syni, "E_syni", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_uncalibrated")
 except Exception as e:
@@ -453,15 +497,20 @@ try:
 
     if r_test_e_syni:
 
+        if args.eval_params:
+            xmin, xmax = extract_range(args.eval_params, "E_syni", pyhalbe.HICANN.neuron_parameter.E_syni)
+        else:
+            xmin, xmax = 0.55, 0.85
+
         calibrated_hist("$E_{syni}$ [V]",
                         r_test_e_syni,
                         parameter="E_syni",
                         key="mean",
                         bins=100,
-                        range=(0.55, 0.85),
+                        range=(xmin, xmax),
                         show_legend=True);
 
-        result("$E_{{syni}}$ {inout}", reader=r_test_e_syni, suffix="_calibrated", xlim=[0.55/1.8*1023,0.85/1.8*1023], ylim=[0.55,0.85], parameter="E_syni",key="mean",alpha=0.05)
+        result("$E_{{syni}}$ {inout}", reader=r_test_e_syni, suffix="_calibrated", xlim=[xmin/1.8*1023,xmax/1.8*1023], ylim=[xmin,xmax], parameter="E_syni",key="mean",alpha=0.05)
 
         trace("$V_{mem}$ [V]", r_test_e_syni, "E_syni", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_calibrated")
 except Exception as e:
@@ -474,15 +523,20 @@ try:
 
     if r_e_l:
 
+        if args.calib_params:
+            xmin, xmax = extract_range(args.calib_params, "E_l", pyhalbe.HICANN.neuron_parameter.E_l)
+        else:
+            xmin, xmax = 0.45, 0.9
+
         uncalibrated_hist("$E_{l}$ [V]",
                           r_e_l,
                           parameter="E_l",
                           key="mean",
                           bins=100,
-                          range=(0.45,0.9),
+                          range=(xmin,xmax),
                           show_legend=True)
 
-        result("$E_{{l}}$ {inout}", reader=r_e_l, ylim=[0.4,0.9], parameter="E_l",key="mean",alpha=0.05)
+        result("$E_{{l}}$ {inout}", reader=r_e_l, ylim=[xmin,xmax], parameter="E_l",key="mean",alpha=0.05)
 
         trace("$V_{mem}$ [V]", r_e_l, "E_l", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_uncalibrated")
 
@@ -534,15 +588,20 @@ try:
 
     if r_test_e_l:
 
+        if args.eval_params:
+            xmin, xmax = extract_range(args.eval_params, "E_l", pyhalbe.HICANN.neuron_parameter.E_l)
+        else:
+            xmin, xmax = 0.6, 0.8
+
         calibrated_hist("$E_{l}$ [V]",
                         r_test_e_l,
                         parameter="E_l",
                         key="mean",
                         show_legend=True,
                         bins=100,
-                        range=(0.6,0.8))
+                        range=(xmin,xmax))
 
-        result("$E_{{l}}$ {inout}", reader=r_test_e_l, suffix="_calibrated", xlim=[0.6/1.8*1023,0.8/1.8*1023], ylim=[0.6,0.8], parameter="E_l",key="mean",alpha=0.05)
+        result("$E_{{l}}$ {inout}", reader=r_test_e_l, suffix="_calibrated", xlim=[xmin/1.8*1023,xmax/1.8*1023], ylim=[xmin,xmax], parameter="E_l",key="mean",alpha=0.05)
 
         trace("$V_{mem}$ [V]", r_test_e_l, "E_l", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_calibrated")
 except Exception as e:
@@ -555,15 +614,20 @@ try:
 
     if r_v_t:
 
+        if args.calib_params:
+            xmin, xmax = extract_range(args.calib_params, "V_t", pyhalbe.HICANN.neuron_parameter.V_t)
+        else:
+            xmin, xmax = 0.5, 1
+
         uncalibrated_hist("$V_{t}$ [V]",
                           r_v_t,
                           parameter="V_t",
                           key="max",
                           bins=100,
-                          range=(0.5,1),
+                          range=(xmin,xmax),
                           show_legend=True)
 
-        result("$V_{{t}}$ {inout}", reader=r_v_t, ylim=[0.5,1], parameter="V_t",key="max",alpha=0.05)
+        result("$V_{{t}}$ {inout}", reader=r_v_t, ylim=[xmin,xmax], parameter="V_t",key="max",alpha=0.05)
 
         trace("$V_{mem}$ [V]", r_v_t, "V_t", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_uncalibrated")
 except Exception as e:
@@ -574,12 +638,17 @@ try:
 
     if  r_test_v_t:
 
+        if args.eval_params:
+            xmin, xmax = extract_range(args.eval_params, "V_t", pyhalbe.HICANN.neuron_parameter.V_t)
+        else:
+            xmin, xmax = 0.65, 0.85
+
         calibrated_hist("$V_{t}$ [V]",
                         r_test_v_t,
                         parameter="V_t",
                         key="max",
                         bins=100,
-                        range=(0.65,0.85),
+                        range=(xmin,xmax),
                         show_legend=True)
 
         #for k,v in r_test_v_t.get_results("V_t", range(512), "max").iteritems():
@@ -593,7 +662,7 @@ try:
         #            print 0.8, k.id(), v[2]
         #            print
 
-        result("$V_{{t}}$ {inout}", reader=r_test_v_t, suffix="_calibrated", xlim=[0.65/1.8*1023,0.85/1.8*1023], ylim=[0.65,0.85], parameter="V_t",key="max",alpha=0.05)
+        result("$V_{{t}}$ {inout}", reader=r_test_v_t, suffix="_calibrated", xlim=[xmin/1.8*1023,xmax/1.8*1023], ylim=[xmin,xmax], parameter="V_t",key="max",alpha=0.05)
 
         trace("$V_{mem}$ [V]", r_test_v_t, parameter="V_t", neuron=C.NeuronOnHICANN(C.Enum(args.neuron_enum)), start=500, end=700, suffix="_calibrated")
 
