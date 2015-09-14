@@ -1021,7 +1021,8 @@ if  r_test_tau_ref:
     #trace("$V_{mem}$ [V]", r_test_tau_ref, parameter="tau_ref", neuron=C.NeuronOnHICANN(C.Enum(args.neuron_enum)), start=500, end=700, suffix="_calibrated")
 """
 
-shutil.copy("overview.html", fig_dir)
+cakebin = os.path.split(os.path.abspath(__file__))[0]
+shutil.copy(os.path.join(cakebin, "overview.html"), fig_dir)
 
 exit(0)
 
