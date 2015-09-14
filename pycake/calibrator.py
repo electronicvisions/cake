@@ -14,7 +14,7 @@ import Coordinate
 import pycalibtic
 from pycake.helpers.calibtic import create_pycalibtic_transformation
 from pycalibtic import Constant
-from lmfit import Parameters, minimize, fit_report
+from lmfit import Parameters, minimize, fit_report, models
 from pycake.helpers.units import Volt
 
 def is_defect_potential(slope, offset, slope_from_one=1, offset_cut=1000):
@@ -570,8 +570,7 @@ class V_syntc_Calibrator(BaseCalibrator):
     def get_data(self):
         data = self.experiment.get_all_data(
             (neuron_parameter.V_syntcx, ),
-            ('v', 'tau_1', 'tau_2', 'start', 'offset', 'chi2'),
-            numeric_index=True)
+            ('v', 'tau_1', 'tau_2', 'start', 'offset', 'chi2'))
         self.sort_tau(data)
         return data
 
@@ -589,7 +588,7 @@ class V_syntc_Calibrator(BaseCalibrator):
         if len(x.values) < 7:
             return None
 
-        model, result = fit_model(x, y - y0)
+        model, result = self.fit_model(x, y - y0)
 
         x0, x1 = vsyntc[[0, -1]]
         xi = numpy.arange(int(x0), int(x1) + 1)
@@ -609,7 +608,7 @@ class V_syntc_Calibrator(BaseCalibrator):
 
     def make_trafo(self, fit_result):
         if fit_result:
-            res, xi, yi = result
+            res, xi, yi = fit_result
             if res < self.residual_tol:
                 try:
                     return pycalibtic.Lookup(yi, xi[0])
