@@ -726,7 +726,7 @@ class StHALContainer(object):
         """
         assert(no_generators >= 0 and no_generators <= 4)
         assert(rate <= 5.0e6)
-        assert(2 <= gmax_div <= 30)
+        assert(1 <= gmax_div <= 30)
         assert(0 <= weight <= 15)
         assert(0 <= gmax <= 3)
 
@@ -862,7 +862,7 @@ class StHALContainer(object):
             gmax: gmax fg value to use, default 0
         """
         assert(0 <= gmax <= 3)
-        assert(2 <= gmax_div <= 30)
+        assert(1 <= gmax_div <= 30)
 
         from Coordinate import left, right, top, bottom
 
@@ -875,8 +875,8 @@ class StHALContainer(object):
         # There are to parallel circuits for the divisor in the synapse
         # driver (left, right), the sum of both divisor values gives the
         # actual divisor value applied to vgmax
-        driver[top].set_gmax_div(left, gmax_div / 2)
-        driver[top].set_gmax_div(right, gmax_div / 2 + gmax_div % 2)
+        driver[top].set_gmax_div(left, min(gmax_div, 15))
+        driver[top].set_gmax_div(right, max(gmax_div - 15, 0))
 
         # copy config above
         driver[bottom] = driver[top]
