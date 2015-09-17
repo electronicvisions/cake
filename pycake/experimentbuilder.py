@@ -334,9 +334,8 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
     def __init__(self, *args, **kwargs):
         super(V_convoff_Experimentbuilder, self).__init__(*args, **kwargs)
         self.init_time = 400.0e-6
-        # self.recording_time = 1e-4
-        self.recording_time = 80.0e-6
-        self.no_spikes = 100 if self.WITH_SPIKES else 1
+        self.recording_time = self.config.get_recording_time(default=60.0e-6)
+        self.no_spikes = 1 if not self.WITH_SPIKES else self.config.get_no_of_spikes(default=100)
 
     def prepare_specific_config(self, sthal, parameters):
         sthal.simulation_init_time = self.init_time
@@ -384,7 +383,7 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
 
         if self.no_spikes > 1:
             experiment.initial_data['spike_interval'] = self.recording_time
-            sthal = self.get_sthal(Coordinate.AnalogOnHICANN(1))
+            sthal = self.get_sthal(Coordinate.AnalogOnHICANN(0))
             if sthal.is_hardware():
                 experiment.add_initial_measurement(
                     ADCFreq_Measurement(sthal, self.neurons, bg_rate=100e3),
