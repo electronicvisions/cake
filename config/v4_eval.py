@@ -59,6 +59,7 @@ parameters = {
         neuron_parameter.V_t.name,
         neuron_parameter.E_syni.name,
         neuron_parameter.E_synx.name,
+        neuron_parameter.E_l,
         "V_convoff_test",
     ],
 }

@@ -136,7 +136,7 @@ class CalibrationUnit(object):
         """
         for parameter, data in transformations:
             total = len(data)
-            good = len([d for d in data if d is not None])
+            good = len([d for d in data.itervalues() if d is not None])
             progress.info(
                 "Write calibration data for {}: {} of {} are good.".format(
                     parameter, good, total))

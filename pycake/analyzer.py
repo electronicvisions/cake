@@ -615,11 +615,6 @@ class SimplePSPAnalyzer(Analyzer):
 
 class PSPAnalyzer(Analyzer):
     """Fit a PSP"""
-
-    def __init__(self):
-        Analyzer.__init__(self)
-        self.shape = DoubleExponentialPSP()
-
     def __call__(self, neuron, trace, additional_data, **other):
         t = trace.index.values
         v = trace["v"].values
