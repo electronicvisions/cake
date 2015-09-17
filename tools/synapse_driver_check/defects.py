@@ -18,6 +18,9 @@ import pysthal
 import Coordinate
 from Coordinate import Enum, NeuronOnHICANN
 from pyhalbe.HICANN import neuron_parameter
+from pyhalbe.HICANN import shared_parameter
+from pycake.helpers.units import Volt
+from pycake.helpers.sthal import UpdateParameterDownAndConfigure
 
 import pylogging
 pylogging.default_config(date_format='absolute')
@@ -27,19 +30,14 @@ pylogging.set_loglevel(pylogging.get("sthal.HICANNConfigurator.Time"), pylogging
 pylogging.set_loglevel(pylogging.get("Default"), pylogging.LogLevel.INFO)
 
 import shallow
-
 from pycake.helpers.misc import mkdir_p
-
 import glob
-
 import random
-
 import argparse
-
 import ana_defects
-
 import resource
 import shutil
+from pprint import pprint
 
 def get_neurons(driver):
 
@@ -379,8 +377,8 @@ if __name__ == "__main__":
     parser.add_argument('--ana', action="store_true", default=False,
         help="run ana_defects.py on the fly, to categorize correct/incorrect spiketimes")
     parser.add_argument('--drivers', type=int, nargs="+", default=range(224))
-    parser.add_argument('--V_ccas', type=int, default=600)
-    parser.add_argument('--V_dllres', type=int, default=1023)
+    parser.add_argument('--V_ccas', type=int, default=-1)
+    parser.add_argument('--V_dllres', type=int, default=-1)
     parser.add_argument('--nooutput', action="store_true", default=False)
     parser.add_argument('--ninputspikes', type=int, default=200)
     parser.add_argument('--inputspikeisi', type=float, default=0.1e-6)
@@ -432,6 +430,10 @@ if __name__ == "__main__":
             pparams = cPickle.load(infile)
         base_parameters = pparams['base_parameters']
         #FIXME VDLL and VCCAS are missing
+        if args.V_ccas >= 0:
+            base_parameters[shared_parameter.V_ccas] = DAC(args.V_ccas)
+        if args.V_dllres >= 0:
+            base_parameters[shared_parameter.V_dllres] = DAC(args.V_dllres)
         params.base_parameters.update(base_parameters)
         # params.base_parameters[neuron_parameter.V_t] = Volt(0.7, apply_calibration=True)
         params.synapse_driver.gmax_div = DAC(base_parameters['gmax_div'])
@@ -450,8 +452,10 @@ if __name__ == "__main__":
         params.base_parameters.V_syntci = DAC(800)
         params.base_parameters.I_gl = DAC(0)
         params.base_parameters.V_reset = Volt(0.5)
-        params.base_parameters.V_ccas = DAC(args.V_ccas)
-        params.base_parameters.V_dllres = DAC(args.V_dllres)
+        if args.V_ccas >= 0:
+            params.base_parameters.V_ccas = DAC(args.V_ccas)
+        if args.V_dllres >=0:
+            params.base_parameters.V_dllres = DAC(args.V_dllres)
 
     random.seed(4)  # chosen by fair dice roll.
 
@@ -533,6 +537,7 @@ if __name__ == "__main__":
 
     if not args.nooutput:
         reader.write(blk)
+        print "To analyze results call: ./ana_defects.py", fname
 
     if not args.nooutput:
         with open(FINISHED_TAG, 'w'):
