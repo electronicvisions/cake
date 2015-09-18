@@ -291,14 +291,14 @@ class CalibrationRunner(object):
         self.logger.INFO("Start calibration")
         self._run_measurements()
 
-    def continue_calibration(self):
+    def continue_calibration(self, only_with_name):
         """resumes an calibration run
 
         This method will first complete unfinished measurements.
         Afterwards the calibrator will be run. This can overwrite the results
         loaded from an previous run."""
         self.logger.INFO("Continue calibration")
-        self._run_measurements()
+        self._run_measurements(only_with_name)
 
     def finalize(self):
         """to be called after calibration is finished
@@ -335,14 +335,18 @@ class CalibrationRunner(object):
 
                 raise RuntimeError("parameter {} neither shared nor of type neuron".format(parameter))
 
-    def _run_measurements(self):
-        """execute the measurement loop"""
+    def _run_measurements(self, only_with_name=None):
+        """execute the measurement loop
+        Parameters:
+            only_with_name: [list] runs only the calibration with a given name
+        """
         for ii, name in enumerate(self.to_run):
-            measurement = self.create_or_load_unit(ii)
-            measurement.run()
-            calibtic = self.load_calibtic()
-            redman = self.load_redman()
-            measurement.generate_calibration_data(calibtic, redman)
+            if only_with_name is None or name in only_with_name:
+                measurement = self.create_or_load_unit(ii)
+                measurement.run()
+                calibtic = self.load_calibtic()
+                redman = self.load_redman()
+                measurement.generate_calibration_data(calibtic, redman)
 
     def get_unit_folder(self, ii):
         return os.path.join(self.storage_folder, str(ii))

@@ -25,7 +25,9 @@ init_logger(pylogging.LogLevel.WARN, [
     ("pycake.helper.simsthal", pylogging.LogLevel.INFO),
     ("sthal", pylogging.LogLevel.INFO),
     ("sthal.AnalogRecorder", pylogging.LogLevel.WARN),
-    ("sthal.HICANNConfigurator.Time", pylogging.LogLevel.INFO)
+    ("sthal.HICANNConfigurator.Time", pylogging.LogLevel.INFO),
+    ("progress", pylogging.LogLevel.DEBUG),
+    ("progress.sthal", pylogging.LogLevel.INFO),
     ])
 
 parser = argparse.ArgumentParser(
@@ -33,6 +35,8 @@ parser = argparse.ArgumentParser(
 add_logger_options(parser)
 parser.add_argument('runner', type=folder,
         help='Pickled experiment to rerun')
+parser.add_argument('--parameter', type=str, default=None, action='append',
+                    help='Resumes only the specified calibrations')
 args = parser.parse_args()
 
 if args.logfile is not None:
@@ -41,5 +45,5 @@ if args.logfile is not None:
     progress.warn("Write logs to {}".format(args.logfile))
 
 runner = CalibrationRunner.load(args.runner)
-runner.continue_calibration()
+runner.continue_calibration(args.parameter)
 runner.finalize()
