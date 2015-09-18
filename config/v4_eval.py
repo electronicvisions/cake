@@ -13,6 +13,7 @@ parameters = {
     # Run in measurement mode
     "calibrate":    False,
     "measure":      True,
+    "clear_defects" : False,
 
     "V_reset_range":  [{
         shared_parameter.V_reset : Volt(v, apply_calibration=True),
