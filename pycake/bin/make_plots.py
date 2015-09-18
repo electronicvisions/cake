@@ -34,6 +34,8 @@ from collections import defaultdict
 import argparse
 from pycake.helpers.misc import mkdir_p
 import shutil
+import traceback
+from contextlib import contextmanager
 
 import pylogging
 pylogging.reset()
@@ -110,13 +112,27 @@ def extract_range(reader, config_name, parameter, safety_min=0.1, safety_max=0.1
     """
     extract the range for the plots from the steps of the calibration/evaluation
     """
-
     cfg = reader.runner.config.copy(config_name)
     steps = [step[parameter].value for step in cfg.get_steps()]
     xmin = min(steps) - safety_min
     xmax = max(steps) + safety_max
 
     return xmin, xmax
+
+@contextmanager
+def LogError(msg):
+    """
+    Use:
+        with LogError("Oh no something terrible happend"):
+            feae.aeaf = 132
+    to catch all exceptions and log them
+    """
+    try:
+        yield
+    except Exception as e:
+        logger.ERROR(msg + str(e))
+        logger.WARN('\n' + traceback.format_exc())
+
 
 def uncalibrated_hist(xlabel, reader, **reader_kwargs):
 
@@ -330,6 +346,72 @@ def result(label, xlabel=None, ylabel=None, reader=None, suffix="", xlim=None, y
                                                    defects_string,
                                                    "result"+suffix+".png"])))
 
+
+
+def plot_v_convoff(reader):
+    if not reader:
+        return
+
+    from pyhalbe.HICANN import neuron_parameter
+
+    with LogError("problem with uncalibrated V_convoff_test plots"):
+        experiment = reader.runner.get_single(name="V_convoff_test").experiment
+        data = experiment.get_all_data(
+            (neuron_parameter.I_gl, neuron_parameter.V_convoffi,
+             neuron_parameter.V_convoffx), ('mean',))
+        plt_name = "V_convoff{}_{}_calibrated.{}"
+        for include_defects in [True, False]:
+            reader.include_defects = include_defects
+            nrns = reader.get_neurons() # TODO ???
+            defects_name = "with_defects" if include_defects else "without_defects"
+
+            fig = plt.figure()
+            for nrn, nrndata in data.loc[nrns].groupby(level='neuron'):
+                mean = nrndata.groupby('I_gl').mean()
+                std = nrndata.groupby('I_gl').std()
+                #ax.errorbar(mean.index, mean.values, yerr=std.values, alpha=0.3, color='k')
+                plt.plot(nrndata['I_gl'], nrndata['mean'], 'x', alpha=0.1, color='k')
+            for I_gl, tmpdata in data.loc[nrns].groupby('I_gl'):
+                mean = tmpdata['mean'].mean()
+                std = tmpdata['mean'].std()
+                plt.text(I_gl, 0.6,
+                         r"$\sigma = {:.0f}mV$".format(std * 1000),
+                         rotation='vertical')
+
+            title = "$E_l$ variation after offset calibration"
+            if not include_defects:
+                title += " (without {} defect neurons)".format(512 - len(nrns))
+            plt.title(title)
+            plt.xlabel("$I_{gl} [DAC]$")
+            plt.ylabel("effective resting potential [V]")
+            plt.subplots_adjust(**margins)
+            plt.grid(True)
+            plt.savefig(os.path.join(fig_dir, plt_name.format('', defects_name, 'png')))
+            plt.savefig(os.path.join(fig_dir, plt_name.format('', defects_name, 'pdf')))
+
+            hist_data = data.loc[nrns].xs(0, level='step')
+
+            args = {"bins": np.linspace(0, 1023, 100)}
+
+            fig = plt.figure()
+            plt.hist(data['V_convoffi'].values, **args)
+            plt.xlabel("choosen $V_{convoffi}$ [DAC]")
+            plt.ylabel("effective resting potential [V]")
+            plt.subplots_adjust(**margins)
+            plt.grid(True)
+            plt.savefig(os.path.join(fig_dir, plt_name.format('i', defects_name, 'png')))
+            plt.savefig(os.path.join(fig_dir, plt_name.format('i', defects_name, 'pdf')))
+
+            fig = plt.figure()
+            plt.hist(data['V_convoffx'].values, **args)
+            plt.xlabel("choosen $V_{convoffx}$ [DAC]")
+            plt.ylabel("effective resting potential [V]")
+            plt.subplots_adjust(**margins)
+            plt.grid(True)
+            plt.savefig(os.path.join(fig_dir, plt_name.format('i', defects_name, 'png')))
+            plt.savefig(os.path.join(fig_dir, plt_name.format('i', defects_name, 'pdf')))
+
+
 if args.backenddir:
 
     # offset
@@ -358,6 +440,8 @@ if args.backenddir:
     plt.subplots_adjust(**margins)
     plt.savefig(os.path.join(fig_dir,"analog_readout_offset.pdf"))
     plt.savefig(os.path.join(fig_dir,"analog_readout_offset.png"))
+
+plot_v_convoff(test_reader)
 
 ## V reset
 try:
