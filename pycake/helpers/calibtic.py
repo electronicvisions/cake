@@ -4,6 +4,7 @@ import pylogging
 import os
 import getpass
 import copy
+import time
 
 import Coordinate
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
@@ -86,7 +87,7 @@ class Calibtic(object):
         if os.path.isfile(fullpath):
             msg = "Clearing calibration data by removing file {}"
             self.logger.INFO(msg.format(fullpath))
-            os.remove(fullpath)
+            os.rename(fullpath, fullpath + time.strftime('.%y%m%d_%H%M%S.bak'))
 
     def clear_one_calibration(self, parameter):
         """ Only clears the calibration for one parameter.

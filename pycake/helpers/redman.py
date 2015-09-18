@@ -1,4 +1,6 @@
 import os
+import time
+import shutil
 import pyredman
 import Coordinate
 import pylogging
@@ -53,6 +55,10 @@ class Redman(object):
 
         self.hicann_with_backend.neurons().enable_all()
 
+        fullpath = os.path.join(
+            self.path, self.hicann_with_backend.id_for_backend() + ".xml")
+        if os.path.isfile(fullpath):
+            shutil.copyfile(fullpath, fullpath + time.strftime('.%y%m%d_%H%M%S.bak'))
         self.hicann_with_backend.save()
 
     def _load_defects(self):
