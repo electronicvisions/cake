@@ -407,8 +407,8 @@ class ISI_Analyzer(Analyzer):
     """
 
     def __call__(self, neuron, trace, **others):
-        t = traces.index.values
-        v = traces['v'].values
+        t = trace.index.values
+        v = trace['v'].values
         delta = np.std(v)
         maxtab, mintab = peakdet(v, delta)
 
@@ -501,7 +501,7 @@ class I_pl_Analyzer(ISI_Analyzer):
     Please note that mean_reset_time only gives valid results if refractory period is very small
     """
 
-    def __call__(self, neuron, trace, **other):
+    def __call__(self, neuron, trace, additional_data, **other):
         t = trace.index.values
         v = trace["v"].values
         delta = np.std(v)
@@ -520,15 +520,18 @@ class I_pl_Analyzer(ISI_Analyzer):
         l = len(mintab)
         mean_reset_time = abs(np.mean(mintab[:, 0][:l] - maxtab[:, 0][:l]) * dt)
 
-        result = {"mean_isi": mean_isi,
-                  "std_isi": std_isi,
-                  "amplitude": amplitude,
-                  "mean_reset_time": mean_reset_time
-                  }
+        result = {
+            "mean_isi": mean_isi,
+            "std_isi": std_isi,
+            "amplitude": amplitude,
+            "mean_reset_time": mean_reset_time
+        }
 
-        result['tau_ref'] = self.calculate_tau_ref(result, traces['mean_isi'],
-                                                   traces['mean_reset_time'],
-                                                   traces['amplitude'])
+        result['tau_ref'] = self.calculate_tau_ref(
+            result,
+            additional_data[neuron]['mean_isi'],
+            additional_data[neuron]['mean_reset_time'],
+            additional_data[neuron]['amplitude'])
         return result
 
     def calculate_tau_ref(self, result, ISI0, tau0, amp0):

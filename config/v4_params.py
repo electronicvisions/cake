@@ -33,10 +33,13 @@ parameters = {
         neuron_parameter.V_t.name,
         neuron_parameter.E_syni.name,
         neuron_parameter.E_synx.name,
+        neuron_parameter.I_pl,
         neuron_parameter.E_l.name,
         neuron_parameter.V_convoffx.name,
         neuron_parameter.V_convoffi.name,
+        neuron_parameter.I_gl,
         neuron_parameter.V_syntcx.name,
+        neuron_parameter.V_syntci.name,
     ],
 
     # readout shift: Set some realistic E_l value.
@@ -165,11 +168,31 @@ parameters = {
         shared_parameter.V_reset:  Volt(0.3, apply_calibration=True),
     },
 
+    # V_syntci
+    "V_syntci_range": [
+        {
+            neuron_parameter.V_syntci: Volt(v),
+        } for v in numpy.linspace(0.4, 1.8, 16)
+    ],
+
+    "V_syntci_parameters": {
+        neuron_parameter.E_l : Volt(0.8, apply_calibration=True),
+        neuron_parameter.E_syni : Volt(0.6, apply_calibration=True),
+        neuron_parameter.E_synx : Volt(1.3),
+        neuron_parameter.I_gl: Ampere(0.3e-6),
+        neuron_parameter.V_convoffi : Volt(1.8, apply_calibration=True),
+        neuron_parameter.V_convoffx : Volt(1.8, apply_calibration=True),
+        neuron_parameter.V_t: Volt(1.2, apply_calibration=True),
+        shared_parameter.V_gmax0: Volt(0.05),
+        shared_parameter.V_reset: Volt(0.3, apply_calibration=True),
+        "gmax_div": 30,
+    },
+
     # V_syntcx
     "V_syntcx_range": [
         {
             neuron_parameter.V_syntcx: Volt(v),
-        } for v in numpy.linspace(0.3, 1.8, 16)
+        } for v in numpy.linspace(0.4, 1.8, 16)
     ],
 
     "V_syntcx_parameters": {
@@ -191,6 +214,14 @@ parameters = {
             neuron_parameter.I_pl : Ampere(1e-9*I)
         } for I in [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 2500]
     ],
+
+    "I_pl_parameters": {
+        neuron_parameter.E_l: Volt(1.2),
+        neuron_parameter.V_t:        Volt(0.8),
+        neuron_parameter.E_syni:     Volt(0.8, apply_calibration=True),
+        neuron_parameter.E_synx:     Volt(1.2),
+        shared_parameter.V_reset:    Volt(0.5, apply_calibration=True),
+    },
 
     # I_gl
     "I_gl_range": [
