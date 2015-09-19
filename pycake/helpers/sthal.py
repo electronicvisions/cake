@@ -30,6 +30,7 @@ from collections import defaultdict
 from sims.sim_denmem_lib import NETS_AND_PINS
 from sims.sim_denmem_lib import TBParameters
 from sims.sim_denmem_lib import run_remote_simulation
+from pysthal import HICANNv4Configurator as HICANNConfigurator
 
 
 def get_row_names(block, row):
@@ -44,190 +45,23 @@ def get_row_names(block, row):
     return (shared, neuron, int(row))
 
 
-class HICANNConfigurator(pysthal.HICANNConfigurator):
-    """
-    New HICANN configurator, could do stuff better or worse...
-    """
-
-    FG_SHAPE = (FGCellOnFGBlock.y_type.size, FGCellOnFGBlock.x_type.size)
-    ALL_ROWS = tuple(row for row in iter_all(FGRowOnFGBlock))
-    V_ROWS = [[row]*4 for row in ALL_ROWS[::2]]
-    C_ROWS = [[row]*4 for row in ALL_ROWS[1::2]]
-    CURRENT_PARAMETERS = [
-        p for n, p in pyhalbe.HICANN.neuron_parameter.names.iteritems()
-        if n[0] == 'I']
-
-    def __init__(self, readout_block=None):
-        pysthal.HICANNConfigurator.__init__(self)
-        self.readout = None
-        self.readout_block = readout_block
-        self.readout_values = []
-        if readout_block is not None:
-            self.readout = pysthal.ReadFloatingGates(
-                do_reset=False, do_read_default=False)
-            for cell in iter_all(FGCellOnFGBlock):
-                self.readout.setReadCell(readout_block, cell, True)
-
-    def config(self, fpga_handle, handle, hicann):
-        # store the handle for readout, a bit hacky ...
-        self.fpga_handle = fpga_handle
-        pysthal.HICANNConfigurator.config(self, fpga_handle, handle, hicann)
-        del self.fpga_handle
-
-    def hicann_init(self, h):
-        HICANN.init(h, False)
-
-    def config_floating_gates(self, handle, hicann):
-        self.getLogger().debug("Configure floating gates.")
-        t0 = time.time()
-        fpga_handle = self.fpga_handle
-        low, high = self.get_current_rows(hicann)
-        self.zero_fg(handle, hicann)
-        self.programm_normal(handle, hicann, self.V_ROWS + low)
-        self.programm_high(handle, hicann, high)
-        self.getTimeLogger().debug(
-            "configure floating gates took {:.0f}ms".format(
-                (time.time() - t0)*1000.0))
-
-    @staticmethod
-    def make_df(data, block):
-        assert data.shape == FG_SHAPE
-        index = pandas.MultiIndex.from_tuples(
-                [get_row_names(block, row) for row in iter_all(FGRowOnFGBlock)],
-                names=['shared', 'neuron', 'row'])
-        return pandas.DataFrame(data, index=index)
-
-    def fgblock_to_array(self, hicann):
-        fgblock = hicann.floating_gates[self.readout_block]
-        values = numpy.empty(self.FG_SHAPE, dtype=numpy.int16)
-        for cell in iter_all(FGCellOnFGBlock):
-            values[cell.y()][cell.x()] = fgblock.getRaw(cell)
-        return values
-
-    def read_fg(self, fpga_handle, handle, hicann, values):
-        assert values.shape == self.FG_SHAPE
-        block = self.readout_block
-        values = values.astype(numpy.int16, copy=False)
-
-        if self.readout is None:
-            return
-
-        self.readout.config(fpga_handle, handle, hicann)
-        tmp = numpy.empty(FG_SHAPE)
-        for cell in iter_all(FGCellOnFGBlock):
-            tmp[cell.y()][cell.x()] = self.readout.getMean(block, cell)
-        result = make_df(tmp, block), self.make_df(values, block)
-        self.readout_values.append(result)
-
-    def get_current_rows(self, hicann):
-        low = []
-        high = []
-        fgc = hicann.floating_gates
-        for param in self.CURRENT_PARAMETERS:
-            is_high = True
-            for block in iter_all(FGBlockOnHICANN):
-                row= fgc[block].getFGRow(HICANN.getNeuronRow(block, param))
-                data = numpy.array(
-                    [row.getShared()] +
-                    [row.getNeuron(nrn) for nrn in iter_all(NeuronOnFGBlock)])
-                if numpy.any(data[1:] < 800):
-                    is_high = False
-            if is_high:
-                high.append(param)
-            else:
-                low.append(param)
-        low = [tuple(HICANN.getNeuronRow(b, p) for b in iter_all(FGBlockOnHICANN))
-               for p in low]
-        high = [tuple(HICANN.getNeuronRow(b, p) for b in iter_all(FGBlockOnHICANN))
-                for p in high]
-        return low, high
-
-    def zero_fg(self, handle, hicann):
-        """
-        Writes floating gates fast to zero values
-
-        First current cells than voltage cells.
-        """
-        t0 = time.time()
-        fgconfig = hicann.floating_gates.getFGConfig(Enum(0))
-        fgconfig.voltagewritetime = 63
-        fgconfig.currentwritetime = 63
-        fgconfig.maxcycle = 15
-        fgconfig.pulselength = 15
-        fgconfig.readtime = 30
-        fgconfig.acceleratorstep = 2
-        fgconfig.writeDown = fgconfig.WRITE_DOWN
-
-        for block in iter_all(FGBlockOnHICANN):
-            pyhalbe.HICANN.set_fg_config(handle, block, fgconfig)
-
-        writeDown = fgconfig.WRITE_DOWN
-        row_data = [pyhalbe.HICANN.FGRow()] * 4
-        for row in self.C_ROWS + self.V_ROWS:
-            pyhalbe.HICANN.set_fg_row_values(handle, row, row_data, writeDown)
-        self.getTimeLogger().debug(
-            "zeroing floating gates took {:.0f}ms".format(
-                (time.time() - t0)*1000.0))
-
-    def programm_high(self, handle, hicann, rows):
-        # Zero fgs
-        fgconfig = hicann.floating_gates.getFGConfig(Enum(0))
-        fgconfig.voltagewritetime = 63
-        fgconfig.currentwritetime = 63
-        fgconfig.maxcycle = 31
-        fgconfig.pulselength = 15
-        fgconfig.readtime = 30
-        fgconfig.acceleratorstep = 2
-        fgconfig.writeDown = fgconfig.WRITE_UP
-        for block in iter_all(FGBlockOnHICANN):
-            pyhalbe.HICANN.set_fg_config(handle, block, fgconfig)
-
-        fgc = hicann.floating_gates
-        for row in rows:
-            data = [fgc[blk].getFGRow(row[int(blk.id())])
-                    for blk in iter_all(FGBlockOnHICANN)]
-            pyhalbe.HICANN.set_fg_row_values(
-                handle, row, data, fgconfig.writeDown)
-
-    def programm_normal(self, handle, hicann, rows, writeDown=None):
-        fgc = hicann.floating_gates
-        t0 = time.time()
-        for step in (1, 2):
-            fgconfig = hicann.floating_gates.getFGConfig(Enum(step))
-
-            for block in iter_all(FGBlockOnHICANN):
-                pyhalbe.HICANN.set_fg_config(handle, block, fgconfig)
-
-            for row in rows:
-                if writeDown is None:
-                    writeDown = fgconfig.writeDown
-                data = [fgc[blk].getFGRow(row[int(blk.id())])
-                        for blk in iter_all(FGBlockOnHICANN)]
-                t0 = time.time()
-                pyhalbe.HICANN.set_fg_row_values(
-                    handle, row, data, writeDown)
-                self.getTimeLogger().debug(
-                    "update rows {} took {:.0f}ms".format(
-                        ", ".join(str(int(r)) for r in row),
-                        (time.time() - t0)*1000.0))
-
-
 class UpdateParameterUp(HICANNConfigurator):
     """
     New HICANN configurator, could do stuff better or worse...
 
     Warning: It is assumend that the paramter is growing!
     """
-    def __init__(self, parameters, readout_block=None):
-        HICANNConfigurator.__init__(self, readout_block)
+    def __init__(self, parameters):
+        HICANNConfigurator.__init__(self)
         self.rows = [
-            tuple(HICANN.getNeuronRow(b, p)
-                  for b in iter_all(FGBlockOnHICANN))
-            for p in parameters if isinstance(p, neuron_parameter)]
+            pyhalbe.HICANN.FGRowOnFGBlock4([
+                HICANN.getNeuronRow(b, p) for b in iter_all(FGBlockOnHICANN)])
+                    for p in parameters if isinstance(p, neuron_parameter)]
         self.rows += [
-            tuple(HICANN.getSharedRow(b, p)
-                  for b in iter_all(FGBlockOnHICANN))
-            for p in parameters if isinstance(p, shared_parameter)]
+            pyhalbe.HICANN.FGRowOnFGBlock4([
+                HICANN.getSharedRow(b, p) for b in iter_all(FGBlockOnHICANN)])
+                    for p in parameters if isinstance(p, shared_parameter)]
+        self.rows = self.row_list_t(self.rows)
 
     def config_fpga(self, fpga_handle, fpga):
         pass
@@ -235,27 +69,6 @@ class UpdateParameterUp(HICANNConfigurator):
     def config(self, fpga_handle, handle, hicann):
         for rows in self.rows:
             self.programm_normal(handle, hicann, self.rows)
-
-
-class UpdateParameterDown(HICANNConfigurator):
-    """
-    New HICANN configurator, could do stuff better or worse...
-
-    Warning: It is assumend that the paramter is falling!
-    """
-    def __init__(self, parameters, readout_block=None):
-        HICANNConfigurator.__init__(self, readout_block)
-        self.rows = [
-            tuple(HICANN.getNeuronRow(b, parameter)
-                  for b in iter_all(FGBlockOnHICANN))
-            for parameter in parameters]
-
-    def config_fpga(self, fpga_handle, fpga):
-        pass
-
-    def config(self, fpga_handle, handle, hicann):
-        for rows in self.rows:
-            self.programm_normal(handle, hicann, self.rows, writeDown=True)
 
 
 class UpdateParameterUpAndConfigure(UpdateParameterUp):
@@ -263,27 +76,6 @@ class UpdateParameterUpAndConfigure(UpdateParameterUp):
 
         for rows in self.rows:
             self.programm_normal(handle, hicann, self.rows)
-
-        self.config_neuron_quads(handle, hicann)
-        self.config_phase(handle, hicann)
-        self.config_gbitlink(handle, hicann)
-        self.config_synapse_array(handle, hicann)
-        self.config_synapse_drivers(handle, hicann)
-        self.config_synapse_switch(handle, hicann)
-        self.config_crossbar_switches(handle, hicann)
-        self.config_repeater(handle, hicann)
-        self.config_merger_tree(handle, hicann)
-        self.config_dncmerger(handle, hicann)
-        self.config_background_generators(handle, hicann)
-        self.lock_repeater(handle, hicann)
-        self.flush_fpga(fpga_handle)
-
-
-class UpdateParameterDownAndConfigure(UpdateParameterDown):
-    def config(self, fpga_handle, handle, hicann):
-
-        for rows in self.rows:
-            self.programm_normal(handle, hicann, self.rows, writeDown=True)
 
         self.config_neuron_quads(handle, hicann)
         self.config_phase(handle, hicann)
