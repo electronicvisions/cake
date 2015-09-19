@@ -459,7 +459,6 @@ class V_convoff_Calibrator(BaseCalibrator):
             return fit_data, None, None, None
 
         results = []
-
         params = Parameters()
         params.add('a', value=0.0)
         params.add('b', value=fit_data[0][len(fit_data)/2])
@@ -569,8 +568,10 @@ class V_syntc_Calibrator(BaseCalibrator):
 
     def get_data(self):
         data = self.experiment.get_all_data(
-            (neuron_parameter.V_syntcx, ),
+            (self.target_parameter, ),
             ('v', 'tau_1', 'tau_2', 'start', 'offset', 'chi2'))
+        data.rename(columns={self.target_parameter.name: 'V_syntc'},
+                    inplace=True)
         self.sort_tau(data)
         return data
 
@@ -578,9 +579,9 @@ class V_syntc_Calibrator(BaseCalibrator):
         mask = self.get_mask(nrn_data)
         data = nrn_data[mask]
 
-        vsyntc = data['V_syntcx'].astype(numpy.int).values
+        vsyntc = data['V_syntc'].astype(numpy.int).values
 
-        x = data['V_syntcx'] / 1023.0
+        x = data['V_syntc'] / 1023.0
         y0 = data['tau_1'].min()
         y_range = data['tau_1'].max()
         y = data['tau_1'] / y_range
@@ -624,7 +625,12 @@ class V_syntc_Calibrator(BaseCalibrator):
 
 
 class V_syntci_Calibrator(V_syntc_Calibrator):
-    target_parameter = neuron_parameter.V_syntcx
+    target_parameter = neuron_parameter.V_syntci
+
+    def get_mask(self, data):
+        lower_threshold = data['offset'].max() - self.offset_tol
+        return ((data['offset'] >= lower_threshold) &
+                (data['chi2'] <= self.chi2_tol))
 
 
 class V_syntcx_Calibrator(V_syntc_Calibrator):

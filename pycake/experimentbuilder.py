@@ -383,6 +383,8 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
 
         if self.no_spikes > 1:
             experiment.initial_data['spike_interval'] = self.recording_time
+
+            # Add ADC frequency measurement
             sthal = self.get_sthal(Coordinate.AnalogOnHICANN(0))
             if sthal.is_hardware():
                 experiment.add_initial_measurement(
@@ -392,6 +394,7 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
                 experiment.initial_data.update(
                     {ADCFreq_Analyzer.KEY: ADCFreq_Analyzer.IDEAL_FREQUENCY})
 
+            # Add membrane noise measurement
             measurement = copy.deepcopy(measurements[0])
             measurement.sthal.hicann.clear_complete_l1_routing()
             measurement.sthal.set_recording_time(self.recording_time, 1)
@@ -443,11 +446,19 @@ class V_syntcx_Experimentbuilder(V_convoff_Experimentbuilder):
     ANALYZER = pycake.analyzer.PSPAnalyzer
     WITH_SPIKES = True
 
+    def get_analyzer(self):
+        "get analyzer"
+        return self.ANALYZER(self.EXCITATORY)
+
 
 class V_syntci_Experimentbuilder(V_convoff_Experimentbuilder):
     EXCITATORY = False
-    ANALYZER = None  # SimplePSPAnalyzer #FIXME: #1615
+    ANALYZER = pycake.analyzer.PSPAnalyzer
     WITH_SPIKES = True
+
+    def get_analyzer(self):
+        "get analyzer"
+        return self.ANALYZER(self.EXCITATORY)
 
 
 class Parrot_Experimentbuilder(BaseExperimentBuilder):

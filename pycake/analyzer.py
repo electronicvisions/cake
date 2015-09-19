@@ -615,6 +615,11 @@ class SimplePSPAnalyzer(Analyzer):
 
 class PSPAnalyzer(Analyzer):
     """Fit a PSP"""
+
+    def __init__(self, excitatory):
+        Analyzer.__init__(self)
+        self.excitatory = bool(excitatory)
+
     def __call__(self, neuron, trace, additional_data, **other):
         t = trace.index.values
         v = trace["v"].values
@@ -622,6 +627,10 @@ class PSPAnalyzer(Analyzer):
         dt = additional_data['spike_interval']
         averager = TraceAverager(additional_data['adc_freq'])
         v_avg, _, cnt = averager.get_average(v, dt)
+
+        if not self.excitatory:
+            v_avg *= -1.0
+
         v_avg = self.align(v_avg)
 
         t = numpy.arange(len(v_avg)) / 96e6  # TODO
@@ -630,12 +639,19 @@ class PSPAnalyzer(Analyzer):
 
         result = self.psp_fit(t, v_avg, err_estimate)
         result['v'] = v_avg
+        if not self.excitatory:
+            result['v'] *= -1.0
+            result['height'] *= -1.0
+            result['offset'] *= -1.0
         return result
 
     def psp_fit(self, t, v, err_estimate):
         fit_result = psp_model.fit(t, v, err_estimate)
         if fit_result.success:
             result = dict(fit_result.params.valuesdict())
+            result.update({
+                p.name + "_stderr": p.stderr for p in fit_result.params.values()})
+            result['report'] = fit_result.fit_report()
             result['chi2'] = fit_result.redchi
             # result['psp_fit_result'] = fit_result
             return result
