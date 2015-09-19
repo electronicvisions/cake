@@ -7,7 +7,7 @@ from waflib import Utils
 
 def depends(ctx):
     ctx('sthal')
-    ctx('symap2ic', 'src/pylogging')
+    ctx('logger', 'pylogging')
     ctx('calibtic', 'pycalibtic')  # sthal does not depend on pycalibtic
     ctx('redman', 'pyredman')
     ctx('redman', 'backends')
