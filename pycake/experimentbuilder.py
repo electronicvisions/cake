@@ -294,12 +294,13 @@ class I_pl_Experimentbuilder(BaseExperimentBuilder):
         sthal = self.get_sthal()
 
         # get a step with I_pl = 1023 DAC
-        parameters = self.get_step_parameters({neuron_parameter.I_pl: DAC(1023, apply_calibration=False)})
+        parameters = self.get_step_parameters(
+                {neuron_parameter.I_pl: DAC(1023, apply_calibration=False)})
 
         if not wafer_cfg:
             self.prepare_hicann(sthal.hicann, parameters)
             sthal.hicann.floating_gates = self.prepare_parameters(parameters)
-        sthal = self.prepare_specific_config(sthal)
+        sthal = self.prepare_specific_config(sthal, parameters)
 
         measurement = self.make_measurement(sthal, self.neurons, readout_shifts)
         analyzer = pycake.analyzer.ISI_Analyzer()
