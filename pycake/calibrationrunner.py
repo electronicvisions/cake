@@ -399,8 +399,9 @@ class TestRunner(CalibrationRunner):
         self.logger.TRACE(
             "Not clearing calibration since this is test measurement")
 
-    def _run_measurements(self):
+    def _run_measurements(self, only_with_name=None):
         """execute the measurement loop"""
         for ii, name in enumerate(self.to_run):
-            measurement = self.create_or_load_unit(ii)
-            measurement.run()
+            if only_with_name is None or name in only_with_name:
+                measurement = self.create_or_load_unit(ii)
+                measurement.run()
