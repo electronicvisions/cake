@@ -408,8 +408,8 @@ def plot_v_convoff(reader):
             plt.ylabel("effective resting potential [V]")
             plt.subplots_adjust(**margins)
             plt.grid(True)
-            plt.savefig(os.path.join(fig_dir, plt_name.format('i', defects_name, 'png')))
-            plt.savefig(os.path.join(fig_dir, plt_name.format('i', defects_name, 'pdf')))
+            plt.savefig(os.path.join(fig_dir, plt_name.format('x', defects_name, 'png')))
+            plt.savefig(os.path.join(fig_dir, plt_name.format('x', defects_name, 'pdf')))
 
 
 if args.backenddir:
