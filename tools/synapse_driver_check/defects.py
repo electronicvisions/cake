@@ -430,16 +430,17 @@ if __name__ == "__main__":
         with open(parrot_params, 'r') as infile:
             pparams = cPickle.load(infile)
         base_parameters = pparams['base_parameters']
-        #FIXME VDLL and VCCAS are missing
         if args.V_ccas >= 0:
             base_parameters[shared_parameter.V_ccas] = DAC(args.V_ccas)
         if args.V_dllres >= 0:
             base_parameters[shared_parameter.V_dllres] = DAC(args.V_dllres)
         params.base_parameters.update(base_parameters)
-        # params.base_parameters[neuron_parameter.V_t] = Volt(0.7, apply_calibration=True)
         params.synapse_driver.gmax_div = DAC(base_parameters['gmax_div'])
-        if not args.vt_calib:
-            params.neuron_parameters.update(pparams['neuron_parameters'])
+        params.neuron_parameters.update(pparams['neuron_parameters'])
+        if args.vt_calib:
+            v_t = Volt(0.7, apply_calibration=True)
+            for nrn in params.neuron_parameters:
+                params.neuron_parameters[nrn][neuron_parameter.V_t] = v_t
         pprint({getattr(p, 'name', p): v for p, v in params.base_parameters.items()})
         pprint(params.synapse_driver)
         print params.neuron_parameters
@@ -491,7 +492,7 @@ if __name__ == "__main__":
 
     hardware.set_parameters(params)
     hardware.configure()
-    if not args.vt_calib:
+    if args.vt_calib:
         vt_calib(neuron_blacklist)
 
     if not args.nooutput:
