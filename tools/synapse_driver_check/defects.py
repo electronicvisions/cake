@@ -20,11 +20,11 @@ from Coordinate import Enum, NeuronOnHICANN
 from pyhalbe.HICANN import neuron_parameter
 from pyhalbe.HICANN import shared_parameter
 from pycake.helpers.units import Volt
-from pycake.helpers.sthal import UpdateParameterDownAndConfigure
 
 import pylogging
 pylogging.default_config(date_format='absolute')
 pylogging.set_loglevel(pylogging.get("pycake.calibtic"), pylogging.LogLevel.ERROR)
+pylogging.set_loglevel(pylogging.get("pycake.calibtic"), pylogging.LogLevel.TRACE)
 pylogging.set_loglevel(pylogging.get("sthal"), pylogging.LogLevel.INFO)
 pylogging.set_loglevel(pylogging.get("sthal.HICANNConfigurator.Time"), pylogging.LogLevel.DEBUG)
 pylogging.set_loglevel(pylogging.get("Default"), pylogging.LogLevel.INFO)
@@ -112,7 +112,7 @@ def aquire(seg, driver):
 
     even, odd = get_neurons(driver)
 
-    recording_links = []
+    recording_links = []  # set?
 
     max_index = 0
 
@@ -143,6 +143,7 @@ def aquire(seg, driver):
         hardware.enable_readout(rl)
 
     # Create input spike trains
+    print hardware.hicann.synapses[Coordinate.SynapseDriverOnHICANN(Coordinate.Enum(driver))]
 
     start_offset = 5e-6
     n_input_spikes = args.ninputspikes
@@ -385,7 +386,7 @@ if __name__ == "__main__":
     parser.add_argument('--vol', type=float, required=True)
     parser.add_argument('--voh', type=float, required=True)
     parser.add_argument('--clearfolder', action="store_true", default=False)
-    parser.add_argument('--no_vt_calib', action="store_true", default=False)
+    parser.add_argument('--vt_calib', action="store_true", default=False)
     args = parser.parse_args()
 
     WAFER = args.wafer
@@ -437,7 +438,7 @@ if __name__ == "__main__":
         params.base_parameters.update(base_parameters)
         # params.base_parameters[neuron_parameter.V_t] = Volt(0.7, apply_calibration=True)
         params.synapse_driver.gmax_div = DAC(base_parameters['gmax_div'])
-        if args.no_vt_calib:
+        if not args.vt_calib:
             params.neuron_parameters.update(pparams['neuron_parameters'])
         pprint({getattr(p, 'name', p): v for p, v in params.base_parameters.items()})
         pprint(params.synapse_driver)
@@ -490,7 +491,7 @@ if __name__ == "__main__":
 
     hardware.set_parameters(params)
     hardware.configure()
-    if not args.no_vt_calib:
+    if not args.vt_calib:
         vt_calib(neuron_blacklist)
 
     if not args.nooutput:
