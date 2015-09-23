@@ -386,7 +386,8 @@ if __name__ == "__main__":
     parser.add_argument('--vol', type=float, required=True)
     parser.add_argument('--voh', type=float, required=True)
     parser.add_argument('--clearfolder', action="store_true", default=False)
-    parser.add_argument('--vt_calib', action="store_true", default=False)
+    parser.add_argument('--vt_calib', action="store_true")
+    parser.add_argument('--use_parrot_calib', action="store_true")
     args = parser.parse_args()
 
     WAFER = args.wafer
@@ -419,13 +420,17 @@ if __name__ == "__main__":
 
     from pycake.helpers.units import DAC, Volt, Ampere
 
-    parrot_params = os.path.join(
-        args.calibpath, 'parrot_params.pkl')
-    parrot_blacklist = os.path.join(
-        args.calibpath, 'parrot_blacklist.txt')
 
     params = shallow.Parameters()
-    if os.path.exists(parrot_params):
+    if args.use_parrot_calib:
+        parrot_params = os.path.join(
+            args.calibpath, 'parrot_params.pkl')
+        parrot_blacklist = os.path.join(
+            args.calibpath, 'parrot_blacklist.txt')
+
+        if not os.path.exists(parrot_params):
+            print "Parrot calibration not found"
+            exit(-1)
         print "Setting parameters from parrot file!"
         with open(parrot_params, 'r') as infile:
             pparams = cPickle.load(infile)
@@ -446,22 +451,27 @@ if __name__ == "__main__":
         print params.neuron_parameters
     else:
         print "Setting default paramters"
-        params.base_parameters.E_l = Volt(0.7)
-        params.base_parameters.V_t = Volt(0.745)
-        params.base_parameters.E_synx = Volt(0.8)
-        params.base_parameters.E_syni = Volt(0.6)
-        params.base_parameters.V_syntcx = DAC(800)
-        params.base_parameters.V_syntci = DAC(800)
-        params.base_parameters.I_gl = DAC(0)
-        params.base_parameters.V_reset = Volt(0.5)
+        params.base_parameters[neuron_parameter.E_l] = Volt(0.7)
+        params.base_parameters[neuron_parameter.V_t] = Volt(0.745)
+        params.base_parameters[neuron_parameter.E_synx] = Volt(0.8)
+        params.base_parameters[neuron_parameter.E_syni] = Volt(0.6)
+        params.base_parameters[neuron_parameter.V_syntcx] = DAC(800)
+        params.base_parameters[neuron_parameter.V_syntci] = DAC(800)
+        params.base_parameters[neuron_parameter.I_gl] = DAC(0)
+        params.base_parameters[shared_parameter.V_reset] = Volt(0.5)
         if args.V_ccas >= 0:
-            params.base_parameters.V_ccas = DAC(args.V_ccas)
-        if args.V_dllres >=0:
-            params.base_parameters.V_dllres = DAC(args.V_dllres)
+            params.base_parameters[shared_parameter.V_ccas] = DAC(args.V_ccas)
+        if args.V_dllres >= 0:
+            params.base_parameters[shared_parameter.V_dllres] = DAC(args.V_dllres)
 
     random.seed(4)  # chosen by fair dice roll.
 
-    if os.path.exists(parrot_blacklist):
+    if args.use_parrot_calib:
+        parrot_blacklist = os.path.join(
+            args.calibpath, 'parrot_blacklist.txt')
+        if not os.path.exists(parrot_blacklist):
+            print "Parrot calibration blacklist not found"
+            exit(-1)
         neuron_blacklist = np.loadtxt(parrot_blacklist, dtype=int)
     else:
         neuron_blacklist = np.array([], dtype=int)

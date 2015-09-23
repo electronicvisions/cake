@@ -99,7 +99,7 @@ def get_bus_from_driver(driver):
 
 class FastHICANNConfigurator(HICANNConfigurator):
     def __init__(self, configure_floating_gates=True, reset=True):
-        pysthal.HICANNConfigurator.__init__(self)
+        HICANNConfigurator.__init__(self)
         self._configure_floating_gates = configure_floating_gates
         self._reset = reset
 
