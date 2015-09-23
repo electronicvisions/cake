@@ -8,7 +8,6 @@ import numpy
 
 import pycake.helpers.TraceAverager as TraceAverager
 from pycake.helpers.sthal import StHALContainer
-from pycake.helpers.sthal import SimStHALContainer
 from pycake.helpers.sthal import UpdateParameterUp
 from pycake.helpers.sthal import UpdateParameterUpAndConfigure
 from pycake.measure import ADCMeasurement
@@ -27,6 +26,16 @@ from pycake.analyzer import ADCFreq_Analyzer
 Enum = Coordinate.Enum
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
+
+try:
+    from pycake.helpers.sim import SimStHALContainer
+except ImportError:
+    logger = pylogging.get("pycake.helper.sthal")
+    msg_simsthal_missing = "SimStHALContainer dependencies not available, add '--with-sim' to your waf setup to enable"
+    logger.INFO(msg_simsthal_missing)
+    # make sure using it fails verbosely
+    def SimStHALContainer(*args, **kwargs):
+        raise RuntimeError(msg_simsthal_missing)
 
 
 class BaseExperimentBuilder(object):

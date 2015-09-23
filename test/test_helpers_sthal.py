@@ -12,7 +12,6 @@ import tempfile
 import numpy
 
 from pycake.helpers.sthal import StHALContainer
-from pycake.helpers.sthal import SimStHALContainer
 from pycake.config import Config
 from pyhalbe import Coordinate as C
 from pyhalbe.HICANN import L1Address
@@ -82,6 +81,8 @@ class TestSthalWithHardware(PysthalTest):
 class TestSimSthal(unittest.TestCase):
     def setUp(self):
         """initialize SimStHAL container"""
+        # import here because dependencies are optional
+        from pycake.helpers.sthal import SimStHALContainer
         coord_wafer = C.Wafer(4)
         self.coord_hicann = coord_hicann = C.HICANNOnWafer(C.Enum(365))
         cfg = Config(None, {"sim_denmem": ":0", "hicann_version": -1,

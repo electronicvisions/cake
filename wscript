@@ -11,17 +11,24 @@ def depends(ctx):
     ctx('calibtic', 'pycalibtic')  # sthal does not depend on pycalibtic
     ctx('redman', 'pyredman')
     ctx('redman', 'backends')
-    ctx('cd-denmem-teststand')
+    # please specify 'waf setup --project=cake --with-sim' to
+    # enable simulation, '--without-sim' to disable
+    if ctx.options.with_sim:
+        ctx('cd-denmem-teststand')
 
 
 def options(opt):
     opt.load('post_task')
+    hopts = opt.add_option_group('Cake Options')
+    hopts.add_withoption('sim', default=False,
+                         help='Enable/Disable the simulation interface')
 
     opt.recurse('test')
 
 
 def configure(cfg):
     cfg.load('post_task')
+    cfg.env.post_sim = cfg.options.with_sim
 
     try:
         disable_bindings = cfg.options.disable_bindings
@@ -38,12 +45,15 @@ def configure(cfg):
 
 
 def build(bld):
+    post_task = ['pycalibtic', 'pysthal', 'pyhalbe', 'pylogging', 'pyredman',
+                 'redman_xml', 'redman_mongo']
+    if bld.env.post_sim:
+        post_task.append('sim_denmem_ts')
     bld(
         target='pycake',
         source=bld.path.ant_glob('pycake/**/*.py'),
         features='py post_task',
-        post_task=['pycalibtic', 'pysthal', 'pyhalbe', 'pylogging', 'pyredman',
-                   'redman_xml', 'redman_mongo', 'sim_denmem_ts', ],
+        post_task=post_task,
         pythonpath=['.'],
         install_from='.',
         install_path='${PREFIX}/lib',
@@ -56,7 +66,7 @@ def build(bld):
         'pycake/bin/overview.html',
         'tools/run_test_calib.sh',
         'pycake/bin/plot_calib_run',
-        ] + bld.path.ant_glob('config/*py')
+    ] + bld.path.ant_glob('config/*py')
     bld.install_files(
         '${PREFIX}/bin/tools',
         tools,
