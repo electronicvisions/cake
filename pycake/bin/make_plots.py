@@ -359,8 +359,12 @@ def plot_v_convoff(reader):
     with LogError("problem with uncalibrated V_convoff_test plots"):
         experiment = reader.runner.get_single(name="V_convoff_test").experiment
         data = experiment.get_all_data(
-            (neuron_parameter.I_gl, neuron_parameter.V_convoffi,
-             neuron_parameter.V_convoffx), ('mean',))
+            (neuron_parameter.I_gl,
+             neuron_parameter.V_convoffi,
+             neuron_parameter.V_convoffx,
+             neuron_parameter.E_l,
+             neuron_parameter.E_synx),
+            ('mean',))
         plt_name = "V_convoff{}_{}_calibrated.{}"
         for include_defects in [True, False]:
             reader.include_defects = include_defects
@@ -413,6 +417,16 @@ def plot_v_convoff(reader):
             plt.savefig(os.path.join(fig_dir, plt_name.format('x', defects_name, 'png')))
             plt.savefig(os.path.join(fig_dir, plt_name.format('x', defects_name, 'pdf')))
 
+            fig = plt.figure()
+            for I_gl, nrndata in data.loc[nrns].groupby("I_gl"):
+                too_high_or_low = nrndata[abs(nrndata['mean'] - nrndata['mean'].mean()) > nrndata['mean'].std()]
+                plt.hist(too_high_or_low['V_convoffx'], bins=np.linspace(0, 1023, 100), label="I_gl={} DAC".format(I_gl), alpha=0.5)
+            plt.legend(loc=0)
+            plt.xlabel("choosen $V_{convoffx}$ [DAC]")
+            plt.ylabel("#")
+            #plt.subplots_adjust(**margins)
+            plt.savefig(os.path.join(fig_dir, plt_name.format('_V_convoffx_E_l_too_high_or_low', defects_name, 'png')))
+            plt.savefig(os.path.join(fig_dir, plt_name.format('_V_convoffx_E_l_too_high_or_low', defects_name, 'pdf')))
 
 if args.backenddir:
 
