@@ -89,6 +89,8 @@ parser.add_argument("--spikes_testrunner", help="path to spikes test runner (if 
 
 parser.add_argument("--neuron_enum", help="neuron used for plots", default=0, type=int)
 
+parser.add_argument("--v_convoff_testrunner", help="path to V convoff test runner (if different from 'testrunner')", default=None)
+
 args = parser.parse_args()
 
 fig_dir = args.outdir
@@ -441,7 +443,16 @@ if args.backenddir:
     plt.savefig(os.path.join(fig_dir,"analog_readout_offset.pdf"))
     plt.savefig(os.path.join(fig_dir,"analog_readout_offset.png"))
 
-plot_v_convoff(test_reader)
+
+## V convoff
+try:
+
+    r_test_v_convoff = test_reader if args.v_convoff_testrunner == None else Reader(args.v_convoff_testrunner)
+
+    plot_v_convoff(r_test_v_convoff)
+
+except Exception as e:
+    logger.ERROR("problem with V_convoff test plots: {}".format(e))
 
 ## V reset
 try:
