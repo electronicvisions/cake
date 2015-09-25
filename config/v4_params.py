@@ -32,7 +32,7 @@ parameters = {
         shared_parameter.V_reset.name,
         neuron_parameter.V_t.name,
         neuron_parameter.E_syni.name,
-        neuron_parameter.E_synx.name,
+        # neuron_parameter.E_synx.name, # https://brainscales-r.kip.uni-heidelberg.de/issues/1929
         neuron_parameter.I_pl,
         neuron_parameter.E_l.name,
         neuron_parameter.V_convoffx.name,
