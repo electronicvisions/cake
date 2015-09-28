@@ -41,7 +41,7 @@ def build(bld):
     bld(
         target='pycake',
         source=bld.path.ant_glob('pycake/**/*.py'),
-        features='post_task',
+        features='py post_task',
         post_task=['pycalibtic', 'pysthal', 'pyhalbe', 'pylogging', 'pyredman',
                    'redman_xml', 'redman_mongo', 'sim_denmem_ts', ],
         pythonpath=['.'],
