@@ -84,6 +84,7 @@ init_logger(pylogging.LogLevel.WARN, [
     ("Default", pylogging.LogLevel.INFO),
     ("halbe.fgwriter", pylogging.LogLevel.ERROR),
     ("pycake.calibrationrunner", pylogging.LogLevel.DEBUG),
+    ("pycake.calibrationunit", pylogging.LogLevel.DEBUG),
     ("pycake.config", pylogging.LogLevel.INFO),
     ("pycake.measurement", pylogging.LogLevel.DEBUG),
     ("pycake.analyzer", pylogging.LogLevel.TRACE),

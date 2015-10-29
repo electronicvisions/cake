@@ -36,7 +36,7 @@ class InvalidPathToUnit(RuntimeError):
 progress = pylogging.get("progress.cake")
 
 class CalibrationUnit(object):
-    logger = pylogging.get("pycake.calibrationrunner")
+    logger = pylogging.get("pycake.calibrationunit")
 
     def __init__(self, config, storage_path, calibitic, experiment=None):
         """
