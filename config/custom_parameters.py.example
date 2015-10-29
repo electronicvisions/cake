@@ -27,11 +27,10 @@ custom = {
         "save_traces":  False,
 
         # Where do you want to save the measurements (folder) and calibration
-        # data (backend_c for calibtic, backend_r for redman)?
+        # data (backend)
         # Folders will be created if they do not exist already
         "folder":       folder,
-        "backend_c":    os.path.join(folder, "backends"),
-        "backend_r":    os.path.join(folder, "backends"),
+        "backend":      os.path.join(folder, "backends"),
 
         # Wafer and HICANN coordinates
         "coord_wafer":  Coordinate.Wafer(),

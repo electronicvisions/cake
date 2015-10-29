@@ -85,11 +85,10 @@ parameters = {
     "V_reset_save_traces":  True,
     "V_t_save_traces":  True,
 
-    # Where do you want to save the measurements (folder) and calibration data (backend_c for calibtic, backend_r for redman)?
+    # Where do you want to save the measurements (folder) and calibration data (backend)
     # Folders will be created if they do not exist already
     "folder":       folder,
-    "backend_c":    os.path.join(folder, "backends"),
-    "backend_r":    os.path.join(folder, "backends"),
+    "backend":      os.path.join(folder, "backends"),
 
     # Wafer and HICANN coordinates
     "coord_wafer":  pyhalbe.Coordinate.Wafer(),

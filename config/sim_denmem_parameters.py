@@ -80,7 +80,7 @@ parameters = {
     ],
 
     "folder":       folder,
-    "backend_c":    os.path.join(folder, "backends"),
+    "backend":      os.path.join(folder, "backends"),
 
     "neurons": NEURONS,
     "blocks":  BLOCKS,

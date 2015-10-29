@@ -34,8 +34,8 @@ DEFAULT_PARAMETERS = {
     "hicann_version": 4,
 
     "folder_prefix": "",
-    "folder": "/tmp",
-    "backend": "/tmp/backend",
+    "folder": "./",
+    "backend": "./backend",
 
     "clear": False,
     "clear_defects": False,
