@@ -97,6 +97,7 @@ class BaseCalibrator(object):
             # Extract function coefficients and domain from measured data
             coeffs = self.do_fit(xs, ys)
             if coeffs is None:
+                self.logger.WARN("Fit failed for neuron {}".format(neuron))
                 transformations[neuron] = None
                 continue
             coeffs = coeffs[::-1] # coeffs are reversed in calibtic transformations
@@ -136,9 +137,45 @@ class BaseCalibrator(object):
     def do_fit(self, xs, ys):
         """ Fits a curve to results of one neuron
             Standard behaviour is a linear fit.
+
+        has to return None if fit fails
+
         """
-        fit_coeffs = np.polyfit(xs, ys, 1)
-        return fit_coeffs
+
+        ok = self.sanity_check_fit_input(xs, ys)
+
+        if ok == False:
+            return None
+        else:
+            fit_coeffs = np.polyfit(xs, ys, 1)
+            return fit_coeffs
+
+    def sanity_check_fit_input(self, xs, ys):
+        """
+
+        basic sanity checks of fit input
+
+        returns True if xs and ys are "ok" and False otherwise
+        """
+
+        ok = True
+
+        if len(xs) != len(ys):
+            self.logger.DEBUG("sanity_check_fit_input: len(xs) != len(ys)")
+            ok = False
+
+        if len(xs) == 0:
+            self.logger.DEBUG("sanity_check_fit_input: len(xs) == 0")
+            ok = False
+
+        if len(ys) == 0:
+            self.logger.DEBUG("sanity_check_fit_input: len(ys) == 0")
+            ok = False
+
+        if ok == False:
+            self.logger.WARN("Fit input did not pass sanity checks! xs: {}, ys: {}".format(xs, ys))
+
+        return ok
 
     def is_defect(self, coeffs, domain):
         """ Returns True if an entry in domain or coeffs is nan.
