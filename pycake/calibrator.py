@@ -698,11 +698,17 @@ class I_pl_Calibrator(BaseCalibrator):
             tau0 = self.get_tau0(neuron)
             # Extract function coefficients and domain from measured data
             coeffs = self.do_fit(xs, ys, tau0)
-            coeffs = coeffs[::-1] # coeffs are reversed in calibtic transformations
-            domain = [tau0, np.nanmax(xs)*1.1] # domain slightly larger than max value
-            transformations[neuron] = create_pycalibtic_transformation(coeffs, domain, trafo_type)
-            if self.is_defect(coeffs, domain):
+            if coeffs != None:
+                coeffs = coeffs[::-1] # coeffs are reversed in calibtic transformations
+                domain = [tau0, np.nanmax(xs)*1.1] # domain slightly larger than max value
+                if self.is_defect(coeffs, domain):
+                    transformations[neuron] = None
+                else:
+                    transformations[neuron] = create_pycalibtic_transformation(coeffs, domain, trafo_type)
+            else:
+                self.logger.WARN("Fit failed for neuron {}".format(neuron))
                 transformations[neuron] = None
+
         return [(self.target_parameter, transformations)]
 
     def get_key(self):
@@ -717,9 +723,15 @@ class I_pl_Calibrator(BaseCalibrator):
             return 1/(a*x - a*tau0 + 1/1023.)
         xs = xs[np.isfinite(xs)]
         ys = ys[np.isfinite(xs)]
-        fit_coeffs = curve_fit(func, xs, ys, [0.025e6])[0]
-        fit_coeffs = [fit_coeffs[0], 1/1023. - fit_coeffs[0] * tau0]
-        return fit_coeffs
+
+        ok = self.sanity_check_fit_input(xs, ys)
+
+        if ok == False:
+            return None
+        else:
+            fit_coeffs = curve_fit(func, xs, ys, [0.025e6])[0]
+            fit_coeffs = [fit_coeffs[0], 1/1023. - fit_coeffs[0] * tau0]
+            return fit_coeffs
 
     def get_trafo_type(self):
         """ Returns the pycalibtic.transformation type that is used for calibration.
