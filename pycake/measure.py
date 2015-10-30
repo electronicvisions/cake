@@ -317,8 +317,10 @@ class ADCMeasurement(Measurement):
             # TODO rethink raise KeyError(neuron)
 
         data = self.traces[neuron]
+        assert len(data.index.values) == len(data['v'].values)
         if apply_readout_shift:
             data['v'] = self.readout_shifts(neuron, data['v'])
+        assert len(data.index.values) == len(data['v'].values)
         return data.index.values, data['v'].values
 
     def iter_traces(self):
