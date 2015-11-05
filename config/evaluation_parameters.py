@@ -54,7 +54,7 @@ eval_parameters = {
         "run_E_l":      True,
         "run_V_t":      True,
         "run_I_gl":     False,
-        "run_I_pl":     True,
+        "run_I_pl":     False,
         "run_Spikes" : False,
 
         # Measurement runs twice by default: first to generate calibration data, and a second time to measure the success of calibration
