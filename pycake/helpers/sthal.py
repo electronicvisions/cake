@@ -260,7 +260,7 @@ class StHALContainer(object):
 
         Args:
             config: Config instance, used to determine Wafer, HICANN, PLL,
-                    big_cap, dump_file, wafer_cfg, speedup, fg_biasn
+                    big_cap, dump_file, wafer_cfg, speedup
                 wafer_cfg: load wafer configuration from this file, ignore rest
                 dump_file: filename for StHAL dump handle instead of hardware
             coord_analog: AnalogOnHICANN Coordinate
@@ -285,7 +285,6 @@ class StHALContainer(object):
             # Get the SpeedUp type from string
             speedup = pysthal.SpeedUp.names[config.get_speedup().upper()]
             self.set_speedup(speedup)
-            self.set_fg_biasn(config.get_fg_biasn())
 
         self.adc = None
         self.recording_time = recording_time
