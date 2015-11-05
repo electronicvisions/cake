@@ -30,8 +30,9 @@ from collections import defaultdict
 from sims.sim_denmem_lib import NETS_AND_PINS
 from sims.sim_denmem_lib import TBParameters
 from sims.sim_denmem_lib import run_remote_simulation
-from pysthal import HICANNv4Configurator as HICANNConfigurator
 
+from pysthal import HICANNConfigurator as HICANNv2Configurator
+from pysthal import HICANNv4Configurator
 
 def get_row_names(block, row):
     try:
@@ -45,14 +46,14 @@ def get_row_names(block, row):
     return (shared, neuron, int(row))
 
 
-class UpdateParameterUp(HICANNConfigurator):
+class UpdateParameterUp(HICANNv4Configurator):
     """
     New HICANN configurator, could do stuff better or worse...
 
     Warning: It is assumend that the paramter is growing!
     """
     def __init__(self, parameters):
-        HICANNConfigurator.__init__(self)
+        HICANNv4Configurator.__init__(self)
         self.rows = [
             pyhalbe.HICANN.FGRowOnFGBlock4([
                 HICANN.getNeuronRow(b, p) for b in iter_all(FGBlockOnHICANN)])
@@ -92,7 +93,7 @@ class UpdateParameterUpAndConfigure(UpdateParameterUp):
         self.flush_fpga(fpga_handle)
 
 
-class SpikeReadoutHICANNConfigurator(pysthal.HICANNConfigurator):
+class SpikeReadoutHICANNConfigurator(HICANNv2Configurator):
 
     def config_fpga(self, fpga_handle, fpga):
 
@@ -130,7 +131,7 @@ class SpikeReadoutHICANNConfigurator(pysthal.HICANNConfigurator):
         self.flush_fpga(fpga)
 
 
-class UpdateAnalogOutputConfigurator(pysthal.HICANNConfigurator):
+class UpdateAnalogOutputConfigurator(HICANNv2Configurator):
     """ Configures the following things from sthal container:
         - neuron quad configuration
         - analog readout
@@ -150,11 +151,11 @@ class UpdateAnalogOutputConfigurator(pysthal.HICANNConfigurator):
         self.flush_fpga(fpga_handle)
 
 
-class SetFGCell(pysthal.HICANNConfigurator):
+class SetFGCell(HICANNv2Configurator):
     """Puts the given FG cell to the analog output
     """
     def __init__(self, nrn, parameter):
-        pysthal.HICANNConfigurator.__init__(self)
+        HICANNv2Configurator.__init__(self)
         self.coords = (nrn, parameter)
 
     def config_fpga(self, *args):
@@ -167,9 +168,9 @@ class SetFGCell(pysthal.HICANNConfigurator):
         self.flush_fpga(fpga_handle)
 
 
-class UpdateParameter(pysthal.HICANNConfigurator):
+class UpdateParameter(HICANNv2Configurator):
     def __init__(self, neuron_parameters):
-        pysthal.HICANNConfigurator.__init__(self)
+        HICANNv2Configurator.__init__(self)
         self.blocks = dict(
             (row, []) for row in Coordinate.iter_all(Coordinate.FGRowOnFGBlock))
         for parameter in neuron_parameters:
@@ -185,7 +186,7 @@ class UpdateParameter(pysthal.HICANNConfigurator):
     def write_fg_row(self, handle, row, fg, write_down):
         blocks = self.blocks[row]
         if len(blocks) == 4:
-            pysthal.HICANNConfigurator.write_fg_row(
+            HICANNv2Configurator.write_fg_row(
                 self, handle, row, fg, write_down)
         else:
             for block in blocks:
@@ -194,7 +195,7 @@ class UpdateParameter(pysthal.HICANNConfigurator):
                 HICANN.set_fg_row_values(handle, block, row, data, write_down)
 
 
-class ADCFreqConfigurator(pysthal.HICANNConfigurator):
+class ADCFreqConfigurator(HICANNv2Configurator):
     def hicann_init(self, h):
         pyhalbe.HICANN.init(h, False)
 
@@ -355,7 +356,14 @@ class StHALContainer(object):
         if not self._connected:
             self.connect()
         if configurator is None:
-            configurator = HICANNConfigurator()
+            if self.hicann_version == 2:
+                self.logger.DEBUG("Using HICANNv2Configurator")
+                configurator = HICANNv2Configurator()
+            elif self.hicann_version == 4:
+                self.logger.DEBUG("Using HICANNv4Configurator")
+                configurator = HICANNv4Configurator()
+            else:
+                raise RuntimeError("No HICANNConfigurator assigned to given HICANN version: {}".format(self.hicann_version))
 
         for _ in range(3):
             try:
