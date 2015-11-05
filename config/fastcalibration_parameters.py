@@ -30,6 +30,10 @@ parameters = {
     "neurons": [NeuronOnHICANN(Enum(i)) for i in range(512)],
     "blocks":  [FGBlockOnHICANN(Enum(i)) for i in range(4)],
 
+    "hicann_version" : 2,
+    "fg_bias": 8,
+    "fg_biasn": 5,
+
     # Set the ranges within which you want to calibrate
     "readout_shift_range": [{neuron_parameter.E_l: Volt(0.9)}], # Set some realistic E_l value.
     "V_reset_range":  [{shared_parameter.V_reset : v} for v in linspace_voltage(0.6, 0.8, 5)],
