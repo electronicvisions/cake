@@ -131,7 +131,11 @@ class BaseExperimentBuilder(object):
             pysthal.FloatingGates with given parameters
         """
 
+        # TODO: check why fresh floating gates are instantiated
+        # instead of using self.sthal.hicann.floating_gates
+
         floating_gates = pysthal.FloatingGates()
+
         for ii in range(floating_gates.getNoProgrammingPasses()):
             cfg = floating_gates.getFGConfig(Coordinate.Enum(ii))
             cfg.fg_bias = self.config.get_fg_bias()
