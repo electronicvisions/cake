@@ -9,6 +9,7 @@ from pycake.helpers.TraceAverager import TraceAverager
 import Coordinate
 import pickle
 
+import pandas
 
 class TestAnalyzers(unittest.TestCase):
     def assertEqualNumpyArrays(self, A, B, message=None):
@@ -39,8 +40,9 @@ class TestAnalyzers(unittest.TestCase):
 
         a = pycake.analyzer.MeanOfTraceAnalyzer()
 
-        data = {"t": time, "v": voltage}
-        res = a(neuron=neuron, **data)
+        trace = pandas.DataFrame({'v': voltage}, index=time)
+
+        res = a(neuron=neuron, trace=trace)
 
         # make sure analyzer returns all values
         for key in ["std", "max", "min", "mean"]:
@@ -75,7 +77,9 @@ class TestAnalyzers(unittest.TestCase):
         # neuron should not matter, thus false
         neuron = False
 
-        res = a(neuron=neuron, t=time, v=voltage)
+        trace = pandas.DataFrame({'v': voltage}, index=time)
+
+        res = a(neuron=neuron, trace=trace)
         self.assertEqual(res["hard_min"], 1)
         self.assertEqual(res["hard_max"], 10)
         self.assertEqual(res["mean_min"], 1)
@@ -88,7 +92,7 @@ class TestAnalyzers(unittest.TestCase):
         self.assertAlmostEqual(res["mean_dt"], dt)
 
         a = pycake.analyzer.PeakAnalyzer(True)
-        res = a(neuron=neuron, t=time, v=voltage)
+        res = a(neuron=neuron, trace=trace)
         # as above
         self.assertEqual(res["hard_min"], 1)
         self.assertEqual(res["hard_max"], 10)
@@ -108,7 +112,8 @@ class TestAnalyzers(unittest.TestCase):
         # If there is only one peak in the trace, analyzer should return dt = inf
         t = np.arange(10)
         v = [1, 2, 3, 4, 5, 1, 2, 3, 3, 3]
-        result = a(neuron=neuron, t=t, v=v)
+        trace = pandas.DataFrame({'v': v}, index=t)
+        result = a(neuron=neuron, trace=trace)
         self.assertTrue(np.isinf(result['mean_dt']))
 
     @unittest.skip("WIP")
@@ -127,7 +132,7 @@ class TestAnalyzers(unittest.TestCase):
         a = pycake.analyzer.I_gl_Analyzer(trace_averager)
 
         std = 0.1
-        res = a(neuron=coord_neuron, t=time, v=voltage)
+        res = a(neuron=coord_neuron, trace=trace)
         print res
         # TODO continue test
 
@@ -139,11 +144,12 @@ class TestAnalyzers(unittest.TestCase):
         # neuron should not matter, thus false
         neuron = False
 
-        time = np.linspace(0, 10, 60, False)
+        time = np.linspace(0, 10, 55, False)
         dt = time[1]
 
         voltage = np.array([1, 2, 3, 4, 5, 6, 1, 1, 1, 1, 1]*5)
-        res = a(neuron=neuron, t=time, v=voltage)
+        trace = pandas.DataFrame({'v': voltage}, index=time)
+        res = a(neuron=neuron, trace=trace)
         self.assertAlmostEqual(res['baseline'], 1)
         self.assertAlmostEqual(res['mean_min'], 1)
         self.assertAlmostEqual(res['mean_max'], 6)
@@ -158,14 +164,16 @@ class TestAnalyzers(unittest.TestCase):
         dt = time[1]
 
         voltage = np.array([1, 2, 4, 8, 16, 32]*10)
-        res = a(neuron=neuron, t=time, v=voltage)
+        trace = pandas.DataFrame({'v': voltage}, index=time)
+        res = a(neuron=neuron, trace=trace)
         isi0 = res["mean_isi"]
         self.assertAlmostEqual(isi0, 6*dt)
         self.assertAlmostEqual(res["std_isi"], 0)
 
         voltage = np.array([1, 2, 4, 8, 16, 32, 0, 0, 0, 0, 0, 0]*5)
+        trace = pandas.DataFrame({'v': voltage}, index=time)
         actual_tau_ref = 6*dt
-        res = a(neuron=neuron, t=time, v=voltage)
+        res = a(neuron=neuron, trace=trace)
         isi_with_tau = res["mean_isi"]
         tau_ref = isi_with_tau - isi0
         self.assertAlmostEqual(tau_ref, actual_tau_ref)
@@ -177,10 +185,14 @@ class TestAnalyzers(unittest.TestCase):
         """
         neuron = False
         testdata = pickle.load(open('/wang/data/calibration/testdata/testdata.p'))['E_l']
+
+        # patch testdata
+        testdata['result']['size'] = len(testdata["v"])
+
         analyzer = pycake.analyzer.MeanOfTraceAnalyzer()
 
-        data = {"t": testdata["t"], "v": testdata["v"]}
-        result = analyzer(neuron, **data)
+        trace = pandas.DataFrame({'v': testdata["v"]}, index=testdata["t"])
+        result = analyzer(neuron, trace=trace)
 
         for key in result:
             self.assertAlmostEqual(result[key], testdata['result'][key], places=2)
@@ -193,8 +205,8 @@ class TestAnalyzers(unittest.TestCase):
         testdata = pickle.load(open('/wang/data/calibration/testdata/testdata.p'))['V_reset']
         analyzer = pycake.analyzer.V_reset_Analyzer()
 
-        data = {"t": testdata["t"], "v": testdata["v"]}
-        result = analyzer(neuron, **data)
+        trace = pandas.DataFrame({'v': testdata["v"]}, index=testdata["t"])
+        result = analyzer(neuron, trace=trace)
 
         for key in result:
             self.assertAlmostEqual(result[key], testdata['result'][key], places=2)
@@ -209,8 +221,9 @@ class TestAnalyzers(unittest.TestCase):
         data = testdata['initial_data'][neuron]
         data['t'] = testdata['t']
         data['v'] = testdata['v']
+        trace = pandas.DataFrame({'v': data['v']}, index=data['t'])
 
-        result = analyzer(neuron, **data)
+        result = analyzer(neuron, trace=trace, additional_data=testdata['initial_data'])
 
         for key in result:
             self.assertAlmostEqual(result[key], testdata['result'][key], places=2)
@@ -222,10 +235,14 @@ class TestAnalyzers(unittest.TestCase):
         neuron = Coordinate.NeuronOnHICANN(Coordinate.Enum(100))
         testdata = pickle.load(open('/wang/data/calibration/testdata/testdata.p'))['I_gl']
         analyzer = pycake.analyzer.I_gl_Analyzer()
-        analyzer.set_adc_freq(testdata['adc_freq'])
+        additional_data = {}
+        additional_data['adc_freq'] = testdata['adc_freq']
+        additional_data['current'] = 5
+        additional_data['std'] = 0.004
+        additional_data['save_mean'] = True
 
-        data = {"t": testdata["t"], "v": testdata["v"]}
-        result = analyzer(neuron, 0.004, current=5, save_mean=True, **data)
+        trace = pandas.DataFrame({'v': testdata['v']}, index=testdata['t'])
+        result = analyzer(neuron, trace=trace, additional_data=additional_data)
 
         for key in ['tau_m', 'V_rest', 'std_tau', 'reduced_chisquare', 'height']:
             self.assertAlmostEqual(result[key], testdata['result'][key], places=2)
@@ -239,9 +256,10 @@ class TestAnalyzers(unittest.TestCase):
         a = pycake.analyzer.ADCFreq_Analyzer()
 
         # Check if correct adc freq is detected and fail if unlikely freq is detected
-        res = a(t, v, 13.7e6)
+        trace = pandas.DataFrame({'v': v}, index=t)
+        res = a(trace=trace, bg_rate=13.7e6)
         self.assertAlmostEqual(res['adc_freq'], 13.7e6*7)
-        self.assertRaises(RuntimeError, a, t, v, 5e6)
+        self.assertRaises(RuntimeError, a, trace, 5e6)
 
     def test_simplepspanalyzer(self):
         """ Test SimplePSPAnalyzer
@@ -266,9 +284,11 @@ class TestAnalyzers(unittest.TestCase):
 
         a = pycake.analyzer.SimplePSPAnalyzer()
 
+        trace = pandas.DataFrame({'v': v}, index=t)
+
         # excitatory (1)
 
-        res = a(Coordinate.NeuronOnHICANN(), t=t, v=v)
+        res = a(Coordinate.NeuronOnHICANN(), trace=trace)
 
         self.assertEqual(res['baseline'], 1)
         self.assertEqual(res['peakvalue'], 7)
@@ -283,7 +303,9 @@ class TestAnalyzers(unittest.TestCase):
         # make baseline negative
         v -= 3
 
-        res = a(Coordinate.NeuronOnHICANN(), t=t, v=v)
+        trace = pandas.DataFrame({'v': v}, index=t)
+
+        res = a(Coordinate.NeuronOnHICANN(), trace=trace)
 
         self.assertEqual(res['baseline'], -2)
         self.assertEqual(res['peakvalue'], 4)
@@ -298,7 +320,9 @@ class TestAnalyzers(unittest.TestCase):
         # mirror
         v *= -1
 
-        res = a(Coordinate.NeuronOnHICANN(), t=t, v=v)
+        trace = pandas.DataFrame({'v': v}, index=t)
+
+        res = a(Coordinate.NeuronOnHICANN(), trace=trace)
 
         self.assertEqual(res['baseline'], 2)
         self.assertEqual(res['peakvalue'], -4)
@@ -313,7 +337,9 @@ class TestAnalyzers(unittest.TestCase):
         # make baseline negative
         v -= 4
 
-        res = a(Coordinate.NeuronOnHICANN(), t=t, v=v)
+        trace = pandas.DataFrame({'v': v}, index=t)
+
+        res = a(Coordinate.NeuronOnHICANN(), trace=trace)
 
         self.assertEqual(res['baseline'], -2)
         self.assertEqual(res['peakvalue'], -8)

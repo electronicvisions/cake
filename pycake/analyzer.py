@@ -566,7 +566,7 @@ class SimplePSPAnalyzer(Analyzer):
 
     def __call__(self, neuron, trace, **other):
         t = trace.index.values
-        v = trace["v"]
+        v = trace["v"].values
 
         # calc baseline from the beginning of the trace
         baseline = np.mean(v[0:len(v)/self.baseline_fraction])
