@@ -33,11 +33,11 @@ class TestCalibticHelper(unittest.TestCase):
         self.assertEqual(poly.apply(1), 6)
         self.assertEqual(poly.apply(3), 18)
 
-    def test_init(self):
-        """init backend"""
+    def test_get_backend(self):
+        """an invalid backend type has to raise a ValueError"""
         c = self.calibtic
         # initializing magic type should raise
-        self.assertRaises(ValueError, c.init_backend, "magic")
+        self.assertRaises(ValueError, c.get_backend, "magic")
 
     def test_pickle(self):
         c = self.calibtic
