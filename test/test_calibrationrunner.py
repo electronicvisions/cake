@@ -15,7 +15,7 @@ class TestCalibrationRunner(unittest.TestCase):
 
         # call finalize
         config_dir = os.path.dirname(os.path.realpath(__file__))
-        config = Config(None, os.path.join(config_dir, "example_config.py"))
+        config = Config(None, os.path.join(config_dir, "example_config_A.py"))
         runner = CalibrationRunner(config)
         runner.finalize()
 

@@ -19,10 +19,10 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(cfg2.config_name, "other name")
         self.assertEqual(cfg.get_PLL(), 100e6)
 
-    def test_example(self):
+    def test_example_A(self):
         config_dir = os.path.dirname(os.path.realpath(__file__))
         cfg = Config("random-name",
-                     os.path.join(config_dir, "example_config.py"))
+                     os.path.join(config_dir, "example_config_A.py"))
 
         # preset values
         self.assertEqual(cfg.get_target(), "random-name")
@@ -42,12 +42,20 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(cfg.get_config("foo-set"), "set-value2")
 
         # default values
-        # TODO test another config with non-defaults
         self.assertEqual(cfg.get_wafer_cfg(), "")
         self.assertEqual(cfg.get_enabled_calibrations(), [])
         self.assertEqual(cfg.get_sim_denmem(), None)
         self.assertEqual(cfg.get_PLL(), 100e6)
 
+    def test_example_B(self):
+        config_dir = os.path.dirname(os.path.realpath(__file__))
+        cfg = Config("random-name",
+                     os.path.join(config_dir, "example_config_B.py"))
+
+        self.assertEqual(cfg.get_wafer_cfg(), "foo.xml")
+        self.assertEqual(cfg.get_enabled_calibrations(), ["foo", "bar", "baz"])
+        self.assertEqual(cfg.get_sim_denmem(), "vtitan:8123")
+        self.assertEqual(cfg.get_PLL(), 125e6)
 
 if __name__ == '__main__':
     unittest.main()

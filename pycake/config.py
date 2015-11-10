@@ -59,7 +59,10 @@ class Config(object):
         """Load configuration from dictionary or parameter file."""
         self.config_name = name
         if isinstance(parameters, dict):
-            self.parameters = copy.deepcopy(parameters)
+            parameters = copy.deepcopy(parameters)
+            params = copy.deepcopy(DEFAULT_PARAMETERS)
+            params.update(parameters)
+            self.parameters = params
         else:
             self.parameters = self.read_parameter_file(parameters)
 

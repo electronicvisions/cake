@@ -19,7 +19,7 @@ parameters = {
     "folder": "folder-value",
     "coord_wafer": Coordinate.Wafer(17),
     "coord_hicann": Coordinate.HICANNOnWafer(Coordinate.Enum(222)),
-    "backend_c": "backend-value",
+    "backend": "backend-value",
     "clear": "clear-value",
     "calibrate": "calibrate-value",
     "measure": "measure-value",
