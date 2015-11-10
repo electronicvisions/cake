@@ -26,9 +26,8 @@ custom_buildshell = """\
 # workaround for "module: command not found"
 source /opt/modules/install/Modules/current/init/sh
 
-module load numpy/1.8.0
-module load pyfftw
 module load pynn
+module load anaconda
 
 ./waf configure --test-timeout=360 --test-xml-summary=test_results
 ./waf install --test-exec pycake_tests
