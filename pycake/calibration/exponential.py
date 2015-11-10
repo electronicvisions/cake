@@ -7,8 +7,6 @@ from pycake.analyzer import Analyzer
 from pycake.measure import ADCMeasurement
 from pycake.experimentbuilder import BaseExperimentBuilder
 from pycake.helpers.peakdetect import peakdet
-from pycake.helpers.units import Voltage
-
 
 class I_rexp_Analyzer(Analyzer):
     pass

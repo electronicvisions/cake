@@ -22,7 +22,10 @@ import pycake.reader
 
 # calibration submodule
 import pycake.calibration
+import pycake.calibration.capacitance
+import pycake.calibration.exponential
 import pycake.calibration.E_l_I_gl_fixed
+import pycake.calibration.I_gl_charging
 import pycake.calibration.vsyntc
 
 # helpers submodule
@@ -47,3 +50,7 @@ import pycake.logic
 import pycake.logic.psps
 import pycake.logic.spikes
 import pycake.logic.utils
+
+# visualization submodule
+import pycake.visualization
+import pycake.visualization.plotting
