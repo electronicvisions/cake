@@ -48,6 +48,7 @@ DEFAULT_PARAMETERS = {
     "sim_denmem_mc_seed": None,
 
     "wafer_cfg": "",
+    "dump_file" : None,
     "repetitions": 1,
     "input_spikes": {},
 }
@@ -166,6 +167,9 @@ class Config(object):
 
     def get_wafer_cfg(self):
         return self.parameters["wafer_cfg"]
+
+    def get_dump_file(self):
+        return self.parameters["dump_file"]
 
     def get_PLL(self):
         return self.parameters["PLL"]

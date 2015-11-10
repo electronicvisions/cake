@@ -22,9 +22,9 @@ from PysthalTest import PysthalTest, hardware
 class TestSthalHelper(unittest.TestCase):
     def test_init(self):
         """initialize StHAL container"""
-        coord_wafer = C.Wafer(4)
-        coord_hicann = C.HICANNOnWafer(C.Enum(365))
-        sthal = StHALContainer(coord_wafer, coord_hicann)
+        cfg = Config(None, {"coord_wafer" : C.Wafer(4),
+                            "coord_hicann" : C.HICANNOnWafer(C.Enum(365))})
+        sthal = StHALContainer(cfg)
         p = pickle.dumps(sthal)
         s2 = pickle.loads(p)
         self.assertIsInstance(s2, StHALContainer)
@@ -38,7 +38,11 @@ class TestSthalHelper(unittest.TestCase):
         l1address = L1Address(41)
         filehandle, filename = tempfile.mkstemp(suffix=".xml.gz")
         self.addCleanup(os.remove, filename)
-        sthal = StHALContainer(coord_wafer, coord_hicann, dump_file=filename)
+        config_dir = os.path.dirname(os.path.realpath(__file__))
+        cfg = Config("random-name", {"coord_wafer" : coord_wafer,
+                                     "coord_hicann" : coord_hicann,
+                                     "dump_file" : filename})
+        sthal = StHALContainer(cfg)
         sthal.connect()
         sthal.disconnect()
         sthal.read_adc_status()
@@ -55,7 +59,7 @@ class TestSthalHelper(unittest.TestCase):
         sthal.disable_synapse_line(coord_driver)
         sthal.set_current_stimulus(9, 23, pulse_length=7)
         sthal.switch_current_stimulus_and_output(coord_neuron, l1address.value())
-        sthal.read_adc()
+        #sthal.read_adc() # FIXME: FakeAnalogRecorder does not fully match real AnalogRecorder
         sthal.disconnect()
 
 
@@ -63,9 +67,11 @@ class TestSthalWithHardware(PysthalTest):
     """actually connect to hardware"""
     @hardware
     def test_connect(self):
-        coord_wafer = C.Wafer(self.WAFER)
-        coord_hicann = C.HICANNOnWafer(self.HICANN)
-        sthal = StHALContainer(coord_wafer, coord_hicann)
+
+        cfg = Config(None, {"coord_wafer": C.Wafer(self.WAFER),
+                            "coord_hicann": C.HICANNOnWafer(self.HICANN)})
+
+        sthal = StHALContainer(cfg)
         sthal.connect()
         #sthal.read_adc_status()
         #sthal.read_wafer_status()
@@ -78,8 +84,9 @@ class TestSimSthal(unittest.TestCase):
         """initialize SimStHAL container"""
         coord_wafer = C.Wafer(4)
         self.coord_hicann = coord_hicann = C.HICANNOnWafer(C.Enum(365))
-        cfg = Config(None, {"sim_denmem": ":0", "hicann_version": -1})
-        self.sthal = SimStHALContainer(coord_wafer, coord_hicann, config=cfg)
+        cfg = Config(None, {"sim_denmem": ":0", "hicann_version": -1,
+                            "coord_hicann":self.coord_hicann, "coord_wafer" : coord_wafer})
+        self.sthal = SimStHALContainer(cfg)
 
     def test_pickle(self):
         """Try pickling and unpickling"""
@@ -119,19 +126,19 @@ class TestSimSthal(unittest.TestCase):
             b=y,
             c=y)
 
-        resampled = self.sthal.resample_simulation_result(result)
+        resampled = self.sthal.resample_simulation_result(result, adc_interval)
 
         for key in "a b c".split():
             self.assertEqual(
-                len(resampled['t']), len(resampled['a']),
+                len(resampled.index.values), len(resampled['a']),
                 "re-sampled signal data has the same lenght as time")
 
         self.assertAlmostEqual(
-            resampled['t'][1] - resampled['t'][0],
+            resampled.index.values[1] - resampled.index.values[0],
             adc_interval,
             "re-sampled interval is sufficiently close to adc sampling interval")
 
-        intervals = numpy.diff(resampled['t'])
+        intervals = numpy.diff(resampled.index.values)
         self.assertLess(
             (max(intervals) - min(intervals)) / numpy.mean(intervals),
             1e-10)

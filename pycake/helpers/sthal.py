@@ -272,8 +272,7 @@ class StHALContainer(object):
         self.coord_wafer, self.coord_hicann = config.get_coordinates()
         self.hicann_version = config.get_hicann_version()
         self.wafer_cfg = config.get_wafer_cfg()
-        self.dump_file = None  # TODO add to config
-        self.wafer_cfg = config.get_wafer_cfg()
+        self.dump_file = config.get_dump_file()
         self.save_raw_traces = config.get_save_raw_traces()
 
         self.wafer = pysthal.Wafer(self.coord_wafer)
