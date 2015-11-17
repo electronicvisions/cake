@@ -26,6 +26,7 @@ custom_buildshell = """\
 # workaround for "module: command not found"
 source /opt/modules/install/Modules/current/init/sh
 
+module load mongo
 module load pynn
 module load anaconda
 
