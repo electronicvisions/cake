@@ -8,9 +8,9 @@ PLOTDIR=$OUTDIR/plots
 mkdir -p $OUTDIR
 
 # c.f. cake/project.prj
-module load numpy/1.8.0
-module load pyfftw
-module load pynn
+module load mongo
+module load anaconda
+module load pynn/0.7.5
 module load localdir
 
 find .

@@ -27,8 +27,8 @@ custom_buildshell = """\
 source /opt/modules/install/Modules/current/init/sh
 
 module load mongo
-module load pynn
 module load anaconda
+module load pynn/0.7.5
 
 ./waf configure --test-timeout=360 --test-xml-summary=test_results
 ./waf install --test-exec pycake_tests
