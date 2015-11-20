@@ -65,8 +65,7 @@ def load_config(parsed_args):
     if parsed_args.outdir:
         backend_dir = os.path.join(parsed_args.outdir, 'backends')
         cfg.parameters['folder'] = parsed_args.outdir
-        cfg.parameters['backend_c'] = backend_dir
-        cfg.parameters['backend_r'] = backend_dir
+        cfg.parameters['backend'] = backend_dir
     if parsed_args.hicann:
         cfg.parameters['coord_hicann'] = parsed_args.hicann
     if parsed_args.wafer:

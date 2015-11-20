@@ -226,6 +226,7 @@ class CalibrationRunner(object):
     def load_calibtic(self):
         """Load calibtic object"""
         path = self.config.get_backend_path()
+        self.logger.INFO("Setting calibtic backend path to: {}".format(path))
         wafer, hicann = self.config.get_coordinates()
         return pycake.helpers.calibtic.Calibtic(
             path, wafer, hicann, self.config.get_PLL(),
