@@ -9,6 +9,7 @@ mkdir -p $OUTDIR
 
 # c.f. cake/project.prj
 module load mongo
+module load yaml-cpp/0.5.2
 module load anaconda
 module load pynn/0.7.5
 module load localdir
