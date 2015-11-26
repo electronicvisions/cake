@@ -25,18 +25,6 @@ from pysthal import HICANNConfigurator as HICANNv2Configurator
 from pysthal import HICANNv4Configurator
 
 
-def get_row_names(block, row):
-    try:
-        shared = getSharedParameter(block, row).name
-    except IndexError:
-        shared = 'n.c.'
-    try:
-        neuron = getNeuronParameter(block, row).name
-    except IndexError:
-        neuron = 'n.c.'
-    return (shared, neuron, int(row))
-
-
 class UpdateParameterUp(HICANNv4Configurator):
     """
     New HICANN configurator, could do stuff better or worse...
