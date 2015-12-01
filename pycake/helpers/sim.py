@@ -1,7 +1,8 @@
 import os
 import hashlib
 import numpy
-import scipy
+import scipy.interpolate
+import pandas
 import cPickle
 from collections import defaultdict
 

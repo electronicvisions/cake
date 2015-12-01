@@ -80,9 +80,9 @@ class TestSthalWithHardware(PysthalTest):
 
 class TestSimSthal(unittest.TestCase):
     def setUp(self):
-        """initialize SimStHAL container"""
+        """initialize SimStHALContainer"""
         # import here because dependencies are optional
-        from pycake.helpers.sthal import SimStHALContainer
+        from pycake.helpers.sim import SimStHALContainer
         coord_wafer = C.Wafer(4)
         self.coord_hicann = coord_hicann = C.HICANNOnWafer(C.Enum(365))
         cfg = Config(None, {"sim_denmem": ":0", "hicann_version": -1,
@@ -91,6 +91,8 @@ class TestSimSthal(unittest.TestCase):
 
     def test_pickle(self):
         """Try pickling and unpickling"""
+        # import here because dependencies are optional
+        from pycake.helpers.sim import SimStHALContainer
         p = pickle.dumps(self.sthal)
         s2 = pickle.loads(p)
         self.assertIsInstance(s2, SimStHALContainer)
