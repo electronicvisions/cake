@@ -1,7 +1,7 @@
 #!/bin/bash -ev
 
-WAFER=1
-HICANN=288
+WAFER=20
+HICANN=280
 OUTDIR=./build/results_calibration
 PLOTDIR=$OUTDIR/plots
 
