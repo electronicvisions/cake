@@ -644,8 +644,10 @@ class PSPAnalyzer(Analyzer):
         result['v'] = v_avg
         if not self.excitatory:
             result['v'] *= -1.0
-            result['height'] *= -1.0
-            result['offset'] *= -1.0
+            if 'height' in result:
+                result['height'] *= -1.0
+            if 'offset' in result:
+                result['offset'] *= -1.0
         return result
 
     def psp_fit(self, t, v, err_estimate):

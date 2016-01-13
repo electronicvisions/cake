@@ -626,7 +626,10 @@ class V_syntc_Calibrator(BaseCalibrator):
         if len(x.values) < 7:
             return None
 
-        model, result = self.fit_model(x, y - y0)
+        try:
+            model, result = self.fit_model(x, y - y0)
+        except FloatingPointError:
+            return None
 
         x0, x1 = vsyntc[[0, -1]]
         xi = numpy.arange(int(x0), int(x1) + 1)
@@ -656,8 +659,17 @@ class V_syntc_Calibrator(BaseCalibrator):
 
     def generate_transformations(self):
         data = self.get_data()
-        fits = {nrn : self.make_trafo(self.approximate_with_fit(nrn_data))
-                for nrn, nrn_data in data.groupby(level='neuron')}
+        fits = {}
+        errors = {}
+        for nrn, nrn_data in data.groupby(level='neuron'):
+            nrn_data = nrn_data.dropna()
+            nrn_fit = self.approximate_with_fit(nrn_data)
+            if nrn_fit is None:
+                errors[nrn] = "Fit failed"
+            trafo = self.make_trafo(nrn_fit)
+            if trafo is None and nrn_fit is not None:
+                errors[nrn] = "Trafo failed"
+            fits[nrn] = trafo
         return [(self.target_parameter, fits)]
 
 
