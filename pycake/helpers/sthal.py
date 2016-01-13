@@ -234,7 +234,7 @@ class StHALContainer(object):
 
     def __init__(self,
                  config,
-                 coord_analog=Coordinate.AnalogOnHICANN(0),
+                 coord_analog,
                  recording_time=1.e-4):
         """Initialize StHAL. kwargs default to vertical setup configuration.
 

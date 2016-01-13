@@ -60,7 +60,7 @@ class BaseExperimentBuilder(object):
         self.test = test
         self.calibration_status = {}
 
-    def get_sthal(self, analog=Coordinate.AnalogOnHICANN(0)):
+    def get_sthal(self):
         """
         returns sthal helper depending on config (e.g. hw vs. sim)
         """
@@ -69,7 +69,7 @@ class BaseExperimentBuilder(object):
         sim_denmem_cfg = self.config.get_sim_denmem()
         if sim_denmem_cfg:
             StHAL = SimStHALContainer
-        return StHAL(config=self.config, coord_analog=analog)
+        return StHAL(config=self.config, coord_analog=self.config.get_analog())
 
     def generate_measurements(self):
         self.logger.INFO("Building experiment {}".format(self.config.get_target()))
@@ -399,7 +399,7 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
             experiment.initial_data['spike_interval'] = self.recording_time
 
             # Add ADC frequency measurement
-            sthal = self.get_sthal(Coordinate.AnalogOnHICANN(0))
+            sthal = self.get_sthal()
             if sthal.is_hardware():
                 experiment.add_initial_measurement(
                     ADCFreq_Measurement(sthal, self.neurons, bg_rate=100e3),
@@ -503,7 +503,7 @@ class Parrot_Experimentbuilder(BaseExperimentBuilder):
         """ Add the initial measurement to I_gl experiment.
             This measurement determines the ADC frequency needed for the TraceAverager
         """
-        sthal = self.get_sthal(Coordinate.AnalogOnHICANN(1))
+        sthal = self.get_sthal()
         measurement = ADCFreq_Measurement(sthal, self.neurons, bg_rate=100e3)
         analyzer = ADCFreq_Analyzer()
         experiment.add_initial_measurement(measurement, analyzer)
@@ -538,7 +538,7 @@ class I_gl_Experimentbuilder(BaseExperimentBuilder):
         coord_wafer, coord_hicann = self.config.get_coordinates()
         wafer_cfg = self.config.get_wafer_cfg()
         PLL = self.config.get_PLL()
-        sthal = self.get_sthal(Coordinate.AnalogOnHICANN(1))
+        sthal = self.get_sthal()
         measurement = ADCFreq_Measurement(sthal, self.neurons, bg_rate=100e3)
         analyzer = ADCFreq_Analyzer()
         experiment.add_initial_measurement(measurement, analyzer)

@@ -15,10 +15,12 @@ import pylogging
 from Coordinate import Enum
 from Coordinate import FGBlockOnHICANN
 from Coordinate import NeuronOnHICANN
+from Coordinate import AnalogOnHICANN
 
 logger = pylogging.get("pycake.config")
 
 DEFAULT_PARAMETERS = {
+    "analog": AnalogOnHICANN(0),
     "neurons": [NeuronOnHICANN(Enum(i)) for i in range(512)],
     "blocks":  [FGBlockOnHICANN(Enum(i)) for i in range(4)],
 
@@ -308,3 +310,6 @@ class Config(object):
 
     def get_no_of_spikes(self, default):
         return self.parameters.get('no_of_spikes', default)
+
+    def get_analog(self):
+        return self.parameters['analog']
