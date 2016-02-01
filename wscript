@@ -19,6 +19,9 @@ def depends(ctx):
 
 def options(opt):
     opt.load('post_task')
+    opt.load('documentation')
+
+    # add 'configure' options
     hopts = opt.add_option_group('Cake Options')
     hopts.add_withoption('sim', default=False,
                          help='Enable/Disable the simulation interface')
@@ -28,7 +31,10 @@ def options(opt):
 
 def configure(cfg):
     cfg.load('post_task')
+    cfg.load('documentation')
     cfg.env.post_sim = cfg.options.with_sim
+    # needed for doc build
+    cfg.find_program("doxypy", mandatory=True)
 
     try:
         disable_bindings = cfg.options.disable_bindings
@@ -74,3 +80,13 @@ def build(bld):
         relative_trick=False
     )
     bld.recurse('test')
+
+
+def doc(dcx):
+    '''build documentation (doxygen)'''
+
+    dcx(
+        features='doxygen',
+        doxyfile='doc/doxyfile',
+        pdffile='pycake.pdf',
+    )
