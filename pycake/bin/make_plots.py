@@ -261,7 +261,7 @@ def calibrated_hist(xlabel, reader, **reader_kwargs):
         #--------------------------------------------------------------------------------
 
         fig, foos = reader.plot_vs_neuron_number_s(sort_by_shared_FG_block=True, **reader_kwargs)
-        plt.title("uncalibrated", x=0.125, y=0.9)
+        plt.title("calibrated", x=0.125, y=0.9)
         plt.xlabel("Shared FG block*128 + Neuron%256/2")
         plt.ylabel(xlabel)
         plt.xlim(0, 512)
@@ -456,6 +456,14 @@ if args.backenddir:
     plt.subplots_adjust(**margins)
     plt.savefig(os.path.join(fig_dir,"analog_readout_offset.pdf"))
     plt.savefig(os.path.join(fig_dir,"analog_readout_offset.png"))
+
+    fig = plt.figure()
+    plt.xlabel("neuron")
+    plt.ylabel("offset [mV]")
+    plt.plot(offsets, 'rx')
+    plt.savefig(os.path.join(fig_dir,"analog_readout_offset_vs_nrn.pdf"))
+    plt.savefig(os.path.join(fig_dir,"analog_readout_offset_vs_nrn.png"))
+
 
 
 ## V convoff
