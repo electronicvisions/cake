@@ -53,6 +53,8 @@ DEFAULT_PARAMETERS = {
     "dump_file" : None,
     "repetitions": 1,
     "input_spikes": {},
+
+    "hwdb": ""
 }
 
 
@@ -313,3 +315,6 @@ class Config(object):
 
     def get_analog(self):
         return self.parameters['analog']
+
+    def get_hwdb(self):
+        return self.parameters['hwdb']

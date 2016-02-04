@@ -254,6 +254,9 @@ class StHALContainer(object):
         self.dump_file = config.get_dump_file()
         self.save_raw_traces = config.get_save_raw_traces()
 
+        # FIXME: should we store the content of the hwdb file instead?
+        self.hwdb = config.get_hwdb()
+
         self.wafer = pysthal.Wafer(self.coord_wafer)
         if self.wafer_cfg:
             self.logger.info("Loading {}".format(self.wafer_cfg))
@@ -288,7 +291,11 @@ class StHALContainer(object):
     def connect(self):
         """Connect to the hardware."""
         if self.dump_file is None:
-            db = pysthal.MagicHardwareDatabase()
+            if self.hwdb:
+                self.logger.warn("using non-default hardware database {}".format(self.hwdb))
+                db = pysthal.YAMLHardwareDatabase(self.hwdb)
+            else:
+                db = pysthal.MagicHardwareDatabase()
             self.wafer.connect(db)
         else:
             # do not actually connect, write to file
