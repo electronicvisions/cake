@@ -55,7 +55,7 @@ parameters = {
     },
 
     "parameter_order": [
-        'readout_shift',
+        #'readout_shift',
         shared_parameter.V_reset.name,
         neuron_parameter.V_t.name,
         neuron_parameter.E_syni.name,

@@ -37,7 +37,7 @@ parameters = {
         neuron_parameter.E_l.name,
         neuron_parameter.V_convoffx.name,
         neuron_parameter.V_convoffi.name,
-        neuron_parameter.I_gl,
+        #neuron_parameter.I_gl,
         neuron_parameter.V_syntcx.name,
         neuron_parameter.V_syntci.name,
     ],
