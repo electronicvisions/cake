@@ -69,7 +69,7 @@ class UpdateParameterUpAndConfigure(UpdateParameterUp):
         self.config_dncmerger(handle, hicann)
         self.config_background_generators(handle, hicann)
         self.lock_repeater(handle, hicann)
-        self.flush_fpga(fpga_handle)
+        self.flush_hicann(handle)
 
 
 class SpikeReadoutHICANNConfigurator(HICANNv2Configurator):
@@ -101,13 +101,13 @@ class SpikeReadoutHICANNConfigurator(HICANNv2Configurator):
         self.config_merger_tree(handle, data)
         self.config_dncmerger(handle, data)
         self.config_background_generators(handle, data)
-        self.flush_fpga(fpga)
+        self.flush_hicann(handle)
         self.lock_repeater(handle, data)
 
         self.config_neuron_config(handle, data)
         self.config_neuron_quads(handle, data)
         self.config_analog_readout(handle, data)
-        self.flush_fpga(fpga)
+        self.flush_hicann(handle)
 
 
 class UpdateAnalogOutputConfigurator(HICANNv2Configurator):
@@ -127,7 +127,7 @@ class UpdateAnalogOutputConfigurator(HICANNv2Configurator):
         self.config_neuron_quads(h, hicann)
         self.config_analog_readout(h, hicann)
         self.config_fg_stimulus(h, hicann)
-        self.flush_fpga(fpga_handle)
+        self.flush_hicann(h)
 
 
 class SetFGCell(HICANNv2Configurator):
@@ -144,7 +144,7 @@ class SetFGCell(HICANNv2Configurator):
     def config(self, fpga_handle, h, hicann):
         """Call analog output related configuration functions."""
         HICANN.set_fg_cell(h, *self.coords)
-        self.flush_fpga(fpga_handle)
+        self.flush_hicann(h)
 
 
 class UpdateParameter(HICANNv2Configurator):

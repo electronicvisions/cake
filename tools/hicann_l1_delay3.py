@@ -114,7 +114,7 @@ class FindRepeaterNeurons(object):
             # self.config_neuron_quads(h, hicann)
             self.config_analog_readout(h, hicann)
             # self.config_fg_stimulus(h, hicann)
-            self.flush_fpga(fpga_handle)
+            self.flush_hicann(h)
 
     def __init__(self, calibration_path):
 
