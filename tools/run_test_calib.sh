@@ -1,7 +1,12 @@
 #!/bin/bash -ev
 
-WAFER=20
-HICANN=280
+if [ $# -ne 2 ]; then
+	echo "./run_test_calib.sh WAFER HICANN"
+	exit 1
+fi
+
+WAFER=$1
+HICANN=$2
 OUTDIR=./build/results_calibration
 PLOTDIR=$OUTDIR/plots
 
