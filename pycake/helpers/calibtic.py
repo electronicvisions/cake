@@ -127,7 +127,7 @@ class Calibtic(object):
             backend.load(name, md, hc)
             calibration_existed = True
         except RuntimeError, e:
-            if e.message != "data set not found":
+            if "data set not found" not in e.message:
                 raise
 
             # Delete all standard entries.
