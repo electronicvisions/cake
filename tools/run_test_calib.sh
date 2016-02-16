@@ -26,7 +26,7 @@ module load localdir
 
 find .
 
-cp -v bin/tools/*_parameters.py .
+cp -v cake/config/*.py .
 
 # issue 1621
 export PYTHONPATH=.:$PYTHONPATH
