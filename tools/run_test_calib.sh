@@ -1,16 +1,21 @@
 #!/bin/bash -ev
 
-if [ $# -ne 2 ]; then
-	echo "./run_test_calib.sh WAFER HICANN"
+if [ $# -ne 3 ]; then
+	echo "./run_test_calib.sh WAFER HICANN HICANN_VERSION (2 or 4)"
 	exit 1
 fi
 
 WAFER=$1
 HICANN=$2
+HICANN_VERSION=$3
 OUTDIR=./build/results_calibration
 PLOTDIR=$OUTDIR/plots
 
+echo "outdir: $OUTDIR"
+echo "plotdir: $PLOTDIR"
+
 mkdir -p $OUTDIR
+mkdir -p $PLOTDIR
 
 # c.f. cake/project.prj
 module load mongo
@@ -26,8 +31,25 @@ cp -v bin/tools/*_parameters.py .
 # issue 1621
 export PYTHONPATH=.:$PYTHONPATH
 
+case $HICANN_VERSION in
+    2)
+		calib_params=fastcalibration_parameters.py
+		eval_params=evaluation_parameters.py
+        ;;
+    4)
+		calib_params=v4_params.py
+		eval_params=v4_eval.py
+        ;;
+    *)
+        echo "Unknown hicann version: $HICANN_VERSION"
+		exit 1
+esac
+
+echo "calib_parms: $calib_params"
+echo "eval_parms: $eval_params"
+
 # run calibration
-bin/tools/run_calibration.py fastcalibration_parameters.py --wafer $WAFER --hicann $HICANN --outdir $OUTDIR --overwrite clear bool True --overwrite clear_defects bool True
+bin/tools/run_calibration.py $calib_params --wafer $WAFER --hicann $HICANN --outdir $OUTDIR --overwrite clear bool True --overwrite clear_defects bool True
 
 find $OUTDIR
 
@@ -37,7 +59,7 @@ for d in $OUTDIR/calibration*; do
 done
 
 # run evaluation
-bin/tools/run_calibration.py evaluation_parameters.py --wafer $WAFER --hicann $HICANN --outdir $OUTDIR
+bin/tools/run_calibration.py $eval_params --wafer $WAFER --hicann $HICANN --outdir $OUTDIR
 
 find $OUTDIR
 
@@ -47,6 +69,7 @@ for d in $OUTDIR/evaluation*; do
 done
 
 # make plots
-mkdir -p $PLOTDIR
 bin/tools/make_plots.py $latest_calibration $latest_evaluation $HICANN $OUTDIR/backends --wafer $WAFER --outdir $PLOTDIR
-cp bin/tools/overview.html $PLOTDIR
+cp -v bin/tools/overview.html $PLOTDIR
+
+find $OUTDIR
