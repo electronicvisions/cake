@@ -23,7 +23,7 @@ class TestSthalHelper(unittest.TestCase):
         """initialize StHAL container"""
         cfg = Config(None, {"coord_wafer" : C.Wafer(4),
                             "coord_hicann" : C.HICANNOnWafer(C.Enum(365))})
-        sthal = StHALContainer(cfg)
+        sthal = StHALContainer(cfg, C.AnalogOnHICANN(0))
         p = pickle.dumps(sthal)
         s2 = pickle.loads(p)
         self.assertIsInstance(s2, StHALContainer)
@@ -41,7 +41,7 @@ class TestSthalHelper(unittest.TestCase):
         cfg = Config("random-name", {"coord_wafer" : coord_wafer,
                                      "coord_hicann" : coord_hicann,
                                      "dump_file" : filename})
-        sthal = StHALContainer(cfg)
+        sthal = StHALContainer(cfg, C.AnalogOnHICANN(0))
         sthal.connect()
         sthal.disconnect()
         sthal.read_adc_status()
