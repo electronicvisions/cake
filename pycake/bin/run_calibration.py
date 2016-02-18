@@ -74,7 +74,15 @@ def load_config(parsed_args):
         remove = [key for key in cfg.parameters if key.startswith('run_')]
         for key in remove:
             del cfg.parameters[key]
-        cfg.parameters['parameter_order'] = parsed_args.parameter
+
+        cfg.parameters['parameter_order'] = []
+
+        # --parameter can be given multiple times with multiple parameters
+        # -> collect all parameters in single list
+        for params in parsed_args.parameter:
+            for param in params:
+                cfg.parameters['parameter_order'].append(param)
+
     cfg.parameters.update(parsed_args.overwrite)
     return cfg
 
@@ -109,7 +117,7 @@ parser.add_argument('parameter_file', type=check_file,
 parser.add_argument('--outdir', type=str, default=None,
                     help="output folder. default is the one specified in the "
                          "config file.")
-parser.add_argument('--parameter', type=str, default=None, action='append',
+parser.add_argument('--parameter', type=str, default=None, action='append', nargs='+',
                     help='Runs the specified calibrations in the given order')
 parser.add_argument('--overwrite', required=False, action=DictionaryAction,
                     help="Overwrites values loaded from configuration file, e.g. --overwrite PLL float 125e6")
