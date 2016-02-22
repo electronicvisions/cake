@@ -12,7 +12,14 @@ from pycake.helpers.psp_shapes import DoubleExponentialPSP
 from pycake.helpers import psp_fit
 from pycake.helpers import psp_model
 
-from sims.sim_denmem_lib import NETS_AND_PINS
+try:
+    from sims.sim_denmem_lib import NETS_AND_PINS
+except ImportError:
+    import mock
+    # NETS_AND_PINS contains signal names occurring in circuit simulation, but
+    # not in hardware runs. Return "" is fine, because the analyzers have to
+    # work if these names are not in the data
+    NETS_AND_PINS = mock.Mock(return_value="", name="NETS_AND_PINS_MOCK")
 
 
 class Analyzer(object):
