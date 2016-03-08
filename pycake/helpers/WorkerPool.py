@@ -2,6 +2,14 @@ import multiprocessing
 import time
 import traceback
 import cPickle
+import pylogging
+import os
+
+logger = pylogging.get("pycake.helper.workerpool")
+
+CPUS = os.environ.get('SLURM_JOB_CPUS_PER_NODE', multiprocessing.cpu_count())
+TASKS = os.environ.get('SLURM_TASKS_PER_NODE', 1)
+DEFAULT_WORKERS = -(-int(CPUS) // int(TASKS)) # Round upwards
 
 def process(f, key, *args, **kwargs):
     """
@@ -27,9 +35,8 @@ class WorkerPool(object):
     if any died.
     """
 
-    def __init__(self, f, workers = None):
-        if workers is None:
-            workers = multiprocessing.cpu_count()
+    def __init__(self, f, workers=DEFAULT_WORKERS):
+        logger.info("Initialize worker pool with {} workers".format(workers))
 
         self.pool = multiprocessing.Pool(workers)
         self.poolpids = tuple(proc.pid for proc in self.pool._pool)
@@ -46,14 +53,22 @@ class WorkerPool(object):
     def __exit__(self, error_type, value, traceback):
         self.terminate()
 
+    def currentpids(self):
+        """Returns process pids of the workers currently used by the pool"""
+        return tuple(proc.pid for proc in self.pool._pool)
+
     def is_alive(self):
         # If a worker dies a new one is started, but the thread pool is not
         # working reliable anymore.
-        return self.poolpids == tuple(proc.pid for proc in self.pool._pool)
+        return self.poolpids == self.currentpids()
 
     def do(self, key, *args, **kwargs):
         if not self.is_alive():
-            raise SystemError("Worker process died unexpectedly.")
+            pids = list(set(self.poolpids) - set(self.currentpids()))
+            raise SystemError("Worker processes {} died unexpectedly.".format(
+                pids))
+
+        logger.debug("Add task {}".format(key))
         self.tasks.append(self.pool.apply_async(
             process, (self.callback, key) + args, kwargs))
 

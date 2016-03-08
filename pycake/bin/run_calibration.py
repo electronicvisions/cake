@@ -101,6 +101,7 @@ init_logger(pylogging.LogLevel.WARN, [
     ("pycake.redman", pylogging.LogLevel.DEBUG),
     ("pycake.helper.sthal", pylogging.LogLevel.INFO),
     ("pycake.helper.simsthal", pylogging.LogLevel.INFO),
+    ("pycake.helper.workerpool", pylogging.LogLevel.INFO),
     ("sthal", pylogging.LogLevel.INFO),
     ("sthal.AnalogRecorder", pylogging.LogLevel.WARN),
     ("sthal.HICANNConfigurator.Time", pylogging.LogLevel.INFO),
