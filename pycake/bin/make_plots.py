@@ -907,7 +907,8 @@ try:
                mark_top_bottom=True,
                alpha=0.5,
                marker="None",
-               yfactor=1000)
+               yfactor=1000,
+               ylim=[0,25])
 
 
         trace("$V_{mem}$ [mV]", r_v_syntcx, "V_syntcx_psp_max", args.neuron_enum, end=4000)
@@ -980,7 +981,8 @@ try:
                mark_top_bottom=True,
                alpha=0.5,
                marker="None",
-               yfactor=1000)
+               yfactor=1000,
+               ylim=[0,25])
 
         trace("$V_{mem}$ [mV]", r_v_syntci, "V_syntci_psp_max", args.neuron_enum, end=510)
 
