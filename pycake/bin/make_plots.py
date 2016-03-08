@@ -87,7 +87,7 @@ parser.add_argument("--tau_ref_testrunner", help="path to tau ref test runner (i
 
 parser.add_argument("--spikes_testrunner", help="path to spikes test runner (if different from 'testrunner')", default=None)
 
-parser.add_argument("--neuron_enum", help="neuron used for plots", default=0, type=int)
+parser.add_argument("--neuron_enum", help="neuron(s) used for plots", default=[0], type=int, nargs="+")
 
 parser.add_argument("--v_convoff_testrunner", help="path to V convoff test runner (if different from 'testrunner')", default=None)
 
@@ -278,13 +278,14 @@ def calibrated_hist(xlabel, reader, **reader_kwargs):
                                                     "calibrated_vs_shared_FG_block.png"])))
 
 
-def trace(ylabel, reader, parameter, neuron, steps=None, start=0, end=-1, suffix=""):
+def trace(ylabel, reader, parameter, neuron_enum, steps=None, start=0, end=-1, suffix=""):
+    """
+    neuron: neuron enums
+    """
 
     if not reader: return
 
     logger.INFO("trace for {}".format(parameter))
-
-    fig = plt.figure()
 
     recurrence = 0
     e = reader.get_calibration_unit(name=parameter, recurrence=recurrence).experiment
@@ -292,24 +293,32 @@ def trace(ylabel, reader, parameter, neuron, steps=None, start=0, end=-1, suffix
     if steps == None:
         steps = range(len(e.measurements))
 
-    t = None
+    for n_e in neuron_enum:
 
-    for step in steps:
+        logger.INFO("\t neuron {}".format(n_e))
 
-        try:
-            p, t = reader.plot_trace(parameter, neuron, step, start, end)
-        except KeyError as e:
-            logger.WARN(e)
-            continue
+        neuron = C.NeuronOnHICANN(C.Enum(n_e))
 
-    plt.grid(True)
-    if t:
-        plt.xlim(t[0][0], t[0][-1])
-    plt.xlabel("t [$\mu$s]")
-    plt.ylabel(ylabel)
-    plt.subplots_adjust(**margins)
-    plt.savefig(os.path.join(fig_dir,parameter+"_trace"+suffix+".pdf"))
-    plt.savefig(os.path.join(fig_dir,parameter+"_trace"+suffix+".png"))
+        fig = plt.figure()
+
+        t = None
+
+        for step in steps:
+
+            try:
+                p, t = reader.plot_trace(parameter, neuron, step, start, end)
+            except KeyError as e:
+                logger.WARN(e)
+                continue
+
+        plt.grid(True)
+        if t:
+            plt.xlim(t[0][0], t[0][-1])
+        plt.xlabel("t [$\mu$s]")
+        plt.ylabel(ylabel)
+        plt.subplots_adjust(**margins)
+        plt.savefig(os.path.join(fig_dir,parameter+"_trace"+suffix+"_nrn_"+str(neuron.id().value())+".pdf"))
+        plt.savefig(os.path.join(fig_dir,parameter+"_trace"+suffix+"_nrn_"+str(neuron.id().value())+".png"))
 
 def result(label, xlabel=None, ylabel=None, reader=None, suffix="", xlim=None, ylim=None, **reader_kwargs):
     """ label must have placeholder 'inout' for 'in' and 'out' x and y labels,
@@ -492,7 +501,7 @@ try:
                           range=(xmin, xmax),
                           show_legend=True)
 
-        trace("$V_{mem}$ [mV]", r_v_reset, "V_reset", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=2000, suffix="_uncalibrated")
+        trace("$V_{mem}$ [mV]", r_v_reset, "V_reset", args.neuron_enum, end=2000, suffix="_uncalibrated")
 
         result("$V_{{reset}}$ {inout}", reader=r_v_reset, parameter="V_reset",key="baseline",alpha=0.05)
 except Exception as e:
@@ -513,7 +522,7 @@ try:
                           range=(xmin, xmax),
                           show_legend=True)
 
-        trace("$V_{mem}$ [V]", r_test_v_reset, "V_reset", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_calibrated")
+        trace("$V_{mem}$ [V]", r_test_v_reset, "V_reset", args.neuron_enum, end=510, suffix="_calibrated")
 except Exception as e:
     logger.ERROR("problem with calibrated V_reset plots: {}".format(e))
 
@@ -536,7 +545,7 @@ try:
 
         result("$E_{{synx}}$ {inout}", reader=r_e_synx, ylim=[xmin,xmax], parameter="E_synx",key="mean",alpha=0.05)
 
-        trace("$V_{mem}$ [V]", r_e_synx, "E_synx", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_uncalibrated")
+        trace("$V_{mem}$ [V]", r_e_synx, "E_synx", args.neuron_enum, end=510, suffix="_uncalibrated")
 except Exception as e:
     logger.ERROR("problem with uncalibrated E_synx plots: {}".format(e))
 
@@ -557,7 +566,7 @@ try:
 
         result("$E_{{synx}}$ {inout}", reader=r_test_e_synx, suffix="_calibrated", xlim=[xmin/1.8*1023,xmax/1.8*1023], ylim=[xmin,xmax], parameter="E_synx",key="mean",alpha=0.05)
 
-        trace("$V_{mem}$ [V]", r_test_e_synx, "E_synx", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_calibrated")
+        trace("$V_{mem}$ [V]", r_test_e_synx, "E_synx", args.neuron_enum, end=510, suffix="_calibrated")
 
     #for k,v in r_test_e_synx.get_results("E_synx", r_test_e_synx.get_neurons(), "mean").iteritems():
     #        if v[0] < 0.78 or v[0] > 0.82:
@@ -584,7 +593,7 @@ try:
 
         result("$E_{{syni}}$ {inout}", reader=r_e_syni, ylim=[xmin,xmax], parameter="E_syni",key="mean",alpha=0.05)
 
-        trace("$V_{mem}$ [V]", r_e_syni, "E_syni", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_uncalibrated")
+        trace("$V_{mem}$ [V]", r_e_syni, "E_syni", args.neuron_enum, end=510, suffix="_uncalibrated")
 except Exception as e:
     logger.ERROR("problem with uncalibrated E_syni plots: {}".format(e))
 
@@ -605,7 +614,7 @@ try:
 
         result("$E_{{syni}}$ {inout}", reader=r_test_e_syni, suffix="_calibrated", xlim=[xmin/1.8*1023,xmax/1.8*1023], ylim=[xmin,xmax], parameter="E_syni",key="mean",alpha=0.05)
 
-        trace("$V_{mem}$ [V]", r_test_e_syni, "E_syni", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_calibrated")
+        trace("$V_{mem}$ [V]", r_test_e_syni, "E_syni", args.neuron_enum, end=510, suffix="_calibrated")
 except Exception as e:
     logger.ERROR("problem with calibrated E_syni plots: {}".format(e))
 
@@ -628,7 +637,7 @@ try:
 
         result("$E_{{l}}$ {inout}", reader=r_e_l, ylim=[xmin,xmax], parameter="E_l",key="mean",alpha=0.05)
 
-        trace("$V_{mem}$ [V]", r_e_l, "E_l", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_uncalibrated")
+        trace("$V_{mem}$ [V]", r_e_l, "E_l", args.neuron_enum, end=510, suffix="_uncalibrated")
 
         """
 
@@ -690,7 +699,7 @@ try:
 
         result("$E_{{l}}$ {inout}", reader=r_test_e_l, suffix="_calibrated", xlim=[xmin/1.8*1023,xmax/1.8*1023], ylim=[xmin,xmax], parameter="E_l",key="mean",alpha=0.05)
 
-        trace("$V_{mem}$ [V]", r_test_e_l, "E_l", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_calibrated")
+        trace("$V_{mem}$ [V]", r_test_e_l, "E_l", args.neuron_enum, end=510, suffix="_calibrated")
 except Exception as e:
     logger.ERROR("problem with calibrated E_l plots: {}".format(e))
 
@@ -713,7 +722,7 @@ try:
 
         result("$V_{{t}}$ {inout}", reader=r_v_t, xlim=[xmin/1.8*1023,xmax/1.8*1023], ylim=[xmin,xmax], parameter="V_t",key="max",alpha=0.05)
 
-        trace("$V_{mem}$ [V]", r_v_t, "V_t", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_uncalibrated")
+        trace("$V_{mem}$ [V]", r_v_t, "V_t", args.neuron_enum, end=510, suffix="_uncalibrated")
 except Exception as e:
     logger.ERROR("problem with uncalibrated V_t plots: {}".format(e))
 
@@ -745,7 +754,7 @@ try:
 
         result("$V_{{t}}$ {inout}", reader=r_test_v_t, suffix="_calibrated", xlim=[xmin/1.8*1023,xmax/1.8*1023], ylim=[xmin,xmax], parameter="V_t",key="max",alpha=0.05)
 
-        trace("$V_{mem}$ [V]", r_test_v_t, parameter="V_t", neuron=C.NeuronOnHICANN(C.Enum(args.neuron_enum)), start=500, end=700, suffix="_calibrated")
+        trace("$V_{mem}$ [V]", r_test_v_t, parameter="V_t", neuron=args.neuron_enum, start=500, end=700, suffix="_calibrated")
 
         #r_v_t.include_defects = False
 
@@ -901,7 +910,7 @@ try:
                yfactor=1000)
 
 
-        trace("$V_{mem}$ [mV]", r_v_syntcx, "V_syntcx_psp_max", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=4000)
+        trace("$V_{mem}$ [mV]", r_v_syntcx, "V_syntcx_psp_max", args.neuron_enum, end=4000)
 
         # In[311]:
 
@@ -973,7 +982,7 @@ try:
                marker="None",
                yfactor=1000)
 
-        trace("$V_{mem}$ [mV]", r_v_syntci, "V_syntci_psp_max", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510)
+        trace("$V_{mem}$ [mV]", r_v_syntci, "V_syntci_psp_max", args.neuron_enum, end=510)
 
         # In[319]:
 
@@ -1083,7 +1092,7 @@ if r_tau_ref:
 
     result(r"$\tau_{{ref}}$ {inout}", reader=r_tau_ref, parameter="I_pl", key="tau_ref", alpha=0.05)
 
-    #trace("$V_{mem}$ [V]", r_tau_ref, "tau_ref", C.NeuronOnHICANN(C.Enum(args.neuron_enum)), end=510, suffix="_uncalibrated")
+    #trace("$V_{mem}$ [V]", r_tau_ref, "tau_ref", args.neuron_enum, end=510, suffix="_uncalibrated")
 
 r_test_tau_ref = test_reader if args.tau_ref_testrunner == None else Reader(args.tau_ref_testrunner)
 
@@ -1099,7 +1108,7 @@ if  r_test_tau_ref:
 
     result(r"$\tau_{{ref}}$ {inout}", reader=r_test_tau_ref, suffix="_calibrated", parameter="I_pl", key="tau_ref", alpha=0.05)
 
-    #trace("$V_{mem}$ [V]", r_test_tau_ref, parameter="tau_ref", neuron=C.NeuronOnHICANN(C.Enum(args.neuron_enum)), start=500, end=700, suffix="_calibrated")
+    #trace("$V_{mem}$ [V]", r_test_tau_ref, parameter="tau_ref", neuron=args.neuron_enum, start=500, end=700, suffix="_calibrated")
 """
 
 cakebin = os.path.split(os.path.abspath(__file__))[0]
