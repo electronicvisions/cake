@@ -21,9 +21,13 @@ def configure(cfg):
 
 
 def build(bld):
+    exclude_tests = []
+    if not bld.env.post_sim:
+        # do not test simulation if --without-sim was set
+        exclude_tests.append("test_helpers_sim.py")
     bld(
         name='pycake_tests',
-        tests=bld.path.ant_glob('test_*.py'),
+        tests=bld.path.ant_glob('test_*.py', excl=exclude_tests),
         features='pytest post_task',
         use=['pycalibtic', 'calibtic_xml', 'calibtic_mongo',
              'pyredman', 'redman_xml', 'redman_mongo',
