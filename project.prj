@@ -22,7 +22,7 @@ startup()   // list basic information about the project being created
 * '\\n'.
 */
 
-custom_buildshell = """\
+custom_buildshell = '''\
 # workaround for "module: command not found"
 source /opt/modules/install/Modules/current/init/sh
 
@@ -36,12 +36,10 @@ module load pynn/0.7.5
 
 # Coverage needs to be included in waflib/extras/pytest.py
 # instead of calling it here.
-(cd cake/ && \
- rm -rf htmlcov/ && \
- LD_LIBRARY_PATH=\\\$LD_LIBRARY_PATH:../lib PYTHONPATH=\\\$PYTHONPATH:../lib \
- python check-coverage.py \
-)
-"""
+cd cake
+rm -rf htmlcov
+LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:../lib PYTHONPATH=\$PYTHONPATH:../lib python check-coverage.py
+'''
 
 sw = SoftwareJob([
     debug       : false,    // if true, the jobname is postfixed with '-dsldbg' and the job is disabled
@@ -68,7 +66,9 @@ sw = SoftwareJob([
 sw.with {
     publishers {
         publishHtml {
-            report("cake/htmlcov/", "Coverage Report")
+            report("cake/htmlcov") {
+                reportName("Coverage Report")
+            }
         }
     }
 }
