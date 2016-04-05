@@ -52,7 +52,7 @@ def configure(cfg):
 
 def build(bld):
     post_task = ['pycalibtic', 'pysthal', 'pyhalbe', 'pylogging', 'pyredman',
-                 'redman_xml', 'redman_mongo']
+                 'redman_xml']
     if bld.env.post_sim:
         post_task.append('sim_denmem_ts')
     bld(

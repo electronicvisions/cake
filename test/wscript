@@ -29,8 +29,8 @@ def build(bld):
         name='pycake_tests',
         tests=bld.path.ant_glob('test_*.py', excl=exclude_tests),
         features='pytest post_task',
-        use=['pycalibtic', 'calibtic_xml', 'calibtic_mongo',
-             'pyredman', 'redman_xml', 'redman_mongo',
+        use=['pycalibtic', 'calibtic_xml',
+             'pyredman', 'redman_xml',
              'pyhalbe_tests', 'pysthal_tests', 'sim_denmem_ts'],
         pythonpath=['..'],
         install_path=os.path.join('bin', 'tests', 'cake')
