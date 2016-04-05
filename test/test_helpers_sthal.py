@@ -48,6 +48,10 @@ class TestSthalHelper(unittest.TestCase):
         sthal.disconnect()
         sthal.read_wafer_status()
         sthal.disconnect()
+
+        # v4 Configurator requires fg_biasn == 0
+        sthal.set_fg_biasn(0)
+
         sthal.write_config()
         sthal.switch_analog_output(coord_neuron)
         sthal.switch_analog_output(coord_neuron, l1address.value())
