@@ -24,7 +24,8 @@ class DictionaryAction(argparse.Action):
         'float': float,
         'int': int,
         'string': str,
-        'bool' : bool
+        'bool' : bool,
+        'AnalogOnHICANN' : lambda x: Coordinate.AnalogOnHICANN(int(x)),
     }
     METAVAR = ('<key>', '<type>', '<value>')
 
