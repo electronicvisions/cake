@@ -560,6 +560,7 @@ class V_convoffi_Calibrator(V_convoff_Calibrator):
         data['V_convoffi'] /= 1023
         idx = (data['std'] < 0.020)  # not spiking
         if not idx.any():
+            self.logger.WARN("V_convoffi: Neuron considered spiking for all set V_convoffi values.")
             return numpy.empty((2, 0))
 
         data['mean'] = (data['mean'][idx].max() - data['mean']) / v_range
@@ -576,6 +577,7 @@ class V_convoffx_Calibrator(V_convoff_Calibrator):
         data['V_convoffx'] /= 1023
         idx = (data['std'] < 0.020)  # not spiking
         if not idx.any():
+            self.logger.WARN("V_convoffx: Neuron considered spiking for all set V_convoffx values.")
             return numpy.empty((2, 0))
 
         data['mean'] = (data['mean'] - data['mean'][idx].min())/v_range
