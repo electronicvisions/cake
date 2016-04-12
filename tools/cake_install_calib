@@ -1,0 +1,95 @@
+#!/usr/bin/env python
+
+"""
+Utility to create symbolic links to calibration files
+with names that are compatible with marocco.
+
+    Paul Mueller <pmueller@kip.uni-heidelberg.de>
+"""
+
+import argparse
+import os
+import re
+
+
+def parse_path(path):
+    """
+    Extract wafer and hicann coordinate from file calibration
+    file name given in `path`. Raises ValueError if path
+    does not match the expected calibration file naming schema.
+
+    Returns the calibration file name as expected by marocco.
+    """
+    fname = os.path.split(path)[1]
+
+    rex = re.compile("w([0-9]+)-h([0-9]+)(.*).xml")
+
+    result = rex.match(fname)
+
+    if result is None:
+        raise ValueError(fname)
+
+    wafer = int(result.groups()[0])
+    hicann = int(result.groups()[1])
+
+    return "w{}-h{}.xml".format(wafer, hicann)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="""install calibration xml files.
+
+    Create symbolic links to the given list of provided XML files.
+    Links are named in marocco-compatible format. The wafer and
+    HICANN ids are inferred from the original xml file, which must
+    start with 'w{wafer}-h{hicann}.*xml'.
+    If multiple compatible files occur in the input list, the first
+    occurrence for each wafer/hicann combination is used.
+    The user may use UNIX tools such as `ls --sort=[...]` to achieve
+    the desired file preference.
+
+    Example:
+
+    $ cake_install_calib --outdir calibration_files /path/to/calibration/**/w*xml""",
+        formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument(
+        'calibration_files',
+        nargs="+",
+        help="list of calibration xml files")
+    parser.add_argument(
+        '-n', '--dry-run',
+        action='store_true',
+        help="Only print the final list of symbolic links")
+    parser.add_argument(
+        '--outdir',
+        type=str,
+        required=True,
+        help='Install directory')
+    args = parser.parse_args()
+
+    link_dict = dict()
+
+    for path in args.calibration_files:
+        link_name = parse_path(path)
+        # always use first viable calibration file
+        if link_name not in link_dict:
+            link_dict[link_name] = os.path.abspath(path)
+        else:
+            print "omit '{}': '{}' already in place".format(
+                path, link_dict[link_name])
+
+    if not args.dry_run:
+        if not os.path.exists(args.outdir):
+            os.makedirs(args.outdir)
+
+    for key, value in link_dict.items():
+        if not args.dry_run:
+            newlink = os.path.join(args.outdir, key)
+            # delete existing links but not files, directories ...
+            if os.path.islink(newlink):
+                os.remove(newlink)
+            os.symlink(value, newlink)
+        print "'{}' -> '{}'".format(key, value)
+
+if __name__ == '__main__':
+    main()
