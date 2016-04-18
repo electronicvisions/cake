@@ -11,6 +11,12 @@ from pysthal.command_line_util import add_default_coordinate_options
 from pysthal.command_line_util import add_logger_options
 from pysthal.command_line_util import init_logger
 
+# Log multiprocessing output to stderr
+import multiprocessing
+import logging
+logger = multiprocessing.log_to_stderr()
+logger.setLevel(logging.DEBUG)
+
 
 def check_file(string):
     if not os.path.isfile(string):
