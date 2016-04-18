@@ -643,8 +643,11 @@ class V_syntc_Calibrator(BaseCalibrator):
         return res, xi, yi
 
     @staticmethod
-    def fit_model(x, y):
+    def fit_model(x, y, epsilon=1e-6):
         model = models.ExpressionModel('1 /(a * x + b)**d + c')
+        model.set_param_hint('a', value=0.1, min=epsilon)
+        model.set_param_hint('b', value=1.0, min=epsilon)
+        model.set_param_hint('d', value=0.5, min=epsilon)
         params = model.make_params(a=0.1, b=1.0, c=0.0, d=0.5)
         result = model.fit(y, x=x, params=params)
         return model, result
