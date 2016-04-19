@@ -91,13 +91,6 @@ class BaseExperimentBuilder(object):
 
             sthal = self.get_sthal()
 
-            # TODO maybe find better solution
-            if self.test:
-                step = step.copy()
-                for value in step.itervalues():
-                    if isinstance(value, Unit):
-                        value.apply_calibration = True
-
             step_parameters = self.get_step_parameters(step)
 
             if not wafer_cfg:

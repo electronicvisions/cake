@@ -29,19 +29,19 @@ eval_parameters = {
         "neurons": [NeuronOnHICANN(Enum(i)) for i in range(512)],
         "blocks":  [FGBlockOnHICANN(Enum(i)) for i in range(4)],
 
-        "V_reset_range":  [{shared_parameter.V_reset : Volt(.5)}],
-        "E_syni_range":   [{neuron_parameter.E_syni :v } for v in linspace_voltage(E_syni_target, E_synx_target, 3)],
-        "E_synx_range":   [{neuron_parameter.E_synx :v } for v in linspace_voltage(E_syni_target, E_synx_target, 3)],
-        "E_l_range":      [{neuron_parameter.E_l : Volt(v) } for v in [E_l_target-E_syn_distance/2, E_l_target, E_l_target+E_syn_distance/2]],
-        "V_t_range":      [{neuron_parameter.V_t : v} for v in linspace_voltage(E_l_target, E_synx_target, 3)],
+        "V_reset_range":  [{shared_parameter.V_reset : Volt(.5, apply_calibration=True)}],
+        "E_syni_range":   [{neuron_parameter.E_syni :v } for v in linspace_voltage(E_syni_target, E_synx_target, 3, apply_calibration=True)],
+        "E_synx_range":   [{neuron_parameter.E_synx :v } for v in linspace_voltage(E_syni_target, E_synx_target, 3, apply_calibration=True)],
+        "E_l_range":      [{neuron_parameter.E_l : Volt(v, apply_calibration=True) } for v in [E_l_target-E_syn_distance/2, E_l_target, E_l_target+E_syn_distance/2]],
+        "V_t_range":      [{neuron_parameter.V_t : v} for v in linspace_voltage(E_l_target, E_synx_target, 3, apply_calibration=True)],
 
-        "I_gl_range":     [{neuron_parameter.I_gl : Second(tau_mem)} for tau_mem in tau_mems],
-        "V_syntcx_range": [{neuron_parameter.V_syntcx : Volt(1.44)} ], # dummy
-        "V_syntci_range": [{neuron_parameter.V_syntci : Volt(1.44)} ], # dummy
+        "I_gl_range":     [{neuron_parameter.I_gl : Second(tau_mem, apply_calibration=True)} for tau_mem in tau_mems],
+        "V_syntcx_range": [{neuron_parameter.V_syntcx : Volt(1.44, apply_calibration=True)} ], # dummy
+        "V_syntci_range": [{neuron_parameter.V_syntci : Volt(1.44, apply_calibration=True)} ], # dummy
 
-        "I_pl_range":   [{neuron_parameter.I_pl : Second(t)} for t in tau_refs],
+        "I_pl_range":   [{neuron_parameter.I_pl : Second(t, apply_calibration=True)} for t in tau_refs],
 
-        "Spikes_range" : [{neuron_parameter.V_t : Volt(v)} for v in np.concatenate([[0.65, .66, .67], np.linspace(.68, .72, 11), [.73, .74, .75]])],
+        "Spikes_range" : [{neuron_parameter.V_t : Volt(v, apply_calibration=True)} for v in np.concatenate([[0.65, .66, .67], np.linspace(.68, .72, 11), [.73, .74, .75]])],
 
         # How many repetitions?
         # Each repetition will take about 1 minute per step!

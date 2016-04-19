@@ -37,7 +37,7 @@ parameters = {
 
     "E_l_range": [{
         neuron_parameter.E_l : v,
-        } for v in linspace_voltage(700e-3, 900e-3, 3)],
+        } for v in linspace_voltage(700e-3, 900e-3, 3, apply_calibration=True)],
 
     "V_convoff_test_range": [
         {
