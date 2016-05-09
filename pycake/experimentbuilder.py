@@ -401,7 +401,8 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
                 experiment.initial_data.update(
                     {ADCFreq_Analyzer.KEY: ADCFreq_Analyzer.IDEAL_FREQUENCY})
 
-            # Add membrane noise measurement
+        # Add membrane noise measurement
+        if measurements[0].sthal.is_hardware():
             measurement = copy.deepcopy(measurements[0])
             measurement.sthal.hicann.clear_complete_l1_routing()
             measurement.sthal.set_recording_time(self.recording_time, 1)
@@ -410,11 +411,14 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
                     nrn, neuron_parameter.V_syntci, 511)
                 measurement.sthal.hicann.floating_gates.setNeuron(
                     nrn, neuron_parameter.V_syntcx, 511)
-            if sthal.is_hardware():
-                experiment.add_initial_measurement(
-                    measurement, pycake.analyzer.MeanOfTraceAnalyzer())
-            else:
-                assert False
+                measurement.sthal.hicann.floating_gates.setNeuron(
+                    nrn, neuron_parameter.I_convi, 0)
+                measurement.sthal.hicann.floating_gates.setNeuron(
+                    nrn, neuron_parameter.I_convx, 0)
+            experiment.add_initial_measurement(
+                measurement, pycake.analyzer.MeanOfTraceAnalyzer())
+        elif self.no_spikes > 1:
+            assert False
 
         return experiment
 

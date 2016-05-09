@@ -486,12 +486,12 @@ class V_convoff_Calibrator(BaseCalibrator):
         model = V_convoff_Calibrator.f(params, x)
         return (data - model) / eps_data
 
-    def prepare_data(self, data, v_range):
+    def prepare_data(self, data, v_range, spiking_threshold):
         raise NotImplemented(self)
 
-    def find_optimum(self, data, v_range=0.150):
+    def find_optimum(self, data, v_range=0.150, spiking_threshold=0.001):
 
-        fit_data = self.prepare_data(data.copy(), v_range)
+        fit_data = self.prepare_data(data.copy(), v_range, spiking_threshold)
         if len(fit_data[0]) < 4:
             return fit_data, None, None, None
 
@@ -537,15 +537,23 @@ class V_convoff_Calibrator(BaseCalibrator):
             v_range = self.v_range
         data = self.experiment.get_data(
             nrn, (self.target_parameter,), ('mean', 'std'))
-        results = self.find_optimum(data, v_range)
+        results = self.find_optimum(
+            data, v_range, self.get_spiking_threshold(nrn))
         self.plt_fits(axis, results)
+
+    def get_spiking_threshold(self, nrn):
+        """
+        Get the the threshold for considering a neuron spiking
+        """
+        return self.experiment.initial_data[nrn].get('std', 0.001) * 1.2
 
     def generate_transformations(self):
         fits = {}
         data = self.experiment.get_all_data(
             (self.target_parameter,), ('mean', 'std'))
         for nrn, data in data.groupby(level='neuron'):
-            results = self.find_optimum(data, self.v_range)
+            results = self.find_optimum(
+                data, self.v_range, self.get_spiking_threshold(nrn))
             value = self.V_convoff(results)
             fits[nrn] = Constant(value) if value is not None else None
         return [(self.target_parameter, fits)]
@@ -555,10 +563,10 @@ class V_convoffi_Calibrator(V_convoff_Calibrator):
     target_parameter = neuron_parameter.V_convoffi
     v_range=0.120
 
-    def prepare_data(self, data, v_range):
+    def prepare_data(self, data, v_range, spiking_threshold):
         """scales data from -1.0 to 0.0 and removes spiking traces"""
         data['V_convoffi'] /= 1023
-        idx = (data['std'] < 0.020)  # not spiking
+        idx = (data['std'] < spiking_threshold)  # not spiking
         if not idx.any():
             self.logger.WARN("V_convoffi: Neuron considered spiking for all set V_convoffi values.")
             return numpy.empty((2, 0))
@@ -572,10 +580,10 @@ class V_convoffi_Calibrator(V_convoff_Calibrator):
 class V_convoffx_Calibrator(V_convoff_Calibrator):
     target_parameter = neuron_parameter.V_convoffx
 
-    def prepare_data(self, data, v_range):
+    def prepare_data(self, data, v_range, spiking_threshold):
         """scales data from 0.0 to 1.0 and removes spiking traces"""
         data['V_convoffx'] /= 1023
-        idx = (data['std'] < 0.020)  # not spiking
+        idx = (data['std'] < spiking_threshold)  # not spiking
         if not idx.any():
             self.logger.WARN("V_convoffx: Neuron considered spiking for all set V_convoffx values.")
             return numpy.empty((2, 0))
