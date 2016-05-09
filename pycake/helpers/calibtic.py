@@ -276,7 +276,7 @@ class Calibtic(object):
             trafo = calib.at(parameter)
             # Check domain
             if hasattr(trafo, 'getDomainBoundaries'):
-                domain = list(trafo.getDomainBoundaries())
+                domain = [trafo.getDomainBoundaries().first, trafo.getDomainBoundaries().second]
                 if value.value > max(domain):
                     self.logger.WARN(
                         "Coord {} value {} larger than domain maximum {}. "
