@@ -473,7 +473,45 @@ if args.backenddir:
     plt.savefig(os.path.join(fig_dir,"analog_readout_offset_vs_nrn.pdf"))
     plt.savefig(os.path.join(fig_dir,"analog_readout_offset_vs_nrn.png"))
 
+    def get_vconvoff(cal, nrnidx):
+        try:
+            convoffx = cal.nc.at(nrnidx).at(pyhalbe.HICANN.neuron_parameter.V_convoffx).apply(0)
+            convoffi = cal.nc.at(nrnidx).at(pyhalbe.HICANN.neuron_parameter.V_convoffi).apply(0)
+        except IndexError as i:
+            logger.WARN(str(i) + ", No V_convoff(i or x) found for Neuron {}. Is the wafer and hicann enum correct? (w{}, h{})".format(nrnidx,args.wafer,args.hicann))
+            return np.nan, np.nan
+        except RuntimeError as e:
+            if e.message.startswith("No transformation available at"):
+                logger.WARN(str(e) + ", No V_convoff(i or x) found for Neuron {}.".format(nrnidx))
+                return np.nan, np.nan
+            raise
 
+        return convoffx, convoffi
+
+    fig = plt.figure()
+    convoffx_l, convoffi_l = zip(*[get_vconvoff(c, n)  for n in xrange(512)])
+    bins = np.linspace(0, 1024, 128)
+    plt.hist(convoffx_l, label="$V_{convoffx}$", alpha=.5, bins=bins, color="r");
+    plt.hist(convoffi_l, label="$V_{convoffi}$", alpha=.5, bins=bins, color="b");
+    plt.xlim(0, 1024)
+    plt.legend()
+    plt.xlabel("$V_{convoff}$ [DAC]")
+    plt.ylabel("#")
+    plt.subplots_adjust(**margins)
+    plt.savefig(os.path.join(fig_dir,"V_convoff.pdf"))
+    plt.savefig(os.path.join(fig_dir,"V_convoff.png"))
+
+    fig = plt.figure()
+    plt.xlabel("neuron")
+    plt.ylabel("$V_{convoff}$ [DAC]")
+    plt.plot(convoffx_l, 'rx', label="$V_{convoffx}$")
+    plt.plot(convoffi_l, 'bx', label="$V_{convoffi}$")
+    plt.legend()
+    plt.xlim(0, 512)
+    plt.ylim(0, 1024)
+    plt.subplots_adjust(**margins)
+    plt.savefig(os.path.join(fig_dir,"V_convoff_vs_nrn.pdf"))
+    plt.savefig(os.path.join(fig_dir,"V_convoff_vs_nrn.png"))
 
 ## V convoff
 try:
