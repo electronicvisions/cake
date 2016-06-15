@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import matplotlib
 matplotlib.use("agg")
 
@@ -6,7 +8,7 @@ import pylab as p
 import numpy
 from numpy.random import seed
 from pycake.helpers.psp_shapes import DoubleExponentialPSP
-from test_psp_shapes import noisy_psp
+from cake_test_psp_shapes import noisy_psp
 from pycake.helpers.psp_fit import fit
 from pycake.helpers import psp_fit
 import mock

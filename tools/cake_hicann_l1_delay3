@@ -1,16 +1,13 @@
-#! /usr/bin/python
-# -*- coding: utf-8 -*-
-
+#!/usr/bin/env python
 """
-Stimulate neurons via L2 and record these spikes via loopback. Also records
-the neuron response. If the neuron answers each spike with exact one spike,
-the delay of this connection is printed.
+Measure HICANN L1 delay interactivly with scope
 
 Result see https://brainscales-r.kip.uni-heidelberg.de/issues/1185
 """
 
 import copy
 import os
+import cPickle
 
 import Coordinate
 import pyhalbe
@@ -29,9 +26,11 @@ from pycake.helpers.units import DAC, Voltage, Current
 from pycake.helpers.calibtic import Calibtic
 
 from pyhalbe.HICANN import neuron_parameter as np
+from pyhalbe.HICANN import shared_parameter as sp
 
-from Coordinate import X, Y, Enum, top, bottom, left, right
+from Coordinate import X, Y, Enum, top, bottom, left, right, iter_all
 from Coordinate import DNCMergerOnHICANN
+from Coordinate import FGBlockOnHICANN
 from Coordinate import GbitLinkOnHICANN
 from Coordinate import NeuronOnHICANN
 from Coordinate import SynapseDriverOnHICANN
@@ -39,15 +38,17 @@ from Coordinate import RowOnSynapseDriver
 
 
 REPEATER = {
-    np.E_l: Voltage(700, apply_calibration=True),
-    np.V_t: Voltage(727, apply_calibration=True),
+    np.E_l: Voltage(900, apply_calibration=True),
+    np.V_t: Voltage(850, apply_calibration=True),
     np.E_synx: Voltage(900, apply_calibration=True),
     np.E_syni: Voltage(500, apply_calibration=True),
     np.V_syntcx: Voltage(0, apply_calibration=True),
     np.V_syntci: Voltage(0, apply_calibration=True),
     np.I_gl: Current(0, apply_calibration=True),
-    np.I_pl: Current(2500, apply_calibration=False),
+    np.I_pl: Current(2200, apply_calibration=False),
 }
+
+VRESET = Voltage(500, apply_calibration=True)
 
 MTREE_DEPTH = {
     GbitLinkOnHICANN(0) : 2,
@@ -64,15 +65,7 @@ VSYNTCX_CORR = -12
 
 logger = pylogging.get(__name__.replace('_', ''))
 
-
 class FindRepeaterNeurons(object):
-    NO_N = 512
-    PER_RUN = 16
-    STEPS = NO_N/PER_RUN
-    NEURON_BLOCKS = [
-        [NeuronOnHICANN(Enum(ii)) for ii in range(start, start + PER_RUN)]
-            for start in range(0, NO_N, PER_RUN)]
-
     class CFG(pysthal.HICANNConfigurator):
         def __init__(self, synapse_array):
             super(FindRepeaterNeurons.CFG, self).__init__()
@@ -111,17 +104,30 @@ class FindRepeaterNeurons(object):
         def config_phase(self, handle, data):
             pass
 
+    class UpdateAoutCFG(pysthal.HICANNConfigurator):
+        def config_fpga(self, *args):
+            """do not reset FPGA"""
+            pass
+
+        def config(self, fpga_handle, h, hicann):
+            """Call analog output related configuration functions."""
+            # self.config_neuron_config(h, hicann);
+            # self.config_neuron_quads(h, hicann)
+            self.config_analog_readout(h, hicann)
+            # self.config_fg_stimulus(h, hicann)
+            self.flush_hicann(h)
+
     def __init__(self, calibration_path):
 
-        self.analog = Coordinate.AnalogOnHICANN(0)
+        self.analog = Coordinate.AnalogOnHICANN(1)
+        self.analog_preout = Coordinate.AnalogOnHICANN(0)
         self.bg_l1address = pyhalbe.HICANN.L1Address(0)
-        self.stim_l1address = pyhalbe.HICANN.L1Address(16)
+        self.neuron_l1address = pyhalbe.HICANN.L1Address(16)
         self.weight = pyhalbe.HICANN.SynapseWeight(15)
         self.gmax_div = 11
         self.driver_row = RowOnSynapseDriver(0)
         self.calibration_path = calibration_path
-        self.stim_spike_times = numpy.arange(100) * 2.0e-5 + 2.0e-5
-        self.runtime = self.stim_spike_times[-1] + 2.0e-5
+        self.runtime = 0.04
 
     def run(self, wafer_coordinate, hicann_coordinate):
         wafer = pysthal.Wafer(wafer_coordinate)
@@ -131,47 +137,21 @@ class FindRepeaterNeurons(object):
         wafer.connect(pysthal.MagicHardwareDatabase())
         wafer.configure(pysthal.HICANNConfigurator())
 
-        update_cfg = self.CFG(hicann.synapses)
         runner = pysthal.ExperimentRunner(self.runtime)
-        neuron_spikes = defaultdict(list)
-        stim_spikes = {}
-        for step in xrange(self.STEPS):
-            neurons = self.NEURON_BLOCKS[step]
-            link_out, link_stim_out, neuron_addresses = self.configure_step(
-                    wafer, hicann, neurons, False)
+        update_cfg = self.CFG(hicann.synapses)
+        while True:
+            try:
+                raw = raw_input("Switch to neuron: ")
+                neuron = NeuronOnHICANN(Enum(int(raw)))
+            except EOFError:
+                break
+            except (ValueError, RuntimeError) as err:
+                print "Invalid input '{}', {}.".format(raw, err)
+                continue
+
+            link_out = self.configure_step(wafer, hicann, neuron)
+            hicann.analog.set_preout(self.analog_preout)
             wafer.configure(update_cfg)
-            # adc = hicann.analogRecorder(self.analog)
-            # adc.activateTrigger(self.runtime)
-            wafer.start(runner)
-            # trace = adc.trace()
-            # adc.freeHandle()
-            # numpy.save('membrane_{}.dat'.format(step), trace)
-
-            rm_neurons = set(neuron_addresses[int(addr)]
-                for addr in hicann.receivedSpikes(link_out)[:,1] if int(addr) in neuron_addresses)
-            neurons = sorted(set(neurons) - rm_neurons)
-
-            link_out, link_stim_out, neuron_addresses = self.configure_step(
-                    wafer, hicann, neurons, True)
-            wafer.configure(update_cfg)
-            wafer.start(runner)
-            for t, addr in hicann.receivedSpikes(link_out):
-                neuron_spikes[neuron_addresses.get(int(addr), None)].append(t)
-
-            tmp = hicann.receivedSpikes(link_stim_out)
-            tmp = tmp[tmp[:,1] == int(self.stim_l1address)][:,0]
-            for neuron in neurons:
-                stim_spikes[neuron] = tmp
-
-        good = []
-        for neuron in Coordinate.iter_all(NeuronOnHICANN):
-            spikes = len(neuron_spikes[neuron])
-            if neuron in stim_spikes and spikes == len(stim_spikes[neuron]):
-                _, link_out = self.get_gbit_links(neuron)
-                print "MATCH!!!", neuron
-                dt = neuron_spikes[neuron] - stim_spikes[neuron]
-                print "Delay: {} +- {} for {} merger".format(
-                    numpy.mean(dt), numpy.std(dt), MTREE_DEPTH[link_out])
 
     def initial_configuration(self, wafer, hicann):
         for merger in Coordinate.iter_all(DNCMergerOnHICANN):
@@ -191,54 +171,33 @@ class FindRepeaterNeurons(object):
 
         self.set_neuron_parameters(wafer, hicann)
 
-        hicann.synapses.set_all(self.stim_l1address.getSynapseDecoderMask(),
+        hicann.synapses.set_all(self.neuron_l1address.getSynapseDecoderMask(),
                                 pyhalbe.HICANN.SynapseWeight(0));
 
-    def configure_step(self, wafer, hicann, neurons, enable_stimulus):
-        neuron0 = neurons[0]
+        in_spikes = pysthal.Vector_Spike([
+            pysthal.Spike(self.bg_l1address, self.runtime)])
+        hicann.sendSpikes(GbitLinkOnHICANN(7), in_spikes)
 
-        wafer.clearSpikes()
+    def configure_step(self, wafer, hicann, neuron):
         hicann.disable_l1_output()
         hicann.clear_l1_routing()
 
-        hicann.enable_aout(neuron0, self.analog)
+        hicann.enable_aout(neuron, self.analog)
 
-        for merger in Coordinate.iter_all(Coordinate.DNCMergerOnHICANN):
-            m = hicann.layer1[merger]
-            m.loopback = False
-
-        for channel in Coordinate.iter_all(GbitLinkOnHICANN):
-            hicann.layer1[channel] = pyhalbe.HICANN.GbitLink.OFF
-
-        link_in, link_out = self.get_gbit_links(neuron0)
-        link_stim_out = GbitLinkOnHICANN(
-                int(link_in) / 2 * 2 + (int(link_in) + 1) % 2)
-
-        driver = self.get_synapse_driver(neuron0, link_in)
-
-        hicann.layer1[link_in] = pyhalbe.HICANN.GbitLink.TO_HICANN
+        link_out = self.get_gbit_link(neuron)
+        driver = self.get_synapse_driver(neuron, link_out)
         hicann.layer1[link_out] = pyhalbe.HICANN.GbitLink.TO_DNC
-        hicann.layer1[link_stim_out] = pyhalbe.HICANN.GbitLink.TO_DNC
-        hicann.route(link_in.toOutputBufferOnHICANN(), driver)
-        self.config_driver(hicann, driver, enable_stimulus)
-
-        hicann.layer1[DNCMergerOnHICANN(int(link_in))].loopback = True
+        hicann.route(link_out.toOutputBufferOnHICANN(), driver)
+        self.config_driver(hicann, driver)
 
         synrow = Coordinate.SynapseRowOnHICANN(driver, self.driver_row)
         weights = hicann.synapses[synrow].weights
 
-        neuron_addresses = {}
-        for addr, neuron in enumerate(neurons, 64 - self.PER_RUN):
-            addr = pyhalbe.HICANN.L1Address(addr)
-            hicann.enable_l1_output(neuron, addr)
-            neuron_addresses[int(addr)] = neuron
-            weights[int(neuron.x())] = self.weight
+        hicann.enable_l1_output(neuron, self.neuron_l1address)
+        weights[int(neuron.x())] = self.weight
 
-        in_spikes = pysthal.Vector_Spike([
-            pysthal.Spike(self.stim_l1address, t) for t in self.stim_spike_times])
-        hicann.sendSpikes(link_in, in_spikes)
+        return link_out
 
-        return link_out, link_stim_out, neuron_addresses
 
     def get_synapse_driver(self, neuron, link):
         if neuron.y() == top:
@@ -246,26 +205,23 @@ class FindRepeaterNeurons(object):
         else:
             return SynapseDriverOnHICANN(Enum(126 - int(link) * 2))
 
-    def get_gbit_links(self, neuron):
-        link_out = GbitLinkOnHICANN(int(neuron.x()) / 32)
-        if link_out == GbitLinkOnHICANN(7) or link_out == GbitLinkOnHICANN(6):
-            link_in = GbitLinkOnHICANN(0)
-        else:
-            link_in = GbitLinkOnHICANN(7)
-        return link_in, link_out
+    def get_gbit_link(self, neuron):
+        return GbitLinkOnHICANN(int(neuron.x()) / 32)
 
-    def config_driver(self, hicann, driver, enable_stimulus):
-        driver_decoder = self.stim_l1address.getDriverDecoderMask()
-        drv = hicann.synapses[driver]
-        drv[self.driver_row].set_decoder(top, driver_decoder)
-        drv[self.driver_row].set_decoder(bottom, driver_decoder)
+    def config_driver(self, hicann, driver):
+        driver_decoder = self.neuron_l1address.getDriverDecoderMask()
+        drv = pyhalbe.HICANN.SynapseDriver()
+        drv[top].set_decoder(top, driver_decoder)
+        drv[top].set_decoder(bottom, driver_decoder)
+        drv[bottom].set_decoder(top, driver_decoder)
+        drv[bottom].set_decoder(bottom, driver_decoder)
         drv[self.driver_row].set_gmax_div(left, self.gmax_div)
         drv[self.driver_row].set_gmax_div(right, self.gmax_div)
-        drv[self.driver_row].set_syn_in(left, 1)
-        drv[self.driver_row].set_syn_in(right, 0)
+        drv[self.driver_row].set_syn_in(left, 0)
+        drv[self.driver_row].set_syn_in(right, 1)
         drv[self.driver_row].set_gmax(0)
-        if enable_stimulus:
-            drv.set_l1()
+        drv.set_l1()
+        hicann.synapses[driver] = drv
 
     def set_neuron_parameters(self, wafer, hicann):
         fgc = hicann.floating_gates
@@ -282,12 +238,17 @@ class FindRepeaterNeurons(object):
                 if param == np.V_syntcx:
                     value_dac.value += VSYNTCX_CORR
                 fgc.setNeuron(neuron, param, value_dac.value)
-        return
-
+        for block in Coordinate.iter_all(FGBlockOnHICANN):
+            param = sp.V_reset
+            value_dac = VRESET.toDAC()
+            if value_dac.apply_calibration:
+                value_dac.value = calib.apply_calibration(
+                    value_dac.value, param, block)
+            fgc.setShared(block, param, value_dac.value)
 
 def main():
     import argparse
-    init_logger('ERROR')
+    init_logger('INFO')
 
     parser = argparse.ArgumentParser(
             description='Configure HICANN to stimulate a neuron via a second neuron')
@@ -297,7 +258,9 @@ def main():
             help="Path to calibration data")
     args = parser.parse_args()
 
+    N = [n for n in iter_all(NeuronOnHICANN)]
     cmd = FindRepeaterNeurons(args.calibration)
+    #cmd.run(args.wafer, args.hicann, N[:10] + N[96:108])
     cmd.run(args.wafer, args.hicann)
 
 if __name__ == '__main__':

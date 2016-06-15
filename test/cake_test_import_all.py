@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """
 Import all cake submodules here.
 

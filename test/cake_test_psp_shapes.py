@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import unittest
 import pylab as p
 from pycake.helpers.psp_shapes import DoubleExponentialPSP, jacobian

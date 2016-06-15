@@ -67,19 +67,23 @@ def build(bld):
         install_path='${PREFIX}/lib',
     )
 
-    tools = [
-        'pycake/bin/run_calibration.py',
-        'pycake/bin/resume.py',
-        'pycake/bin/make_plots.py',
-        'pycake/bin/overview.html',
-        'pycake/bin/plot_calib_run',
-    ] + bld.path.ant_glob('config/*py')
+    bld.install_files(
+        '${PREFIX}/bin',
+        bld.path.ant_glob('pycake/bin/cake_*') +
+        bld.path.ant_glob('tools/*') +
+        bld.path.ant_glob('tools/L1/*'),
+        relative_trick=False,
+        chmod=Utils.O755,
+    )
+
     bld.install_files(
         '${PREFIX}/bin/tools',
-        tools,
+        bld.path.ant_glob('config/*py') +
+        ['pycake/bin/overview.html'],
         chmod=Utils.O755,
         relative_trick=False
     )
+
     bld.recurse('test')
 
 

@@ -24,17 +24,17 @@ def build(bld):
     exclude_tests = []
     if not bld.env.post_sim:
         # do not test simulation if --without-sim was set
-        exclude_tests.append("test_helpers_sim.py")
+        exclude_tests.append("cake_test_helpers_sim.py")
     bld(
         name='pycake_tests',
-        tests=bld.path.ant_glob('test_*.py', excl=exclude_tests),
+        tests=bld.path.ant_glob('cake_test_*.py', excl=exclude_tests),
         features='pytest post_task',
         use=['pycalibtic', 'calibtic_xml',
              'pyredman', 'redman_xml',
              'pyhalbe_tests', 'pysthal_tests', 'sim_denmem_ts',
              'pycellparameters'],
         pythonpath=['..'],
-        install_path=os.path.join('bin', 'tests', 'cake')
+        install_path='${PREFIX}/bin'
     )
 
     datadir = os.path.abspath(os.path.join(bld.options.prefix, 'share'))
