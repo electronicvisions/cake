@@ -345,8 +345,8 @@ class StHALContainer(object):
                 self.logger.DEBUG("Using HICANNv2Configurator")
                 configurator = HICANNv2Configurator()
             elif self.hicann_version == 4:
-                self.logger.DEBUG("Using HICANNv4Configurator")
-                configurator = HICANNv4Configurator()
+                self.logger.DEBUG("Using HICANNv2Configurator")
+                configurator = HICANNv2Configurator()
             else:
                 raise RuntimeError("No HICANNConfigurator assigned to given HICANN version: {}".format(self.hicann_version))
 

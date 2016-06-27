@@ -12,7 +12,8 @@ from pyhalbe.HICANN import neuron_parameter
 from pyhalbe.HICANN import shared_parameter
 
 extends = ['base_parameters.py']
-folder = "/tmp"
+folder = "/wang/data/calibration/visionlab2_fkungl/Calibrations/v2Conf_fgbiasn0/2016_05_18_Full"
+#folder = "/wang/users/fkungl/cluster_home/hicann_measurements_cube/project_visionlab2/my_tmp/tau_membrane/Calib1"
 
 parameters = {
     # Where do you want to save the measurements (folder) and calibration data 
@@ -32,8 +33,8 @@ parameters = {
         shared_parameter.V_reset.name,
         neuron_parameter.V_t.name,
         neuron_parameter.E_syni.name,
-        # neuron_parameter.E_synx.name, # https://brainscales-r.kip.uni-heidelberg.de/issues/1929
-        # neuron_parameter.I_pl,
+        #neuron_parameter.E_synx.name, # https://brainscales-r.kip.uni-heidelberg.de/issues/1929
+        neuron_parameter.I_pl,
         neuron_parameter.E_l.name,
         neuron_parameter.V_convoffx.name,
         neuron_parameter.V_convoffi.name,
@@ -59,7 +60,7 @@ parameters = {
             shared_parameter.V_reset : Volt(v),
             neuron_parameter.E_l : Volt(v + 0.4),
             neuron_parameter.V_t : Volt(v + 0.2)
-        } for v in numpy.linspace(0.5, 0.8, 4)],
+        } for v in numpy.linspace(0.2, 1.0, 10)],
 
     "V_reset_parameters":  {
         neuron_parameter.I_convi: Ampere(0.0),
@@ -74,7 +75,7 @@ parameters = {
             shared_parameter.V_reset : Volt(v-200e-3),
             neuron_parameter.E_l : Volt(v + 200e-3),
             neuron_parameter.V_t : Volt(v),
-        } for v in numpy.linspace(700e-3, 1100e-3, 5)
+        } for v in numpy.linspace(400e-3, 1200e-3, 10)
     ],
 
     "V_t_parameters": {
@@ -87,7 +88,7 @@ parameters = {
     "E_l_range": [
         {
             neuron_parameter.E_l : v,
-        } for v in linspace_voltage(700e-3, 900e-3, 3)
+        } for v in linspace_voltage(600e-3, 1000e-3, 10)
     ],
 
     "E_l_parameters": {
@@ -102,7 +103,7 @@ parameters = {
     "E_syni_range": [
         {
             neuron_parameter.E_syni : v,
-        } for v in linspace_voltage(400e-3, 800e-3, 3) # 5
+        } for v in linspace_voltage(300e-3, 800e-3, 5) # 5
     ],
 
     "E_syni_parameters": {
@@ -145,6 +146,7 @@ parameters = {
         neuron_parameter.E_l : Volt(0.8, apply_calibration=True),
         neuron_parameter.E_syni : Volt(0.6, apply_calibration=True),
         neuron_parameter.I_convx: Ampere(0.0),
+        neuron_parameter.I_convi: Ampere(1200e-9), # Akos
         neuron_parameter.I_gl: Ampere(0.2e-6),
         neuron_parameter.V_convoffx: Volt(1.8),
         neuron_parameter.V_t: Volt(1.2, apply_calibration=True),
@@ -162,6 +164,7 @@ parameters = {
         neuron_parameter.E_l : Volt(0.8, apply_calibration=True),
         neuron_parameter.E_synx : Volt(1.3),
         neuron_parameter.I_convi: Ampere(0.0),
+        neuron_parameter.I_convx: Ampere(1200e-9), # Akos
         neuron_parameter.I_gl: Ampere(0.2e-6),
         neuron_parameter.V_t: Volt(1.12, apply_calibration=True),
         # Low to make spiking traces easier to detect
@@ -179,6 +182,7 @@ parameters = {
         neuron_parameter.E_l : Volt(0.8, apply_calibration=True),
         neuron_parameter.E_syni : Volt(0.6, apply_calibration=True),
         neuron_parameter.E_synx : Volt(1.3),
+        neuron_parameter.I_convi: Ampere(1200e-9), # AKOS
         neuron_parameter.I_gl: Ampere(0.3e-6),
         neuron_parameter.V_convoffi : Volt(1.8, apply_calibration=True),
         neuron_parameter.V_convoffx : Volt(1.8, apply_calibration=True),
@@ -200,6 +204,7 @@ parameters = {
         neuron_parameter.E_syni : Volt(0.6, apply_calibration=True),
         neuron_parameter.E_synx : Volt(1.3),
         neuron_parameter.I_gl: Ampere(0.3e-6),
+        neuron_parameter.I_convx: Ampere(1200e-9), #AKOS
         neuron_parameter.V_convoffi : Volt(1.8, apply_calibration=True),
         neuron_parameter.V_convoffx : Volt(1.8, apply_calibration=True),
         neuron_parameter.V_t: Volt(1.2, apply_calibration=True),
