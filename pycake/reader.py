@@ -10,7 +10,7 @@ from helpers.misc import load_pickled_file
 from pycake.helpers.units import Second
 
 class Reader(object):
-    def __init__(self, runner, include_defects = True):
+    def __init__(self, runner, include_defects=True, backend_path=None):
         """
         @param runner is either a CalibrationRunner instance or a CalibrationRunner pickled to a file (bz2 or gz)
         @param include_defects, if true, include neurons classified as defect
@@ -19,7 +19,7 @@ class Reader(object):
         if isinstance(runner, CalibrationRunner):
             self.runner = runner
         else:
-            self.runner = CalibrationRunner.load(runner)
+            self.runner = CalibrationRunner.load(runner, backend_path=backend_path)
         self.include_defects = include_defects
         self.calibration_unit_cache = {}
 
