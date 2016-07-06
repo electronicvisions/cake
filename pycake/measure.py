@@ -56,17 +56,11 @@ class Measurement(object):
     def save_traces(self, storage_path):
         """Enabling saving of traces to the given file"""
         dirname, filename = os.path.split(storage_path)
-        if self.traces:
+        if self.traces is not None:
             self.traces.update_directory(dirname)
         else:
             self.logger.info("Storing traces at '{}'".format(storage_path))
             self.traces = PandasRecordsOnDiskDict(dirname, filename)
-
-    def update_traces_folder(self, folder):
-        """Updates the folder the traces are stored. This might be required
-        after unpickling"""
-        if not self.traces is None:
-            self.traces.update_directory(folder)
 
     def finish(self):
         """ Finish the measurement.
@@ -74,7 +68,7 @@ class Measurement(object):
         """
         self.done = True
         self.time_finished = time.asctime()
-        if not self.traces is None:
+        if self.traces is not None:
             self.traces.close()
 
     def get_parameter(self, parameter, coords):
@@ -366,7 +360,7 @@ class ADCMeasurement(Measurement):
             for neuron in self.neurons:
                 self.pre_measure(neuron)
                 readout, spikes = self.read_adc()
-                if not self.traces is None:
+                if self.traces is not None:
                     self.traces[neuron] = readout
                 readout['v'] = self.readout_shifts(neuron, readout['v'])
                 worker.do(
@@ -485,7 +479,7 @@ class I_gl_Measurement(ADCMeasurement):
             tmp['std'] = np.array([std])
             tmp['V_rest'] = np.array([V_rest])
 
-            if not self.traces is None:
+            if self.traces is not None:
                 self.traces[neuron] = readout
 
             readout['v'] = self.readout_shifts(neuron, readout['v'])
@@ -517,7 +511,7 @@ class I_gl_Measurement_multiple_currents(I_gl_Measurement):
         for neuron in self.neurons:
             V_rest, std = self.measure_V_rest(neuron)
             self.logger.INFO("Measuring neuron {0} with currents {1}. V_rest = {2:.2f}+-{3:.2f}".format(neuron, self.currents, V_rest, std))
-            if not self.traces is None:
+            if self.traces is not None:
                 self.traces[neuron] = {}
             for current in self.currents:
                 self.logger.TRACE("Measuring neuron {} with current {}".format(neuron, current))
@@ -526,7 +520,7 @@ class I_gl_Measurement_multiple_currents(I_gl_Measurement):
                 readout['current'] = current
                 readout['std'] = std
                 readout['V_rest'] = V_rest
-                if not self.traces is None:
+                if self.traces is not None:
                     self.traces[neuron] = readout
                 readout['v'] = self.readout_shifts(neuron, readout['v'])
                 worker.do(neuron, neuron=neuron, trace=readout,
