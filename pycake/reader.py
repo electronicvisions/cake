@@ -132,8 +132,15 @@ class Reader(object):
         neurons = self.get_neurons()
         results = self.get_results(parameter, neurons, key, repetition)
         results_list = np.array(results.values())[:,step]
-        hist = plt.hist(results_list, label="{:.1f} +- {:.1f} mV, {}".format(np.mean(results_list)*1000, np.std(results_list)*1000, len(neurons)), **kwargs)
+        results_list = results_list[np.isfinite(results_list)]
         config = self.runner.config.copy(parameter)
+
+        if not isinstance(config.get_steps()[0].values()[0], Second):
+            hist_label = "{:.1f} +- {:.1f} mV, {}".format(np.mean(results_list)*1000, np.std(results_list)*1000, len(results_list))
+        else:
+            hist_label = "{:.2f} +- {:.2f} $\mu$s, {}".format(np.mean(results_list)*1e6, np.std(results_list)*1e6, len(results_list))
+
+        hist = plt.hist(results_list, label=hist_label, **kwargs)
         step_valus = config.get_steps()[step]
         target_value = config.get_steps()[step]
         if draw_target_line and len(target_value) == 1:

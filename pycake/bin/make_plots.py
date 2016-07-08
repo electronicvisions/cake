@@ -52,6 +52,7 @@ font = {#'family' : 'normal',
         'size'   : 12}
 matplotlib.rc('font', **font)
 margins={"left":0.2, "right":0.95, "top":0.95, "bottom":0.08}
+xlog_margins={"left":0.2, "right":0.95, "top":0.95, "bottom":0.1}
 
 parser = argparse.ArgumentParser()
 parser.add_argument("runner", help="path of calibration runner directory (can be empty)")
@@ -138,7 +139,7 @@ def LogError(msg):
         logger.WARN('\n' + traceback.format_exc())
 
 
-def uncalibrated_hist(xlabel, reader, **reader_kwargs):
+def uncalibrated_hist(xlabel, reader, xscale="linear", yscale="linear", **reader_kwargs):
 
     if not reader: return
 
@@ -156,8 +157,14 @@ def uncalibrated_hist(xlabel, reader, **reader_kwargs):
         plt.title("uncalibrated", x=0.125, y=0.9)
         plt.xlabel(xlabel)
         plt.ylabel("#")
-        plt.xlim(*reader_kwargs['range'])
-        plt.subplots_adjust(**margins)
+        if 'range' in reader_kwargs:
+            plt.xlim(*reader_kwargs['range'])
+        if xscale == "log":
+            plt.subplots_adjust(**xlog_margins)
+        else:
+            plt.subplots_adjust(**margins)
+        plt.xscale(xscale)
+        plt.yscale(yscale)
 
         defects_string = "with_defects" if include_defects else "without_defects"
 
@@ -212,7 +219,7 @@ def uncalibrated_hist(xlabel, reader, **reader_kwargs):
                                                     "uncalibrated_vs_shared_FG_block.png"])))
 
 
-def calibrated_hist(xlabel, reader, **reader_kwargs):
+def calibrated_hist(xlabel, reader, xscale="linear", yscale="linear", **reader_kwargs):
 
     if not reader: return
 
@@ -228,8 +235,14 @@ def calibrated_hist(xlabel, reader, **reader_kwargs):
         plt.title("calibrated", x=0.125, y=0.9)
         plt.xlabel(xlabel)
         plt.ylabel("#")
-        plt.xlim(*reader_kwargs['range'])
-        plt.subplots_adjust(**margins)
+        if 'range' in reader_kwargs:
+            plt.xlim(*reader_kwargs['range'])
+        if xscale == "log":
+            plt.subplots_adjust(**xlog_margins)
+        else:
+            plt.subplots_adjust(**margins)
+        plt.xscale(xscale)
+        plt.yscale(yscale)
 
         defects_string = "with_defects" if include_defects else "without_defects"
 
@@ -322,7 +335,9 @@ def trace(ylabel, reader, parameter, neuron_enum, steps=None, start=0, end=-1, s
         plt.savefig(os.path.join(fig_dir,parameter+"_trace"+suffix+"_nrn_"+str(neuron.id().value())+".pdf"))
         plt.savefig(os.path.join(fig_dir,parameter+"_trace"+suffix+"_nrn_"+str(neuron.id().value())+".png"))
 
-def result(label, xlabel=None, ylabel=None, reader=None, suffix="", xlim=None, ylim=None, **reader_kwargs):
+def result(label, xlabel=None, ylabel=None, reader=None, suffix="",
+           xlim=None, ylim=None,
+           in_unit_label="[DAC]", out_unit_label="[V]", **reader_kwargs):
     """ label must have placeholder 'inout' for 'in' and 'out' x and y labels,
         like: '$E_{{synx}}$ {inout}'
     """
@@ -336,8 +351,8 @@ def result(label, xlabel=None, ylabel=None, reader=None, suffix="", xlim=None, y
         reader.include_defects = include_defects
 
         fig, plot = reader.plot_result(**reader_kwargs)
-        plt.xlabel(xlabel if xlabel != None else label.format(inout="(in) [DAC]"))
-        plt.ylabel(ylabel if ylabel != None else label.format(inout="(out) [V]"))
+        plt.xlabel(xlabel if xlabel != None else label.format(inout="(in) {}".format(in_unit_label)))
+        plt.ylabel(ylabel if ylabel != None else label.format(inout="(out) {}".format(out_unit_label)))
 
         plt.subplots_adjust(**margins)
 
@@ -1135,21 +1150,26 @@ if r_test_spikes:
 
 ## tau ref
 
-logger.WARN("tau ref plots disabled until analysis is fixed")
-"""
 r_tau_ref = reader if args.tau_ref_runner == None else Reader(args.tau_ref_runner)
 
 if r_tau_ref:
 
-    uncalibrated_hist(r"$\tau_{ref}$ [$\mu$s]",
+    xmin, xmax = extract_range(r_tau_ref, "I_pl", pyhalbe.HICANN.neuron_parameter.I_pl, safety_min=0, safety_max=0)
+
+    xmin /= 10
+    xmax *= 10
+
+    uncalibrated_hist(r"$\tau_{ref}$ [s]",
                       r_tau_ref,
+                      xscale="log",
                       parameter="I_pl",
                       key="tau_ref",
-                      bins=100,
-                      range=(0.1e-7,5e-6),
+                      bins=np.logspace(np.log10(xmin), np.log10(xmax), 100),
+                      range=(xmin, xmax),
                       show_legend=True)
 
-    result(r"$\tau_{{ref}}$ {inout}", reader=r_tau_ref, parameter="I_pl", key="tau_ref", alpha=0.05)
+    result(r"$\tau_{{ref}}$ {inout}", reader=r_tau_ref, parameter="I_pl", key="tau_ref", alpha=0.05,
+           out_unit_label="[s]")
 
     #trace("$V_{mem}$ [V]", r_tau_ref, "tau_ref", args.neuron_enum, end=510, suffix="_uncalibrated")
 
@@ -1157,18 +1177,24 @@ r_test_tau_ref = test_reader if args.tau_ref_testrunner == None else Reader(args
 
 if  r_test_tau_ref:
 
-    calibrated_hist(r"$\tau_{ref}$ [$\mu$s]",
+    xmin, xmax = extract_range(r_test_tau_ref, "I_pl", pyhalbe.HICANN.neuron_parameter.I_pl, safety_min=0, safety_max=0)
+
+    xmin /= 10
+    xmax *= 10
+
+    calibrated_hist(r"$\tau_{ref}$ [s]",
                     r_test_tau_ref,
+                    xscale="log",
                     parameter="I_pl",
                     key="tau_ref",
-                    bins=100,
-                    range=(0.1e-7,5e-6),
+                    bins=np.logspace(np.log10(xmin), np.log10(xmax), 100),
+                    range=(xmin, xmax),
                     show_legend=True)
 
-    result(r"$\tau_{{ref}}$ {inout}", reader=r_test_tau_ref, suffix="_calibrated", parameter="I_pl", key="tau_ref", alpha=0.05)
+    result(r"$\tau_{{ref}}$ {inout}", reader=r_test_tau_ref, suffix="_calibrated", parameter="I_pl", key="tau_ref", alpha=0.05,
+           in_unit_label="[s]", out_unit_label="[s]")
 
     #trace("$V_{mem}$ [V]", r_test_tau_ref, parameter="tau_ref", args.neuron_enum, start=500, end=700, suffix="_calibrated")
-"""
 
 cakebin = os.path.split(os.path.abspath(__file__))[0]
 shutil.copy(os.path.join(cakebin, "overview.html"), fig_dir)
