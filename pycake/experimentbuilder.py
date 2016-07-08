@@ -18,7 +18,6 @@ from pycake.experiment import SequentialExperiment, I_pl_Experiment
 from pycake.experiment import IncrementalExperiment
 import pycake.analyzer
 from pycake.helpers.units import Unit, Ampere, Volt, DAC
-from pycake.helpers.trafos import DACtoHW
 from pycake.measure import ADCFreq_Measurement
 from pycake.analyzer import ADCFreq_Analyzer
 
@@ -268,7 +267,9 @@ class I_pl_Experimentbuilder(BaseExperimentBuilder):
     To be used with hardware."""
     def prepare_specific_config(self, sthal, parameters):
         I_pl_DAC = sthal.hicann.floating_gates.getNeuron(Coordinate.NeuronOnHICANN(Enum(0)), neuron_parameter.I_pl)
-        expected_ISI = DACtoHW(I_pl_DAC, neuron_parameter.I_pl) + 1e-8 # estimate 1e-8 as minimum ISI
+        expected_ISI = self.calibtic.ideal_nc.at(0).from_dac(I_pl_DAC, neuron_parameter.I_pl)
+        expected_ISI += 1e-8 # estimate 1e-8 as minimum ISI
+
         # Record at least 50 but not more than 5000 microseconds
         # If errors occur during calibration, these values need to be tuned
         sthal.recording_time = max(50e-6, min([expected_ISI * 70, 5e-4]))
