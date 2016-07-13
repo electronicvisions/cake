@@ -19,7 +19,7 @@ class Configurator(pysthal.HICANNConfigurator):
     def hicann_init(self, h):
         pyhalbe.HICANN.init(h, False)
 
-    def config(*args):
+    def config(self, *args):
         pysthal.HICANNConfigurator.config(*args)
         time.sleep(0.5)  # Settle driver locking
 
@@ -51,7 +51,7 @@ def _find_spikes_in_preout(trace):
 
 
 @hardware
-def _get_preout_trace(coord_wafer, coord_hicann, bg_rate, recording_time):
+def _get_preout_trace(config, bg_rate, recording_time):
     """
     Read preout of upper (debug) synapse driver.
 
@@ -59,7 +59,7 @@ def _get_preout_trace(coord_wafer, coord_hicann, bg_rate, recording_time):
     to the lower synapse driver with debug output.
     """
     analog = Coordinate.AnalogOnHICANN(0)
-    sthal = StHALContainer(coord_wafer, coord_hicann, analog, recording_time)
+    sthal = StHALContainer(config, analog, recording_time)
     # We need SynapseDriverOnHICANN(Enum(111)), this should be covered
     sthal.stimulateNeurons(bg_rate, 4)
     sthal.hicann.analog.set_preout(analog)
@@ -69,17 +69,15 @@ def _get_preout_trace(coord_wafer, coord_hicann, bg_rate, recording_time):
     sthal.disconnect()
     return trace
 
-def createTraceAverager(coord_wafer, coord_hicann):
+def createTraceAverager(config):
     """
     Creates a TraceAverage by using constant spike input on the upper
     synapse driver preout.
     """
-    analog = Coordinate.AnalogOnHICANN(0)
-    logger.info("Create TraceAverager for {} on {}.".format(
-        analog, coord_hicann))
+    logger.info("Create TraceAverager on {}".format(config.get_coordinates()))
     bg_rate = 100.0e3
     recording_time = 1000.0 / bg_rate
-    trace = _get_preout_trace(coord_wafer, coord_hicann, bg_rate, recording_time)
+    trace = _get_preout_trace(config, bg_rate, recording_time)
     pos = _find_spikes_in_preout(trace)
     n = len(pos)
     expected_t = np.arange(n) / bg_rate

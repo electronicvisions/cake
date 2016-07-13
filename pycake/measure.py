@@ -499,7 +499,7 @@ class I_gl_Measurement(ADCMeasurement):
 
 class I_gl_Measurement_multiple_currents(I_gl_Measurement):
     def __init__(self, sthal, neurons, readout_shifts=None, currents=[10, 35, 70]):
-        super(I_gl_Measurement, self).__init__(sthal, neurons, readout_shifts)
+        super(I_gl_Measurement_multiple_currents, self).__init__(sthal, neurons, readout_shifts)
         self.currents = currents
 
     def _measure(self, analyzer, additional_data):

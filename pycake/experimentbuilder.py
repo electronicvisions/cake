@@ -555,7 +555,7 @@ class I_gl_sim_Experimentbuilder(I_gl_Experimentbuilder):
 
         def get_chunks(self, trace, dt):
             # original function does not work with non-equidistant times
-            raise NotImplemented
+            raise NotImplementedError
 
     def prepare_specific_config(self, sthal, parameters):
         # set recording time to one stimulation period
@@ -563,17 +563,8 @@ class I_gl_sim_Experimentbuilder(I_gl_Experimentbuilder):
         return sthal
 
     def get_analyzer(self):
-        coord_wafer, coord_hicann = self.config.get_coordinates()
-        save_traces = self.config.get_save_traces()
         pll = self.config.get_PLL()
-
-        # this method is hacky, but works using existing functionality
-        # scipy.signal.resample assumes a periodic signal
-        # resample voltage trace at this frequency
-        # for trace averager
-        sampling_freq = 90.e6
-        trace_averager = TraceAverager(sampling_freq)
-        return pycake.analyzer.I_gl_sim_Analyzer(trace_averager, save_traces, pll)
+        return pycake.analyzer.I_gl_sim_Analyzer(pll)
 
 
 class E_l_I_gl_fixed_Experimentbuilder(E_l_Experimentbuilder):

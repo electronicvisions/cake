@@ -8,7 +8,7 @@ from pycake.experimentbuilder import BaseExperimentBuilder
 from pycake.helpers.psp_shapes import DoubleExponentialPSP
 from pycake.helpers.TraceAverager import createTraceAverager
 from pycake.helpers.SignalToNoise import SignalToNoise
-from pycake.helpers.sthal import StHALContainer, UpdateParameter
+from pycake.helpers.sthal import UpdateParameter
 from pycake.measure import Measurement
 from pycake.experiment import IncrementalExperiment
 from pycake.helpers import psp_fit
@@ -187,11 +187,11 @@ class V_syntc_Experimentbuilder(BaseExperimentBuilder):
         parameters = self.config.get_parameters()
         readout_shifts = self.get_readout_shifts(self.neurons)
 
-        sthal = StHALContainer(coord_wafer, coord_hicann)
+        sthal = self.get_sthal()
         sthal.hicann.floating_gates = self.prepare_parameters(parameters)
         self.set_recording_time(sthal)
         pre_measurement = Measurement(sthal, self.neurons, readout_shifts)
-        averager = createTraceAverager(coord_wafer, coord_hicann)
+        averager = createTraceAverager(self.config)
 
         pre_result = pre_measurement.run_measurement(
                 V_syntc_PrerunAnalyzer(averager, self.get_bg_period(sthal)), None)
@@ -218,7 +218,7 @@ class V_syntc_Experimentbuilder(BaseExperimentBuilder):
         floating_gates = [self.prepare_parameters(self.get_step_parameters(s))
                           for s in steps]
 
-        sthal = StHALContainer(coord_wafer, coord_hicann, wafer_cfg=wafer_cfg)
+        sthal = self.get_sthal()
         sthal = self.prepare_specific_config(sthal)
         sthal.hicann.floating_gates = copy.copy(floating_gates[0])
 
@@ -239,7 +239,7 @@ class V_syntc_Experimentbuilder(BaseExperimentBuilder):
         """
         sthal, generator = self.generate_measurements()
         analyzer = self.get_analyzer()
-        return IncrementalExperiment(sthal, generator, analyzer)
+        return IncrementalExperiment(sthal, generator, analyzer, {})
 
 class V_syntci_Experimentbuilder(V_syntc_Experimentbuilder):
     pass

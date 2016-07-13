@@ -419,7 +419,7 @@ class V_convoff_Calibrator(BaseCalibrator):
         return (data - model) / eps_data
 
     def prepare_data(self, data, v_range, spiking_threshold):
-        raise NotImplemented(self)
+        raise NotImplementedError(self)
 
     def find_optimum(self, data, v_range=0.150, spiking_threshold=0.001):
 

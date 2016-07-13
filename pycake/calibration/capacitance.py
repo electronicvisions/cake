@@ -40,7 +40,7 @@ class Capacitance_Measurement(ADCMeasurement):
                 self.traces[neuron] = {}
             for current_dac in self.current_dacs:
                 self.pre_measure(neuron, current_dac)
-                readout = self.read_adc()
+                readout, _ = self.read_adc()
                 readout['current_dac'] = current_dac
                 readout['pll_freq'] = self.sthal.getPLL()
                 if not self.traces is None:

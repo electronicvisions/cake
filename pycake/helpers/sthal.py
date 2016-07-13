@@ -202,7 +202,16 @@ class FakeAnalogRecorder(object):
     def trace(self):
         pass
 
+    def traceRaw(self):
+        pass
+
     def setRecordingTime(self, time):
+        pass
+
+    def getRecordingTime(self):
+        pass
+
+    def getTimestamp(self):
         pass
 
     def getTimestamps(self):
@@ -823,9 +832,12 @@ class StHALContainer(object):
     def get_bigcap(self):
         return self.hicann.get_bigcap_setting()
 
-    def read_floating_gates(self):
+    def read_all_floating_gates(self):
         """
-        Read back floating gate values from hardware.
+        Helper method to read back all floating gate voltages.
+
+        Note: This is currently not integrated, but can just be hacked into
+        ADCMeasurement._measure if needed.
 
         Returns:
             pandas.DataFrame containing the raw voltages read from hardware
@@ -864,6 +876,17 @@ class StHALContainer(object):
         return result
 
     def read_floating_gates(self, parameter):
+        """
+        Read floating gate voltages for the given parameter.
+        Only the floating gates blocks accessabel from the used analog port are
+        read.
+
+        Note: This is currently not integrated, but can just be hacked into
+        ADCMeasurement._measure if needed.
+
+        Returns:
+            pandas.DataFrame containing the raw voltages read from hardware
+        """
 
 
         fgblocks = [

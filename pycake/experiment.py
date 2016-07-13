@@ -302,17 +302,6 @@ class I_pl_Experiment(SequentialExperiment):
     """ I_pl experiment uses post-processing to calculate tau_ref results.
         Otherwise, it does the same as SequentialExperiment
     """
-    def get_tau_refs(self, neuron):
-        """ Uses the measured results to calculate refractory periods.
-            Returns: taus, I_pls
-        """
-        # Need to switch y and x in order to get the right fit
-        # (y-axis: configured parameter, x-axis: measurement)
-        ys_raw, xs_raw, amplitudes, mean_reset_times = self.get_merged_results(neuron, ['mean_isi', 'amplitude', 'mean_reset_time'])
-        I_pls = self.prepare_y(ys_raw)
-        assert(I_pls[-1] == 1023), "The last I_pl step must be 1023 DAC."
-        taus = self.prepare_x(xs_raw, amplitudes, mean_reset_times)
-        return taus, I_pls
 
     def prepare_x(self, x, amplitudes, mean_reset_times):
         """ Prepares x values for fit
