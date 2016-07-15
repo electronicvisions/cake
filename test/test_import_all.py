@@ -41,7 +41,6 @@ import pycake.helpers.sthal
 import pycake.helpers.StorageProcess
 import pycake.helpers.TraceAverager
 import pycake.helpers.TracesOnDiskDict
-import pycake.helpers.trafos
 import pycake.helpers.units
 import pycake.helpers.WorkerPool
 
