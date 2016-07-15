@@ -406,7 +406,7 @@ class I_gl_Measurement(ADCMeasurement):
         This takes a lot of time!
 
     """
-    def __init__(self, sthal, neurons, readout_shifts=None, currents=[2,5,10,20,30]):
+    def __init__(self, sthal, neurons, readout_shifts=None, currents=[30]):
         super(I_gl_Measurement, self).__init__(sthal, neurons, readout_shifts)
         self.currents = currents
 
@@ -437,7 +437,6 @@ class I_gl_Measurement(ADCMeasurement):
                         Divider 1 means ~60 cycles (5e-3 s), standard divider of 20 means 3 cycles (2.5e-4 s)
         """
         old_recording_time = self.sthal.recording_time
-        I_gl = self.get_parameter(neuron_parameter.I_gl, neuron).values()[0]*2500/1023.
         self.sthal.adc.setRecordingTime(old_recording_time/recording_time_divider)
         self.logger.TRACE("Finding best current for neuron {}".format(neuron))
         best_current = None

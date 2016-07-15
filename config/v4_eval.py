@@ -58,6 +58,8 @@ parameters = {
 
     "I_pl_range":   [{neuron_parameter.I_pl : Second(t, apply_calibration=True)} for t in [2e-7]],
 
+    "I_gl_range": [{neuron_parameter.I_gl : Second(t, apply_calibration=True)} for t in [1e-6]],
+
     "parameter_order": [
         #'readout_shift',
         shared_parameter.V_reset.name,
@@ -67,6 +69,7 @@ parameters = {
         neuron_parameter.E_l.name,
         "V_convoff_test",
         neuron_parameter.I_pl.name
+        neuron_parameter.I_gl.name
     ],
 }
 

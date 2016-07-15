@@ -514,7 +514,10 @@ class I_gl_Experimentbuilder(BaseExperimentBuilder):
         super(I_gl_Experimentbuilder, self).__init__(*args, **kwargs)
 
     def prepare_specific_config(self, sthal, parameters):
-        sthal.recording_time = 5e-3
+        # 6 falling edges with a current pulse length of 15 and 100 MHz
+        # period = (pulselength * 129) / (PLL / 4)
+        # to be tuned!
+        sthal.recording_time = 5e-4
         return sthal
 
     def make_measurement(self, sthal, neurons, readout_shifts):
