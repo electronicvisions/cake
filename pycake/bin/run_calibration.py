@@ -3,20 +3,15 @@ import argparse
 import os
 import sys
 import pylogging
-from pycake.calibrationrunner import CalibrationRunner, TestRunner
-import pycake.config
 import Coordinate
 
+import pycake.config
+from pycake.calibrationrunner import CalibrationRunner, TestRunner
+from pycake.helpers.init_logging import init_cake_logging
 from pysthal.command_line_util import add_default_coordinate_options
 from pysthal.command_line_util import add_logger_options
-from pysthal.command_line_util import init_logger
 
-# Log multiprocessing output to stderr
-import multiprocessing
-import logging
-logger = multiprocessing.log_to_stderr()
-logger.setLevel(logging.DEBUG)
-
+init_cake_logging()
 
 def check_file(string):
     if not os.path.isfile(string):
@@ -94,27 +89,6 @@ def load_config(parsed_args):
     return cfg
 
 
-init_logger(pylogging.LogLevel.WARN, [
-    ("Default", pylogging.LogLevel.INFO),
-    ("halbe.fgwriter", pylogging.LogLevel.ERROR),
-    ("pycake.calibrationrunner", pylogging.LogLevel.DEBUG),
-    ("pycake.calibrationunit", pylogging.LogLevel.DEBUG),
-    ("pycake.config", pylogging.LogLevel.INFO),
-    ("pycake.measurement", pylogging.LogLevel.DEBUG),
-    ("pycake.analyzer", pylogging.LogLevel.TRACE),
-    ("pycake.experiment", pylogging.LogLevel.DEBUG),
-    ("pycake.experimentbuilder", pylogging.LogLevel.DEBUG),
-    ("pycake.calibtic", pylogging.LogLevel.DEBUG),
-    ("pycake.redman", pylogging.LogLevel.DEBUG),
-    ("pycake.helper.sthal", pylogging.LogLevel.INFO),
-    ("pycake.helper.simsthal", pylogging.LogLevel.INFO),
-    ("pycake.helper.workerpool", pylogging.LogLevel.INFO),
-    ("sthal", pylogging.LogLevel.INFO),
-    ("sthal.AnalogRecorder", pylogging.LogLevel.WARN),
-    ("sthal.HICANNConfigurator.Time", pylogging.LogLevel.INFO),
-    ("progress", pylogging.LogLevel.DEBUG),
-    ("progress.sthal", pylogging.LogLevel.INFO),
-    ])
 
 parser = argparse.ArgumentParser(description='HICANN Calibration tool. Takes a parameter file as input. See pycake/bin/parameters.py to see an example.')
 add_default_coordinate_options(parser)
@@ -130,11 +104,6 @@ parser.add_argument('--parameter', type=str, default=None, action='append', narg
 parser.add_argument('--overwrite', required=False, action=DictionaryAction,
                     help="Overwrites values loaded from configuration file, e.g. --overwrite PLL float 125e6")
 args = parser.parse_args()
-
-if args.logfile is not None:
-    progress = pylogging.get('progress')
-    pylogging.append_to_cout(progress)
-    progress.warn("Write logs to {}".format(args.logfile))
 
 config = load_config(args)
 
