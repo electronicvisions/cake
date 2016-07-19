@@ -28,6 +28,9 @@ class Reader(object):
         self.neurons_without_defects = [nrn for nrn in self.runner.config.get_neurons()
                                         if self.runner.redman.hicann_with_backend.neurons().has(nrn)]
 
+        self.neurons_only_defect = [nrn for nrn in self.runner.config.get_neurons()
+                                    if not self.runner.redman.hicann_with_backend.neurons().has(nrn)]
+
     logger = pylogging.get("pycake.reader")
 
     def get_neurons(self):
@@ -137,6 +140,37 @@ class Reader(object):
             target_value = target_value.values()[0].value
             plt.axvline(target_value, linestyle='dashed', color='k', linewidth=1)
         return hist
+
+    def plot_defect_neurons(self, sort_by_shared_FG_block=False, **kwargs):
+        import matplotlib.pyplot as plt
+
+        x_values = []
+        results_list = []
+
+        for n in self.neurons_only_defect:
+            if not sort_by_shared_FG_block:
+                x_values.append(n.id().value())
+            else:
+                x_values.append(n.id().value()%256/2 + n.toSharedFGBlockOnHICANN().id().value()*128)
+
+            results_list.append(1)
+
+        fig = plt.figure()
+
+        p = plt.plot(*zip(*sorted(zip(x_values, results_list), key=itemgetter(0))), marker='x', linestyle="None",color='r')
+
+        plt.gca().get_yaxis().set_ticks([])
+
+        if not sort_by_shared_FG_block:
+            plt.xlabel("Neuron")
+        else:
+            plt.xlabel("Shared FG block*128 + Neuron%256/2")
+
+        plt.ylabel("Defect")
+        plt.xlim(0, 512)
+        plt.ylim(0, 2)
+
+        return fig, p
 
     def plot_vs_neuron_number(self, parameter, key, step, repetition=0, draw_target_line=True, sort_by_shared_FG_block=False, **kwargs):
         import matplotlib.pyplot as plt

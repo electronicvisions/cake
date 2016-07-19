@@ -91,6 +91,8 @@ parser.add_argument("--neuron_enum", help="neuron(s) used for plots", default=[0
 
 parser.add_argument("--v_convoff_testrunner", help="path to V convoff test runner (if different from 'testrunner')", default=None)
 
+parser.add_argument("--defect_runner", help="path to runner from which defect neurons will be plotted", default=None)
+
 args = parser.parse_args()
 
 fig_dir = args.outdir
@@ -522,6 +524,23 @@ try:
 
 except Exception as e:
     logger.ERROR("problem with V_convoff test plots: {}".format(e))
+
+## defects
+
+try:
+
+    r_defects = reader if args.defect_runner == None else Reader(args.defect_runner)
+
+    fig, p = r_defects.plot_defect_neurons(sort_by_shared_FG_block=False)
+    fig.savefig(os.path.join(fig_dir, "defect_neurons_vs_neuron_number.pdf"))
+    fig.savefig(os.path.join(fig_dir, "defect_neurons_vs_neuron_number.png"))
+
+    fig, p = r_defects.plot_defect_neurons(sort_by_shared_FG_block=True)
+    fig.savefig(os.path.join(fig_dir, "defect_neurons_vs_shared_FG_block.pdf"))
+    fig.savefig(os.path.join(fig_dir, "defect_neurons_vs_shared_FG_block.png"))
+
+except Exception as e:
+    logger.ERROR("problem with neuron defect plots: {}".format(e))
 
 ## V reset
 try:
