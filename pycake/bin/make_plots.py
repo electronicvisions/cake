@@ -1103,8 +1103,6 @@ try:
 except Exception as e:
     logger.ERROR("problem with V_syntci plots: {}".format(e))
 
-logger.WARN("spike plots disabled until readout is stable")
-"""
 r_test_spikes = test_reader if args.spikes_testrunner == None else Reader(args.spikes_testrunner)
 
 if r_test_spikes:
@@ -1119,12 +1117,25 @@ if r_test_spikes:
 
         n_spikes = np.array(r_test_spikes.get_results("Spikes",r_test_spikes.get_neurons(), "spikes_n_spikes").values())
 
-        plt.plot([v[pyhalbe.HICANN.neuron_parameter.V_t].value for v in r_test_spikes.runner.config.copy("Spikes").get_steps()], np.sum(np.greater(n_spikes,1), axis=0), label="measured")
+        # assume the same E_l for all steps
+        E_l = r_test_spikes.runner.config.copy("Spikes").get_parameters()[pyhalbe.HICANN.neuron_parameter.E_l].value
+
+        V_ts = [v[pyhalbe.HICANN.neuron_parameter.V_t].value for v in r_test_spikes.runner.config.copy("Spikes").get_steps()]
+
+        plt.plot(V_ts, np.sum(np.greater(n_spikes,1), axis=0), label="measured")
         #plt.plot(V_ts, np.array(n_spikes_est), label="estimated")
-        plt.axhline(len(r_test_spikes.get_neurons()), color='black', linestyle="dotted")
+
+        n_good_neurons = len(r_test_spikes.get_neurons())
+        plt.axhline(n_good_neurons, color='black', linestyle="dotted")
+        plt.text(min(V_ts)+0.001, n_good_neurons+5, "#not blacklisted", fontsize=12)
+
+        plt.axvline(E_l, color='black', linestyle="dotted")
+        plt.text(E_l+0.005,25,'E$_l$', fontsize=12)
+
         plt.legend(loc="lower left")
         plt.ylabel("# spiking neurons")
-        plt.xlabel("$V_t$ [mV]")
+        plt.xlabel("$V_t$ [V]")
+        plt.xlim(min(V_ts), max(V_ts))
 
         plt.subplots_adjust(**margins)
         plt.savefig(os.path.join(fig_dir,"n_spiking_neurons_"+defects_string+"_calibrated.png"))
@@ -1134,9 +1145,9 @@ if r_test_spikes:
         r_test_spikes.include_defects = include_defects
 
         fig = r_test_spikes.plot_result("Spikes","spikes_n_spikes",yfactor=1,average=True,mark_top_bottom=True)
-
+        plt.legend(loc="lower left")
         plt.ylabel("average number of recorded spikes per neuron")
-        plt.xlabel("$V_t$ [mV]")
+        plt.xlabel("$V_t$ [DAC]")
 
         plt.subplots_adjust(**margins)
 
@@ -1149,7 +1160,6 @@ if r_test_spikes:
         plt.savefig(os.path.join(fig_dir,"_".join(["n_spikes",
                                                    defects_string,
                                                    "result_calibrated.png"])))
-"""
 
 ## tau ref
 

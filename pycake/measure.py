@@ -189,6 +189,8 @@ class SpikeMeasurement(Measurement):
 
         self.sthal.wafer.clearSpikes()
 
+        # Fix FPGA: the below should not be necessary!
+        # send in dummy spike otherwise only old(?) spikes of GBitLink 0 are received
         spikes = pysthal.Vector_Spike()
         for t in [1e-3]:
             spikes.append(pysthal.Spike(pyhalbe.HICANN.L1Address(1), t))
@@ -271,7 +273,7 @@ class SpikeMeasurement(Measurement):
 
         for neuron in self.neurons:
             spikes = self.spikes.get(neuron, [])
-            results[neuron] = analyzer(spikes, neuron)
+            results[neuron] = analyzer(neuron, spikes)
 
         return results
 
