@@ -1153,99 +1153,113 @@ if r_test_spikes:
 
 ## tau ref
 
-r_tau_ref = reader if args.tau_ref_runner == None else Reader(args.tau_ref_runner)
+try:
+    r_tau_ref = reader if args.tau_ref_runner == None else Reader(args.tau_ref_runner)
 
-if r_tau_ref:
+    if r_tau_ref:
 
-    xmin, xmax = extract_range(r_tau_ref, "I_pl", pyhalbe.HICANN.neuron_parameter.I_pl, safety_min=0, safety_max=0)
+        xmin, xmax = extract_range(r_tau_ref, "I_pl", pyhalbe.HICANN.neuron_parameter.I_pl, safety_min=0, safety_max=0)
 
-    xmin /= 10
-    xmax *= 10
+        xmin /= 10
+        xmax *= 10
 
-    uncalibrated_hist(r"$\tau_{ref}$ [s]",
-                      r_tau_ref,
-                      xscale="log",
-                      parameter="I_pl",
-                      key="tau_ref",
-                      bins=np.logspace(np.log10(xmin), np.log10(xmax), 100),
-                      range=(xmin, xmax),
-                      show_legend=True)
+        uncalibrated_hist(r"$\tau_{ref}$ [s]",
+                          r_tau_ref,
+                          xscale="log",
+                          parameter="I_pl",
+                          key="tau_ref",
+                          bins=np.logspace(np.log10(xmin), np.log10(xmax), 100),
+                          range=(xmin, xmax),
+                          show_legend=True)
 
-    result(r"$\tau_{{ref}}$ {inout}", reader=r_tau_ref, parameter="I_pl", key="tau_ref", alpha=0.05,
-           out_unit_label="[s]")
+        result(r"$\tau_{{ref}}$ {inout}", reader=r_tau_ref, parameter="I_pl", key="tau_ref", alpha=0.05,
+               out_unit_label="[s]")
 
-    #trace("$V_{mem}$ [V]", r_tau_ref, "tau_ref", args.neuron_enum, end=510, suffix="_uncalibrated")
+        #trace("$V_{mem}$ [V]", r_tau_ref, "tau_ref", args.neuron_enum, end=510, suffix="_uncalibrated")
 
-r_test_tau_ref = test_reader if args.tau_ref_testrunner == None else Reader(args.tau_ref_testrunner)
+except Exception as e:
+    logger.ERROR("problem with uncalibrated tau_ref plots: {}".format(e))
 
-if  r_test_tau_ref:
+try:
+    r_test_tau_ref = test_reader if args.tau_ref_testrunner == None else Reader(args.tau_ref_testrunner)
 
-    xmin, xmax = extract_range(r_test_tau_ref, "I_pl", pyhalbe.HICANN.neuron_parameter.I_pl, safety_min=0, safety_max=0)
+    if r_test_tau_ref:
 
-    xmin /= 10
-    xmax *= 10
+        xmin, xmax = extract_range(r_test_tau_ref, "I_pl", pyhalbe.HICANN.neuron_parameter.I_pl, safety_min=0, safety_max=0)
 
-    calibrated_hist(r"$\tau_{ref}$ [s]",
-                    r_test_tau_ref,
-                    xscale="log",
-                    parameter="I_pl",
-                    key="tau_ref",
-                    bins=np.logspace(np.log10(xmin), np.log10(xmax), 100),
-                    range=(xmin, xmax),
-                    show_legend=True)
+        xmin /= 10
+        xmax *= 10
 
-    result(r"$\tau_{{ref}}$ {inout}", reader=r_test_tau_ref, suffix="_calibrated", parameter="I_pl", key="tau_ref", alpha=0.05,
-           in_unit_label="[s]", out_unit_label="[s]")
+        calibrated_hist(r"$\tau_{ref}$ [s]",
+                        r_test_tau_ref,
+                        xscale="log",
+                        parameter="I_pl",
+                        key="tau_ref",
+                        bins=np.logspace(np.log10(xmin), np.log10(xmax), 100),
+                        range=(xmin, xmax),
+                        show_legend=True)
 
-    #trace("$V_{mem}$ [V]", r_test_tau_ref, parameter="tau_ref", args.neuron_enum, start=500, end=700, suffix="_calibrated")
+        result(r"$\tau_{{ref}}$ {inout}", reader=r_test_tau_ref, suffix="_calibrated", parameter="I_pl", key="tau_ref", alpha=0.05,
+               in_unit_label="[s]", out_unit_label="[s]")
+
+        #trace("$V_{mem}$ [V]", r_test_tau_ref, parameter="tau_ref", args.neuron_enum, start=500, end=700, suffix="_calibrated")
+
+except Exception as e:
+    logger.ERROR("problem with calibrated tau_ref plots: {}".format(e))
+
 
 ## tau m
+try:
+    r_tau_m = reader if args.tau_m_runner == None else Reader(args.tau_m_runner)
 
-r_tau_m = reader if args.tau_m_runner == None else Reader(args.tau_m_runner)
+    if r_tau_m:
 
-if r_tau_m:
+        xmin, xmax = extract_range(r_tau_m, "I_gl", pyhalbe.HICANN.neuron_parameter.I_gl, safety_min=0, safety_max=0)
 
-    xmin, xmax = extract_range(r_tau_m, "I_gl", pyhalbe.HICANN.neuron_parameter.I_gl, safety_min=0, safety_max=0)
+        xmin /= 10
+        xmax *= 10
 
-    xmin /= 10
-    xmax *= 10
+        uncalibrated_hist(r"$\tau_{m}$ [s]",
+                          r_tau_m,
+                          xscale="log",
+                          parameter="I_gl",
+                          key="tau_m",
+                          bins=np.logspace(np.log10(xmin), np.log10(xmax), 100),
+                          range=(xmin, xmax),
+                          show_legend=True)
 
-    uncalibrated_hist(r"$\tau_{m}$ [s]",
-                      r_tau_m,
-                      xscale="log",
-                      parameter="I_gl",
-                      key="tau_m",
-                      bins=np.logspace(np.log10(xmin), np.log10(xmax), 100),
-                      range=(xmin, xmax),
-                      show_legend=True)
+        result(r"$\tau_{{m}}$ {inout}", reader=r_tau_m, parameter="I_gl", key="tau_m", alpha=0.05,
+               out_unit_label="[s]")
 
-    result(r"$\tau_{{m}}$ {inout}", reader=r_tau_m, parameter="I_gl", key="tau_m", alpha=0.05,
-           out_unit_label="[s]")
+        #trace("$V_{mem}$ [V]", r_tau_m, "tau_m", args.neuron_enum, end=510, suffix="_uncalibrated")
+except Exception as e:
+    logger.ERROR("problem with uncalibrated tau_m plots: {}".format(e))
 
-    #trace("$V_{mem}$ [V]", r_tau_m, "tau_m", args.neuron_enum, end=510, suffix="_uncalibrated")
+try:
+    r_test_tau_m = test_reader if args.tau_m_testrunner == None else Reader(args.tau_m_testrunner)
 
-r_test_tau_m = test_reader if args.tau_m_testrunner == None else Reader(args.tau_m_testrunner)
+    if  r_test_tau_m:
 
-if  r_test_tau_m:
+        xmin, xmax = extract_range(r_test_tau_m, "I_gl", pyhalbe.HICANN.neuron_parameter.I_gl, safety_min=0, safety_max=0)
 
-    xmin, xmax = extract_range(r_test_tau_m, "I_gl", pyhalbe.HICANN.neuron_parameter.I_gl, safety_min=0, safety_max=0)
+        xmin /= 10
+        xmax *= 10
 
-    xmin /= 10
-    xmax *= 10
+        calibrated_hist(r"$\tau_{m}$ [s]",
+                        r_test_tau_m,
+                        xscale="log",
+                        parameter="I_gl",
+                        key="tau_m",
+                        bins=np.logspace(np.log10(xmin), np.log10(xmax), 100),
+                        range=(xmin, xmax),
+                        show_legend=True)
 
-    calibrated_hist(r"$\tau_{m}$ [s]",
-                    r_test_tau_m,
-                    xscale="log",
-                    parameter="I_gl",
-                    key="tau_m",
-                    bins=np.logspace(np.log10(xmin), np.log10(xmax), 100),
-                    range=(xmin, xmax),
-                    show_legend=True)
+        result(r"$\tau_{{m}}$ {inout}", reader=r_test_tau_m, suffix="_calibrated", parameter="I_gl", key="tau_m", alpha=0.05,
+               in_unit_label="[s]", out_unit_label="[s]")
 
-    result(r"$\tau_{{m}}$ {inout}", reader=r_test_tau_m, suffix="_calibrated", parameter="I_gl", key="tau_m", alpha=0.05,
-           in_unit_label="[s]", out_unit_label="[s]")
-
-    #trace("$V_{mem}$ [V]", r_test_tau_m, parameter="tau_m", neuron=args.neuron_enum, start=500, end=700, suffix="_calibrated")
+        #trace("$V_{mem}$ [V]", r_test_tau_m, parameter="tau_m", neuron=args.neuron_enum, start=500, end=700, suffix="_calibrated")
+except Exception as e:
+    logger.ERROR("problem with calibrated tau_m plots: {}".format(e))
 
 cakebin = os.path.split(os.path.abspath(__file__))[0]
 shutil.copy(os.path.join(cakebin, "overview.html"), fig_dir)
