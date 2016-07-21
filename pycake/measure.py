@@ -101,8 +101,11 @@ class Measurement(object):
 
             Args:
                 neuron: parameters matching this neuron
-                parameter: [list] parameters to read (neuron_parameter or
-                           shared_parameter)
+                parameter: [list] parameters to read (neuron_parameter,
+                           shared_parameter or string). Floating gate
+                           parameters will be read from the floating gate
+                           configuration. Sting parameters will be returned
+                           from step_parameters.
             Return:
                 list: containing parameters in the requested order
         """
@@ -116,6 +119,8 @@ class Measurement(object):
                 values.append(fgs.getShared(block, parameter))
             elif parameter is None:
                 continue
+            elif isinstance(parameter, basestring):
+                values.append(self.step_parameters[parameter])
             else:
                 raise TypeError("invalid parameter type {}".format(type(parameter)))
         return values

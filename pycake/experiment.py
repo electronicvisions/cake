@@ -112,8 +112,10 @@ class Experiment(object):
 
         Args:
             neuron: parameters matching this neuron
-            parameter: [list] parameters to read (neuron_parameter or
-                       shared_parameter)
+            parameter: [list] parameters to read (neuron_parameter,
+                       shared_parameter or string). Floating gate parameters
+                       will be read from the floating gate configuration.
+                       Sting parameters will be returned from step_parameters.
         Return:
             pandas.DataFrame: Each requested parameter/result is one column,
                               indexed with the measurement step number.
@@ -121,7 +123,8 @@ class Experiment(object):
         Raises:
             ValueError, if no results are found for the given neuron.
         """
-        names = [p.name for p in parameters]
+        names = [p if isinstance(p, basestring) else p.name
+                 for p in parameters]
         names.extend(result_keys)
         result_keys = list(result_keys)
         values = []
