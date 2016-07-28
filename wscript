@@ -70,7 +70,6 @@ def build(bld):
         'pycake/bin/resume.py',
         'pycake/bin/make_plots.py',
         'pycake/bin/overview.html',
-        'tools/run_test_calib.sh',
         'pycake/bin/plot_calib_run',
     ] + bld.path.ant_glob('config/*py')
     bld.install_files(
