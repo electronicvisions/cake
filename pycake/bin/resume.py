@@ -8,6 +8,7 @@ import pylogging
 from pycake.calibrationrunner import CalibrationRunner
 from pycake.helpers.init_logging import init_cake_logging
 from pysthal.command_line_util import add_logger_options
+from pysthal.command_line_util import folder
 
 init_cake_logging()
 
