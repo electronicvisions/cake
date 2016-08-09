@@ -93,6 +93,9 @@ parser.add_argument("--spikes_testrunner", help="path to spikes test runner (if 
 
 parser.add_argument("--neuron_enum", help="neuron(s) used for plots", default=[0], type=int, nargs="+")
 
+parser.add_argument("--v_convoffi_runner", help="path to V convoffi runner (if different from 'runner')", default=None)
+parser.add_argument("--v_convoffx_runner", help="path to V convoffx runner (if different from 'runner')", default=None)
+
 parser.add_argument("--v_convoff_testrunner", help="path to V convoff test runner (if different from 'testrunner')", default=None)
 
 parser.add_argument("--defect_runner", help="path to runner from which defect neurons will be plotted", default=None)
@@ -409,9 +412,9 @@ def plot_v_convoff(reader):
             for I_gl, tmpdata in data.loc[nrns].groupby('I_gl'):
                 mean = tmpdata['mean'].mean()
                 std = tmpdata['mean'].std()
-                plt.text(I_gl, 0.6,
-                         r"$\sigma = {:.0f}mV$".format(std * 1000),
-                         rotation='vertical')
+                plt.text(I_gl, 1.15,
+                         r"${:.0f} \pm {:.0f}$ mV".format(mean * 1000, std * 1000),
+                         rotation=35)
 
             title = "$E_l$ variation after offset calibration"
             if not include_defects:
@@ -419,6 +422,8 @@ def plot_v_convoff(reader):
             plt.title(title)
             plt.xlabel("$I_{gl} [DAC]$")
             plt.ylabel("effective resting potential [V]")
+            plt.ylim(0.4,1.2)
+            plt.xlim(-10,1023)
             plt.subplots_adjust(**margins)
             plt.grid(True)
             plt.savefig(os.path.join(fig_dir, plt_name.format('', defects_name, 'png')))
@@ -542,6 +547,54 @@ try:
 
 except Exception as e:
     logger.ERROR("problem with V_convoff test plots: {}".format(e))
+
+## V_convoffi
+with LogError("problem with uncalibrated V_convoffi plots"):
+
+    r_v_convoffi = reader if args.v_convoffi_runner == None else Reader(args.v_convoffi_runner)
+
+    if r_v_convoffi:
+
+        unit = r_v_convoffi.runner.get_single(name="V_convoffi")
+        calibrator = unit.get_calibrator()
+
+        for nrn in args.neuron_enum:
+
+            fig = plt.figure()
+            ax = fig.add_subplot(1, 1, 1)
+            calibrator.plot_fit_for_neuron(C.NeuronOnHICANN(C.Enum(nrn)),ax)
+            plt.ylim(0,0.4)
+            plt.xlabel("V_convoffi [DAC] / 1023")
+            plt.legend()
+
+            plt.subplots_adjust(**margins)
+
+            plt.savefig(os.path.join(fig_dir,"V_convoffi_nrn_"+str(nrn)+".pdf"))
+            plt.savefig(os.path.join(fig_dir,"V_convoffi_nrn_"+str(nrn)+".png"))
+
+## V_convoffx
+with LogError("problem with uncalibrated V_convoffx plots"):
+
+    r_v_convoffx = reader if args.v_convoffx_runner == None else Reader(args.v_convoffx_runner)
+
+    if r_v_convoffx:
+
+        unit = r_v_convoffx.runner.get_single(name="V_convoffx")
+        calibrator = unit.get_calibrator()
+
+        for nrn in args.neuron_enum:
+
+            fig = plt.figure()
+            ax = fig.add_subplot(1, 1, 1)
+            calibrator.plot_fit_for_neuron(C.NeuronOnHICANN(C.Enum(nrn)),ax)
+            plt.ylim(0,0.4)
+            plt.xlabel("V_convoffx [DAC] / 1023")
+            plt.legend()
+
+            plt.subplots_adjust(**margins)
+
+            plt.savefig(os.path.join(fig_dir,"V_convoffx_nrn_"+str(nrn)+".pdf"))
+            plt.savefig(os.path.join(fig_dir,"V_convoffx_nrn_"+str(nrn)+".png"))
 
 ## defects
 

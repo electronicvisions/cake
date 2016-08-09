@@ -143,12 +143,15 @@ parameters = {
 
     "V_convoffi_parameters": {
         neuron_parameter.E_l : Volt(0.8, apply_calibration=True),
-        neuron_parameter.E_syni : Volt(0.6, apply_calibration=True),
+        neuron_parameter.E_syni : Volt(0.4, apply_calibration=True),
+        # E_synx should not have a large influence because we set I_convx to 0
+        neuron_parameter.E_synx : Volt(1.2),
         neuron_parameter.I_convx: Ampere(0.0),
         neuron_parameter.I_gl: Ampere(0.2e-6),
         neuron_parameter.V_convoffx: Volt(1.8),
         neuron_parameter.V_t: Volt(1.2, apply_calibration=True),
-        shared_parameter.V_reset: Volt(0.9, apply_calibration=True),
+        # Low to make spiking traces easier to detect
+        shared_parameter.V_reset: Volt(0.3, apply_calibration=True),
     },
 
     # V_convoffx 
@@ -160,12 +163,15 @@ parameters = {
 
     "V_convoffx_parameters": {
         neuron_parameter.E_l : Volt(0.8, apply_calibration=True),
-        neuron_parameter.E_synx : Volt(1.3),
-        neuron_parameter.I_convi: Ampere(0.0),
+        neuron_parameter.E_synx : Volt(1.2),
+        # E_syni should not have a large influence because we set I_convi to 0
+        neuron_parameter.E_syni : Volt(0.4, apply_calibration=True),
+        neuron_parameter.I_convi: Ampere(0),
         neuron_parameter.I_gl: Ampere(0.2e-6),
-        neuron_parameter.V_t: Volt(1.12, apply_calibration=True),
+        neuron_parameter.V_convoffi: Volt(1.8),
+        neuron_parameter.V_t: Volt(1.2, apply_calibration=True),
         # Low to make spiking traces easier to detect
-        shared_parameter.V_reset:  Volt(0.3, apply_calibration=True),
+        shared_parameter.V_reset: Volt(0.3, apply_calibration=True),
     },
 
     # V_syntci

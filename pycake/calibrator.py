@@ -425,43 +425,49 @@ class V_convoff_Calibrator(BaseCalibrator):
 
         fit_data = self.prepare_data(data.copy(), v_range, spiking_threshold)
         if len(fit_data[0]) < 4:
-            return fit_data, None, None, None
+            return fit_data, None, None
 
         results = []
         params = Parameters()
-        params.add('a', value=0.0)
+        params.add('a', value=-1.0)
         params.add('b', value=fit_data[0][len(fit_data)/2])
         params.add('c', value=0.0)
 
         out = minimize(self.residual, params,
                        args=(fit_data[0], fit_data[1], 1.0))
-        return fit_data, numpy.sum(out.residual**2), out, params
+        return fit_data, numpy.sum(out.residual**2), out
 
-    def plt_fits(self, axis, results, legend=False):
-        fit_data, res, out, params = results
+    def plt_fits(self, axis, results):
+        fit_data, res, fit_result = results
         x, y = fit_data
-        axis.plot(x, y, color='k')
-        # print fit_report(out)
+        axis.plot(x, y, color='k', label="measured")
         #axis.plot(
         #    x, f(params, x), 'x', 
         #    label='Res**2: {:.2f}, b: {:.2f}, chi2: {:.5f}'.format(
         #        res, params['b'].value, out.chisqr))
-        if params is not None:
+        if fit_result is not None:
+            params = fit_result.params
             x = numpy.linspace(0, 1.0, 100)
             l = axis.plot(x, self.f(params, x), '--',
-                          label='b: {:.2f}'.format(params['b'].value))
+                          label='fitted, '
+                                'a: {:.2f}, '
+                                'b: {:.2f}, '
+                                'c: {:.2f}'.format(params['a'].value,
+                                                   params['b'].value,
+                                                   params['c'].value))
             axis.plot([params['b'].value], [params['c'].value], 'x',
                       color=l[0].get_color())
-        if legend:
-            axis.legend(loc='lower right')
+        axis.set_xlabel("V_convoff [DAC] / 1023")
+        axis.set_ylabel("shift / {:.2f} V".format(self.v_range))
 
     def plt_residuals(self, axis, results):
         axis.plot([res for res, _, _ in results])
 
     @staticmethod
     def V_convoff(results):
-        _, _, _, params = results
-        if params is not None:
+        _, _, fit_result = results
+        if fit_result is not None:
+            params = fit_result.params
             return params['b'].value * 1023
 
     def plot_fit_for_neuron(self, nrn, axis, v_range=None):
@@ -472,6 +478,7 @@ class V_convoff_Calibrator(BaseCalibrator):
         results = self.find_optimum(
             data, v_range, self.get_spiking_threshold(nrn))
         self.plt_fits(axis, results)
+        return results
 
     def get_spiking_threshold(self, nrn):
         """
@@ -499,7 +506,7 @@ class V_convoff_Calibrator(BaseCalibrator):
 
 class V_convoffi_Calibrator(V_convoff_Calibrator):
     target_parameter = neuron_parameter.V_convoffi
-    v_range=0.120
+    v_range=0.150
 
     def prepare_data(self, data, v_range, spiking_threshold):
         """scales data from -1.0 to 0.0 and removes spiking traces"""
