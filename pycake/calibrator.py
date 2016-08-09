@@ -479,6 +479,12 @@ class V_convoff_Calibrator(BaseCalibrator):
         """
         return self.experiment.initial_data[nrn].get('std', 0.001) * 1.2
 
+    def believably(self, value):
+        """
+        Returns True if the value of V_convoffi/x is within a believably range
+        """
+        return 100 < value < 900
+
     def generate_transformations(self):
         fits = {}
         data = self.experiment.get_all_data(
@@ -487,7 +493,7 @@ class V_convoff_Calibrator(BaseCalibrator):
             results = self.find_optimum(
                 data, self.v_range, self.get_spiking_threshold(nrn))
             value = self.V_convoff(results)
-            fits[nrn] = Constant(value) if value is not None else None
+            fits[nrn] = Constant(value) if self.believably(value) else None
         return [(self.target_parameter, fits)]
 
 
