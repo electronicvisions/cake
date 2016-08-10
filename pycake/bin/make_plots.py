@@ -485,16 +485,21 @@ if args.backenddir:
 
     offsets = [get_offset(c, n) * 1000 for n in xrange(512)]
     plt.hist(offsets, bins=100);
+    plt.subplots_adjust(**margins)
     plt.xlabel("offset [mV]")
     plt.ylabel("#")
     plt.subplots_adjust(**margins)
+    plt.xlim(-60,60)
     plt.savefig(os.path.join(fig_dir,"analog_readout_offset.pdf"))
     plt.savefig(os.path.join(fig_dir,"analog_readout_offset.png"))
 
     fig = plt.figure()
+    plt.subplots_adjust(**margins)
     plt.xlabel("neuron")
     plt.ylabel("offset [mV]")
     plt.plot(offsets, 'rx')
+    plt.xlim(0,512)
+    plt.ylim(-60,60)
     plt.savefig(os.path.join(fig_dir,"analog_readout_offset_vs_nrn.pdf"))
     plt.savefig(os.path.join(fig_dir,"analog_readout_offset_vs_nrn.png"))
 
@@ -602,13 +607,19 @@ try:
 
     r_defects = reader if args.defect_runner == None else Reader(args.defect_runner)
 
-    fig, p = r_defects.plot_defect_neurons(sort_by_shared_FG_block=False)
-    fig.savefig(os.path.join(fig_dir, "defect_neurons_vs_neuron_number.pdf"))
-    fig.savefig(os.path.join(fig_dir, "defect_neurons_vs_neuron_number.png"))
+    if r_defects:
 
-    fig, p = r_defects.plot_defect_neurons(sort_by_shared_FG_block=True)
-    fig.savefig(os.path.join(fig_dir, "defect_neurons_vs_shared_FG_block.pdf"))
-    fig.savefig(os.path.join(fig_dir, "defect_neurons_vs_shared_FG_block.png"))
+        fig, p = r_defects.plot_defect_neurons(sort_by_shared_FG_block=False)
+        plt.subplots_adjust(**margins)
+
+        fig.savefig(os.path.join(fig_dir, "defect_neurons_vs_neuron_number.pdf"))
+        fig.savefig(os.path.join(fig_dir, "defect_neurons_vs_neuron_number.png"))
+
+        fig, p = r_defects.plot_defect_neurons(sort_by_shared_FG_block=True)
+        plt.subplots_adjust(**margins)
+
+        fig.savefig(os.path.join(fig_dir, "defect_neurons_vs_shared_FG_block.pdf"))
+        fig.savefig(os.path.join(fig_dir, "defect_neurons_vs_shared_FG_block.png"))
 
 except Exception as e:
     logger.ERROR("problem with neuron defect plots: {}".format(e))
