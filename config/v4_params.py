@@ -93,7 +93,6 @@ parameters = {
     "E_l_parameters": {
         neuron_parameter.I_convi: Ampere(0.0),
         neuron_parameter.I_convx: Ampere(0.0),
-        neuron_parameter.I_gl: Volt(0.2, apply_calibration=True),
         neuron_parameter.V_t: Volt(1.2, apply_calibration=True),
         shared_parameter.V_reset:  Volt(0.9, apply_calibration=True),
     },
