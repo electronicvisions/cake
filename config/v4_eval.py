@@ -41,12 +41,28 @@ parameters = {
         neuron_parameter.V_convoffx : Volt(0.0, apply_calibration=True),
         } for v in linspace_voltage(700e-3, 900e-3, 3, apply_calibration=True)],
 
-    "V_convoff_test_range": [
+    "V_convoff_test_uncalibrated_range": [
         {
             neuron_parameter.I_gl: Ampere(a * 1e-6),
         } for a in [0.0, 0.2, 0.3, 0.5, 1.0, 2.0]],
 
-    "V_convoff_test_parameters": {
+    # with uncalibrated V_convoffi/x at typical value
+    "V_convoff_test_uncalibrated_parameters": {
+        neuron_parameter.E_l : Volt(0.8, apply_calibration=True),
+        neuron_parameter.E_syni : Volt(0.6, apply_calibration=True),
+        neuron_parameter.E_synx : Volt(1.3),
+        neuron_parameter.V_convoffi : Volt(0.9, apply_calibration=False),
+        neuron_parameter.V_convoffx : Volt(0.9, apply_calibration=False),
+        neuron_parameter.V_t: Volt(1.12, apply_calibration=True),
+        shared_parameter.V_reset:  Volt(0.3, apply_calibration=True),
+    },
+
+    "V_convoff_test_calibrated_range": [
+        {
+            neuron_parameter.I_gl: Ampere(a * 1e-6),
+        } for a in [0.0, 0.2, 0.3, 0.5, 1.0, 2.0]],
+
+    "V_convoff_test_calibrated_parameters": {
         neuron_parameter.E_l : Volt(0.8, apply_calibration=True),
         neuron_parameter.E_syni : Volt(0.6, apply_calibration=True),
         neuron_parameter.E_synx : Volt(1.3),
@@ -83,7 +99,8 @@ parameters = {
         neuron_parameter.E_syni.name,
         neuron_parameter.E_synx.name,
         neuron_parameter.E_l.name,
-        "V_convoff_test",
+        "V_convoff_test_uncalibrated",
+        "V_convoff_test_calibrated",
         neuron_parameter.I_pl.name,
         neuron_parameter.I_gl.name,
         "Spikes"

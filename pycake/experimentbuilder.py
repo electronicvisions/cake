@@ -453,6 +453,9 @@ class V_convoff_test_Experimentbuilder(BaseExperimentBuilder):
         sthal.maximum_spikes = 1
         return sthal
 
+V_convoff_test_uncalibrated_Experimentbuilder = V_convoff_test_Experimentbuilder
+V_convoff_test_calibrated_Experimentbuilder = V_convoff_test_Experimentbuilder
+
 class V_syntcx_Experimentbuilder(V_convoff_Experimentbuilder):
     EXCITATORY = True
     ANALYZER = pycake.analyzer.PSPAnalyzer

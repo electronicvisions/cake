@@ -141,7 +141,7 @@ def LogError(msg):
     try:
         yield
     except Exception as e:
-        logger.ERROR(msg + str(e))
+        logger.ERROR("{}: {}".format(msg, e))
         logger.WARN('\n' + traceback.format_exc())
 
 
@@ -382,14 +382,14 @@ def result(label, xlabel=None, ylabel=None, reader=None, suffix="",
 
 
 
-def plot_v_convoff(reader):
+def plot_v_convoff(reader, name="V_convoff_calibrated_test", extra_plots=True, title="calibrated"):
     if not reader:
-        return
+        raise RuntimeError("missing reader for {}".format(name))
 
     from pyhalbe.HICANN import neuron_parameter
 
-    with LogError("problem with uncalibrated V_convoff_test plots"):
-        experiment = reader.runner.get_single(name="V_convoff_test").experiment
+    with LogError("problem with {} plots".format(name)):
+        experiment = reader.runner.get_single(name=name).experiment
         data = experiment.get_all_data(
             (neuron_parameter.I_gl,
              neuron_parameter.V_convoffi,
@@ -397,7 +397,7 @@ def plot_v_convoff(reader):
              neuron_parameter.E_l,
              neuron_parameter.E_synx),
             ('mean',))
-        plt_name = "V_convoff{}_{}_calibrated.{}"
+        plt_name = name.replace("off","off{}_{}")+".{}"
         for include_defects in [True, False]:
             reader.include_defects = include_defects
             nrns = reader.get_neurons() # TODO ???
@@ -412,55 +412,55 @@ def plot_v_convoff(reader):
             for I_gl, tmpdata in data.loc[nrns].groupby('I_gl'):
                 mean = tmpdata['mean'].mean()
                 std = tmpdata['mean'].std()
-                plt.text(I_gl, 1.15,
+                plt.text(I_gl, 1.10,
                          r"${:.0f} \pm {:.0f}$ mV".format(mean * 1000, std * 1000),
                          rotation=35)
 
-            title = "$E_l$ variation after offset calibration"
-            if not include_defects:
-                title += " (without {} defect neurons)".format(512 - len(nrns))
             plt.title(title)
-            plt.xlabel("$I_{gl} [DAC]$")
+            plt.xlabel("$I_{gl}$ [DAC]")
             plt.ylabel("effective resting potential [V]")
-            plt.ylim(0.4,1.2)
+            plt.ylim(0.35,1.25)
             plt.xlim(-10,1023)
             plt.subplots_adjust(**margins)
             plt.grid(True)
+            plt.title(title, x=0.125, y=0.9)
             plt.savefig(os.path.join(fig_dir, plt_name.format('', defects_name, 'png')))
             plt.savefig(os.path.join(fig_dir, plt_name.format('', defects_name, 'pdf')))
 
-            hist_data = data.loc[nrns].xs(0, level='step')
+            if extra_plots:
 
-            args = {"bins": np.linspace(0, 1023, 100)}
+                hist_data = data.loc[nrns].xs(0, level='step')
 
-            fig = plt.figure()
-            plt.hist(data['V_convoffi'].values, **args)
-            plt.xlabel("choosen $V_{convoffi}$ [DAC]")
-            plt.ylabel("effective resting potential [V]")
-            plt.subplots_adjust(**margins)
-            plt.grid(True)
-            plt.savefig(os.path.join(fig_dir, plt_name.format('i', defects_name, 'png')))
-            plt.savefig(os.path.join(fig_dir, plt_name.format('i', defects_name, 'pdf')))
+                args = {"bins": np.linspace(0, 1023, 100)}
 
-            fig = plt.figure()
-            plt.hist(data['V_convoffx'].values, **args)
-            plt.xlabel("choosen $V_{convoffx}$ [DAC]")
-            plt.ylabel("effective resting potential [V]")
-            plt.subplots_adjust(**margins)
-            plt.grid(True)
-            plt.savefig(os.path.join(fig_dir, plt_name.format('x', defects_name, 'png')))
-            plt.savefig(os.path.join(fig_dir, plt_name.format('x', defects_name, 'pdf')))
+                fig = plt.figure()
+                plt.hist(data['V_convoffi'].values, **args)
+                plt.xlabel("choosen $V_{convoffi}$ [DAC]")
+                plt.ylabel("effective resting potential [V]")
+                plt.subplots_adjust(**margins)
+                plt.grid(True)
+                plt.savefig(os.path.join(fig_dir, plt_name.format('i', defects_name, 'png')))
+                plt.savefig(os.path.join(fig_dir, plt_name.format('i', defects_name, 'pdf')))
 
-            fig = plt.figure()
-            for I_gl, nrndata in data.loc[nrns].groupby("I_gl"):
-                too_high_or_low = nrndata[abs(nrndata['mean'] - nrndata['mean'].mean()) > nrndata['mean'].std()]
-                plt.hist(too_high_or_low['V_convoffx'], bins=np.linspace(0, 1023, 100), label="I_gl={} DAC".format(I_gl), alpha=0.5)
-            plt.legend(loc=0)
-            plt.xlabel("choosen $V_{convoffx}$ [DAC]")
-            plt.ylabel("#")
-            #plt.subplots_adjust(**margins)
-            plt.savefig(os.path.join(fig_dir, plt_name.format('_V_convoffx_E_l_too_high_or_low', defects_name, 'png')))
-            plt.savefig(os.path.join(fig_dir, plt_name.format('_V_convoffx_E_l_too_high_or_low', defects_name, 'pdf')))
+                fig = plt.figure()
+                plt.hist(data['V_convoffx'].values, **args)
+                plt.xlabel("choosen $V_{convoffx}$ [DAC]")
+                plt.ylabel("effective resting potential [V]")
+                plt.subplots_adjust(**margins)
+                plt.grid(True)
+                plt.savefig(os.path.join(fig_dir, plt_name.format('x', defects_name, 'png')))
+                plt.savefig(os.path.join(fig_dir, plt_name.format('x', defects_name, 'pdf')))
+
+                fig = plt.figure()
+                for I_gl, nrndata in data.loc[nrns].groupby("I_gl"):
+                    too_high_or_low = nrndata[abs(nrndata['mean'] - nrndata['mean'].mean()) > nrndata['mean'].std()]
+                    plt.hist(too_high_or_low['V_convoffx'], bins=np.linspace(0, 1023, 100), label="I_gl={} DAC".format(I_gl), alpha=0.5)
+                plt.legend(loc=0)
+                plt.xlabel("choosen $V_{convoffx}$ [DAC]")
+                plt.ylabel("#")
+                #plt.subplots_adjust(**margins)
+                plt.savefig(os.path.join(fig_dir, plt_name.format('_V_convoffx_E_l_too_high_or_low', defects_name, 'png')))
+                plt.savefig(os.path.join(fig_dir, plt_name.format('_V_convoffx_E_l_too_high_or_low', defects_name, 'pdf')))
 
 if args.backenddir:
 
@@ -544,14 +544,15 @@ if args.backenddir:
     plt.savefig(os.path.join(fig_dir,"V_convoff_vs_nrn.png"))
 
 ## V convoff
-try:
 
+with LogError("problem with V_convoff test plots"):
     r_test_v_convoff = test_reader if args.v_convoff_testrunner == None else Reader(args.v_convoff_testrunner)
 
-    plot_v_convoff(r_test_v_convoff)
+    with LogError("problem with uncalibrated V_convoff test plots"):
+        plot_v_convoff(r_test_v_convoff, name="V_convoff_test_uncalibrated", extra_plots=False, title="uncalibrated")
 
-except Exception as e:
-    logger.ERROR("problem with V_convoff test plots: {}".format(e))
+    with LogError("problem with calibrated V_convoff test plots"):
+        plot_v_convoff(r_test_v_convoff, name="V_convoff_test_calibrated", extra_plots=True, title="calibrated")
 
 ## V_convoffi
 with LogError("problem with uncalibrated V_convoffi plots"):
