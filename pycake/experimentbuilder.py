@@ -344,6 +344,7 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
         self.init_time = 400.0e-6
         self.recording_time = self.config.get_recording_time(default=60.0e-6)
         self.no_spikes = 1 if not self.WITH_SPIKES else self.config.get_no_of_spikes(default=100)
+        self.bg_rate = None
 
     def prepare_specific_config(self, sthal, parameters):
         sthal.simulation_init_time = self.init_time
@@ -352,9 +353,10 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
             weight = parameters.get('synapse_weight', 15)
             gmax = parameters.get('gmax', 0)
             gmax_div = parameters.get('gmax_div', 4)
-            sthal.stimulateNeurons(1.0/self.recording_time, 1,
-                                   excitatory=self.EXCITATORY, gmax_div=gmax_div,
-                                   gmax=gmax, weight=weight)
+            self.bg_rate = sthal.stimulateNeurons(
+                1.0/self.recording_time, 1,
+                excitatory=self.EXCITATORY, gmax_div=gmax_div,
+                gmax=gmax, weight=weight)
             mirror_drivers = parameters.get('mirror_drivers', None)
             if mirror_drivers is not None:
                 sthal.mirror_synapse_driver(
@@ -390,23 +392,30 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
             configurator, configurator_args)
 
         if self.no_spikes > 1:
-            experiment.initial_data['spike_interval'] = self.recording_time
+            assert self.bg_rate is not None
+            experiment.initial_data['spike_frequency'] = self.bg_rate
+            experiment.initial_data['spike_interval'] = 1.0 / self.bg_rate
 
             # Add ADC frequency measurement
             sthal = self.get_sthal()
             if sthal.is_hardware():
+                bg_rate = 25e3
+                experiment.initial_data['adc_freq_spike_frequency'] = bg_rate
                 experiment.add_initial_measurement(
-                    ADCFreq_Measurement(sthal, self.neurons, bg_rate=100e3),
+                    ADCFreq_Measurement(sthal, self.neurons, bg_rate=bg_rate),
                     ADCFreq_Analyzer())
             else:
                 experiment.initial_data.update(
                     {ADCFreq_Analyzer.KEY: ADCFreq_Analyzer.IDEAL_FREQUENCY})
+        else:
+            experiment.initial_data['spike_frequency'] = None
+            experiment.initial_data['spike_interval'] = None
 
         # Add membrane noise measurement
         if measurements[0].sthal.is_hardware():
             measurement = copy.deepcopy(measurements[0])
             measurement.sthal.hicann.clear_complete_l1_routing()
-            measurement.sthal.set_recording_time(self.recording_time, 1)
+            measurement.sthal.set_recording_time(self.recording_time, self.no_spikes)
             for nrn in Coordinate.iter_all(Coordinate.NeuronOnHICANN):
                 measurement.sthal.hicann.floating_gates.setNeuron(
                     nrn, neuron_parameter.V_syntci, 511)

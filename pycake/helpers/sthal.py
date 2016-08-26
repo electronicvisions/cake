@@ -514,8 +514,13 @@ class StHALContainer(object):
         """Stimulate neurons via background generators
 
         Args:
-            rate: Rate of a single generator in Hertz
+            rate: Rate of a single generator in Hertz. This value will be
+                  rounded upwards to the next possible value for the given
+                  PLL setting.
             number: Number of generators to use in parallel (per Neuron)
+
+        Returns:
+            Actual spike rate in Hz
         """
         assert(no_generators >= 0 and no_generators <= 4)
         assert(rate <= 5.0e6)
@@ -528,6 +533,7 @@ class StHALContainer(object):
 
         PLL = self.getPLL()
         bg_period = int(math.floor(PLL/rate) - 1)
+        rate = PLL/(bg_period + 1) # Actual spike rate
         self.logger.info("Stimulating neurons from {} background generators"
                          " with isi {}".format(no_generators, bg_period))
 
@@ -562,7 +568,7 @@ class StHALContainer(object):
             else:
                 self.disable_synapse_line(drv_top)
                 self.disable_synapse_line(drv_bot)
-        return links
+        return rate
 
     def mirror_synapse_driver(self, driver, count, upwards=True, skip=0):
         """
@@ -602,7 +608,7 @@ class StHALContainer(object):
             with debug outputs differ (v2: 111 and 112; v4: 109 and 114).
 
         Returns:
-            outputbuffer used for stimulus
+            Actual spike rate in Hz
         """
         assert(rate <= 5.0e6)
         self.hicann.clear_complete_l1_routing()
@@ -624,6 +630,7 @@ class StHALContainer(object):
 
         PLL = self.getPLL()
         bg_period = int(math.floor(PLL/rate) - 1)
+        rate = PLL / (bg_period + 1)
         self.logger.info("Stimulating preout from {} with isi {}".format(
             bg, bg_period))
 
@@ -641,7 +648,7 @@ class StHALContainer(object):
         for analog in iter_all(AnalogOnHICANN):
             self.hicann.analog.set_preout(analog)
 
-        return output
+        return rate 
 
     def configure_synapse_driver(self, driver_c, l1address, gmax_div, gmax=0):
         """

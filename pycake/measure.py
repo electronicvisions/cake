@@ -538,8 +538,7 @@ class ADCFreq_Measurement(ADCMeasurement):
     def __init__(self, sthal, neurons, bg_rate=100e3, readout_shifts=None):
         super(ADCFreq_Measurement, self).__init__(
             sthal, neurons, readout_shifts=readout_shifts)
-        self.bg_rate = bg_rate
-        self.sthal.stimulatePreout(self.bg_rate)
+        self.bg_rate = self.sthal.stimulatePreout(bg_rate)
         # Record about 2000 spikes
         self.sthal.set_recording_time(1.0/self.bg_rate, 2000.0)
 
@@ -553,6 +552,9 @@ class ADCFreq_Measurement(ADCMeasurement):
         time.sleep(0.2)  # Settle driver locking
         readout, _ = self.read_adc()
         # readout.to_hdf('dump.hdf', 'ADCFreq')
+        if self.traces is not None:
+            self.traces[NeuronOnHICANN()] = readout
+
         result = analyzer(trace=readout, bg_rate=self.bg_rate)
         self.logger.INFO("ADC Frequency measured: {}".format(result))
         return result
