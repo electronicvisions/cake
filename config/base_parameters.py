@@ -52,8 +52,8 @@ parameters = {
         neuron_parameter.E_syni: Volt(0.6),     # synapse
         neuron_parameter.E_synx: Volt(1.3),    # synapse
         neuron_parameter.I_bexp: Ampere(2500e-9),       # turn off exp by setting this to 2500 and see I_rexp and V_bexp
-        neuron_parameter.I_convi: Ampere(2500e-9),   # bias current for synaptic input
-        neuron_parameter.I_convx: Ampere(2500e-9),   # bias current for synaptic input
+        neuron_parameter.I_convi: Ampere(625e-9),   # bias current for synaptic input
+        neuron_parameter.I_convx: Ampere(625e-9),   # bias current for synaptic input
         neuron_parameter.I_fire: Ampere(0),       # adaptation term b
         neuron_parameter.I_gladapt: Ampere(0),    # adaptation term
         neuron_parameter.I_gl: Ampere(1000e-9),      # leakage conductance
