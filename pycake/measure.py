@@ -189,14 +189,6 @@ class SpikeMeasurement(Measurement):
 
         self.sthal.wafer.clearSpikes()
 
-        # Fix FPGA: the below should not be necessary!
-        # send in dummy spike otherwise only old(?) spikes of GBitLink 0 are received
-        spikes = pysthal.Vector_Spike()
-        for t in [1e-3]:
-            spikes.append(pysthal.Spike(pyhalbe.HICANN.L1Address(1), t))
-        sending_link = Coordinate.GbitLinkOnHICANN(0)
-        self.sthal.hicann.sendSpikes(sending_link, spikes)
-
         self.sthal.hicann.disable_aout()
         self.sthal.hicann.disable_l1_output()
         self.sthal.hicann.disable_firing()
