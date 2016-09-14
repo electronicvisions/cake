@@ -170,6 +170,40 @@ class Experiment(object):
         return pandas.concat(
             data, names=['neuron', 'shared block', 'step'])
 
+    def get_initial_data(self, numeric_index=False):
+        """
+        Colltect the initial data of the expriment in pandas data structures
+        Args:
+            numeric_index: [bool] don't use NeuronOnHICANN as index, but ints,
+                           this allows to save/load the data with plain pandas
+
+        Returns:
+            (pandas.DataFrame, pandas.Series): Neuron specific values are
+            collected in data the DataFrame with the neuron coordinate as
+            index. All other keys are returned as Series.
+        """
+        def nrn_id(n):
+            return int(n.id().value()) if numeric_index else n
+
+        def value(v):
+            if v is None:
+                return numpy.nan
+            else:
+                return v
+
+        nrn_data = {nrn_id(k): value(v)
+                    for k, v in self.initial_data.iteritems()
+                    if isinstance(k, NeuronOnHICANN)}
+        nrn_data = pandas.DataFrame.from_dict(nrn_data).T
+        nrn_data.index.names = ['neuron']
+
+        data = pandas.Series({
+            k: value(v)
+            for k, v in self.initial_data.iteritems()
+            if not isinstance(k, NeuronOnHICANN)})
+
+        return data, nrn_data
+
     def get_mean_results(self, neuron, parameter, result_keys):
         """ Read out parameters and result for the given neuron.
         Shared parameters are read from the corresponding FGBlock.
@@ -332,7 +366,6 @@ class IncrementalExperiment(SequentialExperiment):
 
     def __init__(self, measurements, analyzer, configurator, configurator_args):
         SequentialExperiment.__init__(self, measurements, analyzer, repetitions=1)
-        self.is_finished = False
         self.configurator = configurator
         self.configurator_args = configurator_args
 
