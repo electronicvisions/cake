@@ -450,8 +450,6 @@ class V_convoffx_S_Experimentbuilder(V_convoff_Experimentbuilder):
     EXCITATORY = True
     WITH_SPIKES = True
 
-#FIXME: #1615
-#from calibration.vsyntc import SimplePSPAnalyzer
 
 class V_convoff_test_Experimentbuilder(BaseExperimentBuilder):
     ANALYZER = pycake.analyzer.MeanOfTraceAnalyzer

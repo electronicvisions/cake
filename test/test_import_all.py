@@ -26,7 +26,6 @@ import pycake.calibration.capacitance
 import pycake.calibration.exponential
 import pycake.calibration.E_l_I_gl_fixed
 import pycake.calibration.I_gl_charging
-import pycake.calibration.vsyntc
 
 # helpers submodule
 import pycake.helpers
