@@ -577,6 +577,7 @@ class V_syntc_Calibrator(BaseCalibrator):
         y0 = data['tau_1'].min()
         y_range = data['tau_1'].max()
         y = data['tau_1'] / y_range
+        y0 /= y_range
 
         if len(x.values) < 7:
             return None
@@ -588,7 +589,7 @@ class V_syntc_Calibrator(BaseCalibrator):
 
         x0, x1 = vsyntc[[0, -1]]
         xi = numpy.arange(int(x0), int(x1) + 1)
-        yi = model.eval(params=result.params, x=(xi / 1023.0) + y0) * y_range
+        yi = (model.eval(params=result.params, x=(xi / 1023.0)) + y0) * y_range
 
         diff = yi[vsyntc - x0] - data['tau_1']
         res = numpy.sqrt(numpy.sum(diff**2)) / len(x)
@@ -598,10 +599,10 @@ class V_syntc_Calibrator(BaseCalibrator):
     @staticmethod
     def fit_model(x, y, epsilon=1e-6):
         model = models.ExpressionModel('1 /(a * x + b)**d + c')
-        model.set_param_hint('a', value=0.1, min=epsilon)
-        model.set_param_hint('b', value=1.0, min=epsilon)
-        model.set_param_hint('d', value=0.5, min=epsilon)
-        params = model.make_params(a=0.1, b=1.0, c=0.0, d=0.5)
+        model.set_param_hint('a', min=epsilon)
+        model.set_param_hint('b', min=epsilon)
+        model.set_param_hint('d', min=epsilon)
+        params = model.make_params(a=1.0, b=0.0, c=0.0, d=1.0)
         result = model.fit(y, x=x, params=params)
         return model, result
 
