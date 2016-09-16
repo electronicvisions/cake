@@ -20,6 +20,7 @@ import os
 import copy
 import errno
 from collections import OrderedDict
+from socket import gethostname
 
 from pyhalbe import Coordinate
 from pyhalbe.HICANN import neuron_parameter
@@ -58,6 +59,8 @@ class CalibrationUnit(object):
         self.setup_time = time.time() - t_start
         self.save()
         progress.info("Create CalibrationUnit {}".format(self.name))
+        progress.info("Running on {}".format(gethostname()))
+        self.logger.info("Running on {}".format(gethostname()))
 
     def finished(self):
         if self.experiment:
