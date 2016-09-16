@@ -131,7 +131,7 @@ class Reader(object):
         import matplotlib.pyplot as plt
         neurons = self.get_neurons()
         results = self.get_results(parameter, neurons, key, repetition)
-        results_list = np.array(results.values())[:,step]
+        results_list = np.array(results.values())[:, step].astype(np.float)
         results_list = results_list[np.isfinite(results_list)]
         config = self.runner.config.copy(parameter)
 

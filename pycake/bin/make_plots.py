@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#
+#  -*- coding: utf-8; -*-
 # Summarize the calibration in plots
 #
 # see:
@@ -13,29 +13,32 @@
 # - tau_refrac
 # - tau_m
 
+import argparse
+import contextlib
+import os
+import shutil
+import traceback
+
+import numpy as np
+import pandas
+
 import matplotlib
 
 # http://stackoverflow.com/a/4935945/1350789
 matplotlib.use('Agg')
 
-from matplotlib import pyplot as plt
+import matplotlib.pyplot as plt
+
+from pycake.calibration.E_l_I_gl_fixed import E_l_I_gl_fixed_Calibrator
+from pycake.helpers.misc import mkdir_p
+from pycake.helpers.peakdetect import peakdet
+from pycake.reader import Reader
+import Coordinate as C
 import pycake
 import pycake.config
-from pycake.reader import Reader
-from pycake.helpers.peakdetect import peakdet
 import pycake.helpers.calibtic as calibtic
-import Coordinate as C
-import pyhalbe
 import pycalibtic
-from pycake.calibration.E_l_I_gl_fixed import E_l_I_gl_fixed_Calibrator
-import numpy as np
-import os
-from collections import defaultdict
-import argparse
-from pycake.helpers.misc import mkdir_p
-import shutil
-import traceback
-from contextlib import contextmanager
+import pyhalbe
 
 import pylogging
 pylogging.reset()
@@ -130,7 +133,7 @@ def extract_range(reader, config_name, parameter, safety_min=0.1, safety_max=0.1
 
     return xmin, xmax
 
-@contextmanager
+@contextlib.contextmanager
 def LogError(msg):
     """
     Use:
@@ -357,8 +360,10 @@ def result(label, xlabel=None, ylabel=None, reader=None, suffix="",
         reader.include_defects = include_defects
 
         fig, plot = reader.plot_result(**reader_kwargs)
-        plt.xlabel(xlabel if xlabel != None else label.format(inout="(in) {}".format(in_unit_label)))
-        plt.ylabel(ylabel if ylabel != None else label.format(inout="(out) {}".format(out_unit_label)))
+        plt.xlabel(xlabel if xlabel != None else label.replace(
+            "{inout}", "(in) {}".format(in_unit_label)))
+        plt.ylabel(ylabel if ylabel != None else label.replace(
+            "{inout}", "(out) {}".format(out_unit_label)))
 
         plt.subplots_adjust(**margins)
 
@@ -521,8 +526,10 @@ if args.backenddir:
     fig = plt.figure()
     convoffx_l, convoffi_l = zip(*[get_vconvoff(c, n)  for n in xrange(512)])
     bins = np.linspace(0, 1024, 128)
-    plt.hist(convoffx_l, label="$V_{convoffx}$", alpha=.5, bins=bins, color="r");
-    plt.hist(convoffi_l, label="$V_{convoffi}$", alpha=.5, bins=bins, color="b");
+    plt.hist(convoffx_l, label="$V_{convoffx}$", alpha=.5, bins=bins, color="r",
+             range=(np.nanmin(convoffx_l), np.nanmax(convoffx_l)))
+    plt.hist(convoffi_l, label="$V_{convoffi}$", alpha=.5, bins=bins, color="b",
+             range=(np.nanmin(convoffi_l), np.nanmax(convoffi_l)))
     plt.xlim(0, 1024)
     plt.legend()
     plt.xlabel("$V_{convoff}$ [DAC]")
@@ -939,234 +946,7 @@ except Exception as e:
 #print calibrator.fit_neuron(C.NeuronOnHICANN(C.Enum(1)))
 
 
-## V syntcx psp max
-
-try:
-    r_v_syntcx = reader if args.v_syntcx_runner == None else Reader(args.v_syntcx_runner)
-
-    if r_v_syntcx:
-
-        """
-
-        e = r_v_syntcx.runner.experiments["V_syntcx_psp_max"]
-
-        x = 3000
-
-        neuron = C.NeuronOnHICANN(C.Enum(103))
-
-        for m in [e.measurements[idx] for idx in [0,-1,3]]:
-            t = m.get_trace(neuron)
-            plt.plot(np.array(t[0][:x])*1e6,t[1][:x], label="$V_{{syntcx}}$ {:.0f} [mV]".format(#np.std(t[1]),
-                     m.sthal.hicann.floating_gates.getNeuron(neuron, pyhalbe.HICANN.neuron_parameter.V_syntcx)/1023.*1800))
-        plt.legend()
-        plt.ylabel("$V_{mem}$ [mV]")
-        plt.xlabel("t [$\mu$s]")
-        plt.ylim(0.69, 0.78)
-        plt.subplots_adjust(**margins)
-        plt.savefig(os.path.join(fig_dir,"V_syntcx_trace.pdf"))
-
-        data = t[1]
-
-        max_std = -1
-        current_std = 0
-
-        period_index = 6000
-
-        stds = []
-        period_indices = []
-
-        for period_index in range(1,len(data)):
-
-            nperiods = len(data)/period_index
-            max_index = nperiods*period_index
-            data_cut = data[:max_index]
-            data_split = np.array_split(data_cut, len(data_cut)/period_index)
-            avg_raw = np.mean([ds for ds in data_split], axis=0)
-            current_std = np.std(avg_raw)
-
-            period_indices.append(period_index)
-            stds.append(current_std)
-
-        plt.plot(period_indices, stds)
-
-        #plt.scatter(np.array(maxtab)[:,0][:x], np.array(maxtab)[:,1][:x], color='blue')
-
-
-        maxtab, mintab = peakdet(stds, 0.003)
-
-        # In[57]:
-
-        data = t[1]
-
-        period_index = 959
-
-        nperiods = len(data)/period_index
-        max_index = nperiods*period_index
-        data_cut = data[:max_index]
-        data_split = np.array_split(data_cut, len(data_cut)/period_index)
-        avg_raw = np.mean([ds for ds in data_split], axis=0)
-        current_std = np.std(avg_raw)
-
-        plt.plot(avg_raw)
-
-        print np.std(avg_raw), np.std(t[1])
-
-        maxtab, mintab = peakdet(avg_raw, np.std(avg_raw))
-
-        print maxtab, mintab
-
-        plt.scatter(np.array(maxtab)[:,0], np.array(maxtab)[:,1], color='red')
-
-        def my_exp(x):
-            return 0.745 + 0.04*(np.exp(-1/70.*(x-113)) - 1)
-
-        exp_range = np.arange(113,400)
-
-        plt.plot(exp_range, my_exp(exp_range))
-
-        # In[43]:
-
-        m.sthal.hicann.floating_gates.getNeuron(neuron, pyhalbe.HICANN.neuron_parameter.V_syntcx)
-
-        """
-
-        # In[222]:
-        #r_v_syntcx.plot_hists("V_syntcx_psp_max", "std", bins=100, range=(0,0.03), draw_target_line=False);
-
-        # In[223]:
-        #r_v_syntcx.plot_result("V_syntcx_psp_max","mean", color='b', alpha=0.1);
-
-        # In[310]:
-
-        result(label=None,
-               xlabel="$V_{syntcx}$ [mV]",
-               ylabel="$\sigma$(trace) [mV]",
-               reader=r_v_syntcx,
-               parameter="V_syntcx_psp_max",
-               key="std",
-               mark_top_bottom=True,
-               alpha=0.5,
-               marker="None",
-               yfactor=1000,
-               ylim=[0,25])
-
-
-        trace("$V_{mem}$ [mV]", r_v_syntcx, "V_syntcx_psp_max", args.neuron_enum, end=4000)
-
-        # In[311]:
-
-        fig = plt.figure()
-        r_v_syntcx.include_defects = False
-        results_v_syntcx = r_v_syntcx.get_results("V_syntcx_psp_max",r_v_syntcx.get_neurons(),"std")
-
-        bins = np.linspace(0,50,101)
-
-        top_max_stds = [np.max(stds)*1000 for n, stds in results_v_syntcx.iteritems() if n.y() == C.Y(0)]
-        plt.hist(top_max_stds,bins=bins,color='b',label="top")
-
-        bottom_max_stds = [np.max(stds)*1000 for n, stds in results_v_syntcx.iteritems() if n.y() == C.Y(1)]
-        plt.hist(bottom_max_stds,bins=bins,color='g',alpha=0.8,label="bottom")
-
-        plt.xlabel("max $\sigma$(trace) [mV]")
-        plt.ylabel("#")
-        plt.xlim(0,50)
-        plt.ylim(0,23)
-        plt.legend()
-        plt.subplots_adjust(**margins)
-        plt.savefig(os.path.join(fig_dir,"V_syntcx_psp_stds.pdf"))
-        plt.savefig(os.path.join(fig_dir,"V_syntcx_psp_stds.png"))
-
-        # In[242]:
-
-        # sum(np.array(max_stds) < 0.005)
-except Exception as e:
-    logger.ERROR("problem with V_syntcx plots: {}".format(e))
-
-## V syntci psp max
-
-try:
-    r_v_syntci = reader if args.v_syntci_runner == None else Reader(args.v_syntci_runner)
-
-    if r_v_syntci:
-
-        e = r_v_syntci.runner.get_single(name="V_syntci_psp_max").experiment
-
-        """
-
-        x = 3000
-
-        neuron = C.NeuronOnHICANN(C.Enum(401))
-
-        for m in [e.measurements[idx] for idx in [0,3,-1]]:
-            t = m.get_trace(neuron)
-            plt.plot(np.array(t[0][:x])*1e6,t[1][:x], label="$V_{{syntci}}$ {:.0f} [mV]".format(#np.std(t[1]),
-                     m.sthal.hicann.floating_gates.getNeuron(neuron, pyhalbe.HICANN.neuron_parameter.V_syntci)/1023.*1800))
-        plt.legend()
-        plt.ylabel("$V_{mem}$ [mV]")
-        plt.xlabel("t [$\mu$s]")
-        plt.ylim(0.64, 0.76)
-        plt.subplots_adjust(**margins)
-        plt.savefig(os.path.join(fig_dir,"V_syntci_trace.pdf"))
-
-        """
-
-        # In[318]:
-
-        result(label=None,
-               xlabel="$V_{syntci}$ [mV]",
-               ylabel="$\sigma$(trace) [mV]",
-               reader=r_v_syntci,
-               parameter="V_syntci_psp_max",
-               key="std",
-               mark_top_bottom=True,
-               alpha=0.5,
-               marker="None",
-               yfactor=1000,
-               ylim=[0,25])
-
-        trace("$V_{mem}$ [mV]", r_v_syntci, "V_syntci_psp_max", args.neuron_enum, end=510)
-
-        # In[319]:
-
-        fig = plt.figure()
-        r_v_syntci.include_defects = False
-        results_v_syntci = r_v_syntci.get_results("V_syntci_psp_max",r_v_syntci.get_neurons(),"std")
-
-        bins = np.linspace(0,50,101)
-
-        top_max_stds = [np.max(stds)*1000 for n, stds in results_v_syntci.iteritems() if n.y() == C.Y(0)]
-        plt.hist(top_max_stds,bins=bins,color='b',label="top")
-
-        bottom_max_stds = [np.max(stds)*1000 for n, stds in results_v_syntci.iteritems() if n.y() == C.Y(1)]
-        plt.hist(bottom_max_stds,bins=bins,color='g',alpha=0.8,label="bottom")
-
-        plt.xlabel("max $\sigma$(trace) [mV]")
-        plt.ylabel("#")
-        plt.xlim(0,50)
-        plt.ylim(0,23)
-        plt.legend()
-        plt.subplots_adjust(**margins)
-        plt.savefig(os.path.join(fig_dir,"V_syntci_psp_stds.pdf"))
-        plt.savefig(os.path.join(fig_dir,"V_syntci_psp_stds.png"))
-
-    """
-        # In[247]:
-
-        sum(np.array(max_stds) < 0.005)
-
-
-        # In[253]:
-
-        bad_syntci = [n  for n, stds in results_v_syntci.iteritems() if np.max(stds) < 0.005];
-        bad_syntcx = [n  for n, stds in results_v_syntcx.iteritems() if np.max(stds) < 0.005]
-
-
-        # In[255]:
-
-        set(bad_syntcx).intersection(bad_syntci)
-    """
-except Exception as e:
-    logger.ERROR("problem with V_syntci plots: {}".format(e))
+#  ——— Spikes ——————————————————————————————————————————————————————————————————
 
 try:
     r_test_spikes = test_reader if args.spikes_testrunner == None else Reader(args.spikes_testrunner)
@@ -1338,6 +1118,83 @@ try:
         #trace("$V_{mem}$ [V]", r_test_tau_m, parameter="tau_m", neuron=args.neuron_enum, start=500, end=700, suffix="_calibrated")
 except Exception as e:
     logger.ERROR("problem with calibrated tau_m plots: {}".format(e))
+
+#  ——— V_syntcx ————————————————————————————————————————————————————————————————
+
+# Mhhh.  We need to provide the smaller of the two time constants.  Patch, patch, patch.
+
+@contextlib.contextmanager
+def patched_reader_value(reader, parameter, keys, extract, key):
+    data = []
+    neurons = reader.get_neurons()
+    for key_ in keys:
+        data.append(pandas.DataFrame.from_dict(reader.get_results(parameter, neurons, key_), orient='index').stack())
+    results = pandas.concat(data, axis=1)
+    results.columns = keys
+    results.index.names = ["neuron", "step"]
+    results[key] = extract(results)
+
+    try:
+        cu = reader.get_calibration_unit(parameter)
+        for (neuron, step), data in results.groupby(level=("neuron", "step")):
+            cu.experiment.results[step][neuron][key] = data.ix[0, key]
+        yield
+    finally:
+        if reader.calibration_unit_cache.pop((parameter, 0), None) is None:
+            reader.calibration_unit_cache.clear()
+
+def plot_v_syntc(reader, excitatory=True, calibrated=True):
+    if not reader:
+        return
+    if not isinstance(reader, Reader):
+        reader = Reader(reader)
+
+    parameter = "V_syntcx" if excitatory else "V_syntci"
+
+    with patched_reader_value(
+            reader, parameter=parameter,
+            keys=["tau_1", "tau_2"],
+            extract=lambda res: res[['tau_1', 'tau_2']].min(axis='columns'),
+            key="tau_syn"):
+
+        xmin, xmax = extract_range(
+            reader, parameter, getattr(pyhalbe.HICANN.neuron_parameter, parameter),
+            safety_min=0, safety_max=0)
+
+        xmin /= 10
+        xmax *= 10
+
+        latex = r"$\tau_{\mathrm{syn}\,%s}$" % (["i", "x"][excitatory])
+        (calibrated_hist if calibrated else uncalibrated_hist)(
+            r"%s [s]" % latex,
+            reader=reader,
+            parameter=parameter,
+            key="tau_syn",
+            xscale="log",
+            bins=np.logspace(np.log10(xmin), np.log10(xmax), 100),
+            range=(xmin, xmax),
+            show_legend=True)
+
+        result(
+            r"%s {inout}" % latex,
+            reader=reader,
+            parameter=parameter,
+            key="tau_syn",
+            suffix="_calibrated" if calibrated else "_uncalibrated",
+            alpha=0.05,
+            out_unit_label="[s]")
+
+with LogError("problem with uncalibrated v_syntcx plots"):
+    plot_v_syntc(args.v_syntcx_runner or reader, excitatory=True, calibrated=False)
+
+with LogError("problem with calibrated v_syntcx plots"):
+    plot_v_syntc(args.v_syntcx_testrunner or test_reader, excitatory=True, calibrated=True)
+
+with LogError("problem with uncalibrated v_syntci plots"):
+    plot_v_syntc(args.v_syntci_runner or reader, excitatory=False, calibrated=False)
+
+with LogError("problem with calibrated v_syntci plots"):
+    plot_v_syntc(args.v_syntci_testrunner or test_reader, excitatory=False, calibrated=True)
 
 cakebin = os.path.split(os.path.abspath(__file__))[0]
 shutil.copy(os.path.join(cakebin, "overview.html"), fig_dir)

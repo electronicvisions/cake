@@ -72,6 +72,16 @@ parameters = {
         shared_parameter.V_reset:  Volt(0.3, apply_calibration=True),
     },
 
+    "V_syntcx_range": [
+        {neuron_parameter.V_syntcx: Second(t, apply_calibration=True)}
+        for t in [10e-7, 5e-7, 2e-7]
+    ],
+
+    "V_syntci_range": [
+        {neuron_parameter.V_syntci: Second(t, apply_calibration=True)}
+        for t in [10e-7, 5e-7, 2e-7]
+    ],
+
     "I_pl_range":   [{neuron_parameter.I_pl : Second(t, apply_calibration=True)} for t in [2e-7]],
 
     "I_gl_range": [{neuron_parameter.I_gl : Second(t, apply_calibration=True)} for t in [1e-6]],
@@ -101,6 +111,8 @@ parameters = {
         neuron_parameter.E_l.name,
         "V_convoff_test_uncalibrated",
         "V_convoff_test_calibrated",
+        neuron_parameter.V_syntcx.name,
+        neuron_parameter.V_syntci.name,
         neuron_parameter.I_pl.name,
         neuron_parameter.I_gl.name,
         "Spikes"
