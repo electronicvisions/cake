@@ -177,7 +177,9 @@ parameters = {
     "V_syntci_range": [
         {
             neuron_parameter.V_syntci: Volt(v),
-        } for v in numpy.linspace(0.4, 1.8, 16)
+        } for v in numpy.concatenate(
+            (numpy.logspace(numpy.log10(0.4), numpy.log10(0.9), 7),
+             numpy.linspace(0.9, 1.8, 4)[1:]))
     ],
 
     "V_syntci_parameters": {
@@ -197,7 +199,9 @@ parameters = {
     "V_syntcx_range": [
         {
             neuron_parameter.V_syntcx: Volt(v),
-        } for v in numpy.linspace(0.4, 1.8, 16)
+        } for v in numpy.concatenate(
+            (numpy.logspace(numpy.log10(0.4), numpy.log10(0.9), 7),
+             numpy.linspace(0.9, 1.8, 4)[1:]))
     ],
 
     "V_syntcx_parameters": {
