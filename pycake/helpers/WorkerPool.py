@@ -26,6 +26,7 @@ def process(f, key, *args, **kwargs):
         # Exception is propagated by worker tree
         raise
 
+
 class WorkerPool(object):
     """A worker pool
 
@@ -96,3 +97,25 @@ class WorkerPool(object):
 
     def terminate(self):
         self.pool.terminate()
+
+
+class FakeWorkerPool(object):
+    """A worker pool, that isn't one...
+    """
+
+    def __init__(self, f, workers=DEFAULT_WORKERS):
+        logger.info("Initialize fake worker pool with 0 workers")
+        self.results = {}
+        self.callback = f
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, error_type, value, traceback):
+        return False
+
+    def do(self, key, *args, **kwargs):
+        self.results[key] = self.callback(*args, **kwargs)
+
+    def join(self):
+        return self.results

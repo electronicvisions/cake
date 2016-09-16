@@ -185,7 +185,8 @@ class BaseExperimentBuilder(object):
         Overwrite in subclass, when required.
         """
 
-        return ADCMeasurement(sthal, neurons, readout_shifts)
+        return ADCMeasurement(sthal, neurons, readout_shifts,
+                              self.config.get_worker_pool_tasks())
 
     def add_additional_measurements(self, experiment):
         """ Dummy for adding additional initial measurements if needed.
@@ -202,7 +203,8 @@ class InputSpike_Experimentbuilder(BaseExperimentBuilder):
         return sthal
 
     def make_measurement(self, sthal, neurons, readout_shifts):
-        return ADCMeasurementWithSpikes(sthal, neurons, readout_shifts)
+        return ADCMeasurementWithSpikes(sthal, neurons, readout_shifts,
+                                        self.config.get_worker_pool_tasks())
 
 
 """
@@ -366,7 +368,8 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
         return sthal
 
     def make_measurement(self, sthal, neurons, readout_shifts):
-        return ADCMeasurement(sthal, neurons, readout_shifts)
+        return ADCMeasurement(sthal, neurons, readout_shifts,
+                              self.config.get_worker_pool_tasks())
 
     def get_analyzer(self):
         "get analyzer"
@@ -531,7 +534,8 @@ class I_gl_Experimentbuilder(BaseExperimentBuilder):
         return sthal
 
     def make_measurement(self, sthal, neurons, readout_shifts):
-        return I_gl_Measurement(sthal, neurons, readout_shifts)
+        return I_gl_Measurement(sthal, neurons, readout_shifts,
+                                self.config.get_worker_pool_tasks())
 
     def get_analyzer(self):
         """ Create an I_gl analyzer WITHOUT setting the ADC frequency.

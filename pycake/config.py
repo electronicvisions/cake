@@ -17,6 +17,8 @@ from Coordinate import FGBlockOnHICANN
 from Coordinate import NeuronOnHICANN
 from Coordinate import AnalogOnHICANN
 
+from helpers.WorkerPool import DEFAULT_WORKERS
+
 logger = pylogging.get("pycake.config")
 
 DEFAULT_PARAMETERS = {
@@ -48,6 +50,8 @@ DEFAULT_PARAMETERS = {
     "sim_denmem_cache": None,
     "sim_denmem_maximum_spikes": None,
     "sim_denmem_mc_seed": None,
+
+    "worker_pool_tasks": DEFAULT_WORKERS,  # Use None to disable
 
     "wafer_cfg": "",
     "dump_file" : None,
@@ -318,3 +322,6 @@ class Config(object):
 
     def get_hwdb(self):
         return self.parameters['hwdb']
+
+    def get_worker_pool_tasks(self):
+        return self.parameters['worker_pool_tasks']

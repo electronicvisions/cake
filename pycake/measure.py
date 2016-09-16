@@ -7,7 +7,7 @@ import pyhalbe
 import pysthal
 import pycake
 
-from helpers.WorkerPool import WorkerPool
+from helpers.WorkerPool import FakeWorkerPool, WorkerPool, DEFAULT_WORKERS
 from helpers.TracesOnDiskDict import PandasRecordsOnDiskDict
 from helpers.sthal import ADCFreqConfigurator
 
@@ -39,7 +39,7 @@ class Measurement(object):
 
     logger = pylogging.get("pycake.measurement")
 
-    def __init__(self, sthal, neurons, readout_shifts=None):
+    def __init__(self, sthal, neurons, readout_shifts=None, workers=DEFAULT_WORKERS):
         for neuron in neurons:
             if not isinstance(neuron, NeuronOnHICANN):
                 raise TypeError("Expected list of integers")
@@ -52,6 +52,7 @@ class Measurement(object):
         self.run_time = -1.0
         self.traces = None
         self.done = False
+        self.workers = workers
 
     def save_traces(self, storage_path):
         """Enabling saving of traces to the given file"""
@@ -169,11 +170,18 @@ class Measurement(object):
         self.logger.INFO("Measurement done.")
         return result
 
+    def get_worker_pool(self, analyzer):
+        """Creates a worker pool with the given analyzer"""
+        if self.workers is None:
+            return FakeWorkerPool(analyzer)
+        else:
+            return WorkerPool(analyzer, self.workers)
+
 
 class SpikeMeasurement(Measurement):
 
-    def __init__(self, sthal, neurons, readout_shifts=None):
-        super(SpikeMeasurement, self).__init__(sthal, neurons)
+    def __init__(self, sthal, neurons, readout_shifts=None, workers=DEFAULT_WORKERS):
+        super(SpikeMeasurement, self).__init__(sthal, neurons, workers=workers)
 
         self.spikes = {}
 
@@ -281,8 +289,8 @@ class ADCMeasurement(Measurement):
                 Note: Every voltage value from the trace is shifted back by -shift!
                 If None is given, the shifts are set to 0.
     """
-    def __init__(self, sthal, neurons, readout_shifts=None):
-        super(ADCMeasurement, self).__init__(sthal, neurons)
+    def __init__(self, sthal, neurons, readout_shifts=None, workers=DEFAULT_WORKERS):
+        super(ADCMeasurement, self).__init__(sthal, neurons, workers=workers)
 
         # Debug for repeated ADC traces
         self.last_trace = None
@@ -355,15 +363,14 @@ class ADCMeasurement(Measurement):
         self.logger.INFO("Measuring.")
 
         self.logger.INFO("Reading out traces")
-        with WorkerPool(analyzer) as worker:
+        with self.get_worker_pool(analyzer) as worker:
             for neuron in self.neurons:
                 self.pre_measure(neuron)
                 readout, spikes = self.read_adc()
                 if self.traces is not None:
                     self.traces[neuron] = readout
                 readout['v'] = self.readout_shifts(neuron, readout['v'])
-                worker.do(
-                    neuron, neuron=neuron, trace=readout,
+                worker.do(neuron, neuron=neuron, trace=readout,
                     spikes=spikes, additional_data=additional_data)
 
                 # DEBUG stuff
@@ -381,7 +388,6 @@ class ADCMeasurement(Measurement):
 
             self.last_trace = None
             self.logger.INFO("Wait for analysis to complete.")
-            # return result
             return worker.join()
 
 
@@ -405,8 +411,8 @@ class I_gl_Measurement(ADCMeasurement):
         This takes a lot of time!
 
     """
-    def __init__(self, sthal, neurons, readout_shifts=None, currents=[30]):
-        super(I_gl_Measurement, self).__init__(sthal, neurons, readout_shifts)
+    def __init__(self, sthal, neurons, readout_shifts=None, currents=[30], workers=DEFAULT_WORKERS):
+        super(I_gl_Measurement, self).__init__(sthal, neurons, readout_shifts, workers)
         self.currents = currents
 
     def measure_V_rest(self, neuron):
@@ -463,7 +469,7 @@ class I_gl_Measurement(ADCMeasurement):
             Also applies analyzer to measurement
         """
         self.logger.INFO("Measuring.")
-        worker = WorkerPool(analyzer)
+        worker = self.get_worker_pool(analyzer)
         for neuron in self.neurons:
             V_rest, std = self.measure_V_rest(neuron)
             current = self.find_best_current(neuron, V_rest, currents=self.currents)
@@ -496,8 +502,8 @@ class I_gl_Measurement(ADCMeasurement):
 
 
 class I_gl_Measurement_multiple_currents(I_gl_Measurement):
-    def __init__(self, sthal, neurons, readout_shifts=None, currents=[10, 35, 70]):
-        super(I_gl_Measurement_multiple_currents, self).__init__(sthal, neurons, readout_shifts)
+    def __init__(self, sthal, neurons, readout_shifts=None, currents=[10, 35, 70], workers=DEFAULT_WORKERS):
+        super(I_gl_Measurement_multiple_currents, self).__init__(sthal, neurons, readout_shifts, workers)
         self.currents = currents
 
     def _measure(self, analyzer, additional_data):
@@ -505,7 +511,7 @@ class I_gl_Measurement_multiple_currents(I_gl_Measurement):
             Also applies analyzer to measurement
         """
         self.logger.INFO("Measuring.")
-        worker = WorkerPool(analyzer)
+        worker = self.get_worker_pool(analyzer)
         for neuron in self.neurons:
             V_rest, std = self.measure_V_rest(neuron)
             self.logger.INFO("Measuring neuron {0} with currents {1}. V_rest = {2:.2f}+-{3:.2f}".format(neuron, self.currents, V_rest, std))
