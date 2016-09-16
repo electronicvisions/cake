@@ -546,6 +546,7 @@ class V_syntc_Calibrator(BaseCalibrator):
         self.offset_tol = 0.025
         self.chi2_tol = 30
         self.residual_tol = 4.0e-8
+        self.signal_to_noise_tol = 2.0
 
     @staticmethod
     def sort_tau(data):
@@ -556,12 +557,14 @@ class V_syntc_Calibrator(BaseCalibrator):
     def get_mask(self, data):
         upper_threshold = data['offset'].min() + self.offset_tol
         return ((data['offset'] <= upper_threshold) &
-                (data['chi2'] <= self.chi2_tol))
+                (data['chi2'] <= self.chi2_tol) &
+                (data['signal_to_noise'] >= self.signal_to_noise_tol))
 
     def get_data(self):
         data = self.experiment.get_all_data(
             (self.target_parameter, ),
-            ('v', 'tau_1', 'tau_2', 'start', 'offset', 'chi2'))
+            ('v', 'tau_1', 'tau_2', 'start', 'offset',
+             'chi2', 'signal_to_noise'))
         data.rename(columns={self.target_parameter.name: 'V_syntc'},
                     inplace=True)
         self.sort_tau(data)
@@ -638,7 +641,8 @@ class V_syntci_Calibrator(V_syntc_Calibrator):
     def get_mask(self, data):
         lower_threshold = data['offset'].max() - self.offset_tol
         return ((data['offset'] >= lower_threshold) &
-                (data['chi2'] <= self.chi2_tol))
+                (data['chi2'] <= self.chi2_tol) &
+                (data['signal_to_noise'] >= self.signal_to_noise_tol))
 
 
 class V_syntcx_Calibrator(V_syntc_Calibrator):
