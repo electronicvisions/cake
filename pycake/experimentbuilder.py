@@ -429,7 +429,7 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
                 measurement.sthal.hicann.floating_gates.setNeuron(
                     nrn, neuron_parameter.I_convx, 0)
             experiment.add_initial_measurement(
-                measurement, pycake.analyzer.MeanOfTraceAnalyzer())
+                measurement, pycake.analyzer.PSPPrerunAnalyzer())
         elif self.no_spikes > 1:
             assert False
 

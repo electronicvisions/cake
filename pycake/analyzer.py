@@ -3,6 +3,7 @@ import numpy as np
 np.seterr(all='raise')
 np.seterr(under='warn')
 import pylogging
+from scipy.stats import skew
 from scipy.integrate import simps
 from pycake.helpers.peakdetect import peakdet
 from pycake.logic.spikes import spikes_to_frequency
@@ -623,6 +624,18 @@ class SimplePSPAnalyzer(Analyzer):
                 }
 
 
+class PSPPrerunAnalyzer(MeanOfTraceAnalyzer):
+    def __call__(self, neuron, trace, additional_data, **other):
+        ret = MeanOfTraceAnalyzer.__call__(self, neuron, trace)
+        v = trace["v"].values
+        adc_freq = additional_data.get('adc_freq', None)
+        dt = additional_data.get('spike_interval', None)
+        if None not in (adc_freq, dt):
+            averager = TraceAverager(adc_freq)
+            v_avg, _, cnt = averager.get_average(v, dt)
+            ret['error_estimate'] = numpy.std(v_avg)
+        return ret
+
 class PSPAnalyzer(Analyzer):
     """Fit a PSP"""
 
@@ -645,10 +658,18 @@ class PSPAnalyzer(Analyzer):
 
         t = numpy.arange(len(v_avg)) / 96e6  # TODO
 
-        err_estimate = additional_data[neuron]['std'] / numpy.sqrt(cnt)
+        err_estimate = additional_data[neuron]['error_estimate']
 
         result = self.psp_fit(t, v_avg, err_estimate)
         result['v'] = v_avg
+        result['n'] = cnt
+        result['err_estimate'] = err_estimate
+        result['mean'] = numpy.mean(v)
+        result['std'] = numpy.std(v)
+        result['ptp'] = numpy.ptp(v)
+        result['v_std'] = numpy.std(v_avg)
+        result['v_ptp'] = numpy.ptp(v_avg)
+        result['signal_to_noise'] = (result['v_std'] / err_estimate)**2
         if not self.excitatory:
             result['v'] *= -1.0
             if 'height' in result:
