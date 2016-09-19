@@ -469,86 +469,88 @@ def plot_v_convoff(reader, name="V_convoff_calibrated_test", extra_plots=True, t
 
 if args.backenddir:
 
-    # offset
+    with LogError("problem with offset backend plots"):
+        # offset
 
-    fig = plt.figure()
+        fig = plt.figure()
 
-    c = calibtic.Calibtic(args.backenddir,C.Wafer(C.Enum(args.wafer)),C.HICANNOnWafer(C.Enum(args.hicann)))
+        c = calibtic.Calibtic(args.backenddir,C.Wafer(C.Enum(args.wafer)),C.HICANNOnWafer(C.Enum(args.hicann)))
 
-    def get_offset(cal, nrnidx):
-        try:
-            offset = cal.nc.at(nrnidx).at(pycalibtic.NeuronCalibration.ReadoutShift).apply(0)
-            return offset
-        except IndexError:
-            logger.WARN("No offset found for Neuron {}. Is the wafer and hicann enum correct? (w{}, h{})".format(nrnidx,args.wafer,args.hicann))
-            return 0
-        except RuntimeError, e:
-            if e.message == "No transformation available at 23":
-                logger.WARN("No offset found for Neuron {}.".format(nrnidx))
+        def get_offset(cal, nrnidx):
+            try:
+                offset = cal.nc.at(nrnidx).at(pycalibtic.NeuronCalibration.ReadoutShift).apply(0)
+                return offset
+            except IndexError:
+                logger.WARN("No offset found for Neuron {}. Is the wafer and hicann enum correct? (w{}, h{})".format(nrnidx,args.wafer,args.hicann))
                 return 0
-            raise
+            except RuntimeError, e:
+                if e.message == "No transformation available at 23":
+                    logger.WARN("No offset found for Neuron {}.".format(nrnidx))
+                    return 0
+                raise
 
-    offsets = [get_offset(c, n) * 1000 for n in xrange(512)]
-    plt.hist(offsets, bins=100);
-    plt.subplots_adjust(**margins)
-    plt.xlabel("offset [mV]")
-    plt.ylabel("#")
-    plt.subplots_adjust(**margins)
-    plt.xlim(-60,60)
-    plt.savefig(os.path.join(fig_dir,"analog_readout_offset.pdf"))
-    plt.savefig(os.path.join(fig_dir,"analog_readout_offset.png"))
+        offsets = [get_offset(c, n) * 1000 for n in xrange(512)]
+        plt.hist(offsets, bins=100);
+        plt.subplots_adjust(**margins)
+        plt.xlabel("offset [mV]")
+        plt.ylabel("#")
+        plt.subplots_adjust(**margins)
+        plt.xlim(-60,60)
+        plt.savefig(os.path.join(fig_dir,"analog_readout_offset.pdf"))
+        plt.savefig(os.path.join(fig_dir,"analog_readout_offset.png"))
 
-    fig = plt.figure()
-    plt.subplots_adjust(**margins)
-    plt.xlabel("neuron")
-    plt.ylabel("offset [mV]")
-    plt.plot(offsets, 'rx')
-    plt.xlim(0,512)
-    plt.ylim(-60,60)
-    plt.savefig(os.path.join(fig_dir,"analog_readout_offset_vs_nrn.pdf"))
-    plt.savefig(os.path.join(fig_dir,"analog_readout_offset_vs_nrn.png"))
+        fig = plt.figure()
+        plt.subplots_adjust(**margins)
+        plt.xlabel("neuron")
+        plt.ylabel("offset [mV]")
+        plt.plot(offsets, 'rx')
+        plt.xlim(0,512)
+        plt.ylim(-60,60)
+        plt.savefig(os.path.join(fig_dir,"analog_readout_offset_vs_nrn.pdf"))
+        plt.savefig(os.path.join(fig_dir,"analog_readout_offset_vs_nrn.png"))
 
-    def get_vconvoff(cal, nrnidx):
-        try:
-            convoffx = cal.nc.at(nrnidx).at(pyhalbe.HICANN.neuron_parameter.V_convoffx).apply(0)
-            convoffi = cal.nc.at(nrnidx).at(pyhalbe.HICANN.neuron_parameter.V_convoffi).apply(0)
-        except IndexError as i:
-            logger.WARN(str(i) + ", No V_convoff(i or x) found for Neuron {}. Is the wafer and hicann enum correct? (w{}, h{})".format(nrnidx,args.wafer,args.hicann))
-            return np.nan, np.nan
-        except RuntimeError as e:
-            if str(e).startswith("No transformation available at"):
-                logger.WARN(str(e) + ", No V_convoff(i or x) found for Neuron {}.".format(nrnidx))
+    with LogError("problem with V_convoff backend plots"):
+        def get_vconvoff(cal, nrnidx):
+            try:
+                convoffx = cal.nc.at(nrnidx).at(pyhalbe.HICANN.neuron_parameter.V_convoffx).apply(0)
+                convoffi = cal.nc.at(nrnidx).at(pyhalbe.HICANN.neuron_parameter.V_convoffi).apply(0)
+            except IndexError as i:
+                logger.WARN(str(i) + ", No V_convoff(i or x) found for Neuron {}. Is the wafer and hicann enum correct? (w{}, h{})".format(nrnidx,args.wafer,args.hicann))
                 return np.nan, np.nan
-            raise
+            except RuntimeError as e:
+                if str(e).startswith("No transformation available at"):
+                    logger.WARN(str(e) + ", No V_convoff(i or x) found for Neuron {}.".format(nrnidx))
+                    return np.nan, np.nan
+                raise
 
-        return convoffx, convoffi
+            return convoffx, convoffi
 
-    fig = plt.figure()
-    convoffx_l, convoffi_l = zip(*[get_vconvoff(c, n)  for n in xrange(512)])
-    bins = np.linspace(0, 1024, 128)
-    plt.hist(convoffx_l, label="$V_{convoffx}$", alpha=.5, bins=bins, color="r",
-             range=(np.nanmin(convoffx_l), np.nanmax(convoffx_l)))
-    plt.hist(convoffi_l, label="$V_{convoffi}$", alpha=.5, bins=bins, color="b",
-             range=(np.nanmin(convoffi_l), np.nanmax(convoffi_l)))
-    plt.xlim(0, 1024)
-    plt.legend()
-    plt.xlabel("$V_{convoff}$ [DAC]")
-    plt.ylabel("#")
-    plt.subplots_adjust(**margins)
-    plt.savefig(os.path.join(fig_dir,"V_convoff.pdf"))
-    plt.savefig(os.path.join(fig_dir,"V_convoff.png"))
+        fig = plt.figure()
+        convoffx_l, convoffi_l = zip(*[get_vconvoff(c, n)  for n in xrange(512)])
+        bins = np.linspace(0, 1024, 128)
+        plt.hist(convoffx_l, label="$V_{convoffx}$", alpha=.5, bins=bins, color="r",
+                 range=(np.nanmin(convoffx_l), np.nanmax(convoffx_l)))
+        plt.hist(convoffi_l, label="$V_{convoffi}$", alpha=.5, bins=bins, color="b",
+                 range=(np.nanmin(convoffi_l), np.nanmax(convoffi_l)))
+        plt.xlim(0, 1024)
+        plt.legend()
+        plt.xlabel("$V_{convoff}$ [DAC]")
+        plt.ylabel("#")
+        plt.subplots_adjust(**margins)
+        plt.savefig(os.path.join(fig_dir,"V_convoff.pdf"))
+        plt.savefig(os.path.join(fig_dir,"V_convoff.png"))
 
-    fig = plt.figure()
-    plt.xlabel("neuron")
-    plt.ylabel("$V_{convoff}$ [DAC]")
-    plt.plot(convoffx_l, 'rx', label="$V_{convoffx}$")
-    plt.plot(convoffi_l, 'bx', label="$V_{convoffi}$")
-    plt.legend()
-    plt.xlim(0, 512)
-    plt.ylim(0, 1024)
-    plt.subplots_adjust(**margins)
-    plt.savefig(os.path.join(fig_dir,"V_convoff_vs_nrn.pdf"))
-    plt.savefig(os.path.join(fig_dir,"V_convoff_vs_nrn.png"))
+        fig = plt.figure()
+        plt.xlabel("neuron")
+        plt.ylabel("$V_{convoff}$ [DAC]")
+        plt.plot(convoffx_l, 'rx', label="$V_{convoffx}$")
+        plt.plot(convoffi_l, 'bx', label="$V_{convoffi}$")
+        plt.legend()
+        plt.xlim(0, 512)
+        plt.ylim(0, 1024)
+        plt.subplots_adjust(**margins)
+        plt.savefig(os.path.join(fig_dir,"V_convoff_vs_nrn.pdf"))
+        plt.savefig(os.path.join(fig_dir,"V_convoff_vs_nrn.png"))
 
 ## V convoff
 
