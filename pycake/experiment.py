@@ -74,9 +74,10 @@ class Experiment(object):
         """
         parameters = neuron_parameter.values.values()
         parameters += shared_parameter.values.values()
-        # Remove non-parameter enum entries
-        parameters.remove(neuron_parameter.__last_neuron)
-        parameters.remove(shared_parameter.__last_shared)
+        # Remove non-parameter enum entries, note getattr is needed because
+        # of python name mangling used for private members
+        parameters.remove(getattr(neuron_parameter, '__last_neuron'))
+        parameters.remove(getattr(shared_parameter, '__last_shared'))
 
         step_parameters = set()
         for measurment in self.measurements_to_run:
