@@ -535,7 +535,7 @@ class I_gl_Experimentbuilder(BaseExperimentBuilder):
 
     def make_measurement(self, sthal, neurons, readout_shifts):
         return I_gl_Measurement(sthal, neurons, readout_shifts,
-                                self.config.get_worker_pool_tasks())
+                                workers=self.config.get_worker_pool_tasks())
 
     def get_analyzer(self):
         """ Create an I_gl analyzer WITHOUT setting the ADC frequency.
