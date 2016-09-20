@@ -328,19 +328,25 @@ class Calibtic(object):
         from V or nA to DAC values.
 
         Parameters:
-            parameters: dictionary containg the parameters to be written
+            parameters: dictionary containg the parameters to be written,
+                neuron specific parameters are consumed
             neuron: neuron to be updated
             floating_gates: pysthal.FloatingGates to be updated
 
         Returns:
             pysthal.FloatingGates with given parameters
         """
-        neuron_params = copy.deepcopy(parameters)
+        # We take only a shallow copy, because this is faster. The values
+        # are copied in the loop below
+        neuron_params = parameters.copy()
+        # Use pop to consume neuron specific parameters
+        neuron_params.update(parameters.pop(neuron, {}))
         for param, value in neuron_params.iteritems():
             if (not isinstance(param, neuron_parameter)) or param.name[0] == '_':
                 # e.g. __last_neuron
                 continue
 
+            value = copy.deepcopy(value)  # Copy of value, see comment above
             if value.apply_calibration:
                 self.logger.TRACE("Applying calibration to coord {} value {}".format(neuron, value))
                 value_dac, status, clipped  = self.apply_calibration(
