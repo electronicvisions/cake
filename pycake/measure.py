@@ -117,11 +117,17 @@ class Measurement(object):
                 values.append(fgs.getNeuron(neuron, parameter))
             elif isinstance(parameter, shared_parameter):
                 block = neuron.toSharedFGBlockOnHICANN()
-                values.append(fgs.getShared(block, parameter))
+                try:
+                    values.append(fgs.getShared(block, parameter))
+                except IndexError:
+                    values.append(np.nan)
             elif parameter is None:
                 continue
             elif isinstance(parameter, basestring):
-                values.append(self.step_parameters[parameter])
+                try:
+                    values.append(self.step_parameters[parameter])
+                except KeyError:
+                    values.append(np.nan)
             else:
                 raise TypeError("invalid parameter type {}".format(type(parameter)))
         return values

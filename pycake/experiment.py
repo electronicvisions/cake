@@ -4,10 +4,11 @@ import numpy
 import copy
 import os
 import pandas
+import itertools
 
 from Coordinate import iter_all
 from Coordinate import NeuronOnHICANN
-from pyhalbe.HICANN import neuron_parameter
+from pyhalbe.HICANN import neuron_parameter, shared_parameter
 
 plogger = pylogging.get('progress.experiment')
 
@@ -50,6 +51,40 @@ class Experiment(object):
         except IndexError:
             return None
 
+    def get_result_keys(self):
+        """
+        Iterates over all results and collects all available keys
+
+        Return:
+            list: Containing all keys
+        """
+        results = set()
+        for step_results in self.results:
+            for result in step_results.itervalues():
+                results |= set(result.keys())
+        return sorted(results)
+
+    def get_parameter_names(self):
+        """
+        Iterates over all measurments (including incompleted) and returns a
+        list of names of all parameter passed to the measurements.
+
+        Return:
+            list: Containing all neuron, shared and step parameters
+        """
+        parameters = neuron_parameter.values.values()
+        parameters += shared_parameter.values.values()
+        # Remove non-parameter enum entries
+        parameters.remove(neuron_parameter.__last_neuron)
+        parameters.remove(shared_parameter.__last_shared)
+
+        step_parameters = set()
+        for measurment in self.measurements_to_run:
+            step_parameters |= set(
+                p for p in measurment.step_parameters
+                if not isinstance(p, (neuron_parameter, shared_parameter)))
+        return parameters + sorted(step_parameters)
+
     def append_measurement_and_result(self, measurement, result):
         self.measurements.append(measurement)
         self.results.append(result)
@@ -78,7 +113,8 @@ class Experiment(object):
             ValueError, if no results are found for the given neuron.
         """
         values = []
-        for measurement, result in zip(self.measurements, self.results):
+        for measurement, result in itertools.izip_longest(
+                self.measurements_to_run, self.results, fillvalue={}):
             value = measurement.get_parameters(neuron, parameters)
             try:
                 nrn_results = result[neuron]
@@ -128,7 +164,8 @@ class Experiment(object):
         names.extend(result_keys)
         result_keys = list(result_keys)
         values = []
-        for msr, result in zip(self.measurements, self.results):
+        for msr, result in itertools.izip_longest(
+                self.measurements_to_run, self.results, fillvalue={}):
             row = msr.get_parameters(neuron, parameters)
             nrn_results = result.get(neuron, {})
             row.extend(nrn_results.get(key, numpy.nan) for key in result_keys)
@@ -138,7 +175,7 @@ class Experiment(object):
             raise ValueError("Could not find any requested results")
         return values
 
-    def get_all_data(self, parameters, result_keys, numeric_index=False):
+    def get_all_data(self, parameters=None, result_keys=None, numeric_index=False):
         """ Read out parameters and result for all neurons.
         The results of get_data are concatenated for all neurons. Neurons
         without any results are ignored.
@@ -146,8 +183,9 @@ class Experiment(object):
         Args:
             neuron: parameters matching this neuron
             parameter: [list] parameters to read (neuron_parameter or
-                       shared_parameter)
-            result_keys: [list] result keys to append
+                       shared_parameter), if None all parameters are returned
+            result_keys: [list] result keys to append, if None all keys are
+                         returned
             numeric_index: [bool] don't use NeuronOnHICANN as index, but ints,
                            this allows to save/load the data with plain pandas
 
@@ -157,7 +195,13 @@ class Experiment(object):
                               first level is the NeuronOnHICANN coordinate, the
                               second level the measurement step.
         """
-        result_keys = list(result_keys)
+        if parameters is None:
+            parameters = self.get_parameter_names()
+        if result_keys is None:
+            result_keys = self.get_result_keys()
+        else:
+            result_keys = list(result_keys)
+
         data = {}
         for nrn in iter_all(NeuronOnHICANN):
             try:
@@ -294,8 +338,9 @@ class SequentialExperiment(Experiment):
                 continue
             else:
                 t_start = time.time()
-                self.initial_data.update(measurement.run_measurement(
-                    analyzer, self.initial_data))
+                result = measurement.run_measurement(
+                    analyzer, self.initial_data)
+                self.initial_data.update(result)
                 self.run_time += time.time() - t_start
 
     def save_traces(self, path):
