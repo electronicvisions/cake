@@ -1124,22 +1124,25 @@ except Exception as e:
 #  ——— V_syntcx ————————————————————————————————————————————————————————————————
 
 # Mhhh.  We need to provide the smaller of the two time constants.  Patch, patch, patch.
+# TODO: PSPAnalyzer should already sort the time constants s.t. tau_1 <= tau_2
 
 @contextlib.contextmanager
-def patched_reader_value(reader, parameter, keys, extract, key):
+def patched_reader_value(reader, parameter, input_keys, *output):
     data = []
     neurons = reader.get_neurons()
-    for key_ in keys:
+    for key_ in input_keys:
         data.append(pandas.DataFrame.from_dict(reader.get_results(parameter, neurons, key_), orient='index').stack())
     results = pandas.concat(data, axis=1)
-    results.columns = keys
+    results.columns = input_keys
     results.index.names = ["neuron", "step"]
-    results[key] = extract(results)
+    for key, extract in output:
+        results[key] = extract(results)
 
     try:
         cu = reader.get_calibration_unit(parameter)
         for (neuron, step), data in results.groupby(level=("neuron", "step")):
-            cu.experiment.results[step][neuron][key] = data.ix[0, key]
+            for key, _ in output:
+                cu.experiment.results[step][neuron][key] = data[key][0]
         yield
     finally:
         if reader.calibration_unit_cache.pop((parameter, 0), None) is None:
@@ -1154,10 +1157,9 @@ def plot_v_syntc(reader, excitatory=True, calibrated=True):
     parameter = "V_syntcx" if excitatory else "V_syntci"
 
     with patched_reader_value(
-            reader, parameter=parameter,
-            keys=["tau_1", "tau_2"],
-            extract=lambda res: res[['tau_1', 'tau_2']].min(axis='columns'),
-            key="tau_syn"):
+            reader, parameter, ["tau_1", "tau_2"],
+            ("tau_syn", lambda res: res[['tau_1', 'tau_2']].min(axis='columns')),
+            ("tau_mem", lambda res: res[['tau_1', 'tau_2']].max(axis='columns'))):
 
         xmin, xmax = extract_range(
             reader, parameter, getattr(pyhalbe.HICANN.neuron_parameter, parameter),
@@ -1183,6 +1185,16 @@ def plot_v_syntc(reader, excitatory=True, calibrated=True):
             parameter=parameter,
             key="tau_syn",
             suffix="_calibrated" if calibrated else "_uncalibrated",
+            alpha=0.05,
+            out_unit_label="[s]")
+
+        result(
+            r"%s {inout}" % latex,
+            ylabel=r"$\tau_{\mathrm{mem}\,%s}$ (out) [s]" % (["i", "x"][excitatory]),
+            reader=reader,
+            parameter=parameter,
+            key="tau_mem",
+            suffix="_tau_mem_calibrated" if calibrated else "_tau_mem_uncalibrated",
             alpha=0.05,
             out_unit_label="[s]")
 
