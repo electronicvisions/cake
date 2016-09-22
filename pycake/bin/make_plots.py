@@ -474,7 +474,8 @@ if args.backenddir:
 
         fig = plt.figure()
 
-        c = calibtic.Calibtic(args.backenddir,C.Wafer(C.Enum(args.wafer)),C.HICANNOnWafer(C.Enum(args.hicann)))
+        calibtic_helper = calibtic.Calibtic(
+            args.backenddir, C.Wafer(C.Enum(args.wafer)), C.HICANNOnWafer(C.Enum(args.hicann)))
 
         def get_offset(cal, nrnidx):
             try:
@@ -489,7 +490,7 @@ if args.backenddir:
                     return 0
                 raise
 
-        offsets = [get_offset(c, n) * 1000 for n in xrange(512)]
+        offsets = [get_offset(calibtic_helper, n) * 1000 for n in xrange(512)]
         plt.hist(offsets, bins=100);
         plt.subplots_adjust(**margins)
         plt.xlabel("offset [mV]")
@@ -509,6 +510,54 @@ if args.backenddir:
         plt.savefig(os.path.join(fig_dir,"analog_readout_offset_vs_nrn.pdf"))
         plt.savefig(os.path.join(fig_dir,"analog_readout_offset_vs_nrn.png"))
 
+    def plot_vsyntc_domains(cal, excitatory=True):
+        if excitatory:
+            parameter = pyhalbe.HICANN.neuron_parameter.V_syntcx
+        else:
+            parameter = pyhalbe.HICANN.neuron_parameter.V_syntci
+
+        domains = np.zeros((C.NeuronOnHICANN.enum_type.size, 2))
+        for ii, nrn in enumerate(C.iter_all(C.NeuronOnHICANN)):
+            try:
+                lookup_trafo = cal.nc.at(nrn.id().value()).at(parameter)
+            except RuntimeError:
+                continue
+            bounds = lookup_trafo.getDomainBoundaries()
+            low, high = bounds.first, bounds.second
+            if low < -1e10 or high > 1e10:
+                # We do not care about the old default bounds... Recalculate.
+                low_dac = lookup_trafo.apply(low)
+                high_dac = lookup_trafo.apply(high)
+
+                low = lookup_trafo.reverseApply(low_dac)
+                high = lookup_trafo.reverseApply(high_dac + 1)
+            domains[ii] = low, high
+
+        diffs = domains[:, 1] - domains[:, 0]
+        indices = diffs.argsort()[::-1]
+        domains = domains[indices]
+        diffs = diffs[indices]
+        means = domains.mean(axis=1)
+
+        fig, ax = plt.subplots(nrows=1)
+        fig.subplots_adjust(**margins)
+        latex = r"domain of $\tau_{\mathrm{syn}\,%s}$" % (["i", "x"][excitatory])
+        ax.set_ylabel("%s [s]" % latex)
+        ax.errorbar(
+            x=np.arange(0, 512), y=means, yerr=diffs / 2,
+            linestyle="", capsize=0., elinewidth=1.,
+        )
+        ax.set_xlim(0, 512)
+        filename = "V_syntc{}_domain".format(["i", "x"][excitatory])
+        fig.savefig(os.path.join(fig_dir, "{}.pdf".format(filename)))
+        fig.savefig(os.path.join(fig_dir, "{}.png".format(filename)))
+
+    with LogError("problem with V_syntcx domain plots"):
+        plot_vsyntc_domains(calibtic_helper, excitatory=True)
+
+    with LogError("problem with V_syntci domain plots"):
+        plot_vsyntc_domains(calibtic_helper, excitatory=False)
+
     with LogError("problem with V_convoff backend plots"):
         def get_vconvoff(cal, nrnidx):
             try:
@@ -526,7 +575,7 @@ if args.backenddir:
             return convoffx, convoffi
 
         fig = plt.figure()
-        convoffx_l, convoffi_l = zip(*[get_vconvoff(c, n)  for n in xrange(512)])
+        convoffx_l, convoffi_l = zip(*[get_vconvoff(calibtic_helper, n)  for n in xrange(512)])
         bins = np.linspace(0, 1024, 128)
         plt.hist(convoffx_l, label="$V_{convoffx}$", alpha=.5, bins=bins, color="r",
                  range=(np.nanmin(convoffx_l), np.nanmax(convoffx_l)))
