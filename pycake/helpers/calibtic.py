@@ -5,6 +5,7 @@ import os
 import getpass
 import copy
 import time
+import numpy as np
 
 import Coordinate
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
@@ -242,7 +243,9 @@ class Calibtic(object):
 
         return shift
 
-    def apply_calibration(self, value, parameter, coord, use_ideal=False, report=False):
+    def apply_calibration(self, value, parameter, coord,
+                          use_ideal=False, report=False,
+                          outside_domain_behaviour="CLIP"):
         """ Apply calibration to one value. If no calibration is found, use ideal calibration.
             Also, if parameter value is given in a unit that does not support calibration, e.g.
             I_pl given in Ampere instead of microseconds, apply direct translation to DAC.
@@ -251,6 +254,8 @@ class Calibtic(object):
                 value: Value in Hardware specific units (e.g. volt, ampere, seconds)
                 parameter: neuron_parameter or shared_parameter type
                 coord: neuron coordinate
+                outside_domain_behaviour: "CLIP"/"IGNORE"/"THROW"
+                                          (see calibtic/trafo/Transformation.h)
             Returns:
                 Calibrated DAC value
                 If the calibrated value exceeds the boundaries, it is clipped.
@@ -266,56 +271,28 @@ class Calibtic(object):
         status = 0
         clipped = False
 
-        lower_boundary = 0
-        if parameter is neuron_parameter.I_pl:
+        if parameter in [neuron_parameter.I_pl,
+                         neuron_parameter.I_gl,
+                         neuron_parameter.V_syntcx,
+                         neuron_parameter.V_syntci]:
             if not isinstance(value, Second):
-                raise TypeError("Calibration for I_pl only valid for seconds.")
-            lower_boundary = 4
+                raise TypeError("Calibration for {} only valid for seconds.".format(parameter))
 
         if calib.exists(parameter):
-            trafo = calib.at(parameter)
-            # Check domain
-            if hasattr(trafo, 'getDomainBoundaries'):
-                domain = [trafo.getDomainBoundaries().first, trafo.getDomainBoundaries().second]
-                if value.value > max(domain):
-                    self.logger.WARN(
-                        "Coord {} value {} larger than domain maximum {}. "
-                        "Clipping value.".format(coord, value.value, max(domain)))
-                    value.value = max(domain)
-                    clipped = True
-                if value.value < min(domain):
-                    self.logger.WARN(
-                        "Coord {} value {} smaller than domain minimum {}. "
-                        "Clipping value.".format(coord, value.value, min(domain)))
-                    value.value = min(domain)
-                    clipped = True
-
             # Apply calibration
-            calib_dac_value = calib.to_dac(value.value, parameter)
-
+            calib_dac_value = calib.to_dac(value.value, parameter,
+                                           getattr(pycalibtic.Transformation,
+                                                   outside_domain_behaviour))
             self.logger.TRACE("Calibrated {} parameter {}: {} --> {} DAC".format(coord, parameter.name, value, calib_dac_value))
         else:
-            try:
-                ideal = self.get_calibration(coord, True)
-                calib_dac_value = ideal.at(parameter).apply(value.value)
-                self.logger.WARN("Calibration for {} parameter {} not found. Using ideal transformation -> DAC value {}".format(coord, parameter.name, calib_dac_value))
-                status = 2
-            except RuntimeError, e:
-                calib_dac_value = value.toDAC().value
-                self.logger.WARN("Calibration for {} parameter {} not found: {}. Using toDAC() value {}".format(coord, parameter.name, e, calib_dac_value))
-                status = 3
+            ideal = self.get_calibration(coord, True)
+            calib_dac_value = ideal.to_dac(value.value, parameter,
+                                           getattr(pycalibtic.Transformation,
+                                                   outside_domain_behaviour))
+            self.logger.WARN("Calibration for {} parameter {} not found. Using ideal transformation -> DAC value {}".format(coord, parameter.name, calib_dac_value))
+            status = 2
 
-        calib_dac_value = int(round(calib_dac_value)) + value.dac_offset
-
-        if calib_dac_value < lower_boundary:
-            self.logger.WARN("Coord {} Parameter {} value {} calibrated to {} is lower than {}. Clipping.".format(coord, parameter, value, calib_dac_value, lower_boundary))
-            calib_dac_value = lower_boundary
-            clipped = True
-        if calib_dac_value > 1023:
-            self.logger.WARN("Coord {} Parameter {} value {} calibrated to {} is larger than 1023. Clipping.".format(coord, parameter, value, calib_dac_value))
-            calib_dac_value = 1023
-            clipped = True
-
+        calib_dac_value = np.clip(calib_dac_value + value.dac_offset, 0, 1023)
 
         if report:
             return calib_dac_value, status, clipped
