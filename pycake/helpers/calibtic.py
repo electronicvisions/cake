@@ -47,13 +47,11 @@ class Calibtic(object):
         if 'hc' not in dic:
             self.hc = self.load_calibration()
 
-    def __init__(self, path, wafer, hicann, pll=100e6, bigcap=True, speedup='normal'):
+    def __init__(self, path, wafer, hicann, pll=100e6):
         self.path = self.make_path(path)
         self.wafer = wafer
         self.hicann = hicann
         self.pll = pll
-        self.bigcap = bigcap
-        self.speedup = speedup
 
         self.ideal_nc = pycalibtic.NeuronCollection()
         self.ideal_nc.setDefaults()
@@ -107,11 +105,7 @@ class Calibtic(object):
     def get_calibtic_name(self):
         wafer_id = self.wafer.value()
         hicann_id = self.hicann.id().value()
-        if self.bigcap:
-            cap_prefix = 'bigcap'
-        else:
-            cap_prefix = 'smallcap'
-        name = "w{}-h{}_{}_{}".format(int(wafer_id), int(hicann_id), cap_prefix, self.speedup)
+        name = "w{}-h{}".format(int(wafer_id), int(hicann_id))
         return name
 
     def load_calibration(self):
@@ -158,7 +152,37 @@ class Calibtic(object):
         """Returns a pycalibtic.BlockCollection"""
         return self.hc.atBlockCollection()
 
-    def write_calibration(self, parameter, trafos):
+    def get_calib_id(self, param_name,
+                     target_bigcap,
+                     target_I_gl_speedup,
+                     target_I_gladapt_speedup,
+                     target_I_radapt_speedup):
+        """ try to access the calibration id by the same name,
+            if it fails, try with speedup and bigcap suffix
+
+            Args:
+                 target_bigcap: True/False
+                 target_*_speedup: "slow"/"fast"
+
+            works only for neuron_parameter
+        """
+
+        calibs = pycalibtic.NeuronCalibrationParameters.Calibrations
+
+        try:
+            calib_id = getattr(calibs, param_name)
+        except AttributeError:
+            slow = locals()["target_{}_speedup".format(param_name)] == "slow"
+            fast = locals()["target_{}_speedup".format(param_name)] == "fast"
+            suffix = "slow{}_fast{}_bigcap{}".format(int(slow), int(fast), int(target_bigcap))
+            calib_id = getattr(calibs, "{}_{}".format(param_name, suffix))
+        return calib_id
+
+    def write_calibration(self, parameter, trafos,
+                          target_bigcap,
+                          target_I_gl_speedup,
+                          target_I_gladapt_speedup,
+                          target_I_radapt_speedup):
         """ Writes calibration data to backend
 
             Args:
@@ -175,23 +199,26 @@ class Calibtic(object):
             if isinstance(parameter, shared_parameter) and isinstance(coord, Coordinate.FGBlockOnHICANN):
                 collection = self.bc
                 cal = pycalibtic.SharedCalibration()
-            else:
+                calib_id = parameter
+                param_name = parameter.name
+            elif isinstance(parameter, neuron_parameter) and isinstance(coord, Coordinate.NeuronOnHICANN):
                 collection = self.nc
                 cal = pycalibtic.NeuronCalibration()
-
-            # Readout shifts are stored as parameter Neuroncalibration.ReadoutShift
-            if parameter is 'readout_shift':
-                param_id = pycalibtic.NeuronCalibration.ReadoutShift
+                param_name = parameter.name
+                calib_id = self.get_calib_id(param_name, target_bigcap, target_I_gl_speedup, target_I_gladapt_speedup, target_I_radapt_speedup)
+            elif parameter is 'readout_shift':
+                collection = self.nc
+                cal = pycalibtic.NeuronCalibration()
+                calib_id = pycalibtic.NeuronCalibrationParameters.Calibrations.ReadoutShift
                 param_name = parameter
             else:
-                param_id = parameter
-                param_name = parameter.name
+                raise RuntimeError("Cannot write calibration for parameter {} of coordinate {}".format(parameter, coord))
 
             index = coord.id().value()
 
             if not collection.exists(index):
                 collection.insert(index, cal)
-            collection.at(index).reset(param_id, trafo)
+            collection.at(index).reset(calib_id, trafo)
             self.logger.TRACE("Resetting coordinate {} parameter {} to {}".format(coord, param_name, trafo))
         md = pycalibtic.MetaData()
         backend = self.get_backend()
@@ -234,8 +261,8 @@ class Calibtic(object):
         if not calib:
             return 0.0
 
-        if calib.exists(pycalibtic.NeuronCalibration.ReadoutShift):
-            shift = calib.at(pycalibtic.NeuronCalibration.ReadoutShift).apply(0.0)
+        if calib.exists(pycalibtic.NeuronCalibration.Calibrations.ReadoutShift):
+            shift = calib.at(pycalibtic.NeuronCalibration.Calibrations.ReadoutShift).apply(0.0)
             self.logger.TRACE("Readout shift for neuron {0}:{1:.2f}".format(neuron, shift))
         else:
             shift = 0.0
@@ -244,6 +271,10 @@ class Calibtic(object):
         return shift
 
     def apply_calibration(self, value, parameter, coord,
+                          bigcap,
+                          speedup_I_gl,
+                          speedup_I_gladapt,
+                          speedup_I_radapt,
                           use_ideal=False, report=False,
                           outside_domain_behaviour="CLIP"):
         """ Apply calibration to one value. If no calibration is found, use ideal calibration.
@@ -278,15 +309,22 @@ class Calibtic(object):
             if not isinstance(value, Second):
                 raise TypeError("Calibration for {} only valid for seconds.".format(parameter))
 
-        if calib.exists(parameter):
+        calib_id = parameter if isinstance(parameter,
+                                           shared_parameter) else self.get_calib_id(parameter.name,
+                                                                                    bigcap,
+                                                                                    speedup_I_gl,
+                                                                                    speedup_I_gladapt,
+                                                                                    speedup_I_radapt)
+
+        if calib.exists(calib_id):
             # Apply calibration
-            calib_dac_value = calib.to_dac(value.value, parameter,
+            calib_dac_value = calib.to_dac(value.value, calib_id,
                                            getattr(pycalibtic.Transformation,
                                                    outside_domain_behaviour))
             self.logger.TRACE("Calibrated {} parameter {}: {} --> {} DAC".format(coord, parameter.name, value, calib_dac_value))
         else:
             ideal = self.get_calibration(coord, True)
-            calib_dac_value = ideal.to_dac(value.value, parameter,
+            calib_dac_value = ideal.to_dac(value.value, calib_id,
                                            getattr(pycalibtic.Transformation,
                                                    outside_domain_behaviour))
             self.logger.WARN("Calibration for {} parameter {} not found. Using ideal transformation -> DAC value {}".format(coord, parameter.name, calib_dac_value))
@@ -299,7 +337,7 @@ class Calibtic(object):
         else:
             return calib_dac_value
 
-    def set_neuron_parameters(self, parameters, neuron, floating_gates):
+    def set_neuron_parameters(self, parameters, neuron, floating_gates, bigcap, speedup_I_gl, speedup_I_gladapt, speedup_I_radapt):
         """Writes floating gate parameters for a single neuron into a sthal
         FloatingGates container. This includes calibration and transformation
         from V or nA to DAC values.
@@ -327,14 +365,21 @@ class Calibtic(object):
             if value.apply_calibration:
                 self.logger.TRACE("Applying calibration to coord {} value {}".format(neuron, value))
                 value_dac, status, clipped  = self.apply_calibration(
-                    value, param, neuron, report=True)
+                    value, param, neuron,
+                    bigcap, speedup_I_gl, speedup_I_gladapt, speedup_I_radapt,
+                    report=True)
             else:
-                value_dac = value.toDAC().value
-
+                # special case for unit second and no calibration applied
+                if isinstance(value, Second):
+                    value_dac, status, clipped  = self.apply_calibration(value, param, neuron,
+                                                                         bigcap, speedup_I_gl, speedup_I_gladapt, speedup_I_radapt,
+                                                                         use_ideal=True, report=True)
+                else:
+                    value_dac = value.toDAC().value
             self.logger.TRACE("Setting FGValue of {} parameter {} to {}.".format(neuron, param, value_dac))
             floating_gates.setNeuron(neuron, param, value_dac)
 
-    def set_shared_parameters(self, parameters, block, floating_gates):
+    def set_shared_parameters(self, parameters, block, floating_gates, bigcap, speedup_I_gl, speedup_I_gladapt, speedup_I_radapt):
         """Writes shared floating gate parameters for a single floating gate
         block into a sthal FloatingGates container. This includes calibration
         and transformation from V or nA to DAC values.
@@ -361,18 +406,22 @@ class Calibtic(object):
 
             if value.apply_calibration:
                 self.logger.TRACE("Applying calibration to coord {} value {}".format(block, value))
-                value_dac = self.apply_calibration(value, param, block)
+                value_dac = self.apply_calibration(value, param, block, bigcap, speedup_I_gl, speedup_I_gladapt, speedup_I_radapt)
             else:
                 if type(value) in [Ampere, Volt, DAC]:
                     value_dac = value.toDAC().value
                 else:
-                    value_dac = self.apply_calibration(value.value, param, block, use_ideal=True)
+                    value_dac = self.apply_calibration(value.value, param, block, bigcap, speedup_I_gl, speedup_I_gladapt, speedup_I_radapt, use_ideal=True)
 
             self.logger.TRACE("Setting FGValue of {} parameter {} to {}.".format(block, param, value))
             floating_gates.setShared(block, param, value_dac)
 
 
-    def set_calibrated_parameters(self, parameters, neurons, blocks, floating_gates):
+    def set_calibrated_parameters(self, parameters, neurons, blocks, floating_gates,
+                                  bigcap,
+                                  speedup_I_gl,
+                                  speedup_I_gladapt,
+                                  speedup_I_radapt):
         """Writes floating gate parameters into a sthal FloatingGates container.
             This includes calibration and transformation from V or nA to DAC values.
 
@@ -385,6 +434,6 @@ class Calibtic(object):
         """
 
         for neuron in neurons:
-            self.set_neuron_parameters(parameters, neuron, floating_gates)
+            self.set_neuron_parameters(parameters, neuron, floating_gates, bigcap, speedup_I_gl, speedup_I_gladapt, speedup_I_radapt)
         for block in blocks:
-            self.set_shared_parameters(parameters, block, floating_gates)
+            self.set_shared_parameters(parameters, block, floating_gates, bigcap, speedup_I_gl, speedup_I_gladapt, speedup_I_radapt)

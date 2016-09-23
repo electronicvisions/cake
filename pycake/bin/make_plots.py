@@ -499,7 +499,7 @@ if args.backenddir:
 
         def get_offset(cal, nrnidx):
             try:
-                offset = cal.nc.at(nrnidx).at(pycalibtic.NeuronCalibration.ReadoutShift).apply(0)
+                offset = cal.nc.at(nrnidx).at(pycalibtic.NeuronCalibrationParameters.Calibrations.ReadoutShift).apply(0)
                 return offset
             except IndexError:
                 logger.WARN("No offset found for Neuron {}. Is the wafer and hicann enum correct? (w{}, h{})".format(nrnidx,args.wafer,args.hicann))
@@ -532,9 +532,9 @@ if args.backenddir:
 
     def plot_vsyntc_domains(cal, excitatory=True):
         if excitatory:
-            parameter = pyhalbe.HICANN.neuron_parameter.V_syntcx
+            parameter = pycalibtic.NeuronCalibrationParameters.Calibrations.V_syntcx
         else:
-            parameter = pyhalbe.HICANN.neuron_parameter.V_syntci
+            parameter = pycalibtic.NeuronCalibrationParameters.Calibrations.V_syntci
 
         domains = np.zeros((C.NeuronOnHICANN.enum_type.size, 2))
         for ii, nrn in enumerate(C.iter_all(C.NeuronOnHICANN)):
@@ -581,8 +581,8 @@ if args.backenddir:
     with LogError("problem with V_convoff backend plots"):
         def get_vconvoff(cal, nrnidx):
             try:
-                convoffx = cal.nc.at(nrnidx).at(pyhalbe.HICANN.neuron_parameter.V_convoffx).apply(0)
-                convoffi = cal.nc.at(nrnidx).at(pyhalbe.HICANN.neuron_parameter.V_convoffi).apply(0)
+                convoffx = cal.nc.at(nrnidx).at(pycalibtic.NeuronCalibrationParameters.Calibrations.V_convoffx).apply(0)
+                convoffi = cal.nc.at(nrnidx).at(pycalibtic.NeuronCalibrationParameters.Calibrations.V_convoffi).apply(0)
             except IndexError as i:
                 logger.WARN(str(i) + ", No V_convoff(i or x) found for Neuron {}. Is the wafer and hicann enum correct? (w{}, h{})".format(nrnidx,args.wafer,args.hicann))
                 return np.nan, np.nan

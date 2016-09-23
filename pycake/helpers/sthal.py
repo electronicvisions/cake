@@ -269,10 +269,6 @@ class StHALContainer(object):
             self.wafer.load(self.wafer_cfg)
         else:
             self.setPLL(config.get_PLL())
-            self.set_bigcap(config.get_bigcap())
-            # Get the SpeedUp type from string
-            speedup = pysthal.SpeedUp.names[config.get_speedup().upper()]
-            self.set_speedup(speedup)
 
         self.adc = None
         self.recording_time = recording_time
@@ -817,11 +813,24 @@ class StHALContainer(object):
     def get_neuron_size(self):
         return self.neuron_size
 
+    def get_speedup_type(self, speedup_str):
+        """
+        speedup: "slow", "normal" or "fast" (case-insensitive)
+        returns sthal speedup type
+        """
+
+        speedup_type = pysthal.SpeedUp.names[speedup_str.upper()]
+        return speedup_type
+
     def set_speedup(self, speedup):
+        """ sets speedup for I_gl, I_gladapt and I_radapt
+        """
         self.logger.INFO("Setting speedup to {}".format(pysthal.SpeedUp.values[speedup]))
         self.hicann.set_fg_speed_up_scaling(speedup)
 
     def get_speedup(self):
+        """ get speedup for I_gl, I_gladapt and I_radapt if all are equal
+        """
         s_gl = self.hicann.get_speed_up_gl()
         s_gladapt = self.hicann.get_speed_up_gladapt()
         s_radapt = self.hicann.get_speed_up_radapt()

@@ -110,7 +110,11 @@ class CalibrationUnit(object):
             raise RuntimeError("The calibration has not been finished yet")
         trafos = self.generate_transformations()
         progress.debug("Writing calibration data for {}".format(self.name))
-        self.write_calibration(calibtic, trafos)
+        self.write_calibration(calibtic, trafos,
+                               self.config.get_target_bigcap(),
+                               self.config.get_target_speedup_I_gl(),
+                               self.config.get_target_speedup_I_gladapt(),
+                               self.config.get_target_speedup_I_radapt())
         self.write_defects(redman, trafos)
 
     def get_experiment(self, calibitic):
@@ -131,7 +135,8 @@ class CalibrationUnit(object):
                 "{}_Calibrator".format(self.name))
         return calibrator_type(self.experiment, self.config)
 
-    def write_calibration(self, calibtic, transformations):
+    def write_calibration(self, calibtic, transformations, bigcap,
+                          speedup_I_gl, speedup_I_gladapt, speedup_I_radapt):
         """ Writes calibration data to calibtic backend
             transformation argument must have the following structure:
 
@@ -144,7 +149,9 @@ class CalibrationUnit(object):
             progress.info(
                 "Write calibration data for {}: {} of {} are good.".format(
                     parameter, good, total))
-            calibtic.write_calibration(parameter, data)
+            calibtic.write_calibration(parameter, data, bigcap,
+                                       speedup_I_gl, speedup_I_gladapt,
+                                       speedup_I_radapt)
 
     def write_defects(self, redman, transformations):
         """
@@ -206,8 +213,6 @@ class CalibrationRunner(object):
             "f{}".format(int(self.config.get_PLL()/1e6)),  # PLL in MHz
             "w{}".format(wafer.value()),
             "h{}".format(hicann.id().value()),
-            'bigcap' if config.get_bigcap() else 'smallcap',
-            config.get_speedup(),
             time.strftime('%m%d_%H%M%S'),
         ] if s != ""])
 
@@ -232,9 +237,8 @@ class CalibrationRunner(object):
         path = self.config.get_backend_path()
         self.logger.INFO("Setting calibtic backend path to: {}".format(path))
         wafer, hicann = self.config.get_coordinates()
-        return pycake.helpers.calibtic.Calibtic(
-            path, wafer, hicann, self.config.get_PLL(),
-            self.config.get_bigcap(), self.config.get_speedup())
+
+        return pycake.helpers.calibtic.Calibtic(path, wafer, hicann, self.config.get_PLL())
 
     def load_redman(self):
         """Load redman helper"""
@@ -328,13 +332,15 @@ class CalibrationRunner(object):
 
                 trafo = pycalibtic.Constant(base_parameters[parameter].toDAC().value)
                 data = {block: trafo for block in blocks}
-                calibtic.write_calibration(parameter, data)
+                # bigcap and speedup settings should not matter for technical parameters
+                calibtic.write_calibration(parameter, data, False, "normal", "normal", "normal")
 
             elif isinstance(parameter, neuron_parameter):
 
                 trafo = pycalibtic.Constant(base_parameters[parameter].toDAC().value)
                 data = {neuron: trafo for neuron in neurons}
-                calibtic.write_calibration(parameter, data)
+                # bigcap and speedup settings should not matter for technical parameters
+                calibtic.write_calibration(parameter, data, False, "normal", "normal", "normal")
 
             else:
 
@@ -347,11 +353,11 @@ class CalibrationRunner(object):
         """
         for ii, name in enumerate(self.to_run):
             if only_with_name is None or name in only_with_name:
-                measurement = self.create_or_load_unit(ii)
-                measurement.run()
+                unit = self.create_or_load_unit(ii)
+                unit.run()
                 calibtic = self.load_calibtic()
                 redman = self.load_redman()
-                measurement.generate_calibration_data(calibtic, redman)
+                unit.generate_calibration_data(calibtic, redman)
 
     def get_unit_folder(self, ii):
         return os.path.join(self.storage_folder, str(ii))

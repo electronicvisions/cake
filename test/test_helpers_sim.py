@@ -27,6 +27,7 @@ class TestSimSthal(unittest.TestCase):
         cfg = Config(None, {"sim_denmem": ":0", "hicann_version": -1,
                             "coord_hicann": self.coord_hicann, "coord_wafer" : coord_wafer})
         self.sthal = SimStHALContainer(cfg)
+        self.hicann = self.sthal.wafer[self.coord_hicann]
 
     def test_pickle(self):
         """Try pickling and unpickling"""

@@ -37,9 +37,18 @@ parameters = {
     "neurons": [NeuronOnHICANN(Enum(i)) for i in range(512)],
     "blocks":  [FGBlockOnHICANN(Enum(i)) for i in range(4)],
 
-    # options are fast, normal or slow
-    "speedup": 'normal',
+    # options are "fast", "normal" or "slow", can be overridden for
+    # each calibration and parameter step
+    "speedup_I_gl": 'normal',
+    "speedup_I_gladapt": 'normal',
+    "speedup_I_radapt": 'normal',
     "bigcap": True,
+
+    # the value during calibration can be different from the calibration target
+    "target_speedup_I_gl": 'normal',
+    "target_speedup_I_gladapt": 'normal',
+    "target_speedup_I_radapt": 'normal',
+    "target_bigcap": True,
 
     # Default floating gate biases, MAXIMUM POWER!
     "fg_bias": 0,

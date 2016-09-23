@@ -20,6 +20,7 @@ import pycake.analyzer
 from pycake.helpers.units import Unit, Ampere, Volt, DAC
 from pycake.measure import ADCFreq_Measurement
 from pycake.analyzer import ADCFreq_Analyzer
+import pycalibtic
 
 # shorter names
 Enum = Coordinate.Enum
@@ -93,8 +94,9 @@ class BaseExperimentBuilder(object):
             step_parameters = self.get_step_parameters(step)
 
             if not wafer_cfg:
-                self.prepare_hicann(sthal.hicann, step_parameters)
+                self.prepare_hicann(sthal, step_parameters)
                 sthal.hicann.floating_gates = self.prepare_parameters(step_parameters)
+
             sthal = self.prepare_specific_config(sthal, step_parameters)
 
             measurement = self.make_measurement(sthal, self.neurons, readout_shifts)
@@ -107,23 +109,39 @@ class BaseExperimentBuilder(object):
         """
         return self.config.get_step_parameters(step)
 
-    def prepare_hicann(self, hicann, parameters):
-        """Write HICANN configuration from parameters
-        to sthal.hicann."""
+    def prepare_hicann(self, sthal, step_parameters):
+        """Write HICANN configuration from step parameters to sthal
 
-        speedup_gl = parameters.get("speedup_gl", None)
-        if speedup_gl is not None:
-            hicann.set_speed_up_gl(speedup_gl)
+        TODO: It would be better to construct sthal directly using the
+              the step parameters"""
 
-        speedup_gladapt = parameters.get("speedup_gladapt", None)
-        if speedup_gladapt is not None:
-            hicann.set_speed_up_gladapt(speedup_gladapt)
+        hicann = sthal.hicann
 
-        speedup_radapt = parameters.get("speedup_radapt", None)
-        if speedup_radapt is not None:
-            hicann.set_speed_up_radapt(speedup_radapt)
+        # set bigcap and speedup for current step, fallback to
+        # default/global if not specified
 
-    def prepare_parameters(self, parameters):
+        # cap
+        s_bigcap = step_parameters.get("bigcap", self.config.get_bigcap())
+        self.logger.DEBUG("Setting bigcap to {}".format(s_bigcap))
+
+        # I_gl
+        s_I_gl = step_parameters.get("speedup_I_gl", self.config.get_speedup_I_gl())
+        self.logger.DEBUG("Setting speedup of I_gl to {}".format(s_I_gl))
+        hicann.set_speed_up_gl(sthal.get_speedup_type(s_I_gl))
+
+        # I_gladapt
+        s_I_gladapt = step_parameters.get("speedup_I_gladapt",
+                                          self.config.get_speedup_I_gladapt())
+        self.logger.DEBUG("Setting speedup of I_gladapt to {}".format(s_I_gladapt))
+        hicann.set_speed_up_gladapt(sthal.get_speedup_type(s_I_gladapt))
+
+        # I_radapt
+        s_I_radapt = step_parameters.get("speedup_I_radapt",
+                                         self.config.get_speedup_I_radapt())
+        self.logger.DEBUG("Setting speedup of I_radapt to {}".format(s_I_radapt))
+        hicann.set_speed_up_radapt(sthal.get_speedup_type(s_I_radapt))
+
+    def prepare_parameters(self, step_parameters):
         """ Writes floating gate parameters into a
         sthal FloatingGates container.
             This includes calibration and transformation from V or nA to DAC values.
@@ -144,7 +162,12 @@ class BaseExperimentBuilder(object):
             floating_gates.setFGConfig(Coordinate.Enum(ii), cfg)
 
         self.calibtic.set_calibrated_parameters(
-            parameters, self.neurons, self.blocks, floating_gates)
+            step_parameters, self.neurons, self.blocks, floating_gates,
+            step_parameters.get("bigcap", self.config.get_bigcap()),
+            step_parameters.get("speedup_I_gl", self.config.get_speedup_I_gl()),
+            step_parameters.get("speedup_I_gladapt", self.config.get_speedup_I_gladapt()),
+            step_parameters.get("speedup_I_radapt", self.config.get_speedup_I_radapt()),
+        )
         return floating_gates
 
     def prepare_specific_config(self, sthal, parameters):
@@ -269,7 +292,7 @@ class I_pl_Experimentbuilder(BaseExperimentBuilder):
     To be used with hardware."""
     def prepare_specific_config(self, sthal, parameters):
         I_pl_DAC = sthal.hicann.floating_gates.getNeuron(Coordinate.NeuronOnHICANN(Enum(0)), neuron_parameter.I_pl)
-        expected_ISI = self.calibtic.ideal_nc.at(0).from_dac(I_pl_DAC, neuron_parameter.I_pl)
+        expected_ISI = self.calibtic.ideal_nc.at(0).from_dac(I_pl_DAC, pycalibtic.NeuronCalibrationParameters.Calibrations.I_pl)
         # estimate 1e-6 as minimum ISI, to get long enough measurement times for approx 10 spikes at large t_ref values
         expected_ISI += 1e-6
         # Record at least 50 but not more than 5000 microseconds
@@ -304,13 +327,13 @@ class I_pl_Experimentbuilder(BaseExperimentBuilder):
         sthal = self.get_sthal()
 
         # get a step with I_pl = 1023 DAC
-        parameters = self.get_step_parameters(
+        step_parameters = self.get_step_parameters(
                 {neuron_parameter.I_pl: DAC(1023, apply_calibration=False)})
 
         if not wafer_cfg:
-            self.prepare_hicann(sthal.hicann, parameters)
-            sthal.hicann.floating_gates = self.prepare_parameters(parameters)
-        sthal = self.prepare_specific_config(sthal, parameters)
+            self.prepare_hicann(sthal, step_parameters)
+            sthal.hicann.floating_gates = self.prepare_parameters(step_parameters)
+        sthal = self.prepare_specific_config(sthal, step_parameters)
 
         measurement = self.make_measurement(sthal, self.neurons, readout_shifts)
         analyzer = pycake.analyzer.ISI_Analyzer()

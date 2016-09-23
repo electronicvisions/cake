@@ -32,7 +32,9 @@ DEFAULT_PARAMETERS = {
     "read_fg_values": [],
 
     "PLL": 100e6,
-    "speedup": "normal",
+    "speedup_I_gl": "normal",
+    "speedup_I_gladapt": "normal",
+    "speedup_I_radapt": "normal",
     "bigcap": True,
     "fg_bias": 0,
     "fg_biasn": 0,
@@ -111,7 +113,10 @@ class Config(object):
         return parameters
 
     def get_config(self, config_key):
-        """ Returns a given key for experiment
+        """ Returns configuration for given key, e.g.
+            self.config_name: I_gl
+            config_key: range
+              returns value for key I_gl_range
         """
         key = "{}_{}".format(self.config_name, config_key)
         return self.parameters[key]
@@ -209,15 +214,15 @@ class Config(object):
         else:
             return {}
 
-    def get_step_parameters(self, stepvalue):
-        """ Returns parameter dict where the target parameter
-            is updated with the given stepvalue.
+    def get_step_parameters(self, stepvalues):
+        """ Returns parameter dict where parameters
+            are updated with the given stepvalues.
 
             Args:
-                stepvalue:  mV or nA value without unit
+                stepvalues: {}
         """
         parameters = self.get_parameters()
-        parameters.update(stepvalue)
+        parameters.update(stepvalues)
         return parameters
 
     def get_calibtic_backend(self):
@@ -300,11 +305,37 @@ class Config(object):
     def get_sim_denmem_mc_seed(self):
         return self.parameters["sim_denmem_mc_seed"]
 
-    def get_speedup(self):
-        return self.parameters['speedup']
+    def get_speedup_I_gl(self):
+        return self.get_parameters().get("speedup_I_gl",
+                                       self.parameters['speedup_I_gl'])
+
+    def get_speedup_I_gladapt(self):
+        return self.get_parameters().get("speedup_I_gladapt",
+                                       self.parameters['speedup_I_gladapt'])
+
+    def get_speedup_I_radapt(self):
+        return self.get_parameters().get("speedup_I_radapt",
+                                       self.parameters['speedup_I_radapt'])
 
     def get_bigcap(self):
-        return self.parameters['bigcap']
+        return self.get_parameters().get("bigcap",
+                                       self.parameters['bigcap'])
+
+    def get_target_speedup_I_gl(self):
+        return self.get_parameters().get("target_speedup_I_gl",
+                                       self.parameters['target_speedup_I_gl'])
+
+    def get_target_speedup_I_gladapt(self):
+        return self.get_parameters().get("target_speedup_I_gladapt",
+                                       self.parameters['target_speedup_I_gladapt'])
+
+    def get_target_speedup_I_radapt(self):
+        return self.get_parameters().get("target_speedup_I_radapt",
+                                       self.parameters['target_speedup_I_radapt'])
+
+    def get_target_bigcap(self):
+        return self.get_parameters().get("target_bigcap",
+                                       self.parameters['target_bigcap'])
 
     def get_fg_bias(self):
         return self.parameters['fg_bias']
