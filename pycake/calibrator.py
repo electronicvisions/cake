@@ -541,18 +541,13 @@ class V_convoffx_Calibrator(V_convoff_Calibrator):
 class V_syntc_Calibrator(BaseCalibrator):
     target_parameter = None
 
-    def __init__(self, experiment, config=None):
+    def __init__(self, experiment, config=None, calib_feature='tau_1'):
         self.experiment = experiment
         self.offset_tol = 0.025
         self.chi2_tol = 30
         self.residual_tol = 4.0e-8
         self.signal_to_noise_tol = 2.0
-
-    @staticmethod
-    def sort_tau(data):
-        tmp = data[['tau_1', 'tau_2']]
-        data['tau_1'] = tmp.min(axis='columns')
-        data['tau_2'] = tmp.max(axis='columns')
+        self.calib_feature = calib_feature
 
     def get_mask(self, data):
         upper_threshold = data['offset'].min() + self.offset_tol
@@ -565,21 +560,20 @@ class V_syntc_Calibrator(BaseCalibrator):
             (self.target_parameter, ),
             ('v', 'tau_1', 'tau_2', 'start', 'offset',
              'chi2', 'signal_to_noise'))
-        data.rename(columns={self.target_parameter.name: 'V_syntc'},
+        data.rename(columns={self.target_parameter.name: 'target_parameter'},
                     inplace=True)
-        self.sort_tau(data)
         return data
 
     def approximate_with_fit(self, nrn_data):
         mask = self.get_mask(nrn_data)
         data = nrn_data[mask]
 
-        vsyntc = data['V_syntc'].astype(numpy.int).values
+        target_parameter_values = data['target_parameter'].astype(numpy.int).values
 
-        x = data['V_syntc'] / 1023.0
-        y0 = data['tau_1'].min()
-        y_range = data['tau_1'].max()
-        y = data['tau_1'] / y_range
+        x = data['target_parameter'] / 1023.0
+        y0 = data[self.calib_feature].min()
+        y_range = data[self.calib_feature].max()
+        y = data[self.calib_feature] / y_range
         y0 /= y_range
 
         if len(x.values) < 7:
@@ -594,8 +588,20 @@ class V_syntc_Calibrator(BaseCalibrator):
         xi = numpy.arange(int(x0), int(x1) + 1)
         yi = (model.eval(params=result.params, x=(xi / 1023.0)) + y0) * y_range
 
-        diff = yi[vsyntc - x0] - data['tau_1']
-        res = numpy.sqrt(numpy.sum(diff**2)) / len(x)
+        diff = yi[target_parameter_values - xi[0]] - data[self.calib_feature]
+        res = numpy.sqrt(numpy.sum(diff**2)) / len(target_parameter_values)
+
+        if res >= self.residual_tol:
+            return None
+
+        try:
+            lookup = pycalibtic.Lookup(yi, xi[0])
+        except RuntimeError as e:
+            self.logger.WARN(
+                "Failed to create Lookup transformation: {}".format(e))
+            return None
+
+        lookup.setDomain(yi[-1], yi[target_parameter_values[0] - xi[0]])
 
         return res, xi, yi
 
