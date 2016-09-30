@@ -654,6 +654,14 @@ class V_syntci_Calibrator(V_syntc_Calibrator):
 class V_syntcx_Calibrator(V_syntc_Calibrator):
     target_parameter = neuron_parameter.V_syntcx
 
+class I_gl_PSP_Calibrator(V_syntc_Calibrator):
+
+    target_parameter = neuron_parameter.I_gl
+
+    def __init__(self, experiment, config=None):
+        super(I_gl_PSP_Calibrator, self).__init__(experiment, config, calib_feature='tau_2')
+        self.offset_tol = 1
+        self.residual_tol = 1e-7
 
 class I_pl_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.I_pl

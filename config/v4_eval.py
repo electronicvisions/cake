@@ -89,11 +89,16 @@ parameters = {
 
     "I_gl_range": [{neuron_parameter.I_gl : Second(t, apply_calibration=True)} for t in [1e-6]],
 
+    "I_gl_PSP_range": [
+        {neuron_parameter.I_gl : Second(t, apply_calibration=True)} for t in [3e-6, 2e-6, 1e-6, 0.5e-6]
+    ],
+
     "Spikes_parameters": {
         neuron_parameter.E_l: Volt(0.8, apply_calibration=True),
         neuron_parameter.E_syni:     Volt(0.6, apply_calibration=True),
         neuron_parameter.E_synx:     Volt(1.3),
-        neuron_parameter.I_gl:       Ampere(1e-6),
+        neuron_parameter.I_gl:       Second(1e-6, apply_calibration=True),
+        neuron_parameter.V_syntcx:   Second(1e-6, apply_calibration=True),
         neuron_parameter.I_pl:       Ampere(5e-9),
         neuron_parameter.V_convoffx: Volt(1.8, apply_calibration=True),
         neuron_parameter.V_convoffi: Volt(1.8, apply_calibration=True),
@@ -117,7 +122,7 @@ parameters = {
         neuron_parameter.V_syntcx.name,
         neuron_parameter.V_syntci.name,
         neuron_parameter.I_pl.name,
-        neuron_parameter.I_gl.name,
+        "I_gl_PSP",
         "Spikes"
     ],
 }

@@ -1139,7 +1139,7 @@ try:
 
     if r_tau_m:
 
-        xmin, xmax = extract_range(r_tau_m, "I_gl", pyhalbe.HICANN.neuron_parameter.I_gl, safety_min=0, safety_max=0)
+        xmin, xmax = extract_range(r_tau_m, "I_gl_PSP", pyhalbe.HICANN.neuron_parameter.I_gl, safety_min=0, safety_max=0)
 
         xmin /= 10
         xmax *= 10
@@ -1147,13 +1147,13 @@ try:
         uncalibrated_hist(r"$\tau_{m}$ [s]",
                           r_tau_m,
                           xscale="log",
-                          parameter="I_gl",
-                          key="tau_m",
+                          parameter="I_gl_PSP",
+                          key="tau_2",
                           bins=np.logspace(np.log10(xmin), np.log10(xmax), 100),
                           range=(xmin, xmax),
                           show_legend=True)
 
-        result(r"$\tau_{{m}}$ {inout}", reader=r_tau_m, parameter="I_gl", key="tau_m", alpha=0.05,
+        result(r"$\tau_{{m}}$ {inout}", reader=r_tau_m, parameter="I_gl_PSP", key="tau_2", alpha=0.05,
                out_unit_label="[s]")
 
         #trace("$V_{mem}$ [V]", r_tau_m, "tau_m", args.neuron_enum, end=510, suffix="_uncalibrated")
@@ -1165,7 +1165,7 @@ try:
 
     if  r_test_tau_m:
 
-        xmin, xmax = extract_range(r_test_tau_m, "I_gl", pyhalbe.HICANN.neuron_parameter.I_gl, safety_min=0, safety_max=0)
+        xmin, xmax = extract_range(r_test_tau_m, "I_gl_PSP", pyhalbe.HICANN.neuron_parameter.I_gl, safety_min=0, safety_max=0)
 
         xmin /= 10
         xmax *= 10
@@ -1173,13 +1173,13 @@ try:
         calibrated_hist(r"$\tau_{m}$ [s]",
                         r_test_tau_m,
                         xscale="log",
-                        parameter="I_gl",
-                        key="tau_m",
+                        parameter="I_gl_PSP",
+                        key="tau_2",
                         bins=np.logspace(np.log10(xmin), np.log10(xmax), 100),
                         range=(xmin, xmax),
                         show_legend=True)
 
-        result(r"$\tau_{{m}}$ {inout}", reader=r_test_tau_m, suffix="_calibrated", parameter="I_gl", key="tau_m", alpha=0.05,
+        result(r"$\tau_{{m}}$ {inout}", reader=r_test_tau_m, suffix="_calibrated", parameter="I_gl_PSP", key="tau_2", alpha=0.05,
                in_unit_label="[s]", out_unit_label="[s]")
 
         #trace("$V_{mem}$ [V]", r_test_tau_m, parameter="tau_m", neuron=args.neuron_enum, start=500, end=700, suffix="_calibrated")

@@ -37,7 +37,8 @@ parameters = {
         neuron_parameter.E_l.name,
         neuron_parameter.V_convoffx.name,
         neuron_parameter.V_convoffi.name,
-        #neuron_parameter.I_gl,
+        #neuron_parameter.I_gl.name,
+        "I_gl_PSP",
         neuron_parameter.V_syntcx.name,
         neuron_parameter.V_syntci.name,
     ],
@@ -250,5 +251,27 @@ parameters = {
         neuron_parameter.V_convoffx : Volt(1.8, apply_calibration=True),
         neuron_parameter.I_convi: Ampere(0.0),
         neuron_parameter.I_convx: Ampere(0.0),
+    },
+
+    "I_gl_PSP_range": [
+        {
+            neuron_parameter.I_gl : Ampere(v),
+        } for v in numpy.linspace(100e-9, 800e-9, 8)
+    ],
+
+
+    "I_gl_PSP_parameters": {
+        neuron_parameter.E_l : Volt(0.8, apply_calibration=True),
+        neuron_parameter.E_syni : Volt(0.6, apply_calibration=True),
+        neuron_parameter.E_synx : Volt(1.3),
+        neuron_parameter.V_syntcx: Volt(1.6),
+        neuron_parameter.V_convoffi : Volt(0.9, apply_calibration=True),
+        neuron_parameter.V_convoffx : Volt(0.9, apply_calibration=True),
+        neuron_parameter.V_t: Volt(1.2, apply_calibration=True),
+        shared_parameter.V_gmax0: Volt(1),
+        shared_parameter.V_reset: Volt(0.3, apply_calibration=True),
+        "gmax_div": 30,
+        "bigcap" : True,
+        "speedup_I_gl" : "normal"
     },
 }

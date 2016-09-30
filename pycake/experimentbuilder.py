@@ -528,6 +528,16 @@ class V_convoff_test_Experimentbuilder(BaseExperimentBuilder):
 V_convoff_test_uncalibrated_Experimentbuilder = V_convoff_test_Experimentbuilder
 V_convoff_test_calibrated_Experimentbuilder = V_convoff_test_Experimentbuilder
 
+class I_gl_PSP_Experimentbuilder(V_convoff_Experimentbuilder):
+    IS_EXCITATORY = True
+    ANALYZER = pycake.analyzer.PSPAnalyzer
+    WITH_SPIKES = True
+
+    def get_analyzer(self):
+        "get analyzer"
+        return self.ANALYZER(self.IS_EXCITATORY)
+
+
 class V_syntcx_Experimentbuilder(V_convoff_Experimentbuilder):
     IS_EXCITATORY = True
     ANALYZER = pycake.analyzer.PSPAnalyzer
