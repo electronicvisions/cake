@@ -364,6 +364,7 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
     ANALYZER = pycake.analyzer.MeanOfTraceAnalyzer
     IS_EXCITATORY = None
     WITH_SPIKES = False
+    INCREMENTAL = True
 
     def __init__(self, *args, **kwargs):
         super(V_convoff_Experimentbuilder, self).__init__(*args, **kwargs)
@@ -434,14 +435,17 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
                            if isinstance(p, (neuron_parameter, shared_parameter))]
         }
 
-        configurator = UpdateParameterUp
-        if any(not isinstance(p, (neuron_parameter, shared_parameter))
-               for p in parameters):
-             configurator = UpdateParameterUpAndConfigure
+        if self.INCREMENTAL:
+            configurator = UpdateParameterUp
+            if any(not isinstance(p, (neuron_parameter, shared_parameter))
+                   for p in parameters):
+                 configurator = UpdateParameterUpAndConfigure
 
-        experiment = IncrementalExperiment(
-            measurements, self.get_analyzer(),
-            configurator, configurator_args)
+            experiment = IncrementalExperiment(
+                measurements, self.get_analyzer(),
+                configurator, configurator_args)
+        else:
+            experiment = SequentialExperiment(measurements, self.get_analyzer(), repetitions=1)
 
         if self.no_spikes > 1:
             assert self.bg_rate is not None
