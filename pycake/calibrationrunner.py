@@ -207,7 +207,7 @@ class CalibrationRunner(object):
             "h{}".format(hicann.id().value()),
             'bigcap' if config.get_bigcap() else 'smallcap',
             config.get_speedup(),
-            time.strftime('%m%d_%H%M'),
+            time.strftime('%m%d_%H%M%S'),
         ] if s != ""])
 
         if storage_path is None:
