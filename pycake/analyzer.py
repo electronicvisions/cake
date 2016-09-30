@@ -639,7 +639,9 @@ class PSPPrerunAnalyzer(MeanOfTraceAnalyzer):
         return ret
 
 class PSPAnalyzer(Analyzer):
-    """Fit a PSP"""
+    """Fit a PSP
+       Time constants are returned sorted, i.e. tau_1 < tau_2.
+    """
 
     def __init__(self, excitatory):
         Analyzer.__init__(self)
@@ -663,6 +665,7 @@ class PSPAnalyzer(Analyzer):
         err_estimate = additional_data[neuron]['error_estimate']
 
         result = self.psp_fit(t, v_avg, err_estimate)
+        result['tau_1'], result['tau_2'] = sorted([result['tau_1'], result['tau_2']])
         result['v'] = v_avg
         result['n'] = cnt
         result['err_estimate'] = err_estimate
