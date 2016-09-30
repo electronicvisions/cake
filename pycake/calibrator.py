@@ -328,7 +328,7 @@ class I_gl_Calibrator(BaseCalibrator):
             return a*1/x + b*1/x**2
         try:
             fit_coeffs = curve_fit(func, xs, ys, [-82.6548e-6, 248.6586e-12])[0]
-            fit_coeffs = [fit_coeffs[1], fit_coeffs[1], 0]
+            fit_coeffs = [fit_coeffs[1], fit_coeffs[0], 0]
         except ValueError, e:
             self.logger.WARN("Could not fit results of I_gl because: {}".format(e))
             fit_coeffs = None
