@@ -78,10 +78,4 @@ doc = DocumentationJob(
     artifacts : [ "cake/doc/*.pdf" ]
 )
 
-hw = HardwareJob(
-    source : sw,
-    // TODO: install hw test script to bin/tools folder...
-    hwshell : 'bin/tools/run_test_calib.sh'
-)
-
 return "Done."
