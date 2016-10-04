@@ -472,7 +472,12 @@ class ADCFreq_Analyzer(Analyzer):
         pos = self._find_spikes_in_preout(trace['v'].values)
         n = len(pos)
         expected_t = np.arange(n) / bg_rate
-        adc_freq, _ = np.polyfit(expected_t, pos, 1)
+
+        try:
+            adc_freq, _ = np.polyfit(expected_t, pos, 1)
+        except RuntimeError as e:
+            raise RuntimeError("Cannot fit ADC frequency: {}. Is L1 OK?".format(e))
+
         if numpy.abs(self.IDEAL_FREQUENCY - adc_freq) > 1e6:
             raise RuntimeError("Found ADC frequency of {:.2f} MHz, "
                                "this is unlikely (expected ~{:.2f} "
