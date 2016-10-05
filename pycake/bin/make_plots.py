@@ -622,19 +622,19 @@ with LogError("problem with uncalibrated V_convoffi plots"):
         unit = r_v_convoffi.runner.get_single(name="V_convoffi")
         calibrator = unit.get_calibrator()
 
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1)
+
         for nrn in args.neuron_enum:
 
-            fig = plt.figure()
-            ax = fig.add_subplot(1, 1, 1)
             calibrator.plot_fit_for_neuron(C.NeuronOnHICANN(C.Enum(nrn)),ax)
             plt.ylim(0,0.4)
             plt.xlabel("V_convoffi [DAC] / 1023")
-            plt.legend()
 
-            plt.subplots_adjust(**margins)
+        plt.subplots_adjust(**margins)
 
-            plt.savefig(os.path.join(fig_dir,"V_convoffi_nrn_"+str(nrn)+".pdf"))
-            plt.savefig(os.path.join(fig_dir,"V_convoffi_nrn_"+str(nrn)+".png"))
+        plt.savefig(os.path.join(fig_dir,"V_convoffi_nrns.pdf"))
+        plt.savefig(os.path.join(fig_dir,"V_convoffi_nrns.png"))
 
 ## V_convoffx
 with LogError("problem with uncalibrated V_convoffx plots"):
@@ -646,19 +646,19 @@ with LogError("problem with uncalibrated V_convoffx plots"):
         unit = r_v_convoffx.runner.get_single(name="V_convoffx")
         calibrator = unit.get_calibrator()
 
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1)
+
         for nrn in args.neuron_enum:
 
-            fig = plt.figure()
-            ax = fig.add_subplot(1, 1, 1)
             calibrator.plot_fit_for_neuron(C.NeuronOnHICANN(C.Enum(nrn)),ax)
             plt.ylim(0,0.4)
             plt.xlabel("V_convoffx [DAC] / 1023")
-            plt.legend()
 
-            plt.subplots_adjust(**margins)
+        plt.subplots_adjust(**margins)
 
-            plt.savefig(os.path.join(fig_dir,"V_convoffx_nrn_"+str(nrn)+".pdf"))
-            plt.savefig(os.path.join(fig_dir,"V_convoffx_nrn_"+str(nrn)+".png"))
+        plt.savefig(os.path.join(fig_dir,"V_convoffx_nrns.pdf"))
+        plt.savefig(os.path.join(fig_dir,"V_convoffx_nrns.png"))
 
 ## defects
 
