@@ -26,6 +26,7 @@ class Experiment(object):
         self.analyzer = analyzer
         self.measurements = []
         self.results = []
+        self.fg_values = {}
         self.run_time = 0.0
 
     def run(self):
@@ -44,6 +45,13 @@ class Experiment(object):
     def save_traces(self):
         cls_name = type(self).__name__
         raise NotImplementedError("Not implemented in {}".format(cls_name))
+
+    def set_read_fg_values(self, parameters):
+        """
+        Read back the fg_values for the given parameters. This is only done
+        for the half of the parameters reachable by the active analog channel
+        """
+        self.fg_values = {p: {} for p in parameters}
 
     def get_measurement(self, i):
         try:
@@ -299,6 +307,34 @@ class Experiment(object):
             lines.append("| " + " | ".join(f) + " |")
         return "\n".join(lines)
 
+    def get_fg_values(self, numeric_index=False):
+        """
+        Return analog read floating gate values
+
+        Args:
+            numeric_index: [bool] don't use NeuronOnHICANN as index, but
+                           integers, this allows to use the data without HALbe
+
+        Returns:
+            pandas.DataFrame with MultiIndex 'step', 'block', 'neuron', the
+            columns are indexed by parameter name
+        """
+        fg_values = {}
+        for p in self.fg_values.keys():
+            values = pandas.concat(self.fg_values[p],
+                                  names=['step', 'shared block', 'neuron'])
+            values = values.reorder_levels(['neuron', 'shared block', 'step'])
+            if numeric_index:
+                values.index = pandas.MultiIndex.from_tuples(
+                    [(nrn.id().value(), blk.id().value(), step)
+                     for nrn, blk, step in values.index.values],
+                    names=values.index.names)
+            fg_values[p.name] = values
+        if fg_values:
+            return pandas.concat(fg_values, axis='columns')
+        else:
+            return pandas.DataFrame()
+
 
 class SequentialExperiment(Experiment):
     """ Takes a list of measurements and analyzers.
@@ -434,6 +470,8 @@ class IncrementalExperiment(SequentialExperiment):
             result = measurement.run_measurement(
                 self.analyzer, additional_data=self.initial_data,
                 configurator=configurator, disconnect=False)
+            for parameter, values in self.fg_values.iteritems():
+                values[i] = sthal.read_floating_gates(parameter)
             measurement.sthal = copy.deepcopy(measurement.sthal)
             self.append_measurement_and_result(measurement, result)
             yield False # No need to save, because we can't resume any way

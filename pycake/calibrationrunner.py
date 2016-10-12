@@ -53,6 +53,7 @@ class CalibrationUnit(object):
             # Store calibtic instance just for debugging
             experiment = self.get_experiment(calibitic)
             experiment.calibtic = calibitic
+            experiment.set_read_fg_values(self.config.get_read_fg_values())
         self.experiment = experiment
         self.set_storage_folder(storage_path)
         self.measure_time = -1.0

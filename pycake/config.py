@@ -29,6 +29,7 @@ DEFAULT_PARAMETERS = {
     "save_traces": False,
     "save_raw_traces": False,
     "save_after_each_measurement": True,
+    "read_fg_values": [],
 
     "PLL": 100e6,
     "speedup": "normal",
@@ -325,3 +326,6 @@ class Config(object):
 
     def get_worker_pool_tasks(self):
         return self.parameters['worker_pool_tasks']
+
+    def get_read_fg_values(self):
+        return self.parameters['read_fg_values']
