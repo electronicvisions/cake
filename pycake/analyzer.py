@@ -670,7 +670,6 @@ class PSPAnalyzer(Analyzer):
         err_estimate = additional_data[neuron]['error_estimate']
 
         result = self.psp_fit(t, v_avg, err_estimate)
-        result['tau_1'], result['tau_2'] = sorted([result['tau_1'], result['tau_2']])
         result['v'] = v_avg
         result['n'] = cnt
         result['err_estimate'] = err_estimate
@@ -696,7 +695,11 @@ class PSPAnalyzer(Analyzer):
                 p.name + "_stderr": p.stderr for p in fit_result.params.values()})
             result['report'] = fit_result.fit_report()
             result['chi2'] = fit_result.redchi
-            # result['psp_fit_result'] = fit_result
+            if result['tau_1'] > result['tau_2']:
+                result['tau_1'], result['tau_2'] = (
+                    result['tau_2'], result['tau_1'])
+                result['tau_1_stderr'], result['tau_2_stderr'] = (
+                    result['tau_2_stderr'], result['tau_1_stderr'])
             return result
         else:
             return {}
