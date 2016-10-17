@@ -47,15 +47,12 @@ class UpdateParameterUp(HICANNv4Configurator):
         pass
 
     def config(self, fpga_handle, handle, hicann):
-        for rows in self.rows:
-            self.programm_normal(handle, hicann, self.rows)
+        self.programm_normal(handle, hicann, self.rows)
 
 
 class UpdateParameterUpAndConfigure(UpdateParameterUp):
     def config(self, fpga_handle, handle, hicann):
-
-        for rows in self.rows:
-            self.programm_normal(handle, hicann, self.rows)
+        UpdateParameterUp.config(self, fpga_handle, handle, hicann)
 
         self.config_neuron_quads(handle, hicann)
         self.config_phase(handle, hicann)
@@ -393,7 +390,7 @@ class StHALContainer(object):
         self.write_config(configurator=UpdateAnalogOutputConfigurator())
 
     def send_spikes_to_all_neurons(self, spike_times, excitatory=True,
-                                   gmax_div=2, locking_freq=0.05e6):
+                                   gmax_div=2, gmax=0, weight=15, locking_freq=0.05e6):
         """Stimulates all neurons with the given spike train"""
         assert(locking_freq <= 5.0e6)
 
@@ -421,7 +418,8 @@ class StHALContainer(object):
 
             self.hicann.route(link.toOutputBufferOnHICANN(), driver)
             self.enable_synapse_line(
-                driver, stim_l1address, gmax_div, excitatory)
+                driver, stim_l1address, gmax_div=gmax_div, excitatory=excitatory,
+                gmax=gmax, weight=weight)
 
             self.hicann.layer1[link] = HICANN.GbitLink.TO_HICANN
 

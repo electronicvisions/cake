@@ -317,28 +317,28 @@ class I_pl_Experimentbuilder(BaseExperimentBuilder):
         return experiment
 
 class E_syn_Experimentbuilder(BaseExperimentBuilder):
-    EXCITATORY = None
+    IS_EXCITATORY = None
 
     def prepare_specific_config(self, sthal, parameters):
         sthal.simulation_init_time = 100.0e-6
         sthal.set_recording_time(10e-6, 10)
-        sthal.stimulateNeurons(5.0e6, 1, excitatory=self.EXCITATORY)
+        sthal.stimulateNeurons(5.0e6, 1, excitatory=self.IS_EXCITATORY)
         sthal.maximum_spikes = 1
         sthal.spike_counter_offset = 0.0
         return sthal
 
 
 class E_syni_Experimentbuilder(E_syn_Experimentbuilder):
-    EXCITATORY = False
+    IS_EXCITATORY = False
 
 
 class E_synx_Experimentbuilder(E_syn_Experimentbuilder):
-    EXCITATORY = True
+    IS_EXCITATORY = True
 
 
 class V_convoff_Experimentbuilder(BaseExperimentBuilder):
     ANALYZER = pycake.analyzer.MeanOfTraceAnalyzer
-    EXCITATORY = None
+    IS_EXCITATORY = None
     WITH_SPIKES = False
 
     def __init__(self, *args, **kwargs):
@@ -350,20 +350,35 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
 
     def prepare_specific_config(self, sthal, parameters):
         sthal.simulation_init_time = self.init_time
-        sthal.set_recording_time(self.recording_time, self.no_spikes)
-        if self.no_spikes > 1:
+
+        no_spikes = parameters.get('no_of_spikes', self.no_spikes)
+        recording_time = parameters.get('recording_time', self.recording_time)
+
+        sthal.set_recording_time(recording_time, no_spikes)
+        if no_spikes > 1:
             weight = parameters.get('synapse_weight', 15)
             gmax = parameters.get('gmax', 0)
             gmax_div = parameters.get('gmax_div', 4)
-            self.bg_rate = sthal.stimulateNeurons(
-                1.0/self.recording_time, 1,
-                excitatory=self.EXCITATORY, gmax_div=gmax_div,
-                gmax=gmax, weight=weight)
             mirror_drivers = parameters.get('mirror_drivers', None)
+            spike_generators = parameters.get('spike_generators', 1)
+            excitatory = parameters.get('excitatory', self.IS_EXCITATORY)
+
             if mirror_drivers is not None:
                 sthal.mirror_synapse_driver(
                     Coordinate.SynapseDriverOnHICANN(Coordinate.Enum(83)),
                     mirror_drivers)
+
+            self.bg_rate = sthal.stimulateNeurons(
+                1.0/recording_time, spike_generators,
+                excitatory=excitatory, gmax_div=gmax_div,
+                gmax=gmax, weight=weight)
+
+            #  The simulation, doesn't evaluate the background yet
+            if not sthal.is_hardware():
+                spike_times = [0.4/self.bg_rate]
+                sthal.send_spikes_to_all_neurons(
+                        spike_times, excitatory=True, gmax_div=gmax_div,
+                        gmax=gmax, weight=weight)
 
         return sthal
 
@@ -378,17 +393,27 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
     def get_experiment(self):
         """
         """
-        parameters = set(sum((s.keys() for s in self.config.get_steps()), []))
-        measurements, _ = self.generate_measurements()
 
-        configurator = UpdateParameterUp
-        if parameters & set(['synapse_weight', 'gmax', 'gmax_div']):
-             configurator = UpdateParameterUpAndConfigure
+        # Collect parameters from potentially nested configruation dicts
+        parameters = set()
+        for step in self.config.get_steps():
+            for k, v in step.iteritems():
+                if isinstance(v, dict):
+                    parameters |= set(v.keys())
+                else:
+                    parameters.add(k)
+
+        measurements, _ = self.generate_measurements()
 
         configurator_args = {
             'parameters': [p for p in parameters
                            if isinstance(p, (neuron_parameter, shared_parameter))]
         }
+
+        configurator = UpdateParameterUp
+        if any(not isinstance(p, (neuron_parameter, shared_parameter))
+               for p in parameters):
+             configurator = UpdateParameterUpAndConfigure
 
         experiment = IncrementalExperiment(
             measurements, self.get_analyzer(),
@@ -411,48 +436,56 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
             else:
                 experiment.initial_data.update(
                     {ADCFreq_Analyzer.KEY: ADCFreq_Analyzer.IDEAL_FREQUENCY})
+            experiment.initial_data['is_hardware'] = sthal.is_hardware()
         else:
             experiment.initial_data['spike_frequency'] = None
             experiment.initial_data['spike_interval'] = None
 
         # Add membrane noise measurement
-        if measurements[0].sthal.is_hardware():
-            measurement = copy.deepcopy(measurements[0])
-            measurement.sthal.hicann.clear_complete_l1_routing()
-            measurement.sthal.set_recording_time(self.recording_time, self.no_spikes)
-            for nrn in Coordinate.iter_all(Coordinate.NeuronOnHICANN):
-                measurement.sthal.hicann.floating_gates.setNeuron(
-                    nrn, neuron_parameter.V_syntci, 511)
-                measurement.sthal.hicann.floating_gates.setNeuron(
-                    nrn, neuron_parameter.V_syntcx, 511)
-                measurement.sthal.hicann.floating_gates.setNeuron(
-                    nrn, neuron_parameter.I_convi, 0)
-                measurement.sthal.hicann.floating_gates.setNeuron(
-                    nrn, neuron_parameter.I_convx, 0)
-            experiment.add_initial_measurement(
-                measurement, pycake.analyzer.PSPPrerunAnalyzer())
-        elif self.no_spikes > 1:
-            assert False
+        measurement = copy.deepcopy(measurements[0])
+        measurement.sthal.hicann.clear_complete_l1_routing()
+        measurement.sthal.set_recording_time(self.recording_time, self.no_spikes)
+        for nrn in Coordinate.iter_all(Coordinate.NeuronOnHICANN):
+            measurement.sthal.hicann.floating_gates.setNeuron(
+                nrn, neuron_parameter.V_syntci, 511)
+            measurement.sthal.hicann.floating_gates.setNeuron(
+                nrn, neuron_parameter.V_syntcx, 511)
+            measurement.sthal.hicann.floating_gates.setNeuron(
+                nrn, neuron_parameter.I_convi, 0)
+            measurement.sthal.hicann.floating_gates.setNeuron(
+                nrn, neuron_parameter.I_convx, 0)
+        experiment.add_initial_measurement(
+            measurement, pycake.analyzer.PSPPrerunAnalyzer())
 
         return experiment
 
 
 class V_convoffi_Experimentbuilder(V_convoff_Experimentbuilder):
-    EXCITATORY = False
+    IS_EXCITATORY = False
 
 
 class V_convoffi_S_Experimentbuilder(V_convoff_Experimentbuilder):
-    EXCITATORY = False
+    IS_EXCITATORY = False
     WITH_SPIKES = True
+    ANALYZER = pycake.analyzer.PSPAnalyzer
+
+    def get_analyzer(self):
+        "get analyzer"
+        return self.ANALYZER(self.IS_EXCITATORY)
 
 
 class V_convoffx_Experimentbuilder(V_convoff_Experimentbuilder):
-    EXCITATORY = True
+    IS_EXCITATORY = True
 
 
 class V_convoffx_S_Experimentbuilder(V_convoff_Experimentbuilder):
-    EXCITATORY = True
+    IS_EXCITATORY = True
     WITH_SPIKES = True
+    ANALYZER = pycake.analyzer.PSPAnalyzer
+
+    def get_analyzer(self):
+        "get analyzer"
+        return self.ANALYZER(self.IS_EXCITATORY)
 
 
 class V_convoff_test_Experimentbuilder(BaseExperimentBuilder):
@@ -468,27 +501,27 @@ V_convoff_test_uncalibrated_Experimentbuilder = V_convoff_test_Experimentbuilder
 V_convoff_test_calibrated_Experimentbuilder = V_convoff_test_Experimentbuilder
 
 class V_syntcx_Experimentbuilder(V_convoff_Experimentbuilder):
-    EXCITATORY = True
+    IS_EXCITATORY = True
     ANALYZER = pycake.analyzer.PSPAnalyzer
     WITH_SPIKES = True
 
     def get_analyzer(self):
         "get analyzer"
-        return self.ANALYZER(self.EXCITATORY)
+        return self.ANALYZER(self.IS_EXCITATORY)
 
 
 class V_syntci_Experimentbuilder(V_convoff_Experimentbuilder):
-    EXCITATORY = False
+    IS_EXCITATORY = False
     ANALYZER = pycake.analyzer.PSPAnalyzer
     WITH_SPIKES = True
 
     def get_analyzer(self):
         "get analyzer"
-        return self.ANALYZER(self.EXCITATORY)
+        return self.ANALYZER(self.IS_EXCITATORY)
 
 
 class Parrot_Experimentbuilder(BaseExperimentBuilder):
-    EXCITATORY = True
+    IS_EXCITATORY = True
 
     def __init__(self, *args, **kwargs):
         super(Parrot_Experimentbuilder, self).__init__(*args, **kwargs)
@@ -501,7 +534,7 @@ class Parrot_Experimentbuilder(BaseExperimentBuilder):
         gmax = parameters.get('gmax', 0)
         gmax_div = parameters.get('gmax_div', 2)
         sthal.stimulateNeurons(1.0/self.recording_time, 1,
-                               excitatory=self.EXCITATORY,
+                               excitatory=self.IS_EXCITATORY,
                                gmax_div=gmax_div,
                                gmax=gmax, weight=weight)
         for channel in Coordinate.iter_all(Coordinate.GbitLinkOnHICANN):

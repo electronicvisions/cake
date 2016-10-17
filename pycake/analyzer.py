@@ -3,7 +3,6 @@ import numpy as np
 np.seterr(all='raise')
 np.seterr(under='warn')
 import pylogging
-from scipy.stats import skew
 from scipy.integrate import simps
 from pycake.helpers.peakdetect import peakdet
 from pycake.logic.spikes import spikes_to_frequency
@@ -53,7 +52,7 @@ class MeanOfTraceAnalyzer(Analyzer):
     """
     def __call__(self, neuron, trace, **other):
         spike_counter = trace.get(NETS_AND_PINS.SpikeCounter, None)
-        spikes = -1.0 if spike_counter is None else spike_counter[-1]
+        spikes = -1.0 if spike_counter is None else spike_counter.iloc[-1]
         v = trace['v'].values
 
         if spikes > 0.0:
@@ -643,6 +642,7 @@ class PSPPrerunAnalyzer(MeanOfTraceAnalyzer):
             ret['error_estimate'] = numpy.std(v_avg)
         return ret
 
+
 class PSPAnalyzer(Analyzer):
     """Fit a PSP
        Time constants are returned sorted, i.e. tau_1 < tau_2.
@@ -664,9 +664,7 @@ class PSPAnalyzer(Analyzer):
             v_avg *= -1.0
 
         v_avg = self.align(v_avg)
-
         t = numpy.arange(len(v_avg)) / 96e6  # TODO
-
         err_estimate = additional_data[neuron]['error_estimate']
 
         result = self.psp_fit(t, v_avg, err_estimate)
