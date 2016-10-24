@@ -652,50 +652,48 @@ class V_syntcx_Calibrator(V_syntc_Calibrator):
 class I_pl_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.I_pl
 
-    def get_tau0(self, neuron):
-        """ Returns the mean of measured tau0s of all experiments
-        """
-        return np.mean([e.initial_data[neuron]['mean_reset_time'] for e in self.experiments])
-
 
     def generate_transformations(self):
         """ Takes averaged experiments and does the fits
         """
         transformations = {}
         trafo_type = self.get_trafo_type()
-
         for neuron in self.get_neurons():
             # Need to switch y and x in order to get the right fit
             # (y-axis: configured parameter, x-axis: measurement)
             ys_raw, xs_raw = self.get_merged_results(neuron)
             xs = self.prepare_x(xs_raw)
             ys = self.prepare_y(ys_raw)
-            tau0 = self.get_tau0(neuron)
-            # Extract function coefficients and domain from measured data
-            coeffs = self.do_fit(xs, ys, tau0)
-            if coeffs != None:
-                coeffs = coeffs[::-1] # coeffs are reversed in calibtic transformations
-                domain = [tau0, np.nanmax(xs)*1.1] # domain slightly larger than max value
+            # Extract function coefficients from measured data
+            coeffs = self.do_fit(xs, ys)
+
+            if coeffs is None:
+                self.logger.WARN("Fit failed for neuron {}".format(neuron))
+                transformations[neuron] = None
+            else:
+                coeffs = coeffs[::-1] #reverse order of coeffs bc. calibtic transformation has reverse order
+                #lower bound of domain is singular point of the fit function
+                x_0 = -coeffs[0]/coeffs[1]
+                lower_bound = x_0+1e-11 if x_0 > 0 else 0
+                #lower bound slightly larger than singular point. Upper bound is not really determined and
+                #thus set to a large value
+                domain = [lower_bound, 1e-4]
                 if self.is_defect(coeffs, domain):
                     transformations[neuron] = None
                 else:
                     transformations[neuron] = create_pycalibtic_transformation(coeffs, domain, trafo_type)
-            else:
-                self.logger.WARN("Fit failed for neuron {}".format(neuron))
-                transformations[neuron] = None
 
         return [(self.target_parameter, transformations)]
 
     def get_key(self):
         return 'tau_ref'
 
-    def do_fit(self, xs, ys, tau0):
+    def do_fit(self, xs, ys):
         """ Fits a curve to results of one neuron
-            For I_pl, the function is such that the minimum x always returns 1023 DAC
-            --> I_pl = 1/(a * x - a * min(x) + 1/1023.)
+            I_pl = 1/(a*x + b)
         """
-        def func(x, a):
-            return 1/(a*x - a*tau0 + 1/1023.)
+        def func(x, a, b):
+            return 1./(a*x + b)
         xs = xs[np.isfinite(xs)]
         ys = ys[np.isfinite(xs)]
 
@@ -704,8 +702,8 @@ class I_pl_Calibrator(BaseCalibrator):
         if ok == False:
             return None
         else:
-            fit_coeffs = curve_fit(func, xs, ys, [0.025e6])[0]
-            fit_coeffs = [fit_coeffs[0], 1/1023. - fit_coeffs[0] * tau0]
+            #starting values are taken from Schwartz ideal transformation
+            fit_coeffs = curve_fit(func, xs, ys, p0=[6.25e6/1023., 1/1023.])[0]
             return fit_coeffs
 
     def get_trafo_type(self):

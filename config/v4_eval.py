@@ -82,7 +82,10 @@ parameters = {
         for t in [10e-7, 5e-7, 2e-7]
     ],
 
-    "I_pl_range":   [{neuron_parameter.I_pl : Second(t, apply_calibration=True)} for t in [2e-7]],
+    "I_pl_range":   [
+        {neuron_parameter.I_pl : Second(t, apply_calibration=True)}
+        for t in [0.01e-6, 0.1e-6, 0.5e-6, 1e-6]
+    ],
 
     "I_gl_range": [{neuron_parameter.I_gl : Second(t, apply_calibration=True)} for t in [1e-6]],
 

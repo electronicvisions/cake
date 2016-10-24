@@ -440,6 +440,51 @@ class I_pl_Experiment(SequentialExperiment):
         tau_refracs = x - corrected_ISI0 + tau0
         return tau_refracs
 
+    def run_initial_measurements(self):
+        """Run preparation measurements.
+           The measurements are averaged over the number of repetitions.
+           The standard error is calculated from the std deviation of
+           the single measurements.
+        """
+
+        if self.initial_measurements:
+            self.logger.INFO("Running initial measurements.")
+            plogger.debug("Running initial measurements.")
+        for measurement, analyzer in self.initial_measurements:
+            if measurement.done:
+                self.logger.INFO("Initial measurement already done. "
+                                 "Going on with next one.")
+                continue
+            else:
+                t_start = time.time()
+                values_all = []
+
+                #get measurement results
+                for i in range(self.repetitions):
+                    result = measurement.run_measurement(
+                        analyzer, self.initial_data)
+                    values = [neuron_values.values() for neuron_values in result.itervalues()]
+                    values_all.append(values)
+                value_keys = result.values()[0].keys()
+                neuron_coords = result.keys()
+                values_all = numpy.array(values_all)
+
+                #get index of the standard deviation to find it in the values_all array
+                std_isi_idx = [i for i,j in enumerate(value_keys) if j == 'std_isi'][0]
+                #calculate variance from std deviation
+                values_all[:,:,std_isi_idx] = values_all[:,:,std_isi_idx]**2
+                #calculate mean of variance and other values
+                values_all_mean = numpy.mean(values_all,0)
+                #calculate standard error from mean variance
+                values_all_mean[:,std_isi_idx] = numpy.sqrt(values_all_mean[:,std_isi_idx]/self.repetitions)
+                #write the averaged values in the initial_values dictionary
+                mean_dict_all = []
+                for vals in values_all_mean:
+                    mean_dict = dict(zip(value_keys, vals))
+                    mean_dict_all.append(mean_dict)
+                self.initial_data.update(dict(zip(neuron_coords, mean_dict_all)))
+                self.run_time += time.time() - t_start
+
 # Compatibility for old pickels
 BaseExperiment = SequentialExperiment
 

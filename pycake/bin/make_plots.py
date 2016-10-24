@@ -133,6 +133,15 @@ def extract_range(reader, config_name, parameter, safety_min=0.1, safety_max=0.1
 
     return xmin, xmax
 
+def extract_range_y(reader, config_name, parameter, key, safety_min=0.1, safety_max=0.1):
+    """
+    extract the range of the measured data for the plots of the calibration
+    """
+    y = reader.get_results(parameter, reader.get_neurons(), key, repetition = None).values()
+    ymin = np.nanmin(y[y != 0]) - safety_min
+    ymax = np.nanmax(y) + safety_max
+    return ymin, ymax
+
 @contextlib.contextmanager
 def LogError(msg):
     """
@@ -163,6 +172,7 @@ def uncalibrated_hist(xlabel, reader, xscale="linear", yscale="linear", **reader
         reader.include_defects = include_defects
 
         fig, hists = reader.plot_hists(**reader_kwargs)
+        plt.legend().set_visible(False)
         plt.title("uncalibrated", x=0.125, y=0.9)
         plt.xlabel(xlabel)
         plt.ylabel("#")
@@ -188,13 +198,16 @@ def uncalibrated_hist(xlabel, reader, xscale="linear", yscale="linear", **reader
         #--------------------------------------------------------------------------------
 
         logger.INFO("... vs neuron number")
+        plt.legend().set_visible(True)
 
         fig, foos = reader.plot_vs_neuron_number_s(**reader_kwargs)
         plt.title("uncalibrated", x=0.125, y=0.9)
         plt.xlabel("Neuron")
         plt.ylabel(xlabel)
         plt.xlim(0, 512)
+        plt.ylim(*reader_kwargs['range'])
         plt.subplots_adjust(**margins)
+        plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
 
         defects_string = "with_defects" if include_defects else "without_defects"
 
@@ -241,6 +254,7 @@ def calibrated_hist(xlabel, reader, xscale="linear", yscale="linear", **reader_k
         reader.include_defects = include_defects
 
         fig, hists = reader.plot_hists(**reader_kwargs)
+        plt.legend(loc = 'best')
         plt.title("calibrated", x=0.125, y=0.9)
         plt.xlabel(xlabel)
         plt.ylabel("#")
@@ -265,12 +279,15 @@ def calibrated_hist(xlabel, reader, xscale="linear", yscale="linear", **reader_k
 
         # --------------------------------------------------------------------------------
 
+        logger.INFO("... vs neuron number")
+
         fig, foos = reader.plot_vs_neuron_number_s(**reader_kwargs)
         plt.title("calibrated", x=0.125, y=0.9)
         plt.xlabel("Neuron")
         plt.ylabel(xlabel)
         plt.xlim(0,512)
         plt.subplots_adjust(**margins)
+        plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
 
         defects_string = "with_defects" if include_defects else "without_defects"
 
@@ -283,6 +300,8 @@ def calibrated_hist(xlabel, reader, xscale="linear", yscale="linear", **reader_k
                                                     "calibrated_vs_neuron_number.png"])))
 
         #--------------------------------------------------------------------------------
+
+        logger.INFO("... vs shared FG block")
 
         fig, foos = reader.plot_vs_neuron_number_s(sort_by_shared_FG_block=True, **reader_kwargs)
         plt.title("calibrated", x=0.125, y=0.9)
@@ -366,6 +385,7 @@ def result(label, xlabel=None, ylabel=None, reader=None, suffix="",
             "{inout}", "(out) {}".format(out_unit_label)))
 
         plt.subplots_adjust(**margins)
+        plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
 
         if xlim:
             plt.xlim(*xlim)
@@ -1066,11 +1086,7 @@ try:
     r_tau_ref = reader if args.tau_ref_runner == None else Reader(args.tau_ref_runner)
 
     if r_tau_ref:
-
-        xmin, xmax = extract_range(r_tau_ref, "I_pl", pyhalbe.HICANN.neuron_parameter.I_pl, safety_min=0, safety_max=0)
-
-        xmin /= 10
-        xmax *= 10
+        xmin, xmax = extract_range_y(r_tau_ref, "I_pl", pyhalbe.HICANN.neuron_parameter.I_pl.name, "tau_ref",  safety_min=0, safety_max=0)
 
         uncalibrated_hist(r"$\tau_{ref}$ [s]",
                           r_tau_ref,

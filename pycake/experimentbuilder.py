@@ -270,8 +270,8 @@ class I_pl_Experimentbuilder(BaseExperimentBuilder):
     def prepare_specific_config(self, sthal, parameters):
         I_pl_DAC = sthal.hicann.floating_gates.getNeuron(Coordinate.NeuronOnHICANN(Enum(0)), neuron_parameter.I_pl)
         expected_ISI = self.calibtic.ideal_nc.at(0).from_dac(I_pl_DAC, neuron_parameter.I_pl)
-        expected_ISI += 1e-8 # estimate 1e-8 as minimum ISI
-
+        # estimate 1e-6 as minimum ISI, to get long enough measurement times for approx 10 spikes at large t_ref values
+        expected_ISI += 1e-6
         # Record at least 50 but not more than 5000 microseconds
         # If errors occur during calibration, these values need to be tuned
         sthal.recording_time = max(50e-6, min([expected_ISI * 70, 5e-4]))
@@ -292,8 +292,9 @@ class I_pl_Experimentbuilder(BaseExperimentBuilder):
         return experiment
 
     def add_additional_measurements(self, experiment):
-        """ Add the initial measurement to I_gl experiment.
-            This measurement determines the ADC frequency needed for the TraceAverager
+        """ Add the initial measurement to I_pl experiment.
+            The ISI is measured at DAC = 1023 to subtract it from the
+            other ISIs to get t_ref = ISI[I_pl] - ISI_0
         """
         coord_wafer, coord_hicann = self.config.get_coordinates()
         steps = self.config.get_steps()

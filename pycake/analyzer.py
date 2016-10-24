@@ -4,6 +4,7 @@ np.seterr(all='raise')
 np.seterr(under='warn')
 import pylogging
 from scipy.integrate import simps
+from scipy.signal import savgol_filter
 from pycake.helpers.peakdetect import peakdet
 from pycake.logic.spikes import spikes_to_frequency
 from pycake.logic.exponential_fit import fit_exponential, get_decay_fit_range, failed_dict
@@ -125,7 +126,7 @@ class PeakAnalyzer(Analyzer):
         return results
 
     def get_peaks(self, t, v):
-        delta = np.std(v)
+        delta = np.std(v) #this determines how noise is distinguished from real peaks
         return peakdet(v, delta)
 
     def get_slopes(self, t, v, maxtab, mintab):
@@ -410,32 +411,47 @@ class ISI_Analyzer(Analyzer):
     Refractory time is measured as difference between ISI with and without refractory
     period.
 
-    Please note that mean_reset_time only gives valid results if refractory period is very small
     """
 
     def __call__(self, neuron, trace, **others):
         t = trace.index.values
         v = trace['v'].values
-        delta = np.std(v)
+        #savgol filter smoothes the trace, filters noise spikes
+        #more smoothing <=> larger window_length or smaller polyorder
+        v = savgol_filter(v,3,1)
+
+        #delta has to be larger than average fluctuations, such that noise is not detected as peak
+        #but should be smaller than distance between max and min. Heuristic factor of 0.16
+        delta = 0.16*(np.max(v)+np.min(v))
         maxtab, mintab = peakdet(v, delta)
+        loopcount = 0
+        maxloops = 1
+        #if delta is set too high, no maxima will be detected. This loop can correct for that
+        while (len(maxtab) < 2  and loopcount < maxloops):
+            self.logger.WARN('Did not find a maximum at run ' + str(loopcount))
+            self.logger.WARN('Retrying with smaller delta for neuron "{}"'.format(neuron))
+            loopcount += 1
+            delta /= 2.
+            maxtab, mintab = peakdet(v, delta)
 
-        max_idx = maxtab[:, 0].astype(int)  # indices of maxima
-        spike_times = t[max_idx]
-        isi = np.diff(spike_times)
-        mean_isi = np.mean(isi)
-        std_isi = np.std(isi)
-        mean_max = np.mean(maxtab[:, 1])
-        mean_min = np.mean(mintab[:, 1])
-        amplitude = mean_max - mean_min
-
-        dt = np.mean(t[1:] - t[:-1])
-        l = len(mintab)
-        mean_reset_time = abs(np.mean(mintab[:, 0][:l] - maxtab[:, 0][:l]) * dt)
+        if loopcount < maxloops:
+            max_idx = maxtab[:, 0].astype(int)  # indices of maxima
+            spike_times = t[max_idx]
+            isi = np.diff(spike_times)
+            mean_isi = np.mean(isi)
+            std_isi = np.std(isi)
+            mean_max = np.mean(maxtab[:, 1])
+            mean_min = np.mean(mintab[:, 1])
+            amplitude = mean_max - mean_min
+        else:
+            self.logger.WARN( 'Did not find a maximum for neuron "{}". Returning NaN.'.format(neuron))
+            mean_isi = np.nan
+            std_isi = np.nan
+            amplitude = np.nan
 
         return {"mean_isi": mean_isi,
                 "std_isi": std_isi,
                 "amplitude": amplitude,
-                "mean_reset_time": mean_reset_time
                 }
 
 
@@ -507,56 +523,29 @@ class I_pl_Analyzer(ISI_Analyzer):
 
     Neuron is set to constant-spiking state with constant refractory period.
     Afterwards, neuron is set to constant-spiking state without refractory
-    period.
+    period( = DAC value of 1023, shortest possible ISI).
 
     Refractory time is measured as difference between ISI with and without refractory
     period.
 
-    Please note that mean_reset_time only gives valid results if refractory period is very small
     """
 
     def __call__(self, neuron, trace, additional_data, **other):
-        t = trace.index.values
-        v = trace["v"].values
-        delta = np.std(v)
-        maxtab, mintab = peakdet(v, delta)
-
-        max_idx = maxtab[:, 0].astype(int)  # indices of maxima
-        spike_times = t[max_idx]
-        isi = np.diff(spike_times)
-        mean_isi = np.mean(isi)
-        std_isi = np.std(isi)
-        mean_max = np.mean(maxtab[:, 1])
-        mean_min = np.mean(mintab[:, 1])
-        amplitude = mean_max - mean_min
-
-        dt = np.mean(t[1:] - t[:-1])
-        l = len(mintab)
-        mean_reset_time = abs(np.mean(mintab[:, 0][:l] - maxtab[:, 0][:l]) * dt)
-
-        result = {
-            "mean_isi": mean_isi,
-            "std_isi": std_isi,
-            "amplitude": amplitude,
-            "mean_reset_time": mean_reset_time
-        }
-
-        result['tau_ref'] = self.calculate_tau_ref(
-            result,
-            additional_data[neuron]['mean_isi'],
-            additional_data[neuron]['mean_reset_time'],
-            additional_data[neuron]['amplitude'])
+        result = super(I_pl_Analyzer, self).__call__(neuron, trace, **other)
+        if additional_data:
+            result['tau_ref'] = self.calculate_tau_ref(
+                result,
+                additional_data[neuron]['mean_isi'])
         return result
 
-    def calculate_tau_ref(self, result, ISI0, tau0, amp0):
+    def calculate_tau_ref(self, result, ISI0):
         """ Calculates tau ref depending on the given initial result
             where I_pl was 1023 DAC.
         """
-        corrected_ISI0 = ISI0 * result['amplitude']/amp0
-        tau_ref = result['mean_isi'] - corrected_ISI0 + tau0
+        tau_ref = result['mean_isi'] - ISI0
         if tau_ref < 0:
-            self.logger.WARN("calculated tau_ref smaller than zero. Returning nan")
-            return np.nan
+            self.logger.WARN("calculated tau_ref smaller than zero. Returning 0")
+            return 0
         return tau_ref
 
 

@@ -33,7 +33,7 @@ parameters = {
         neuron_parameter.V_t.name,
         neuron_parameter.E_syni.name,
         # neuron_parameter.E_synx.name, # https://brainscales-r.kip.uni-heidelberg.de/issues/1929
-        # neuron_parameter.I_pl,
+        neuron_parameter.I_pl.name,
         neuron_parameter.E_l.name,
         neuron_parameter.V_convoffx.name,
         neuron_parameter.V_convoffi.name,
@@ -217,11 +217,12 @@ parameters = {
         "gmax_div": 30,
     },
 
-    # values between 10 and 100 can be used, 2500 is for zero refractory time
+    # values between 10 and 100 are suitable
+    # [10,15,20,30,40,60,80] is a good set for calib
     "I_pl_range":   [
         {
-            neuron_parameter.I_pl : Ampere(1e-9*I)
-        } for I in [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 2500]
+            neuron_parameter.I_pl : DAC(d)
+        } for d in [10, 15, 20, 30, 40, 60, 80]
     ],
 
     "I_pl_parameters": {
