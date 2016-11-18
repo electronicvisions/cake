@@ -545,110 +545,147 @@ class V_syntc_Calibrator(BaseCalibrator):
         self.experiment = experiment
         self.offset_tol = 0.025
         self.chi2_tol = 30
-        self.residual_tol = 4.0e-8
+        self.residual_tol = 0.05
         self.signal_to_noise_tol = 2.0
         self.calib_feature = calib_feature
+        self.fits = {}  # Cache for fit results
+        self.calibrations = {}  # Cache for calibration
+
+        #  Softplus function to fit to the logarithm of the time constants
+        self.model = models.ExpressionModel(
+            'a * log(1 + exp(c * (b - x))) / c + offset')
+        self.model.set_param_hint('a', value=0.3)
+        self.model.set_param_hint('b', value=0)
+        self.model.set_param_hint('c', value=0.01)
+        self.model.set_param_hint('offset', value=-16)
 
     def get_mask(self, data):
-        upper_threshold = data['offset'].min() + self.offset_tol
-        return ((data['offset'] <= upper_threshold) &
-                (data['chi2'] <= self.chi2_tol) &
-                (data['signal_to_noise'] >= self.signal_to_noise_tol))
+        """
+        Applies the limits given by self.offset_tol, self.chi2_tol and
+        self.signal_to_noise_tol to the data
+
+        Arguments:
+            data: pandas.DataFrame as obtained by self.get_data()
+
+        Returns:
+            pandas.Series with boolean flags, True marks good data points
+        """
+        def threshold(data):
+            "Find values that are to high"
+            return data['offset'] < (data['offset'].min() + self.offset_tol)
+
+        return (
+            (data.groupby(level='neuron', group_keys=False).apply(threshold)) &
+            (data['chi2'] <= self.chi2_tol) &
+            (data['signal_to_noise'] >= self.signal_to_noise_tol))
 
     def get_data(self):
+        """
+        Retrieve data for the fit. Adds x, y and mask columns for the fit
+
+        Returns:
+            pandas.DataFrame
+        """
         data = self.experiment.get_all_data(
             (self.target_parameter, ),
-            ('v', 'tau_1', 'tau_2', 'start', 'offset',
-             'chi2', 'signal_to_noise'))
-        data.rename(columns={self.target_parameter.name: 'target_parameter'},
-                    inplace=True)
+            ('v', self.calib_feature, 'start',
+             'offset', 'chi2', 'signal_to_noise'))
+        data['x'] = data[self.target_parameter.name]
+        data['y'] = data[self.calib_feature]
+        data['mask'] = self.get_mask(data)
         return data
 
-    def approximate_with_fit(self, nrn_data):
-        mask = self.get_mask(nrn_data)
-        data = nrn_data[mask]
+    def approximate_with_fit(self, nrn, nrn_data):
+        data = nrn_data[nrn_data['mask']].dropna()
 
-        target_parameter_values = data['target_parameter'].astype(numpy.int).values
+        if len(data) < 6:
+            self.logger.WARN(
+                "Fit for {} failed: Not enough valid data points: {}".format(nrn, len(data)))
+            return
 
-        x = data['target_parameter'] / 1023.0
-        y0 = data[self.calib_feature].min()
-        y_range = data[self.calib_feature].max()
-        y = data[self.calib_feature] / y_range
-        y0 /= y_range
+        x = data['x']
+        y = numpy.log(data['y'])
 
-        if len(x.values) < 7:
+        p = self.model.make_params()
+        p['offset'].set(value=y.min())
+
+        try:
+            result = self.model.fit(y, p, x=x)
+        except (FloatingPointError, ValueError) as e:
+            self.logger.WARN(
+                "Fit for {} failed: {}".format(nrn, e))
+            return None
+
+        if not result.success:
+            self.logger.WARN(
+                "Fit for {} failed: {}".format(nrn, result.message))
+            return None
+
+        # Exp creates to large numbers for for some fits, put in NaNs and drop
+        # them.
+        with numpy.errstate(over='ignore'):
+            xi = numpy.arange(1024)
+            fitted = pandas.Series(
+                    numpy.exp(self.model.eval(result.params, x=xi)), index=xi)
+            fitted.dropna(inplace=True)
+
+        # The domain encodes the value range for which we have valid input data
+        domain = (fitted.loc[x[0]], fitted.loc[x[-1]])
+
+        return fitted, domain, result
+
+    def make_trafo(self, nrn, fit_result):
+        if fit_result is None:
+            return None
+        fitted, domain, result = fit_result
+        if result.redchi >= self.residual_tol:
+            self.logger.WARN(
+                "Failed to create Lookup transformation for {}: residuals to large: {}".format(nrn, result.redchi))
+            return None
+
+        # `pycalibtic.Lookup` requires consecutive x values.
+        # This could be a problem due to `fitted.dropna()` above.
+        if not numpy.all(numpy.diff(fitted.index.values) == 1):
+            wrong = numpy.nonzero(numpy.diff(fitted.index.values) != 1)[0]
+            # provide some context
+            wrong = numpy.sort(numpy.concatenate((wrong - 1, wrong, wrong + 1)))
+            wrong = wrong[wrong >= 0]
+            self.logger.WARN(
+                "Failed to create Lookup transformation for {}:\n"
+                "non-consecutive x values after fit:\n".format(
+                    nrn, fitted.iloc[wrong]))
             return None
 
         try:
-            model, result = self.fit_model(x, y - y0)
-        except FloatingPointError:
-            return None
-
-        x0, x1 = vsyntc[[0, -1]]
-        xi = numpy.arange(int(x0), int(x1) + 1)
-        yi = (model.eval(params=result.params, x=(xi / 1023.0)) + y0) * y_range
-
-        diff = yi[target_parameter_values - xi[0]] - data[self.calib_feature]
-        res = numpy.sqrt(numpy.sum(diff**2)) / len(target_parameter_values)
-
-        if res >= self.residual_tol:
-            return None
-
-        try:
-            lookup = pycalibtic.Lookup(yi, xi[0])
+            lookup = pycalibtic.Lookup(fitted.values, fitted.index.values[0])
+            lookup.setDomain(*domain)
         except RuntimeError as e:
             self.logger.WARN(
-                "Failed to create Lookup transformation: {}".format(e))
+                "Failed to create Lookup transformation for {}: {}".format(nrn, e))
             return None
 
-        lookup.setDomain(yi[-1], yi[target_parameter_values[0] - xi[0]])
-
-        return res, xi, yi
-
-    @staticmethod
-    def fit_model(x, y, epsilon=1e-6):
-        model = models.ExpressionModel('1 /(a * x + b)**d + c')
-        model.set_param_hint('a', min=epsilon)
-        model.set_param_hint('b', min=epsilon)
-        model.set_param_hint('d', min=epsilon)
-        params = model.make_params(a=1.0, b=0.0, c=0.0, d=1.0)
-        result = model.fit(y, x=x, params=params)
-        return model, result
-
-    def make_trafo(self, fit_result):
-        if fit_result:
-            res, xi, yi = fit_result
-            if res < self.residual_tol:
-                try:
-                    return pycalibtic.Lookup(yi, xi[0])
-                except RuntimeError:
-                    pass
-        return None
+        return lookup
 
     def generate_transformations(self):
         data = self.get_data()
-        fits = {}
-        errors = {}
         for nrn, nrn_data in data.groupby(level='neuron'):
-            nrn_data = nrn_data.dropna()
-            nrn_fit = self.approximate_with_fit(nrn_data)
-            if nrn_fit is None:
-                errors[nrn] = "Fit failed"
-            trafo = self.make_trafo(nrn_fit)
-            if trafo is None and nrn_fit is not None:
-                errors[nrn] = "Trafo failed"
-            fits[nrn] = trafo
-        return [(self.target_parameter, fits)]
+            self.fits[nrn] = self.approximate_with_fit(nrn, nrn_data)
+            self.calibrations[nrn] = self.make_trafo(nrn, self.fits[nrn])
+        return [(self.target_parameter, self.calibrations)]
 
 
 class V_syntci_Calibrator(V_syntc_Calibrator):
     target_parameter = neuron_parameter.V_syntci
 
     def get_mask(self, data):
-        lower_threshold = data['offset'].max() - self.offset_tol
-        return ((data['offset'] >= lower_threshold) &
-                (data['chi2'] <= self.chi2_tol) &
-                (data['signal_to_noise'] >= self.signal_to_noise_tol))
+        def threshold(data):
+            "Find values that are to high"
+            return data['offset'] >= (data['offset'].max() - self.offset_tol)
+
+        return (
+            (data.groupby(level='neuron', group_keys=False).apply(threshold)) &
+            (data['chi2'] <= self.chi2_tol) &
+            (data['signal_to_noise'] >= self.signal_to_noise_tol))
 
 
 class V_syntcx_Calibrator(V_syntc_Calibrator):
@@ -661,7 +698,17 @@ class I_gl_PSP_Calibrator(V_syntc_Calibrator):
     def __init__(self, experiment, config=None):
         super(I_gl_PSP_Calibrator, self).__init__(experiment, config, calib_feature='tau_2')
         self.offset_tol = 1
-        self.residual_tol = 1e-7
+        self.residual_tol = 0.05
+
+    def approximate_with_fit(self, nrn, nrn_data):
+        tmp = V_syntc_Calibrator.approximate_with_fit(self, nrn, nrn_data)
+        if tmp is not None:
+            fitted, domain, result = tmp
+            # TODO: domain: set save minimum value for I_gl
+            return fitted, domain, result
+        else:
+            return None
+
 
 class I_pl_Calibrator(BaseCalibrator):
     target_parameter = neuron_parameter.I_pl
