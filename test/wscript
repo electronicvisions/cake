@@ -35,3 +35,12 @@ def build(bld):
         pythonpath=['..'],
         install_path=os.path.join('bin', 'tests', 'cake')
     )
+
+    datadir = os.path.abspath(os.path.join(bld.options.prefix, 'share'))
+    datadirsrc = bld.path.find_dir('share')
+    bld.install_files(
+        datadir,
+        files=datadirsrc.ant_glob('**/*'),
+        cwd=datadirsrc,
+        relative_trick=True,
+    )

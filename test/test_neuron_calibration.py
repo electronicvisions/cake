@@ -29,7 +29,7 @@ class TestNeuronCalibration(unittest.TestCase):
             "c_hicann": Coordinate.HICANNOnWafer(Enum(280)),
             "c_nrn": Coordinate.NeuronOnHICANN(Enum(23)),
             "hw_vreset": 0.5,  # 500mV
-            "xmlbackendpath": "/wang/data/calibration/fake/"  # use fake data
+            "xmlbackendpath": "share/cake/fake_calib/"  # use fake data
         }
 
     def test_apply_calibration(self):
