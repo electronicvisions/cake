@@ -234,6 +234,8 @@ parameters = {
         shared_parameter.V_reset:    Volt(0.5, apply_calibration=True),
     },
 
+    "I_pl_repetitions": 4,
+
     # I_gl
     "I_gl_range": [
         {

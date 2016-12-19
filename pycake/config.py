@@ -253,7 +253,10 @@ class Config(object):
     def get_repetitions(self):
         """ Returns the number of repetitions as an int.
         """
-        return self.parameters["repetitions"]
+        try:
+            return self.get_config("repetitions")
+        except KeyError:
+            return self.parameters["repetitions"]
 
     def get_save_traces(self):
         """ Returns wheter or not traces should be saved.
