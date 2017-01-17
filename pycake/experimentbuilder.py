@@ -123,6 +123,7 @@ class BaseExperimentBuilder(object):
         # cap
         s_bigcap = step_parameters.get("bigcap", self.config.get_bigcap())
         self.logger.DEBUG("Setting bigcap to {}".format(s_bigcap))
+        hicann.use_big_capacitors(s_bigcap)
 
         # I_gl
         s_I_gl = step_parameters.get("speedup_I_gl", self.config.get_speedup_I_gl())
