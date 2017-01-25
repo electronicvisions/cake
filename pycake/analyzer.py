@@ -9,8 +9,6 @@ from pycake.helpers.peakdetect import peakdet
 from pycake.logic.spikes import spikes_to_frequency
 from pycake.logic.exponential_fit import fit_exponential, get_decay_fit_range, failed_dict
 from pycake.helpers.TraceAverager import TraceAverager
-from pycake.helpers.psp_shapes import DoubleExponentialPSP
-from pycake.helpers import psp_fit
 from pycake.helpers import psp_model
 
 try:
