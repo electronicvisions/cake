@@ -114,14 +114,6 @@ class BaseCalibrator(object):
         """
         return None
 
-    def dac_to_si(self, dac, parameter):
-        """ Transforms dac value to mV or nA, depending on input parameter
-        """
-        if self.target_parameter.name[0] == 'I':
-            return dac * 2500/1023.
-        else:
-            return dac * 1.8/1023.
-
     def prepare_x(self, x):
         """ Prepares x values for fit
             This should be the raw measured hardware data
