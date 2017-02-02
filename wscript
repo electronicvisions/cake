@@ -16,6 +16,8 @@ def depends(ctx):
     if ctx.options.with_sim:
         ctx('cd-denmem-teststand')
 
+    ctx.recurse('test')
+
 
 def options(opt):
     opt.load('post_task')

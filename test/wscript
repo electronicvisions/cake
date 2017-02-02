@@ -7,7 +7,7 @@ import os
 
 
 def depends(ctx):
-    pass
+    ctx('euter', 'pycellparameters')
 
 
 def options(opt):
@@ -31,7 +31,8 @@ def build(bld):
         features='pytest post_task',
         use=['pycalibtic', 'calibtic_xml',
              'pyredman', 'redman_xml',
-             'pyhalbe_tests', 'pysthal_tests', 'sim_denmem_ts'],
+             'pyhalbe_tests', 'pysthal_tests', 'sim_denmem_ts',
+             'pycellparameters'],
         pythonpath=['..'],
         install_path=os.path.join('bin', 'tests', 'cake')
     )

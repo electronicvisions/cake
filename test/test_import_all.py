@@ -8,6 +8,7 @@ Generate a list running
 $ tree pycake -P '*.py'
 """
 
+import unittest
 import pycake
 
 # base modules
@@ -52,3 +53,13 @@ import pycake.logic.utils
 # visualization submodule
 import pycake.visualization
 import pycake.visualization.plotting
+
+
+class TestImport(unittest.TestCase):
+    def test_nothing(self):
+        """Do nothing, this just exists to get rid of a
+        'no tests executed' message.
+        Maybe all imports should move in here, because this file
+        tests if everything can be imported without errors.
+        """
+        pass
