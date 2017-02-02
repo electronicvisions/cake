@@ -46,6 +46,10 @@ class Reader(object):
         return self.runner.to_run
 
     def get_calibration_unit(self, name, recurrence=0):
+        """A calibration unit can occur several times in the configuration, for
+        example if previous calibrations affect the precision. The second result for
+        identical name can be obtained by recurrence=1 and so on.
+        """
 
         key = (name, recurrence)
         try:
