@@ -774,6 +774,9 @@ class I_pl_Calibrator(BaseCalibrator):
         return pycalibtic.OneOverPolynomial
 
 class readout_shift_Calibrator(BaseCalibrator):
+    """
+    Determine per-denmem readout buffer offset from average interconnected resting potential
+    """
     target_parameter = 'readout_shift'
 
     def __init__(self, experiments, config):
@@ -782,14 +785,20 @@ class readout_shift_Calibrator(BaseCalibrator):
     def generate_transformations(self):
         """
         """
-        results = self.experiments[0].results[0]
-        neuron_size = self.experiments[0].measurements[0].sthal.get_neuron_size()
+
+        experiment = self.experiments[0]
+        for measurement in experiment.measurements:
+            neuron_size = measurement.sthal.get_neuron_size()
         if neuron_size < 64:
             self.logger.WARN("Neuron size is smaller than 64. 64 is required for readout shift measurement")
-        readout_shifts = self.get_readout_shifts(results, neuron_size)
+
+        readout_shifts = self.get_readout_shifts(experiment.results, neuron_size)
         return [('readout_shift', readout_shifts)]
 
     def get_neuron_block(self, block_id, size):
+        # FIXME replace by LogicalNeuron coordinate
+        # from pymarocco_coordinates import LogicalNeuron
+        # will be part of halco later
         if block_id * size > 512:
             raise ValueError, "There are only {} blocks of size {}".format(512/size, size)
         nids_top = np.arange(size/2*block_id,size/2*block_id+size/2)
@@ -800,17 +809,25 @@ class readout_shift_Calibrator(BaseCalibrator):
 
     def get_readout_shifts(self, results, neuron_size):
         """
+        results: list of repetitions, each containing {neuron_coord: {resultkey}} (e.g. 'mean')
+        neuron_size: number of interconnected denmems
         """
         trafo_type = self.get_trafo_type()
         n_blocks = 512/neuron_size # no. of interconnected neurons
         readout_shifts = {}
         for block_id in range(n_blocks):
             neurons_in_block = self.get_neuron_block(block_id, neuron_size)
-            V_rests_in_block = np.array([results[neuron]['mean'] for neuron in neurons_in_block])
-            mean_V_rest_over_block = np.mean(V_rests_in_block)
+            V_rests_in_block = []
+            for repetition in results:
+                V_rests_in_block.append(np.array([repetition[neuron]['mean'] for neuron in neurons_in_block]))
+
+            # average over all repetitions
+            mean_V_rest_over_block = np.mean(np.concatenate(V_rests_in_block))
+
             for neuron in neurons_in_block:
                 # For compatibility purposes, domain should be None
-                shift = float(results[neuron]['mean'] - mean_V_rest_over_block)
+                neuron_mean = np.mean([repetition[neuron]['mean'] for repetition in results])
+                shift = float(neuron_mean - mean_V_rest_over_block)
                 trafo = create_pycalibtic_transformation([shift], None, trafo_type)
                 readout_shifts[neuron] = trafo
         return readout_shifts
