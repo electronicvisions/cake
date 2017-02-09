@@ -789,8 +789,8 @@ class readout_shift_Calibrator(BaseCalibrator):
         experiment = self.experiments[0]
         for measurement in experiment.measurements:
             neuron_size = measurement.sthal.get_neuron_size()
-        if neuron_size < 64:
-            self.logger.WARN("Neuron size is smaller than 64. 64 is required for readout shift measurement")
+            if neuron_size != 64:
+                raise ValueError("Neuron size is smaller than 64. 64 is required for readout shift measurement")
 
         readout_shifts = self.get_readout_shifts(experiment.results, neuron_size)
         return [('readout_shift', readout_shifts)]
