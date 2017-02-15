@@ -399,7 +399,7 @@ class CalibrationRunner(object):
         filename = os.path.join(self.storage_folder, self.filename)
         self.logger.INFO("Save calibration runner '{}'".format(
             self.storage_folder))
-        progress.info("Save calibration runnter to {}".format(
+        progress.info("Save calibration runner to {}".format(
             filename))
         storage.save_object(filename, self)
 
