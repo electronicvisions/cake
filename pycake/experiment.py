@@ -25,7 +25,7 @@ class Experiment(object):
     def __init__(self, analyzer):
         self.analyzer = analyzer
         self.measurements = []
-        self.results = []
+        self.results = pandas.DataFrame()
         self.fg_values = {}
         self.run_time = 0.0
 
@@ -59,19 +59,6 @@ class Experiment(object):
         except IndexError:
             return None
 
-    def get_result_keys(self):
-        """
-        Iterates over all results and collects all available keys
-
-        Return:
-            list: Containing all keys
-        """
-        results = set()
-        for step_results in self.results:
-            for result in step_results.itervalues():
-                results |= set(result.keys())
-        return sorted(results)
-
     def get_parameter_names(self):
         """
         Iterates over all measurments (including incompleted) and returns a
@@ -95,133 +82,139 @@ class Experiment(object):
         return parameters + sorted(step_parameters)
 
     def append_measurement_and_result(self, measurement, result):
+        step = len(self.measurements)
         self.measurements.append(measurement)
-        self.results.append(result)
+        self.results = pandas.concat([self.results,
+            self.convert_to_dataframe(measurement, result, step)])
 
     def clear_measurements_and_results(self):
         self.measurements[:] = []
-        self.results[:] = []
+        self.results = pandas.DataFrame()
 
-    def get_parameters_and_results(self, neuron, parameters, result_keys):
-        """ Read out parameters and result for the given neuron.
-        Shared parameters are read from the corresponding FGBlock.
-        If any of the given keys could not be obtained from a measurement,
-        this measurement is ignored.
+    def convert_to_dataframe(self, measurement, result, step):
+        """
+        collects all parameters of 'measurement' and all results from 'result' to
+        create a DataFrame.
 
         Args:
-            neuron: parameters matching this neuron
-            parameter: [list] parameters to read (neuron_parameter or
-                       shared_parameter)
-            result_keys: [list] result keys to append
+            measurement: contains the parameters of the measurement
+            result: measured values for the given measurement
+            numeric_index: If the NeuronOnHICANN(Enum(i)) should be converted
+                           to i (similarly for FGBlockOnHICANN).
 
-        Return:
-            2D numpy array: each row contains the containing parameters
-                in the requested order, followed by the requested keys
-
-        Raises:
-            ValueError, if no results are found for the given neuron.
+        Returns:
+            pandas.DataFrame: index: (NeuronOnHICANN, FGBlockOnHICANN),
+                              columns: all parameters and measurement results
         """
-        values = []
-        for measurement, result in itertools.izip_longest(
-                self.measurements_to_run, self.results, fillvalue={}):
-            value = measurement.get_parameters(neuron, parameters)
-            try:
-                nrn_results = result[neuron]
-                value.extend(nrn_results[key] for key in result_keys)
-            except KeyError:
-                continue
-            values.append(value)
-
-        if not values:
-            raise ValueError("No results for {}".format(neuron))
-
-        try:
-            return numpy.array(values)
-        except ValueError:
-            return values
-
-    def get_parameters(self, neuron, parameters):
-        """short for get_parameters_and_results(neuron, parameters, tuple())"""
-        return self.get_parameters_and_results(neuron, parameters, tuple())
-
-    def get_results(self, neuron, keys):
-        """short for get_parameters_and_results(neuron, tuple(), keys)"""
-        return self.get_parameters_and_results(neuron, tuple(), keys)
-
-    def get_data(self, neuron, parameters, result_keys):
-        """ Read out parameters and result for the given neuron.
-        Shared parameters are read from the corresponding FGBlock.
-        If any of the given keys could not be obtained from a measurement,
-        NaN is returned. If no result at all could be found, a ValueError is
-        raised.
-
-        Args:
-            neuron: parameters matching this neuron
-            parameter: [list] parameters to read (neuron_parameter,
-                       shared_parameter or string). Floating gate parameters
-                       will be read from the floating gate configuration.
-                       Sting parameters will be returned from step_parameters.
-        Return:
-            pandas.DataFrame: Each requested parameter/result is one column,
-                              indexed with the measurement step number.
-
-        Raises:
-            ValueError, if no results are found for the given neuron.
-        """
+        parameters = neuron_parameter.values.values()
+        parameters += shared_parameter.values.values()
+        # Remove non-parameter enum entries, note getattr is needed because
+        # of python name mangling used for private members
+        parameters.remove(getattr(neuron_parameter, '__last_neuron'))
+        parameters.remove(getattr(shared_parameter, '__last_shared'))
+        step_parameters = set(
+            p for p in measurement.step_parameters
+            if not isinstance(p, (neuron_parameter, shared_parameter)))
+        parameters = parameters + sorted(step_parameters)
         names = [p if isinstance(p, basestring) else p.name
                  for p in parameters]
-        names.extend(result_keys)
-        result_keys = list(result_keys)
-        values = []
-        for msr, result in itertools.izip_longest(
-                self.measurements_to_run, self.results, fillvalue={}):
-            row = msr.get_parameters(neuron, parameters)
-            nrn_results = result.get(neuron, {})
-            row.extend(nrn_results.get(key, numpy.nan) for key in result_keys)
-            values.append(row)
-        values = pandas.DataFrame(values, columns=names)
-        if result_keys and values[result_keys].isnull().values.all():
-            raise ValueError("Could not find any requested results")
-        return values
-
-    def get_all_data(self, parameters=None, result_keys=None, numeric_index=False):
-        """ Read out parameters and result for all neurons.
-        The results of get_data are concatenated for all neurons. Neurons
-        without any results are ignored.
-
-        Args:
-            neuron: parameters matching this neuron
-            parameter: [list] parameters to read (neuron_parameter or
-                       shared_parameter), if None all parameters are returned
-            result_keys: [list] result keys to append, if None all keys are
-                         returned
-            numeric_index: [bool] don't use NeuronOnHICANN as index, but ints,
-                           this allows to save/load the data with plain pandas
-
-        Return:
-            pandas.DataFrame: Each requested parameter/result is one column.
-                              The DataFrame is indexed with a multi index, the
-                              first level is the NeuronOnHICANN coordinate, the
-                              second level the measurement step.
-        """
-        if parameters is None:
-            parameters = self.get_parameter_names()
-        if result_keys is None:
-            result_keys = self.get_result_keys()
-        else:
-            result_keys = list(result_keys)
 
         data = {}
         for nrn in iter_all(NeuronOnHICANN):
             try:
                 idx = nrn, nrn.toSharedFGBlockOnHICANN()
-                if numeric_index:
-                    idx = tuple(int(v.id()) for v in idx)
-                data[idx] = self.get_data(nrn, parameters, result_keys)
+                parameter_values = measurement.get_parameters(nrn, parameters)
+                params_dict = {name : parameter_values[i] for i,name in enumerate(names)}
+                nrn_results = result.get(nrn, {})
+                nrn_results.update(params_dict)
+                data[idx] = nrn_results
             except ValueError:
                 pass
-        return pandas.concat(
-            data, names=['neuron', 'shared block', 'step'])
+        results_df = pandas.DataFrame.from_dict(data, orient='index')
+        results_df.index.names = ['neuron', 'shared_block']
+        results_df['step'] = step
+        results_df.set_index('step', append=True, inplace=True)
+        # The parameters 'V_clra', 'V_clrc', 'V_bout', 'V_bexp' only exist in
+        # one half of the shared blocks (e.g. V_clra : (0,2) or V_clrc : (1,3))
+        # but are shared with the other shared_blocks. Thus, these values are
+        # manually added to the blocks which would contain NaN otherwise
+        for param in ['V_clra', 'V_clrc', 'V_bout', 'V_bexp']:
+            val = results_df[param][~pandas.isnull(results_df[param])].values[0]
+            results_df[param] = val
+        return results_df
+
+    def get_all_data(self, keys=None, numeric_index=False):
+        """ Read out parameters and result for all neurons.
+            Only if parameters and result_keys are None, values for all parameters and result_keys are returned.
+
+        Args:
+            keys: [list] keys to read (neuron_parameter, shared_parameter, or a
+                key from the measurement results). If None all data is returned
+            numeric_index: [bool] don't use NeuronOnHICANN as index, but ints,
+                           this allows to save/load the data with plain pandas
+
+        Returns:
+            pandas.DataFrame: Each requested key is one column.
+                              The DataFrame is indexed with a multi index, the
+                              first level is the NeuronOnHICANN coordinate, the
+                              second level the FGBlock coordinate.
+        """
+        results = self.results
+        if numeric_index:
+            results = results.copy()
+            idx = [(index[0].id().value(), index[1].id().value(), index[2])
+                     for index in results.index]
+            idx = pandas.MultiIndex.from_tuples(idx, names=['neuron', 'shared_block', 'step'])
+            results.index = idx
+
+        if keys is None:
+            return results
+        else:
+            assert isinstance(keys, list)
+            names = [p if isinstance(p, basestring) else p.name
+                     for p in keys]
+            return results.loc[:, names]
+
+    def get_parameters(self, numeric_index=False):
+        """
+        Get all parameter values.
+
+        Args:
+            numeric_index: [bool] don't use NeuronOnHICANN as index, but ints,
+                           this allows to save/load the data with plain pandas
+
+        Returns:
+            pandas.DataFrame: Each parameter is one column.
+                              The DataFrame is indexed with a multi index, the
+                              first level is the NeuronOnHICANN coordinate, the
+                              second level the FGBlock coordinate.
+        """
+        parameters = self.get_parameter_names()
+        names = [p if isinstance(p, basestring) else p.name
+                 for p in parameters]
+        return self.get_all_data(keys=names, numeric_index=numeric_index)
+
+    def get_results(self, numeric_index=False):
+        """
+        Get all result values.
+
+        Args:
+            numeric_index: [bool] don't use NeuronOnHICANN as index, but ints,
+                           this allows to save/load the data with plain pandas
+
+        Returns:
+            pandas.DataFrame: Each result is one column.
+                              The DataFrame is indexed with a multi index, the
+                              first level is the NeuronOnHICANN coordinate, the
+                              second level the FGBlock coordinate.
+        """
+        parameters = self.get_parameter_names()
+        names = [p if isinstance(p, basestring) else p.name
+                 for p in parameters]
+        keys = list(self.results.columns)
+        for name in names:
+            keys.remove(name)
+        return self.get_all_data(keys=keys, numeric_index=numeric_index)
 
     def get_initial_data(self, numeric_index=False):
         """
@@ -257,37 +250,36 @@ class Experiment(object):
 
         return data, nrn_data
 
-    def get_mean_results(self, neuron, parameter, result_keys):
-        """ Read out parameters and result for the given neuron.
+    def get_mean_results(self, parameter, result_keys):
+        """
+        Read out parameters and result for the given neuron.
         Shared parameters are read from the corresponding FGBlock.
 
             Args:
-                neuron: parameters matching this neuron
-                parameter: parameter to read (neuron_parameter or
-                           shared_parameter)
-                result_keys: [list] result keys to append
-            Return:
-                [2D numpy array]:
-                each row contains the containing parameter value, count, mean
-                and std of the requested key.
-        """
-        data = self.get_parameters_and_results(
-                neuron, (parameter, ), result_keys)
-        values = numpy.unique(data[:, 0])
-        results = [numpy.empty((len(values), 4)) for _ in result_keys]
-        key_indices = numpy.arange(len(result_keys)) + 1
+                parameter: [parameter] (neuron_parameter or shared_parameter).
+                    Determines the level of averaging (i.e., the mean is
+                    taken over the same parameter values)
+                result_keys: [list] keys to average over
 
-        for row, value in enumerate(values):
-            subset = data[data[:, 0] == value]
-            count = len(subset)
-            mean = numpy.mean(subset, axis=0)
-            std = numpy.std(subset, axis=0)
-            for ii in key_indices:
-                results[ii-1][row] = (mean[0], count, mean[ii], std[ii])
-        return results
+            Return:
+                [pandas.DataFrame] Contains count, mean, std, min, 25%, 50%,
+                75%, max (default of pandas.DataFrame.describe(). If parameter
+                is a neuron parameter, returns data for each neuron, otherwise
+                returns data for each FGBlock
+        """
+        if isinstance(parameter, shared_parameter):
+            group_level = 'shared_block'
+        else:
+            group_level = 'neuron'
+        data = self.get_all_data([parameter, result_keys])
+        mean = data.set_index(parameter, append=True).groupby(
+               level=[group_level, parameter_name]).describe()
+
+        return mean
 
     def print_parameters(self, neuron, parameters):
         """
+        TODO: Replace by DataFrame.to_string?
         Prints the given parameters in a nice ASCII table.
 
         Arguments:
@@ -297,13 +289,13 @@ class Experiment(object):
         """
         t_field = "{{:>{w}}}"
 
-        data = self.get_parameters_and_results(neuron, parameters, tuple())
+        data = self.get_all_data(keys=parameters).sortlevel('neuron').loc[neuron]
         fields = [len(p.name) for p in parameters]
         header = "|     | " + " | ".join(p.name for p in parameters) + " |"
         lines = [header, len(header) * '-']
-        for ii, row in enumerate(data):
+        for ii in range(len(data)):
             f = [t_field.format(w=3).format(ii)]
-            f.extend(t_field.format(w=w).format(v) for w, v in zip(fields, row))
+            f.extend(t_field.format(w=w).format(v) for w, v in zip(fields, data.iloc[ii]))
             lines.append("| " + " | ".join(f) + " |")
         return "\n".join(lines)
 

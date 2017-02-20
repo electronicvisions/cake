@@ -416,12 +416,13 @@ def plot_v_convoff(reader, name="V_convoff_calibrated_test", extra_plots=True, t
     with LogError("problem with {} plots".format(name)):
         experiment = reader.runner.get_single(name=name).experiment
         data = experiment.get_all_data(
-            (neuron_parameter.I_gl,
+            [neuron_parameter.I_gl,
              neuron_parameter.V_convoffi,
              neuron_parameter.V_convoffx,
              neuron_parameter.E_l,
-             neuron_parameter.E_synx),
-            ('mean',))
+             neuron_parameter.E_synx,
+             'mean'])
+        data.sortlevel('neuron', inplace=True)
         plt_name = name.replace("off","off{}_{}")+".{}"
         for include_defects in [True, False]:
             reader.include_defects = include_defects
@@ -1204,10 +1205,12 @@ def patched_reader_value(reader, parameter, input_keys, *output):
         results[key] = extract(results)
 
     try:
+        idx = pandas.Index([ids[0].toSharedFGBlockOnHICANN() for ids in results.index.values], name='shared_block')
+        results.set_index(idx, append=True, inplace=True)
+        results = results.swaplevel('step', 'shared_block').sortlevel('neuron')
         cu = reader.get_calibration_unit(parameter)
-        for (neuron, step), data in results.groupby(level=("neuron", "step")):
-            for key, _ in output:
-                cu.experiment.results[step][neuron][key] = data[key][0]
+        ex_res = cu.experiment.results.sortlevel('neuron')
+        cu.experiment.results = pandas.concat([ex_res, results], axis=1)
         yield
     finally:
         if reader.calibration_unit_cache.pop((parameter, 0), None) is None:

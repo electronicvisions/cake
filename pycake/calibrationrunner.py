@@ -14,7 +14,7 @@ import pycake.helpers.misc
 from pycake.helpers.StorageProcess import StorageProcess
 import pycalibtic
 
-# Import everything needed for saving:
+import pandas
 import time
 import os
 import copy
@@ -82,6 +82,9 @@ class CalibrationUnit(object):
 
         if not self.config.get_save_after_each_measurement():
             self.save()
+        # numeric_index needs less space on disc and can be read out
+        # without loading Coordinate (and saving speed is a bit faster)
+        self.save_experiment_results(numeric_index=True)
         self.measure_time = time.time() - t_start
 
     def generate_transformations(self):
@@ -173,6 +176,29 @@ class CalibrationUnit(object):
     @staticmethod
     def filename(storage_folder):
         return os.path.join(storage_folder, "experiment.p.gz")
+
+    def save_experiment_results(self, numeric_index=False):
+        """
+        creates a pandas.DataFrame containing all measurements of the
+        experiment of the unit.
+        saves the measurement results to "results.h5"
+        """
+
+        path, _  = os.path.split(self.storage_folder)
+        name = self.name
+        results = self.experiment.get_all_data(
+                numeric_index=numeric_index)
+        #TODO: special handling of average traces ('v')
+        with pandas.HDFStore(os.path.join(path, "results.h5"),
+                             complevel=9, complib='blosc') as store:
+            i = 0
+            while (name in store):
+                if i > 0:
+                    name = name.replace(str(i-1), str(i))
+                elif i == 0:
+                    name += '_' + str(i)
+                i += 1
+            store[name] = results
 
     def save(self):
         self.logger.INFO(
@@ -373,6 +399,16 @@ class CalibrationRunner(object):
             name = self.to_run[ii]
             return CalibrationUnit(
                 self.config.copy(name), self.get_unit_folder(ii), self.load_calibtic())
+
+    def load_experiment_results(self):
+        """
+        load the experiment results pandas.DataFrame from "results.h5"
+        for the current calibration
+        """
+        with pandas.HDFStore(os.path.join(self.storage_folder,
+                "results.h5")) as store:
+            df = store[self.name]
+        return df
 
     def set_storage_folder(self, folder):
         """Update the pathes to calibration units results"""

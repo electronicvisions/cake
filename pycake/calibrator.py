@@ -48,10 +48,8 @@ class BaseCalibrator(object):
     logger = pylogging.get("pycake.calibrator")
     target_parameter = None
 
-    def __init__(self, experiments, config):
-        if not isinstance(experiments, list):
-            experiments = [experiments]
-        self.experiments = experiments
+    def __init__(self, experiment, config):
+        self.experiment = experiment
 
     def get_key(self):
         """
@@ -72,26 +70,26 @@ class BaseCalibrator(object):
             self.target_parameter, measurement.neurons)
         return step_parameters
 
-    def get_merged_results(self, neuron):
-        """ Return all parameters and results from all experiments for one neuron.
-            This does not average over experiments.
+    def get_results(self, keys=None):
+        """
+        get all data for the columns with keywords 'keys' in [DataFrame]
+        experiment.results. If key is None, return the keys specified by the
+        class attributes target_parameter and result_key
         """
         results = []
-        for ex in self.experiments:
-            results.append(ex.get_parameters_and_results(neuron, [self.target_parameter], [self.get_key()]))
-        # return 'unzipped' results, e.g.: (100,0.1),(200,0.2) -> (100,200), (0.1,0.2)
-        return zip(*np.concatenate(results))
+        if keys is None:
+            keys = [self.target_parameter, self.get_key()]
+        return self.experiment.get_all_data(keys)
 
     def generate_transformations(self):
         """ Takes averaged experiments and does the fits
         """
         transformations = {}
         trafo_type = self.get_trafo_type()
-
-        for neuron in self.get_neurons():
+        for neuron, group in self.get_results().groupby(level='neuron'):
             # Need to switch y and x in order to get the right fit
             # (y-axis: configured parameter, x-axis: measurement)
-            ys_raw, xs_raw = self.get_merged_results(neuron)
+            ys_raw, xs_raw = group.T.values
             xs = self.prepare_x(xs_raw)
             ys = self.prepare_y(ys_raw)
             # Extract function coefficients and domain from measured data
@@ -179,7 +177,7 @@ class BaseCalibrator(object):
 
     def get_neurons(self):
         # TODO: Improve this
-        return self.experiments[0].measurements[0].get_neurons()
+        return self.experiment.measurements[0].get_neurons()
 
     def get_trafo_type(self):
         """ Returns the pycalibtic.transformation type that is used for calibration.
@@ -191,54 +189,31 @@ class BaseCalibrator(object):
 class V_reset_Calibrator(BaseCalibrator):
     target_parameter = shared_parameter.V_reset
 
-    def __init__(self, experiment, config):
-        self.experiment = experiment
-
     def get_key(self):
         return 'baseline'
 
-    def iter_neuron_results(self):
-        key = self.get_key()
-        for neuron in self.get_neurons():
-            baseline, = self.experiment.get_mean_results(
-                neuron, self.target_parameter, (key, ))
-            yield neuron, baseline
-
-    def mean_over_blocks(self, neuron_results):
-        blocks = defaultdict(list)
-        for neuron, value in neuron_results.iteritems():
-            blocks[neuron.toSharedFGBlockOnHICANN()].append(value)
-        return dict((k, np.mean(v, axis=0)) for k, v in blocks.iteritems())
-
-    def get_neurons(self):
-        return self.experiment.measurements[0].neurons
-
-    def do_fit(self, raw_x, raw_y):
-        xs = self.prepare_x(raw_x)
-        ys = self.prepare_y(raw_y)
-        return np.polyfit(xs, ys, 1)
-
     def generate_transformations(self):
         """
-        Default fiting method.
+        calculates the mean baseline over the FGBlocks and fits a line on the
+        data for each FGBlock.
 
         Returns:
             List of tuples, each containing the neuron parameter and a
             dictionary containing polynomial fit coefficients for each neuron
         """
-        neuron_results = dict(x for x in self.iter_neuron_results())
-        block_means = self.mean_over_blocks(neuron_results)
-
+        results = self.get_results()
+        results_per_FGBlock = results.groupby(level='shared_block')
         trafos = {}
         trafo_type = self.get_trafo_type()
-        for coord, mean in block_means.iteritems():
-            fit = list(self.do_fit(mean[:, 2], mean[:, 0]))
-            fit = fit[::-1] # reverse coefficients for calibtic
-            domain = self.get_domain(mean[:,2])
-            trafo = create_pycalibtic_transformation(fit, domain, trafo_type)
-            trafos[coord] = trafo
-
-
+        for fgblock, res in results_per_FGBlock:
+            mean = res.groupby('V_reset').mean()
+            xs = self.prepare_x(mean.index)
+            ys = self.prepare_y(mean.values[:,0])
+            coeffs = list(self.do_fit(ys, xs))
+            coeffs = coeffs[::-1] # reverse coefficients for calibtic
+            domain = self.get_domain(ys)
+            trafo = create_pycalibtic_transformation(coeffs, domain, trafo_type)
+            trafos[fgblock] = trafo
         return [(self.target_parameter, trafos)]
 
     def get_domain(self, data):
@@ -395,9 +370,6 @@ class V_convoff_Calibrator(BaseCalibrator):
     target_parameter = None
     v_range=0.150
 
-    def __init__(self, experiment, config=None):
-        self.experiment = experiment
-
     @staticmethod
     def f(params, x):
         a = params['a'].value
@@ -465,8 +437,7 @@ class V_convoff_Calibrator(BaseCalibrator):
     def plot_fit_for_neuron(self, nrn, axis, v_range=None):
         if v_range is None:
             v_range = self.v_range
-        data = self.experiment.get_data(
-            nrn, (self.target_parameter,), ('mean', 'std'))
+        data = self.get_results([self.target_parameter, 'mean', 'std'])
         results = self.find_optimum(
             data, v_range, self.get_spiking_threshold(nrn))
         self.plt_fits(axis, results)
@@ -486,8 +457,7 @@ class V_convoff_Calibrator(BaseCalibrator):
 
     def generate_transformations(self):
         fits = {}
-        data = self.experiment.get_all_data(
-            (self.target_parameter,), ('mean', 'std'))
+        data = self.get_results([self.target_parameter, 'mean', 'std'])
         for nrn, data in data.groupby(level='neuron'):
             results = self.find_optimum(
                 data, self.v_range, self.get_spiking_threshold(nrn))
@@ -538,6 +508,11 @@ class V_syntc_Calibrator(BaseCalibrator):
         self.offset_tol = 0.025
         self.chi2_tol = 30
         self.residual_tol = 0.05
+        # The signal-to-noise ratio ensures that sufficiently strong PSPs
+        # were detected to provide a good fit, otherwise the extracted
+        # time-constants are not meaningful. If a full half of neurons is
+        # blacklisted by this criteria, most likely the synapse driver used on
+        # this side is faulty
         self.signal_to_noise_tol = 2.0
         self.calib_feature = calib_feature
         self.fits = {}  # Cache for fit results
@@ -578,10 +553,9 @@ class V_syntc_Calibrator(BaseCalibrator):
         Returns:
             pandas.DataFrame
         """
-        data = self.experiment.get_all_data(
-            (self.target_parameter, ),
-            ('v', self.calib_feature, 'start',
-             'offset', 'chi2', 'signal_to_noise'))
+        data = self.get_results([self.target_parameter, 'v',
+                    self.calib_feature, 'start', 'offset', 'chi2',
+                    'signal_to_noise', 'mean', 'std'])
         data['x'] = data[self.target_parameter.name]
         data['y'] = data[self.calib_feature]
         data['mask'] = self.get_mask(data)
@@ -711,10 +685,12 @@ class I_pl_Calibrator(BaseCalibrator):
         """
         transformations = {}
         trafo_type = self.get_trafo_type()
-        for neuron in self.get_neurons():
+        results = self.get_results().groupby(level='neuron')
+
+        for neuron, group in results:
             # Need to switch y and x in order to get the right fit
             # (y-axis: configured parameter, x-axis: measurement)
-            ys_raw, xs_raw = self.get_merged_results(neuron)
+            ys_raw, xs_raw = group.T.values
             xs = self.prepare_x(xs_raw)
             ys = self.prepare_y(ys_raw)
             # Extract function coefficients from measured data
@@ -771,21 +747,16 @@ class readout_shift_Calibrator(BaseCalibrator):
     """
     target_parameter = 'readout_shift'
 
-    def __init__(self, experiments, config):
-        super(readout_shift_Calibrator, self).__init__(experiments, config)
-
     def generate_transformations(self):
         """
         """
-
-        experiment = self.experiments[0]
-        for measurement in experiment.measurements:
+        for measurement in self.experiment.measurements:
             neuron_size = measurement.sthal.get_neuron_size()
             if neuron_size != 64:
                 raise ValueError("Neuron size is smaller than 64. 64 is required for readout shift measurement")
 
-        readout_shifts = self.get_readout_shifts(experiment.results, neuron_size)
-        return [('readout_shift', readout_shifts)]
+        readout_shifts = self.get_readout_shifts(neuron_size)
+        return [(self.target_parameter, readout_shifts)]
 
     def get_neuron_block(self, block_id, size):
         # FIXME replace by LogicalNeuron coordinate
@@ -799,29 +770,32 @@ class readout_shift_Calibrator(BaseCalibrator):
         neurons = [Coordinate.NeuronOnHICANN(Coordinate.Enum(int(nid))) for nid in nids]
         return neurons
 
-    def get_readout_shifts(self, results, neuron_size):
+    def get_readout_shifts(self, neuron_size):
         """
-        results: list of repetitions, each containing {neuron_coord: {resultkey}} (e.g. 'mean')
-        neuron_size: number of interconnected denmems
+        calculate the readout shift as: 1. average over all measurements for
+        all neurons (i.e. get a single number from all measurements). 2. average for
+        every neuron over the number of repetitions. 3. subtract the mean over all
+        neurons for every single neuron
+        create the calibtic transformation.
+
+        Args:
+            neuron_size: number of interconnected denmems
+        returns:
+            readout_shifts: [dict] readout shifts for all neurons
         """
         trafo_type = self.get_trafo_type()
         n_blocks = 512/neuron_size # no. of interconnected neurons
         readout_shifts = {}
+
+        results = self.get_results([self.get_key()])
         for block_id in range(n_blocks):
             neurons_in_block = self.get_neuron_block(block_id, neuron_size)
-            V_rests_in_block = []
-            for repetition in results:
-                V_rests_in_block.append(np.array([repetition[neuron]['mean'] for neuron in neurons_in_block]))
 
-            # average over all repetitions
-            mean_V_rest_over_block = np.mean(np.concatenate(V_rests_in_block))
-
-            for neuron in neurons_in_block:
-                # For compatibility purposes, domain should be None
-                neuron_mean = np.mean([repetition[neuron]['mean'] for repetition in results])
-                shift = float(neuron_mean - mean_V_rest_over_block)
-                trafo = create_pycalibtic_transformation([shift], None, trafo_type)
-                readout_shifts[neuron] = trafo
+            results_block = results.loc[neurons_in_block]
+            shifts = results_block.mean(level='neuron') - results_block.mean()
+            for i, shift in enumerate(shifts.values):
+                trafo = create_pycalibtic_transformation(list(shift), None, trafo_type)
+                readout_shifts[shifts.index[i]] = trafo
         return readout_shifts
 
 

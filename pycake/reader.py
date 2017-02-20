@@ -1,6 +1,7 @@
 import cPickle
 import os
 import numpy as np
+import pandas as pd
 import pylogging
 from pycake.calibrationrunner import CalibrationRunner
 import Coordinate as C
@@ -79,7 +80,11 @@ class Reader(object):
 
         if isinstance(neuron, int):
             neuron = C.NeuronOnHICANN(C.Enum(neuron))
-        return [r[neuron].get(key, None) for r in ex.results]
+        df = ex.get_all_data([parameter, key]).sortlevel('neuron').loc[neuron]
+        #FIXME: to be compatible with the plotting script, the df is converted
+        #to a dict.
+        df.index = df.index.droplevel(['shared_block', 'step'])
+        return df[key].values
 
     def get_results(self, parameter, neurons, key, repetition=None, recurrence=0):
         """ Get measurement results for one neuron.
@@ -94,24 +99,31 @@ class Reader(object):
             Returns:
                 {neuron: [results]} if neurons
         """
-
         unit = self.get_calibration_unit(name=parameter, recurrence=recurrence)
-
         ex = unit.experiment
-        nsteps = len(self.runner.config.copy(parameter).get_steps())
 
-        results = {}
+        nrn_coord = []
         for neuron in neurons:
             if isinstance(neuron, int):
                 neuron = C.NeuronOnHICANN(C.Enum(neuron))
-
-            results[neuron] = np.array([r[neuron].get(key, None) for r in ex.results])
-            if repetition != None:
-                if np.ndim(results[neuron]) > 1:
-                    raise RuntimeError("retrieval of results is not implemented for multi-dimensional sweeps")
-                else:
-                    results[neuron] = list(results[neuron][[nsteps*repetition + step for step in range(nsteps)]])
-
+            nrn_coord.append(neuron)
+        # calibration name is I_gl_PSP, but parameter name still is I_gl -->
+        # convert it
+        if parameter is 'I_gl_PSP':
+            parameter = 'I_gl'
+        df = ex.get_all_data([parameter, key]).sortlevel('neuron').loc[nrn_coord]
+        #FIXME: to be compatible with the plotting script, the df is converted
+        #to a dict.
+        if not isinstance(parameter, basestring):
+            parameter = parameter.name
+        nsteps = len(np.unique([d[2] for d in df.index.values]))
+        df.index = df.index.droplevel(['shared_block', 'step'])
+        results = {}
+        for name, group in df.groupby(level='neuron'):
+            if repetition is None:
+                results.update({name : group[key].values})
+            else:
+                results.update({name : group[key].values[repetition*nsteps:(repetition+1)*nsteps]})
         return results
 
     def plot_trace(self, parameter, neuron, step, start=0, end=-1, recurrence=0):
@@ -245,11 +257,17 @@ class Reader(object):
     def plot_std(self, parameter, hicann_parameter, key, step, **kwargs):
         import matplotlib.pyplot as plt
 
+        if not isinstance(hicann_parameter, basestring):
+            hicann_parameter = hicann_parameter.name
         unit = self.runner.get_single(name=parameter)
         e = unit.experiment
+        data = e.get_all_data([hicann_parameter, key])
+        idx_len = len(df[hicann_parameter].unique())
+        std = data.set_index(hicann_parameter, append=True).groupby(level=['neuron', hicann_parameter]).std()
+        #create step index for compatibility with function call
+        std_values = std.swaplevel(0, 'step').loc[step].values
 
-        hist = plt.hist([e.get_mean_results(n,hicann_parameter,[key])[0][step][-1] for n in self.get_neurons()], **kwargs)
-
+        hist = plt.hist(std_values, **kwargs)
         return hist
 
     def plot_result(self, parameter, key, neurons=None, yfactor=1, mark_top_bottom=True, average=False, marker='o', step_key=None, **kwargs):
