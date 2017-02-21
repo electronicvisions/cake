@@ -31,13 +31,13 @@ class TracesOnDiskDict(collections.MutableMapping):
         if self._h5file is None:
             filters = tables.Filters(**self.h5file_filter_args)
             try:
-                self._h5file = tables.openFile(
+                self._h5file = tables.open_file(
                         self.fullpath, mode="a", title="TracesOnDisk",
                         filters=filters)
             except IOError:
                 # The file might be only read only, in this case try to open
                 # as read only
-                self._h5file = tables.openFile(
+                self._h5file = tables.open_file(
                         self.fullpath, mode="r", title="TracesOnDisk",
                         filters=filters)
         return self._h5file
@@ -96,7 +96,7 @@ class TracesOnDiskDict(collections.MutableMapping):
         if getattr(self.root, key, None):
             self.h5file.removeNode(getattr(self.root, key))
         atom = tables.Atom.from_dtype(arr.dtype)
-        tarr = self.h5file.createCArray(self.root, key, atom, arr.shape)
+        tarr = self.h5file.create_carray(self.root, key, atom, arr.shape)
         tarr[:] = arr
 
     def __iter__(self):
@@ -124,12 +124,12 @@ class RecordsOnDiskDict(TracesOnDiskDict):
     def __setitem__(self, key, arrays):
         key = self.get_key(key)
         if getattr(self.root, key, None):
-            self.h5file.removeNode(getattr(self.root, key), recursive=True)
-        group = self.h5file.createGroup(self.root, key)
+            self.h5file.remove_node(getattr(self.root, key), recursive=True)
+        group = self.h5file.create_group(self.root, key)
         for dkey, arr in arrays.iteritems():
             assert isinstance(arr, np.ndarray)
             atom = tables.Atom.from_dtype(arr.dtype)
-            tarr = self.h5file.createCArray(group, dkey, atom, arr.shape)
+            tarr = self.h5file.create_carray(group, dkey, atom, arr.shape)
             tarr[:] = arr
 
     def get_trace(self, key, item='v'):
