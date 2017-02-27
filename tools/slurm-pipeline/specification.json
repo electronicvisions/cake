@@ -1,0 +1,33 @@
+{
+	"steps": [
+		{
+			"cwd" : "prereq",
+			"name": "prereq",
+			"script": "./submit.sh"
+		},
+		{
+			"cwd" : "calib",
+			"dependencies": ["prereq"],
+			"name": "calib",
+			"script": "./submit.sh"
+		},
+		{
+			"cwd" : "plot",
+			"dependencies": ["calib"],
+			"name": "plot_calib",
+			"script": "./submit.sh"
+		},
+		{
+			"cwd" : "eval",
+			"dependencies": ["calib"],
+			"name": "eval",
+			"script": "./submit.sh"
+		},
+		{
+			"cwd" : "plot",
+			"dependencies": ["eval"],
+			"name": "plot_eval",
+			"script": "./submit.sh"
+		}
+	]
+}
