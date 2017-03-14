@@ -106,9 +106,9 @@ class SimStHALContainer(StHALContainer):
         """Write full configuration."""
         pass
 
-    def switch_analog_output(self, coord_neuron, enable_firing=True, l1address=None):
+    def switch_analog_output(self, coord_neuron, l1address=None):
         super(SimStHALContainer, self).switch_analog_output(
-            coord_neuron, enable_firing, l1address)
+            coord_neuron, l1address)
         self.current_neuron = coord_neuron
 
     def resample_simulation_result(self, adc_result,
@@ -277,11 +277,11 @@ class SimStHALContainer(StHALContainer):
     def get_neuron_size(self):
         return 1
 
-    def switch_current_stimulus_and_output(self, coord_neuron, enable_firing=True, l1address=None):
+    def switch_current_stimulus_and_output(self, coord_neuron, l1address=None):
         def do_nothing(*args, **kwargs):
             pass
         self.wafer.configure = do_nothing
-        super(SimStHALContainer, self).switch_current_stimulus_and_output(coord_neuron, enable_firing, l1address)
+        super(SimStHALContainer, self).switch_current_stimulus_and_output(coord_neuron, l1address=l1address)
 
         # remove non-C++ entry for pickling
         del self.wafer.__dict__['configure']

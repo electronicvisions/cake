@@ -678,6 +678,8 @@ class V_syntcx_psp_max_Experimentbuilder(BaseExperimentBuilder):
 
 class readout_shift_Experimentbuilder(BaseExperimentBuilder):
     def prepare_specific_config(self, sthal, parameters):
+        # only one of the interconnected denmems is allowed to fire
+        sthal.hicann.disable_firing()
         sthal.set_neuron_size(64)
         return sthal
 
