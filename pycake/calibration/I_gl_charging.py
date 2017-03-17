@@ -24,7 +24,7 @@ class I_gl_charging_Analyzer(Analyzer):
         """Fit exponential charge from t_min to t_max.
 
         Args:
-            df: DataFrame containing keys 't','v', index t
+            df: DataFrame containing key 'v', index t
                 time in [s], voltage in [V]
             known_E_l [mV]: potential which is approached by charging
         """
@@ -36,7 +36,7 @@ class I_gl_charging_Analyzer(Analyzer):
 
         cutout = df[t_min:t_max]
 
-        xData = cutout['t']
+        xData = cutout.index
         yData = cutout['v']
 
         interval_x = t_max - t_min
@@ -53,17 +53,16 @@ class I_gl_charging_Analyzer(Analyzer):
 
         return fitParams, fitCovariances
 
-    def __call__(self, neuron, t, v, **kwargs):
+    def __call__(self, neuron, trace, **kwargs):
         """
         Find multiple charging intervals, not using TraceAverager.
         Fit tau_m to each interval, return mean.
         """
-        df = pandas.DataFrame({'v': v, 't': t}, index=t)
 
         # get E_l via hacky data path
-        calibrated_E_l = kwargs['E_l'][0]
+        calibrated_E_l = trace['E_l'].iloc[0]
 
-        maxtab, mintab = peakdet(df['v'].values, 0.03, df['t'].values)
+        maxtab, mintab = peakdet(trace['v'].values, 0.03, trace.index.values)
 
         # iterate over detected intervals
         tau_ms = []
@@ -84,7 +83,7 @@ class I_gl_charging_Analyzer(Analyzer):
             t_min = t_min + t_buffer
             t_max = t_max - t_buffer
 
-            fitParams, fitCovariances = self.fit_taum(df, t_min, t_max, calibrated_E_l)
+            fitParams, fitCovariances = self.fit_taum(trace, t_min, t_max, calibrated_E_l)
             tau_m = fitParams[0]
             tau_ms.append(tau_m)
             # TODO check quality of fit by calculating difference to actual
@@ -105,7 +104,7 @@ class AddElADCMeasurement(ADCMeasurement):
     def read_adc(self):
         readout = super(AddElADCMeasurement, self).read_adc()
         if readout is not None:
-            readout['E_l'] = np.array([self.E_l])
+            readout[0]['E_l'] = self.E_l
         return readout
 
 
@@ -120,7 +119,7 @@ class I_gl_charging_Experimentbuilder(BaseExperimentBuilder):
     def get_analyzer(self):
         return I_gl_charging_Analyzer()
 
-    def prepare_specific_config(self, sthal):
+    def prepare_specific_config(self, sthal, parameters):
         sthal.maximum_spikes = 10
         return sthal
 

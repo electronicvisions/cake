@@ -259,7 +259,7 @@ class SimStHALContainer(StHALContainer):
     def read_wafer_status(self):
         return self.wafer.status()
 
-    def set_recording_time(self, recording_time, _):
+    def set_recording_time(self, recording_time, _=None):
         """Sets the recording time of the ADC.
 
         The recording_time should be as small as theoretical required for the
