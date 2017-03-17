@@ -416,7 +416,7 @@ class I_gl_Measurement(ADCMeasurement):
         This takes a lot of time!
 
     """
-    def __init__(self, sthal, neurons, readout_shifts=None, currents=[30], workers=DEFAULT_WORKERS):
+    def __init__(self, sthal, neurons, readout_shifts=None, currents=[5, 10, 15, 20, 25, 30], workers=DEFAULT_WORKERS):
         super(I_gl_Measurement, self).__init__(sthal, neurons, readout_shifts, workers)
         self.currents = currents
 
@@ -456,6 +456,16 @@ class I_gl_Measurement(ADCMeasurement):
             readout, _ = self.read_adc()
             trace = self.readout_shifts(neuron, readout['v'])
             trace_max = np.max(trace)
+            trace_min = np.min(trace)
+            if (trace_min - V_rest) > threshold:
+                # reset has happened, neuron spiked,
+                # stimulus is too strong
+                self.logger.WARN("Neuron {} spiked at stimulus {}".format(neuron, current))
+                break
+            elif np.std(trace) < 0.008:
+                # response may be too small
+                self.logger.WARN("Neuron {} shows almost no response at stimulus {}".format(neuron, current))
+                continue
             if (trace_max - V_rest) < threshold:
                 # Don't go higher than 150 mV above V_rest
                 highest_trace_max = trace_max
@@ -506,6 +516,7 @@ class I_gl_Measurement(ADCMeasurement):
 
 
 class I_gl_Measurement_multiple_currents(I_gl_Measurement):
+    """Does not find the best current, but instead measures once with each current."""
     def __init__(self, sthal, neurons, readout_shifts=None, currents=[10, 35, 70], workers=DEFAULT_WORKERS):
         super(I_gl_Measurement_multiple_currents, self).__init__(sthal, neurons, readout_shifts, workers)
         self.currents = currents
