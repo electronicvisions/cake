@@ -749,7 +749,10 @@ class StHALContainer(object):
         self.hicann.synapse_switches.set(v_line, driver_line, True)
 
     def set_current_stimulus(self, stim_value, stim_length, pulse_length=15):
-        """ Set current. Does not write to hardware.
+        """ Set current stimulus for all 4 blocks. Does not write to hardware.
+
+            The stimulus is continuously active for stim_length parts with individual
+            pulse_length, inactive for 129-stim_length parts.
 
             Args:
                 stim_value: int -> strength of current (DAC -> nA conversion
@@ -758,7 +761,7 @@ class StHALContainer(object):
                              max. duration is a whole cycle: 129
 
             Returns:
-                length of one pulse in seconds
+                length of one pulse in seconds (hardware time)
         """
         stimulus = pysthal.FGStimulus()
         stimulus.setPulselength(pulse_length)
@@ -770,7 +773,34 @@ class StHALContainer(object):
         for block in range(4):
             self.hicann.current_stimuli[block] = stimulus
 
-        return (pulse_length+1)*4 * stim_length / self.getPLL()
+        # actual pulse length on chip is (pulse_length+1) / slow clock for each FG memory entry
+        return (pulse_length+1) * stim_length / self.getSlowClock()
+
+    def get_current_stimulus(self):
+        """Assumes stimulus was created using set_current_stimulus above,
+        resulting in a rectangular stimulus with a single amplitude and only
+        one rectangle per period."""
+
+        params = []
+        for block in range(4):
+            stimulus = self.hicann.current_stimuli[block]
+            pulse_length = stimulus.getPulselength()
+            assert(stimulus.getContinuous())
+            stim_length = 129-len([s for s in stimulus if s==0])
+            stim_value = stimulus[0]
+            assert(stim_value > 0)
+            for i in range(stim_length):
+                assert(stimulus[i] == stim_value)
+            params.append({"stim_length": stim_length, "pulse_length": pulse_length, "stim_value": stim_value})
+
+        for p in params:
+            assert(p == params[0])
+
+        return params[0]
+
+    def getSlowClock(self):
+        """In the specification document this clock is called 'slow HICANN clock'"""
+        return self.getPLL()/4.0
 
     def switch_current_stimulus_and_output(self, coord_neuron, l1address=None):
         """ Switches the current stimulus and analog output to a certain neuron.
@@ -791,6 +821,20 @@ class StHALContainer(object):
             self.hicann.enable_l1_output(coord_neuron, pyhalbe.HICANN.L1Address(l1address))
         self.hicann.enable_aout(coord_neuron, self.coord_analog)
         self.wafer.configure(UpdateAnalogOutputConfigurator())
+
+    def get_pulse_length(self, coord_neuron):
+        """Get the length of the currently configured current stimulus.
+        """
+        raise NotImplemented
+        if coord_neuron not in self.get_stimulated_neurons():
+            return None
+
+        return self.get_current_stimulus()['pulse_length']
+
+    def get_stimulated_neurons(self):
+        """Which neurons are connected to stimulus"""
+        h = self.hicann
+        return [nrn for nrn in Coordinate.iter_all(Coordinate.NeuronOnHICANN) if h.neurons[nrn].enable_current_input()]
 
     def set_recording_time(self, recording_time, repeations):
         """Sets the recording time of the ADC.
@@ -832,7 +876,7 @@ class StHALContainer(object):
         s_gladapt = self.hicann.get_speed_up_gladapt()
         s_radapt = self.hicann.get_speed_up_radapt()
         errmsg = "SpeedUps not equal. gl: {}, gladapt: {}, radapt: {}".format(s_gl, s_gladapt, s_radapt)
-        assert (s_gl == s_gladapt == s_radapt), errmsg
+        assert(s_gl == s_gladapt == s_radapt), errmsg
         return s_gl
 
     def set_bigcap(self, bigcap):
