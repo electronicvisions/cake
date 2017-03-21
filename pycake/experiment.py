@@ -29,6 +29,15 @@ class Experiment(object):
         self.fg_values = {}
         self.run_time = 0.0
 
+    # Compatibility for old pickels
+    def __setstate__(self, state):
+        if isinstance(state['results'], list):
+            data = zip(state['measurements'], state['results'], itertools.count())
+            state['results'] = pandas.concat([
+                self.convert_to_dataframe(measurement, result, step)
+                for measurement, result, step in data])
+        self.__dict__.update(state)
+
     def run(self):
         """Run the experiment and process results."""
         return list(self.iter_measurements())
@@ -91,7 +100,8 @@ class Experiment(object):
         self.measurements[:] = []
         self.results = pandas.DataFrame()
 
-    def convert_to_dataframe(self, measurement, result, step):
+    @staticmethod
+    def convert_to_dataframe(measurement, result, step):
         """
         collects all parameters of 'measurement' and all results from 'result' to
         create a DataFrame.
@@ -406,7 +416,7 @@ class SequentialExperiment(Experiment):
             state['initial_data'] = {}
         if 'initial_measurements' not in state:
             state['initial_measurements'] = []
-        self.__dict__.update(state)
+        Experiment.__setstate__(self, state)
 
 
 class I_pl_Experiment(SequentialExperiment):
