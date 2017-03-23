@@ -182,13 +182,21 @@ class CalibrationUnit(object):
         creates a pandas.DataFrame containing all measurements of the
         experiment of the unit.
         saves the measurement results to "results.h5"
+        Excludes columns with datatype object to save space on disk.
         """
 
         path, _  = os.path.split(self.storage_folder)
         name = self.name
         results = self.experiment.get_all_data(
                 numeric_index=numeric_index)
-        #TODO: special handling of average traces ('v')
+        # drop columns that cannot be directly mapped to c-types
+        # this saves a lot of disk space
+        droped_columns = results.select_dtypes(include=[object]).keys()
+        for key in droped_columns:
+            self.logger.WARN(
+                "The column '{}' of {} is dropped in results.h5 to "
+                "save disk space!".format(key, name))
+        results = results.select_dtypes(exclude=[object])
         with pandas.HDFStore(os.path.join(path, "results.h5"),
                              complevel=9, complib='blosc') as store:
             i = 0
