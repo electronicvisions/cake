@@ -14,6 +14,7 @@ import pycake.helpers.misc
 from pycake.helpers.StorageProcess import StorageProcess
 import pycalibtic
 
+import numpy
 import pandas
 import time
 import os
@@ -56,6 +57,8 @@ class CalibrationUnit(object):
             experiment.set_read_fg_values(self.config.get_read_fg_values())
         self.experiment = experiment
         self.set_storage_folder(storage_path)
+        self.pandas_store = os.path.join(os.path.split(
+                                self.storage_folder)[0], "results.h5")
         self.measure_time = -1.0
         self.setup_time = time.time() - t_start
         self.save()
@@ -119,6 +122,7 @@ class CalibrationUnit(object):
                                self.config.get_target_speedup_I_gladapt(),
                                self.config.get_target_speedup_I_radapt())
         self.write_defects(redman, trafos)
+        self.save_calibration_results(trafos)
 
     def get_experiment(self, calibitic):
         """ Get the right experiment builder.
@@ -177,6 +181,83 @@ class CalibrationUnit(object):
     def filename(storage_folder):
         return os.path.join(storage_folder, "experiment.p.gz")
 
+    @staticmethod
+    def check_name(name, keys):
+        """
+        checks if the string 'name' or name_i for i in N is in
+        the list 'keys'
+
+        Args:
+            name: [str] string to check for
+            keys: [list] list of strings to check in
+        Returns:
+            name_copy: [str] name appended by '_{}'.format(i+1)
+        """
+        name_copy = name
+        i = 0
+        while (name_copy in keys):
+            if i > 0:
+                name_copy = name_copy.replace(str(i-1), str(i))
+            elif i == 0:
+                name_copy += '_{}'.format(i)
+            i += 1
+        return name_copy
+
+    def save_calibration_results(self, transformations):
+        """
+        extracts calibration data from calibtic object and writes to
+        'self.pandas_store'
+
+        Args:
+            transformations: [list] of (parameter, dict). dict contains
+                             pycalibtic transformations, dict.keys() is
+                             NeuronOnHICANN or FGBlockOnHICANN
+        """
+        column_names = ['neuron', 'shared_block', 'defect', 'degree',
+                        'trafo', 'domain_min', 'domain_max']
+
+        for parameter, data in transformations:
+            name = parameter if isinstance(parameter, basestring) \
+                             else parameter.name
+            name += '_calib'
+            # Transform FGBlock indexed data to Neuron indexed
+            if isinstance(parameter, shared_parameter):
+                data = {nrn: data[nrn.toSharedFGBlockOnHICANN()]
+                        for nrn
+                        in Coordinate.iter_all(Coordinate.NeuronOnHICANN)}
+            data_all = []
+            for nrn, trafo in data.iteritems():
+                nrn_id = nrn.id().value()
+                fgb_id = nrn.toSharedFGBlockOnHICANN().id().value()
+                if trafo is None:
+                    defect = True
+                    data_all.append([nrn_id, fgb_id, defect])
+                else:
+                    defect = False
+                    coeffs = numpy.array(trafo.getData(), ndmin=1,
+                                         dtype=numpy.float)
+                    # TODO: str objects are very inefficiently saved in h5 and
+                    # if a DataFrame is loaded and saved in the same store, the
+                    # file size grows unexpectedly
+                    # https://github.com/pandas-dev/pandas/issues/2132
+                    list_to_save = [nrn_id, fgb_id, defect,
+                                    len(coeffs) - 1,
+                                    type(trafo).__name__,
+                                    trafo.getDomainBoundaries().first,
+                                    trafo.getDomainBoundaries().second]
+                    list_to_save.extend(coeffs)
+                    data_all.append(list_to_save)
+            max_coeff_len = max(col[3] for col in data_all if not col[2])
+            column_names.extend('coeff{}'.format(ii)
+                                for ii in range(max_coeff_len+1))
+            df = pandas.DataFrame(data_all, columns=column_names)
+            df.set_index(['neuron', 'shared_block'], inplace=True)
+            df.sortlevel('neuron', inplace=True)
+            with pandas.HDFStore(self.pandas_store,
+                                 complevel=9, complib='blosc') as store:
+                name = self.check_name(name, store.keys())
+                store[name] = df
+
     def save_experiment_results(self, numeric_index=False):
         """
         creates a pandas.DataFrame containing all measurements of the
@@ -184,8 +265,6 @@ class CalibrationUnit(object):
         saves the measurement results to "results.h5"
         Excludes columns with datatype object to save space on disk.
         """
-
-        path, _  = os.path.split(self.storage_folder)
         name = self.name
         results = self.experiment.get_all_data(
                 numeric_index=numeric_index)
@@ -197,15 +276,9 @@ class CalibrationUnit(object):
                 "The column '{}' of {} is dropped in results.h5 to "
                 "save disk space!".format(key, name))
         results = results.select_dtypes(exclude=[object])
-        with pandas.HDFStore(os.path.join(path, "results.h5"),
+        with pandas.HDFStore(self.pandas_store,
                              complevel=9, complib='blosc') as store:
-            i = 0
-            while (name in store):
-                if i > 0:
-                    name = name.replace(str(i-1), str(i))
-                elif i == 0:
-                    name += '_' + str(i)
-                i += 1
+            name = self.check_name(name, store.keys())
             store[name] = results
 
     def save(self):
