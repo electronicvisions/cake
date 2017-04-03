@@ -276,6 +276,20 @@ class CalibrationUnit(object):
                 "The column '{}' of {} is dropped in results.h5 to "
                 "save disk space!".format(key, name))
         results = results.select_dtypes(exclude=[object])
+
+        # patch 'range' values from config bc. they are not recorded for the
+        # evaluation
+        params = {}
+        for ii, param in enumerate(
+                            self.config.parameters[self.name +"_range"]):
+            params.update({ii: {n.name + '_config': p.value
+                                for n,p in param.iteritems()}})
+        to_merge = pandas.DataFrame.from_dict(params, orient='index')
+        to_merge.index.names = ['step']
+        results = pandas.merge(results.reset_index(), to_merge.reset_index(),
+                               on=['step'], how='inner')
+        results.set_index(['neuron','shared_block', 'step'], inplace=True)
+
         with pandas.HDFStore(self.pandas_store,
                              complevel=9, complib='blosc') as store:
             name = self.check_name(name, store.keys())
