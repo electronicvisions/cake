@@ -1,1282 +1,1184 @@
-#!/usr/bin/env python
-#  -*- coding: utf-8; -*-
-# Summarize the calibration in plots
-#
-# see:
-# Heterogeneity and calibration of analog neuromorphic circuits
-# https://brainscales.kip.uni-heidelberg.de/internal/jss/AttendMeeting?m=displayPresentation&mI=53&mEID=1738
-#
-# THIS SCRIPT NEEDS A MAJOR CLEANUP!
-#
-# everything below exit(0) is not yet generalized:
-# - trial-to-trial
-# - tau_refrac
-# - tau_m
-
-import argparse
-import contextlib
-import os
-import shutil
-import traceback
-
+import pandas as pd
+# deactivate warning
+# http://stackoverflow.com/questions/20625582/how-to-deal-with-settingwithcopywarning-in-pandas
+pd.options.mode.chained_assignment = None
 import numpy as np
-import pandas
-
+import os
 import matplotlib
-
-# http://stackoverflow.com/a/4935945/1350789
 matplotlib.use('Agg')
-
 import matplotlib.pyplot as plt
+plt.ioff()
+import matplotlib.lines as mlines
+from matplotlib import rcParams
+from cycler import cycler
+rcParams.update({'figure.autolayout': True, 'axes.formatter.limits': [-4, 4],
+                 'figure.figsize': [6.4, 4.8], 'axes.prop_cycle': cycler('color',
+                    [u'#1f77b4', u'#ff7f0e', u'#2ca02c', u'#9467bd',
+                     u'#8c564b', u'#e377c2', u'#7f7f7f', u'#bcbd22', u'#17becf'])})
 
-from pycake.calibration.E_l_I_gl_fixed import E_l_I_gl_fixed_Calibrator
-from pycake.helpers.misc import mkdir_p
-from pycake.helpers.peakdetect import peakdet
-from pycake.reader import Reader
-import Coordinate as C
-import pycake
-import pycake.config
-import pycake.helpers.calibtic as calibtic
-import pycalibtic
-import pyhalbe
+# ===========================HOW TO USE (as a plotting script)=============================
 
-import pylogging
-pylogging.reset()
-pylogging.default_config(date_format='absolute')
+# if only calib should be plotted: make_plots.py STORAGE_PATH --cal "CALIBRATION_FOLDER"
 
-logger = pylogging.get("pycake.make_plots")
+# if only eval should be plotted: make_plots.py STORAGE_PATH --eval
+# "EVAL_FOLDER" --wafer WAFER_ENUM --hicann HICANN_ENUM --backend_path BACKEND_PATH
+# (if you want to deselect defect neurons. The information is only stored in
+# the calib DataFrames or the redman xml and to load the xml you need the wafer
+# and hicann enums.) If you ommit --wafer etc., plots including defects are still done
 
-pylogging.set_loglevel(pylogging.get("pycake.make_plots"), pylogging.LogLevel.TRACE)
-pylogging.set_loglevel(pylogging.get("pycake.reader"), pylogging.LogLevel.TRACE)
-pylogging.set_loglevel(pylogging.get("pycake.calibrationrunner"), pylogging.LogLevel.TRACE)
+# if both should be plotted: make_plots.py STORAGE_PATH --cal "CALIBRATION_FOLDER" --eval
+# "EVAL_FOLDER"
 
-font = {#'family' : 'normal',
-        #'weight' : 'bold',
-        'size'   : 12}
-matplotlib.rc('font', **font)
-margins={"left":0.2, "right":0.95, "top":0.95, "bottom":0.08}
-xlog_margins={"left":0.2, "right":0.95, "top":0.95, "bottom":0.1}
+# ===========================plot parameters ===============================================
+neuron_enums = [0] # neurons to be plotted (trace), if not specified in args.neuron_enum
+plot_config = {'readout_shift': {'result_key': 'coeff0', 'result_label': r"offset [V]",
+                                 'xunit': 'V', 'yunit': 'V'},
+               'V_reset':   {'result_key': 'baseline', 'result_label': r"$V_{reset}$ [V]",
+                             'key_label_cal': r"$V_{reset}$ [DAC] (in)", 'xunit': 'V',
+                             'per_fg_block': True},
+               'V_t':       {'result_key': 'max', 'result_label': r"$V_{t}$ [V]",
+                             'key_label_cal': r"$V_{t}$ [DAC] (in)", 'xunit': 'V',
+                            },
+               'E_synx':    {'result_key': 'mean', 'result_label': r"$E_{syn,x}$ [V]",
+                             'key_label_cal': r"$E_{syn,x}$ [DAC] (in)", 'xunit': 'V'},
+               'E_syni':    {'result_key': 'mean', 'result_label': r"$E_{syn,i}$ [V]",
+                             'key_label_cal': r"$E_{syn,i}$ [DAC] (in)", 'xunit': 'V'},
+               'E_l':       {'result_key': 'mean', 'result_label': r"$E_{l}$ [V]",
+                             'key_label_cal': r"$E_{l}$ [DAC] (in)", 'xunit': 'V'},
+               'I_pl':      {'result_key': 'tau_ref', 'result_label': r"$\tau_{ref}$ [s]",
+                             'key_label_cal': r"$I_{pl}$ [DAC]", 'xunit': 's', 'rep': 0,
+                             'num_steps': 6, 'logx': True, 'bins': 100,
+                             'xrange': np.logspace(-10, -4.5, 200)},
+               'I_gl':      {'result_key': 'tau_2', 'result_label': r"$\tau_{m}$ [s]",
+                             'key_label_cal': r"$I_{gl}$ [DAC]", 'xunit': 's', 'logx': True,
+                             'xrange': np.logspace(-7, -4.5, 200)},
+               'V_convoffi': {'result_key': 'coeff0', 'result_label': r"$V_{convoff}$ [DAC]",
+                              'xunit': 's', 'DACrange': [0, 1023]},
+               'V_convoffx': {'result_key': 'coeff0', 'result_label': r"$V_{convoff}$ [DAC]",
+                              'xunit': 's', 'DACrange': [0, 1023]},
+               'V_syntci':  {'result_key': 'tau_syn', 'result_label': r"$\tau_{syn,i}$ [s]",
+                             'key_label_cal': r"$V_{syntc,i}$ [DAC] (in)", 'xunit': 's',
+                             'xrange': np.logspace(-9, -3.5, 200), 'logx': True},
+               'V_syntcx':  {'result_key': 'tau_syn', 'result_label': r"$\tau_{syn,x}$ [s]",
+                             'key_label_cal': r"$V_{syntc,x}$ [DAC] (in)", 'xunit': 's',
+                             'xrange': np.logspace(-9, -3.5, 200), 'logx': True}
+              }
+for plot_dict in plot_config.itervalues():
+    if plot_dict.get('result_label', False):
+        plot_dict['key_label_eval'] = plot_dict['result_label'] + r" (in)"
 
-parser = argparse.ArgumentParser()
-parser.add_argument("runner", help="path of calibration runner directory (can be empty)")
-parser.add_argument("testrunner", help="path of test runner directory (evaluation of calibration) (can be empty)")
-parser.add_argument("hicann", help="HICANNOnWafer enum", type=int)
-parser.add_argument("backenddir", help="path to backends directory (can be empty)")
-parser.add_argument("--wafer", help="Wafer enum", default=0, type=int)
-parser.add_argument("--outdir", help="path of output directory for plots", default="./figures")
+for config in plot_config.itervalues():
+    config['nrns'] = neuron_enums
+# ==========================================================================================
 
-parser.add_argument("--v_reset_runner", help="path to V reset runner (if different from 'runner')", default=None)
-parser.add_argument("--v_reset_testrunner", help="path to V reset test runner (if different from 'testrunner')", default=None)
-
-parser.add_argument("--v_t_runner", help="path to V t runner (if different from 'runner')", default=None)
-parser.add_argument("--v_t_testrunner", help="path to V t test runner (if different from 'testrunner')", default=None)
-
-parser.add_argument("--e_synx_runner", help="path to E synx runner (if different from 'runner')", default=None)
-parser.add_argument("--e_synx_testrunner", help="path to E synx test runner (if different from 'testrunner')", default=None)
-
-parser.add_argument("--e_syni_runner", help="path to E syni runner (if different from 'runner')", default=None)
-parser.add_argument("--e_syni_testrunner", help="path to E syni test runner (if different from 'testrunner')", default=None)
-
-parser.add_argument("--e_l_runner", help="path to E l runner (if different from 'runner')", default=None)
-parser.add_argument("--e_l_testrunner", help="path to E l test runner (if different from 'testrunner')", default=None)
-
-parser.add_argument("--v_syntcx_runner", help="path to V syntcx runner (if different from 'runner')", default=None)
-parser.add_argument("--v_syntcx_testrunner", help="path to V syntcx test runner (if different from 'testrunner')", default=None)
-
-parser.add_argument("--v_syntci_runner", help="path to V syntci runner (if different from 'runner')", default=None)
-parser.add_argument("--v_syntci_testrunner", help="path to V syntci test runner (if different from 'testrunner')", default=None)
-
-parser.add_argument("--tau_ref_runner", help="path to tau ref runner (if different from 'runner')", default=None)
-parser.add_argument("--tau_ref_testrunner", help="path to tau ref test runner (if different from 'testrunner')", default=None)
-
-parser.add_argument("--tau_m_runner", help="path to tau m runner (if different from 'runner')", default=None)
-parser.add_argument("--tau_m_testrunner", help="path to tau m test runner (if different from 'testrunner')", default=None)
-
-parser.add_argument("--spikes_testrunner", help="path to spikes test runner (if different from 'testrunner')", default=None)
-
-parser.add_argument("--neuron_enum", help="neuron(s) used for plots", default=[0], type=int, nargs="+")
-
-parser.add_argument("--v_convoffi_runner", help="path to V convoffi runner (if different from 'runner')", default=None)
-parser.add_argument("--v_convoffx_runner", help="path to V convoffx runner (if different from 'runner')", default=None)
-
-parser.add_argument("--v_convoff_testrunner", help="path to V convoff test runner (if different from 'testrunner')", default=None)
-
-parser.add_argument("--defect_runner", help="path to runner from which defect neurons will be plotted", default=None)
-
-args = parser.parse_args()
-
-fig_dir = args.outdir
-mkdir_p(fig_dir)
-
-try:
-    reader = Reader(args.runner)
-except Exception as e:
-    logger.WARN("Cannot instantiate reader because: {} in \"{}\"".format(e.message, args.runner))
-    logger.WARN("Ok, if other runners are specified.")
-    reader = None
-
-try:
-    test_reader = Reader(args.testrunner)
-except Exception as e:
-    logger.WARN("Cannot instantiate test reader because: {} in \"{}\"".format(e.message, args.testrunner))
-    logger.WARN("Ok, if other runners are specified.")
-    test_reader = None
-
-def extract_range(reader, config_name, parameter, safety_min=0.1, safety_max=0.1):
+def make_fig_dir(path, fig_dir):
     """
-    extract the range for the plots from the steps of the calibration/evaluation
+    creates directory for figures if it is not already there
     """
-    cfg = reader.runner.config.copy(config_name)
-    steps = [step[parameter].value for step in cfg.get_steps()]
-    xmin = min(steps) - safety_min
-    xmax = max(steps) + safety_max
+    fig_path = os.path.join(path, fig_dir)
+    if fig_dir not in os.listdir(path):
+        os.mkdir(fig_path)
+    return fig_path
 
-    return xmin, xmax
-
-def extract_range_y(reader, config_name, parameter, key, safety_min=0.1, safety_max=0.1):
+def load_data(storage_path, calib_name='', eval_name='', patch=True):
     """
-    extract the range of the measured data for the plots of the calibration
+    load data from calibration and/or eval run
+
+    Args:
+        storage_path [str]: path where calibration and/or evaluation folder are
+        calib_name [str]: name of the calibration folder
+        eval_name [str]: name of the evaluation folder
+        patch [bool]: if True, calculates which neurons are marked as defect
+                      and adds the columns 'defect_all' to all Dataframes
+    Returns:
+        [dict], [dict], [dict]: keys are parameter names, values are
+            DataFrames. exp_results contains the data of the calibration step (i.e.
+            hardware settings, measured time constants, etc.). cal_results contains
+            calibration data (fit function, coefficients, defects, domain). eval_results
+            contains measurement results for an evaluation run.
     """
-    y = reader.get_results(parameter, reader.get_neurons(), key, repetition = None).values()
-    ymin = np.nanmin(y[y != 0]) - safety_min
-    ymax = np.nanmax(y) + safety_max
-    return ymin, ymax
+    calib_storage_path = os.path.join(storage_path, calib_name)
+    eval_storage_path = os.path.join(storage_path, eval_name)
+    with pd.HDFStore(os.path.join(calib_storage_path, 'results.h5')) as store:
+        if len(store) == 0 and calib_name != '':
+            print "\n", ("WARNING: calibration store for does not contain anything!"
+                   " (is the path correct?)  {}".format(calib_storage_path)), "\n"
+        exp_results = {key[1:] : store[key] for key in store.keys() if '_calib' not in key}
+        cal_results = {key[1:] : store[key] for key in store.keys() if '_calib' in key}
+    with pd.HDFStore(os.path.join(eval_storage_path, 'results.h5')) as store:
+        if len(store) == 0 and eval_name != '':
+            print "\n", ("WARNING: evaluation store does not contain anything!"
+                  " (is the path correct?)  {}".format(eval_storage_path)), "\n"
+        eval_results = {key[1:] : store[key] for key in store.keys()}
+    if patch:
+        # add column 'defect_all' to all DataFrames
+        patch_defects(cal_results, exp_results)
+        patch_defects(cal_results, cal_results)
+        patch_defects(cal_results, eval_results)
+    return exp_results, cal_results, eval_results
 
-@contextlib.contextmanager
-def LogError(msg):
+def get_defects(dfs):
     """
-    Use:
-        with LogError("Oh no something terrible happend"):
-            feae.aeaf = 132
-    to catch all exceptions and log them
+    reads out the column 'defect' for all DataFrames in dfs and returns a
+    Series, marking defect neurons with True. If no cailbration Dataframe is
+    loaded, returns False (no neuron is defect because it has not benn measured).
+
+    Args:
+        dfs [list]: list of DataFrames
+    Returns:
+        [Series, bool]: defect neurons
     """
-    try:
-        yield
-    except Exception as e:
-        logger.ERROR("{}: {}".format(msg, e))
-        logger.WARN('\n' + traceback.format_exc())
+    if len(dfs) == 0:
+        return False
+    df_def = []
+    for df in dfs.itervalues():
+        df_def.append(df['defect'])
+    return pd.concat(df_def, axis=1).sum(axis=1) > 0
 
+def patch_defects_redman(results, backend_path, wafer, hicann):
+    """
+    patch defects using the redman xml file
 
-def uncalibrated_hist(xlabel, reader, xscale="linear", yscale="linear", **reader_kwargs):
+    Args:
+        results [dict]: contains DataFrames to be patched
+        backend_path [str]: path to xml file
+        wafer [int]: wafer enum
+        hicann [int]: hicann enum
+    """
+    from pyhalbe import Coordinate as C
+    import pyredman as redman
+    import pycake.helpers.redman
+    # first check if file exists, bc. redman does not throw an error
+    files = [f for f in os.listdir(backend_path)
+             if os.path.isfile(os.path.join(backend_path, f))]
+    found = False
+    wafer_str = str(wafer)
+    hicann_str = str(hicann)
+    for f in files:
+        if wafer_str in f and hicann_str in f:
+            if (f[f.index(wafer_str)-1] not in "123456789"
+                    and f[f.index(wafer_str)+len(wafer_str)] not in "0123456789"
+                    and f[f.index(hicann_str)-1] not in "123456789"
+                    and f[f.index(hicann_str)+len(hicann_str)] not in "0123456789"):
+                found = True
+    if not found:
+        print "\n", ("WARNING: No redman xml found!"
+               " (is the path correct?)  {}".format(backend_path)), "\n"
+    wafer = C.Wafer(C.Enum(wafer))
+    hicann = C.HICANNOnWafer(C.Enum(hicann))
+    redman = pycake.helpers.redman.Redman(
+        backend_path, C.HICANNGlobal(hicann,wafer))
+    neuron_enums = results.values()[0].index.get_level_values('neuron').unique().values
+    defects = {ii: not redman.hicann_with_backend.neurons().has(C.NeuronOnHICANN(C.Enum(ii)))
+               for ii in neuron_enums}
+    df_defect = pd.Series(defects).to_frame()
+    df_defect.columns = ['defect_all']
+    df_defect.index.names = ['neuron']
+    for key, df in results.iteritems():
+        index_names = df.index.names
+        df = pd.merge(df.reset_index(), df_defect.reset_index(),
+                               on=['neuron'], how='inner')
+        df.set_index(index_names, inplace=True)
+        results[key] = df
+    return results
 
-    if not reader: return
+def patch_defects(dfs0, dfs1):
+    """
+    read in defects from dfs0 and patch them in dfs1
 
-    logger.INFO("uncalibrated hist for {}".format(reader_kwargs["parameter"]))
+    Args:
+        dfs0 [list of DataFrame]: contains info about defect neurons
+        dfs1 [list of DataFrame]: gets info about defect neurons
+    """
+    defects = get_defects(dfs0)
+    if isinstance(defects, bool):
+        for df in dfs1.itervalues():
+            df['defect_all'] = defects
+    else:
+        defects_val = defects.sortlevel('neuron').values
+        for df in dfs1.itervalues():
+            if 'step' in df.index.names:
+                step_len = len(df.index.get_level_values('step').unique())
+                defects = np.repeat(defects_val, step_len)
+                df.sortlevel('neuron', inplace=True)
+            df['defect_all'] = defects
 
-    reader_kwargs["alpha"] = 0.8
+def get_rep_slice(df, rep, columns):
+    """
+    reduces Dataframe df to the steps of repetition rep
+    TODO: repetitions is inferred from number of different DAC
+    values...better if it would be saved during calib
+    """
+    step_level = df.index.names.index('step')
+    df = df.swaplevel(0, step_level).sortlevel('step')
+    step_len = min(len(df[col].unique()) for col in columns)
+    df = df.loc[range(step_len*rep, step_len*(rep+1)), :]
+    df = df.swaplevel(0,step_level)
+    return df
 
-    for include_defects in [True, False]:
+def add_FG_Block(df):
+    """
+    adds FG Block column in df as
+      neuron_enum % num_shared_blocks
+    + num_neurons_total/num_shared_blocks*shared_block_enum
+    """
+    num_nrn =  df.index.get_level_values('neuron').unique().shape[0]
+    num_shared = df.index.get_level_values('shared_block').unique().shape[0]
+    if 'step' in df.index.names:
+        num_steps = df.index.get_level_values('step').unique().shape[0]
+    else:
+        num_steps = 1
+    dfs = []
+    for block, group in df.groupby(level='shared_block'):
+        group.sortlevel('neuron', inplace=True)
+        group['FGBlock'] = (np.tile(range(group.shape[0]/num_steps), num_steps)
+                            + num_nrn/num_shared*block)
+        dfs.append(group.copy())
+    return pd.concat(dfs)
 
-        logger.DEBUG("histogram including defects: {}".format(include_defects))
+def patch_tau_syn(df):
+    """
+    calculates tau_syn and tau_mem and patches them into the DataFrame
+    """
+    df['tau_syn'] = df[['tau_1', 'tau_2']].min(axis=1)
+    df['tau_mem'] = df[['tau_1', 'tau_2']].max(axis=1)
+    return df
 
-        reader.include_defects = include_defects
+def patch_tau_syn_all(df):
+    keys = df.keys()
+    keys = [k for k in keys if k in ['V_syntci', 'V_syntcx']]
+    for key in keys:
+        df_to_patch = df[key]
+        patch_tau_syn(df_to_patch)
 
-        fig, hists = reader.plot_hists(**reader_kwargs)
-        plt.legend().set_visible(False)
-        plt.title("uncalibrated", x=0.125, y=0.9)
-        plt.xlabel(xlabel)
-        plt.ylabel("#")
-        if 'range' in reader_kwargs:
-            plt.xlim(*reader_kwargs['range'])
-        if xscale == "log":
-            plt.subplots_adjust(**xlog_margins)
+def get_fit_label(df, xunit, yunit):
+    """
+    returns units of x- and y-axis depending on number of coefficients
+    (the coeff is on the x-axis, thus c_i has unit yunit/xunit**i)
+
+    Args:
+        df [DataFrame]: contains coefficients
+        xunit [str]: x-unit
+        yunit [str]: y-unit
+    Returns:
+        1st argument: [str] the function
+        2nd argument: [str] list of units
+    """
+    trafo_type = [val for val in df['trafo'] if val is not None][0]
+    degree = [val for val in df['degree'] if val is not None][0]
+    degree = int(degree)
+    label = r"c_0"
+    units = []
+    for ii in range(1, degree+1):
+        if ii == 1:
+            label += " + c_{}x".format(ii)
+            units.append(xunit)
         else:
-            plt.subplots_adjust(**margins)
-        plt.xscale(xscale)
-        plt.yscale(yscale)
+            label += " + c_{}x^{}".format(ii, ii)
+            units.append("{}^{}".format(xunit, ii))
+    if 'OneOverPolynomial' == trafo_type:
+        units = [r"$\frac{1}{\mathrm{" + yunit + "}" + uu + "}$" for uu in units]
+        units.insert(0, r"$\frac{1}{\mathrm{" + yunit + "}}$")
+        return r"$\frac{1}{" + label + "}$", units
+    else:
+        units = [r"$\frac{\mathrm{" + yunit + "}}{" + uu + "}$" for uu in units]
+        units.insert(0, r"$\mathrm{" + yunit + "}$")
+        return r"${}$".format(label), units
 
-        defects_string = "with_defects" if include_defects else "without_defects"
+def pad_xaxis(ax):
+    """
+    pad the xaxis of ax
+    axes.margins does not work with pandas sometimes, so it has to be set
+    manually
+    """
+    xlim = ax.get_xlim()
+    x_range = xlim[1] - xlim[0]
+    xlim = [xlim[0]-0.01*x_range, xlim[1]+0.01*x_range]
+    ax.set_xlim(xlim)
 
-        fig.savefig(os.path.join(fig_dir, "_".join([reader_kwargs["parameter"],
-                                                    defects_string,
-                                                    "uncalibrated.pdf"])))
+def fit_func(df, x_range, cut=False, all_neurons=False, neurons=None):
+    """
+    calculates fit_function for given DataFrame at points in x_range
 
-        fig.savefig(os.path.join(fig_dir, "_".join([reader_kwargs["parameter"],
-                                                    defects_string,
-                                                    "uncalibrated.png"])))
+    Args:
+        df [DataFrame]: contains coefficients, trafo, etc.
+        x_range [list, np.ndarray]: contains x values (usually in seconds or
+                                    volts)
+        cut [bool]: If data should be cut to domain
+        all_neurons [bool]: if the fit functions for all neurons in df should
+                            be calculated. If not, takes some selected neurons
+        neurons [list]: if not None, plot only these neurons
 
-        #--------------------------------------------------------------------------------
+    Returns:
+        [DataFrame]: same as df + new axis 'x' and 'y' for x and y values
+    """
+    trafo_type = [val for val in df['trafo'] if val is not None][0]
+    df_fit = df[df['defect']==False]
+    coeffs = df_fit.filter(regex='coeff')
+    if not all_neurons:
+        if neurons is None:
+            if trafo_type != 'Lookup':
+                # get min and max coeffs and average, to have extreme and normal fits
+                neurons = np.concatenate([coeffs.idxmin().values,
+                                         coeffs.idxmax().values,
+                                         np.abs(coeffs.mean() - coeffs).idxmin().values[:1]])
+            else:
+                # just draw some neurons bc. the upper selection method
+                # would give too many neurons
+                neurons = df.index.get_level_values('neuron').unique().values
+                nrn_min, nrn_max = np.min(neurons), np.max(neurons)
+                lin_neurons = np.linspace(nrn_min, nrn_max, 6, dtype=int)
+                neurons = list(neurons[lin_neurons])
+        df_fit = df_fit.loc[neurons,:]
+    dfs = []
+    for x in x_range:
+        df_fit['x'] = x
+        dfs.append(df_fit.copy())
+    df_fit = pd.concat(dfs)
+    if cut:
+        df_fit['cut_min'] = df_fit['domain_min'] > df_fit['x']
+        df_fit['cut_max'] = df_fit['domain_max'] < df_fit['x']
+        df_fit['cut'] = df_fit[['cut_min', 'cut_max']].sum(1) > 0
+        df_fit = df_fit[~df_fit['cut']]
 
-        logger.INFO("... vs neuron number")
-        plt.legend().set_visible(True)
+    if trafo_type in ['Constant', 'Polynomial', 'OneOverPolynomial']:
+        df_fit['y'] = 0.
+        for ii,coeff in enumerate(coeffs):
+            df_fit['y'] += df_fit[coeff]*df_fit['x']**ii
+        if trafo_type == 'OneOverPolynomial':
+            df_fit['y'] = 1./df_fit['y']
 
-        fig, foos = reader.plot_vs_neuron_number_s(**reader_kwargs)
-        plt.title("uncalibrated", x=0.125, y=0.9)
-        plt.xlabel("Neuron")
-        plt.ylabel(xlabel)
-        plt.xlim(0, 512)
-        plt.ylim(*reader_kwargs['range'])
-        plt.subplots_adjust(**margins)
-        plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    elif trafo_type == 'Lookup':
+        results = []
+        for x, df_neuron in df_fit.groupby(['x']):
+            result = df_neuron.filter(regex='coeff')
+            result = np.abs(result.subtract(df_neuron['x'], axis='index')).idxmin(1)
+            result = result.apply(lambda x: int(x[5:]))
+            df_neuron['y'] = result
+            results.append(df_neuron)
+        df_fit = pd.concat(results)
+    else:
+        raise LookupError('No fit function definded for trafo type {}'.format(trafo_type))
+    return df_fit
 
-        defects_string = "with_defects" if include_defects else "without_defects"
+def load_trace(storage_path, cal_eval_name, parameter, nrn):
+    """
+    load the traces which are stored in a hdf5 store at storage_path/eval_name
+    # TODO: There is no way to savely determine which files contain which
+    # traces (different parameter traces are in different folders but they are
+    # named 0, 1 etc. Thus it is assumed that the V_reset measurement always
+    # comes before the V_t measurement and traces are read in this order.
 
-        fig.savefig(os.path.join(fig_dir, "_".join([reader_kwargs["parameter"],
-                                                    defects_string,
-                                                    "uncalibrated_vs_neuron_number.pdf"])))
+    Args:
+        storage_path [str]: path to the hdf5 file of the traces
+        cal_eval_name [str]: name of calibration/evaluation folder
+        parameter [str]: name of parameter of which the trace should be loaded
+        nrn [int]: return trace of this neuron
+    Returns:
+        [list]: DataFrames that contain traces
+    """
+    # find folders that contain traces
+    paths = []
+    data_path = os.path.join(storage_path, cal_eval_name)
+    if os.path.isdir(data_path):
+        for file_store in os.listdir(data_path):
+            file_path = os.path.join(data_path, file_store)
+            if os.path.isdir(file_path):
+                for files in os.listdir(file_path):
+                    if '.hdf5' in files:
+                        paths.append(file_path)
+                        break
+    if nrn < 10:
+        nrn = "00{}".format(nrn)
+    elif nrn < 100:
+        nrn = "0{}".format(nrn)
+    else:
+        nrn = "{}".format(nrn)
+    if parameter == 'V_reset':
+        path = paths[0]
+    elif parameter == 'V_t':
+        path = paths[1]
+    else:
+        raise LookupError("No traces exist for this parameter")
+    dfs = []
+    for file_store in os.listdir(path):
+        if ".hdf5" in file_store:
+            store_path = os.path.join(path, file_store)
+            with pd.HDFStore(store_path) as store:
+                dfs.append(store['trace_{}'.format(nrn)])
+    return dfs
 
-        fig.savefig(os.path.join(fig_dir, "_".join([reader_kwargs["parameter"],
-                                                    defects_string,
-                                                    "uncalibrated_vs_neuron_number.png"])))
+def plot_trace(dfs, **kwargs):
+    """
+    plot voltage traces (data from load_trace)
+    """
+    ax = kwargs.get('ax', None)
+    if ax == None:
+        fig, ax = plt.subplots()
+        kwargs.update({'ax' : ax})
+    for df in dfs:
+        df.plot(**kwargs)
 
-        #--------------------------------------------------------------------------------
+    if ax.legend() is not None:
+        ax.legend().set_visible(False)
+    ax.set_xlabel("time [s]")
+    ax.set_ylabel(r"$V_{membrane}$ [V]")
+    if locals().get('fig', None) is None:
+        return ax
+    else:
+        return fig, ax
 
-        logger.INFO("... vs shared FG block")
+def plot_defects(df, all_defects=True, **kwargs):
+    """
+    plot defect and working neurons shared block vs neuron
 
-        fig, foos = reader.plot_vs_neuron_number_s(sort_by_shared_FG_block=True, **reader_kwargs)
-        plt.title("uncalibrated", x=0.125, y=0.9)
-        plt.xlabel("Shared FG block*128 + Neuron%256/2")
-        plt.ylabel(xlabel)
-        plt.xlim(0, 512)
-        plt.subplots_adjust(**margins)
+    Args:
+        all_defects [bool]: If defects of all parameters is taken. Otherwise,
+        take only defect neurons of parameter of the DataFrame
+    """
+    std_kwargs = {'linestyle' : '', 'marker' : 'x'}
+    for key in std_kwargs.keys():
+        if key not in kwargs.keys():
+            kwargs.update({key : std_kwargs[key]})
 
-        defects_string = "with_defects" if include_defects else "without_defects"
+    ax = kwargs.get('ax', None)
+    if ax == None:
+        fig, ax = plt.subplots()
+        kwargs.update({'ax' : ax})
+    defect_column = 'defect'
+    if all_defects:
+        defect_column += '_all'
+    defects = df[defect_column]
+    defects = defects.reset_index(['neuron', 'shared_block'])
+    defects['y'] = defects['shared_block'] + defects[defect_column]/2.
+    defects[defects[defect_column]==False].plot('neuron', 'y', color='g',
+                                                label='working', **kwargs)
+    if defects[defects[defect_column]==True].shape[0] != 0:
+        defects[defects[defect_column]==True].plot('neuron', 'y', color='r',
+                                                   label='defect', **kwargs)
+    # This is a workaround bc. one marker in the legend is missing (pandas plot bug)
+    lines = ax.get_lines()
+    ax.legend(lines, ['Working', 'Defect'])
 
-        fig.savefig(os.path.join(fig_dir, "_".join([reader_kwargs["parameter"],
-                                                    defects_string,
-                                                    "uncalibrated_vs_shared_FG_block.pdf"])))
+    num_fg_blocks = defects['shared_block'].unique().shape[0]
+    ax.set_yticks([rr + 0.25 for rr in range(num_fg_blocks)])
+    ax.set_yticklabels(range(num_fg_blocks))
+    plt_min_max = [defects['neuron'].min(), defects['neuron'].max()]
+    ax.set_xlim(plt_min_max)
+    ax.set_xlabel("neuron")
+    ax.set_ylabel("FGBlock")
+    if locals().get('fig', None) is None:
+        return ax
+    else:
+        return fig, ax
 
-        fig.savefig(os.path.join(fig_dir, "_".join([reader_kwargs["parameter"],
-                                                    defects_string,
-                                                    "uncalibrated_vs_shared_FG_block.png"])))
+def plot(df, columns, level='neuron', with_defects=True,
+         all_defects=True, rep=None, refs=None, set_tb=False, per_fg_block=False, **kwargs):
+    """
+    plot a line or markers. Takes the columns 'columns' to plot df[columns]
 
+    Args:
+        df [DataFrame]: contains the data
+        columns [list]: x- and y-axis of plot
+        level [string]: which level to sort by: 'step' makes a plot for every
+                        step (on the same figure), 'neuron' for every neuron etc.
+        with_defects [bool]: if True, include defect neurons, otherwise exclude
+        all_defects [bool]: include all defects from different parameters,
+                            otherwise include only defects from current
+                            parameter (defined by the DataFrame
+        rep [int]: plots only the steps with repetition 'rep'
+        refs [list]: plots reference lines (for eval)
+        set_tb [bool]: for plots where tob/bottom neurons are plotted separately
+        per_fg_block [bool]: if True, data is plotted vs FG Blocks
+        kwargs: pandas.plot kwargs
 
-def calibrated_hist(xlabel, reader, xscale="linear", yscale="linear", **reader_kwargs):
+    Returns:
+        axis or figure, axis if axis was None
+    """
+    std_kwargs = {'alpha' : 0.05, 'linestyle' : '-', 'marker' : '.', 'legend' : None}
+    for key in std_kwargs.keys():
+        if key not in kwargs.keys():
+            kwargs.update({key : std_kwargs[key]})
+    if set_tb:
+        kwargs.update({'color' : 'b'})
 
-    if not reader: return
+    ax = kwargs.get('ax', None)
+    if ax == None:
+        fig, ax = plt.subplots()
+        kwargs.update({'ax' : ax})
+    df_plot = df.copy(deep=True)
+    # insert a column for the index, without removing the index
+    for col in columns:
+        if col in df_plot.index.names:
+            df_plot.reset_index(col, inplace=True)
+            df_plot.set_index(col, drop=False, append=True, inplace=True)
 
-    logger.INFO("calibrated hist for {}".format(reader_kwargs["parameter"]))
-
-    reader_kwargs["alpha"] = 0.8
-
-    for include_defects in [True, False]:
-
-        reader.include_defects = include_defects
-
-        fig, hists = reader.plot_hists(**reader_kwargs)
-        plt.legend(loc = 'best')
-        plt.title("calibrated", x=0.125, y=0.9)
-        plt.xlabel(xlabel)
-        plt.ylabel("#")
-        if 'range' in reader_kwargs:
-            plt.xlim(*reader_kwargs['range'])
-        if xscale == "log":
-            plt.subplots_adjust(**xlog_margins)
+        if all_defects is False:
+            defect_str = 'defect'
         else:
-            plt.subplots_adjust(**margins)
-        plt.xscale(xscale)
-        plt.yscale(yscale)
+            defect_str = 'defect_all'
+        if with_defects is False:
+            df_plot = df_plot[columns + [defect_str]]
+            df_plot  = df_plot[df_plot[defect_str]==False]
+            neurons = df_plot.index.get_level_values('neuron')
+            first_top = neurons[0]
+            first_bottom = [w for w in neurons if w>255][0]
+        else:
+            df_plot = df_plot.loc[:, columns + [defect_str]]
+            first_top = 0
+            first_bottom = 256
+    if rep is not None:
+        df_plot = get_rep_slice(df_plot, rep, columns)
+    df_plot.sortlevel(level)
+    if per_fg_block:
+        df_plot = add_FG_Block(df_plot)
+        columns[0] = 'FGBlock'
 
-        defects_string = "with_defects" if include_defects else "without_defects"
+    if level is None:
+        df_plot.plot(x=columns[0], y=columns[1], **kwargs)
+        if with_defects:
+            col, al = kwargs.get('color', None), kwargs.get('alpha', None)
+            kwargs['color'] = 'red'
+            kwargs['alpha'] = 1.
+            if df_plot[df_plot[defect_str]].shape[0] != 0:
+                df_plot[df_plot[defect_str]].plot(x=columns[0],
+                                                  y=columns[1], **kwargs)
+            kwargs['color'] = col
+            kwargs['alpha'] = al
+    else:
+        for name, group in df_plot.groupby(level=level):
+            if name == first_bottom and set_tb:
+                kwargs.update({'color' : 'g'})
+            group.plot(x=columns[0], y=columns[1], **kwargs)
+            if with_defects:
+                col, al = kwargs.get('color', None), kwargs.get('alpha', None)
+                kwargs['color'] = 'red'
+                kwargs['alpha'] = 1.
+                if group[group[defect_str]].shape[0] != 0:
+                    group[group[defect_str]].plot(x=columns[0],
+                                                  y=columns[1], **kwargs)
+                kwargs['color'] = col
+                kwargs['alpha'] = al
 
-        fig.savefig(os.path.join(fig_dir, "_".join([reader_kwargs["parameter"],
-                                                    defects_string,
-                                                    "calibrated.pdf"])))
+    if refs is not None:
+        for ref in refs:
+            ax.axhline(ref, ls='--', color='k')
+    if set_tb:
+        # Due to high alpha, set legend values by hand
+        line_top = mlines.Line2D([], [], color='blue', marker='.',
+                                 label='top')
+        line_bottom = mlines.Line2D([], [], color='green', marker='.',
+                                 label='bottom')
+        plt.legend(handles=[line_top, line_bottom])
+        ax.legend([line_top, line_bottom], ['top', 'bottom'])
+    ax.grid(True)
+    if per_fg_block:
+        num_nrn =  df_plot.index.get_level_values('neuron').unique().shape[0]
+        num_fg_blocks = df_plot.index.get_level_values('shared_block').unique().shape[0]
+        fg_pos = [rr*num_nrn/num_fg_blocks for rr in range(num_fg_blocks)]
+        ax.set_xticks(fg_pos)
+        ax.set_xticklabels(range(num_fg_blocks))
+    if locals().get('fig', None) is None:
+        return ax
+    else:
+        return fig, ax
 
-        fig.savefig(os.path.join(fig_dir, "_".join([reader_kwargs["parameter"],
-                                                    defects_string,
-                                                    "calibrated.png"])))
-
-        # --------------------------------------------------------------------------------
-
-        logger.INFO("... vs neuron number")
-
-        fig, foos = reader.plot_vs_neuron_number_s(**reader_kwargs)
-        plt.title("calibrated", x=0.125, y=0.9)
-        plt.xlabel("Neuron")
-        plt.ylabel(xlabel)
-        plt.xlim(0,512)
-        plt.subplots_adjust(**margins)
-        plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-
-        defects_string = "with_defects" if include_defects else "without_defects"
-
-        fig.savefig(os.path.join(fig_dir, "_".join([reader_kwargs["parameter"],
-                                                    defects_string,
-                                                    "calibrated_vs_neuron_number.pdf"])))
-
-        fig.savefig(os.path.join(fig_dir, "_".join([reader_kwargs["parameter"],
-                                                    defects_string,
-                                                    "calibrated_vs_neuron_number.png"])))
-
-        #--------------------------------------------------------------------------------
-
-        logger.INFO("... vs shared FG block")
-
-        fig, foos = reader.plot_vs_neuron_number_s(sort_by_shared_FG_block=True, **reader_kwargs)
-        plt.title("calibrated", x=0.125, y=0.9)
-        plt.xlabel("Shared FG block*128 + Neuron%256/2")
-        plt.ylabel(xlabel)
-        plt.xlim(0, 512)
-        plt.subplots_adjust(**margins)
-
-        defects_string = "with_defects" if include_defects else "without_defects"
-
-        fig.savefig(os.path.join(fig_dir, "_".join([reader_kwargs["parameter"],
-                                                    defects_string,
-                                                    "calibrated_vs_shared_FG_block.pdf"])))
-
-        fig.savefig(os.path.join(fig_dir, "_".join([reader_kwargs["parameter"],
-                                                    defects_string,
-                                                    "calibrated_vs_shared_FG_block.png"])))
-
-
-def trace(ylabel, reader, parameter, neuron_enum, steps=None, start=0, end=-1, suffix=""):
+def hist(df, column, x_label=None, with_defects=True, all_defects=True,
+         ref=None, plot_mean=True, **kwargs):
     """
-    neuron: neuron enums
+    plot a histogram of the data df[column].
+
+    Args:
+        df [DataFrame]: contains data
+        column [string]: column to plot
+        x_label [string]: label of the x-axis. Also used to extract unit
+        with_defects [bool]: if True, include defect neurons, otherwise exclude
+        all_defects [bool]: include all defects from different parameters,
+                            otherwise include only defects from current
+                            parameter (defined by the DataFrame
+        refs [list]: plots reference lines (for eval)
+        plot_mean [bool]: plots a vertical line at the mean of the histogram
+        kwargs: pandas.plot kwargs
+
+    Returns:
+        axis or figure, axis if axis was None
     """
+    std_kwargs = {'bins' : 100}
+    for key in std_kwargs.keys():
+        if key not in kwargs.keys():
+            kwargs.update({key : std_kwargs[key]})
+    ax = kwargs.get('ax', None)
+    if ax == None:
+        fig, ax = plt.subplots()
+        kwargs.update({'ax' : ax})
 
-    if not reader: return
+    if with_defects is False:
+        if all_defects is False:
+            num_not_defect = len(df[~df['defect']])
+            df_plot = df[df['defect']==False][column]
+        else:
+            num_not_defect = len(df[~df['defect_all']])
+            df_plot = df[df['defect_all']==False][column]
+    else:
+        df_plot = df[column]
+        num_not_defect = len(df.index.get_level_values('neuron').unique())
+    mean = df_plot.mean()
+    std = df_plot.std()
+    if 'label' not in kwargs.keys() and x_label is not None:
+        s0,s1 = x_label.find('['), x_label.find(']')+1
+        # ignore if np.log10 returns inf
+        oldsettings = np.seterr(divide='ignore')
+        if np.log10(np.abs(mean)) < -4:
+            mean_label = mean*1e6
+            std_label = std*1e6
+            ref_label = ref*1e6 if ref is not None else None
+            x_unit = r"$\mu$" + x_label[s0+1:s1-1]
+        else:
+            mean_label = mean
+            std_label = std
+            ref_label = ref
+            x_unit = x_label[s0+1:s1-1]
+        label = "{:.4g} $\pm$ {:.2g} {}, {}".format(mean_label, std_label, x_unit, num_not_defect)
+        np.seterr(**oldsettings)
+        if ref is not None:
+            label += " ({} {})".format(ref_label, x_unit)
+        kwargs.update({'label': label})
 
-    logger.INFO("trace for {}".format(parameter))
+    df_plot.plot(kind='hist', **kwargs)
+    if plot_mean:
+        color = ax.patches[-1].get_facecolor()
+        ax.axvline(mean, ls='--', color=color)
+    if ref is not None:
+        ax.axvline(ref, ls='--', color='k')
+    ax.set_xlabel(x_label)
 
-    recurrence = 0
-    e = reader.get_calibration_unit(name=parameter, recurrence=recurrence).experiment
+    if locals().get('fig', None) is None:
+        return ax
+    else:
+        return fig, ax
 
-    if steps == None:
-        steps = range(len(e.measurements))
-
-    for n_e in neuron_enum:
-
-        logger.INFO("\t neuron {}".format(n_e))
-
-        neuron = C.NeuronOnHICANN(C.Enum(n_e))
-
-        fig = plt.figure()
-
-        t = None
-
-        for step in steps:
-
-            try:
-                p, t = reader.plot_trace(parameter, neuron, step, start, end)
-            except KeyError as e:
-                logger.WARN(e)
-                continue
-
-        plt.grid(True)
-        if t:
-            plt.xlim(t[0][0], t[0][-1])
-        plt.xlabel("t [$\mu$s]")
-        plt.ylabel(ylabel)
-        plt.subplots_adjust(**margins)
-        plt.savefig(os.path.join(fig_dir,parameter+"_trace"+suffix+"_nrn_"+str(neuron.id().value())+".pdf"))
-        plt.savefig(os.path.join(fig_dir,parameter+"_trace"+suffix+"_nrn_"+str(neuron.id().value())+".png"))
-
-def result(label, xlabel=None, ylabel=None, reader=None, suffix="",
-           xlim=None, ylim=None,
-           in_unit_label="[DAC]", out_unit_label="[V]", **reader_kwargs):
-    """ label must have placeholder 'inout' for 'in' and 'out' x and y labels,
-        like: '$E_{{synx}}$ {inout}'
+def hists(df, column, level, x_label=None, with_defects=True, all_defects=True,
+          refs=None, plot_mean=True, num_steps=None, **kwargs):
     """
+    plot multiple histograms
 
-    if not reader: return
+    Args:
+        df [DataFrame]: contains data
+        column [string]: column to plot
+        x_label [string]: label of the x-axis. Also used to extract unit
+        with_defects [bool]: if True, include defect neurons, otherwise exclude
+        all_defects [bool]: include all defects from different parameters,
+                            otherwise include only defects from current
+                            parameter (defined by the DataFrame)
+        refs [list]: plots reference lines (for eval)
+        plot_mean [bool]: plots a vertical line at the mean of the histogram
+        num_steps [int]: max number of steps to plot
+        kwargs: pandas.plot kwargs
 
-    logger.INFO("result for {}".format(reader_kwargs["parameter"]))
+    Returns:
+        axis or figure, axis if axis was None
+    """
+    if num_steps is not None:
+        df_plot = df.swaplevel(0, 'step').sortlevel('step').loc[:num_steps]
+    else:
+        df_plot = df
+    for ii, (_, group) in enumerate(df_plot.sortlevel(level).groupby(level=level)):
+        if refs is None:
+            hist(group, column, x_label=x_label, with_defects=with_defects,
+                 ref=None, plot_mean=plot_mean, **kwargs)
+        else:
+            hist(group, column, x_label=x_label, with_defects=with_defects,
+                 ref=refs[ii], plot_mean=plot_mean, **kwargs)
 
-    for include_defects in [True, False]:
+def plot_domains(df, **kwargs):
+    """
+    plot domains
 
-        reader.include_defects = include_defects
+    Args:
+        df [DataFrame]: contains domain_min and domain_max
+    Returns:
+        axis or figure, axis if axis was None
+    """
+    ax = kwargs.get('ax', None)
+    if ax == None:
+        fig, ax = plt.subplots()
+        kwargs.update({'ax' : ax})
+    df_plot = df[['domain_min', 'domain_max']]
+    df_plot.loc[:,'diff'] = ((df_plot.loc[:,'domain_max']
+                            - df_plot.loc[:,'domain_min']) / 2.)
+    df_plot = df_plot.sort_values('diff', ascending=False)
+    df_plot.loc[:, 'mean'] = df_plot.loc[:,['domain_min', 'domain_max']].mean(axis=1)
+    df_plot.reset_index(inplace=True)
+    df_plot.dropna().plot(y='mean', yerr='diff', linestyle='', **kwargs)
 
-        fig, plot = reader.plot_result(**reader_kwargs)
-        plt.xlabel(xlabel if xlabel != None else label.replace(
-            "{inout}", "(in) {}".format(in_unit_label)))
-        plt.ylabel(ylabel if ylabel != None else label.replace(
-            "{inout}", "(out) {}".format(out_unit_label)))
+    ax.legend().set_visible(False)
+    mean = df_plot['mean'].mean()
+    ax.set_xlabel('neuron')
+    ax.set_ylabel('time domain [s]')
+    nrn_num = df.index.get_level_values('neuron').unique().shape[0]
+    ax.set_xlim([0, nrn_num])
 
-        plt.subplots_adjust(**margins)
-        plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    if locals().get('fig', None) is None:
+        return ax
+    else:
+        return fig, ax
 
-        if xlim:
-            plt.xlim(*xlim)
+def plot_spikes(df, **kwargs):
+    """
+    plot mean spikes (for Spikes eval)
 
-        if ylim:
-            plt.ylim(*ylim)
+    Returns:
+        axis or figure, axis if axis was None
+    """
+    ax = kwargs.get('ax', None)
+    if ax == None:
+        fig, ax = plt.subplots()
+        kwargs.update({'ax' : ax})
+    for tb in ['top', 'bottom']:
+        nrns = range(256) if tb is 'top' else range(256,512)
+        color = 'b' if tb is 'top' else 'g'
+        cols = ['V_t_config', 'spikes_n_spikes']
+        mean = df.sortlevel('neuron').loc[nrns, cols].mean(0, level='step')
+        std = df.sortlevel('neuron').loc[nrns, cols].std(0, level='step')
+        df_plot = pd.concat([mean, std], 1)
+        df_plot.columns = ['V_t', 'y', 'xerr', 'yerr']
+        df_plot.plot('V_t', 'y', yerr='yerr', label=tb, marker='o', color=color, **kwargs)
 
-        plt.grid(True)
+    if locals().get('fig', None) is None:
+        return ax
+    else:
+        return fig, ax
 
-        defects_string = "with_defects" if include_defects else "without_defects"
+def plot_spiking_neurons(df, with_defects=True, ax=None, **kwargs):
+    """
+    plot mean spikes over V_t (for Spikes eval)
 
-        plt.savefig(os.path.join(fig_dir,"_".join([reader_kwargs["parameter"],
-                                                   defects_string,
-                                                   "result"+suffix+".pdf"])))
+    Returns:
+        axis or figure, axis if axis was None
+    """
+    if ax == None:
+        fig, ax = plt.subplots()
+    df_plot = df[['V_t_config', 'spikes_n_spikes', 'defect_all']]
+    if with_defects is False:
+        df_plot = df_plot[df_plot['defect_all']==False]
+    num_nrns = df_plot.index.get_level_values('neuron').unique().shape[0]
+    num_spikes = []
+    for _, group in df_plot.groupby(level='step'):
+        num_spikes.append([group['V_t_config'].iloc[0],
+                         (group['spikes_n_spikes'] > 1).sum()])
+    ax.plot(*zip(*num_spikes), **kwargs)
+    ax.axhline(num_nrns, linestyle='--', color='k')
 
-        plt.savefig(os.path.join(fig_dir,"_".join([reader_kwargs["parameter"],
-                                                   defects_string,
-                                                   "result"+suffix+".png"])))
+    if locals().get('fig', None) is None:
+        return ax
+    else:
+        return fig, ax
+
+def plot_coefficients(df, key, with_defects, axes=None, **kwargs):
+    config = plot_config[key[:-6]]
+    coeffs = [col for col in df.columns if 'coeff' in col]
+    title, units = get_fit_label(df, xunit=config['xunit'],
+                                 yunit=config.get('yunit', 'DAC'))
+    num_plots = len(coeffs)
+    if axes == None:
+        fig, axes = plt.subplots(2, num_plots, figsize=(16., 4.8))
+        fig.suptitle("Calibration coefficients", y=1.)
+    if isinstance(axes, np.ndarray):
+        axes = axes.flatten()
+    else:
+        axes = [axes]
+    for ii, coeff in enumerate(coeffs):
+        hist(df, coeff, x_label=r"$c_{}$ [{}]".format(ii, units[ii]),
+             with_defects=with_defects, ax=axes[ii], bins=150, **kwargs)
+        axes[ii].legend(loc='best').get_frame().set_alpha(0.5)
+
+        if config.get('per_fg_block', False):
+            label_nrn = 'shared_FG_block'
+        else:
+            label_nrn = 'neuron_number'
+        plot(df, ['neuron', coeff], ax=axes[ii+num_plots],
+             level=None, with_defects=with_defects,
+             per_fg_block=config.get('per_fg_block', False),
+             marker='x', alpha=1., linestyle='', **kwargs)
+        axes[ii+num_plots].set_ylabel(r"$c_{}$ [{}]".format(ii, units[ii]))
+    axes[0].legend(loc='best', title=title).get_frame().set_alpha(0.5)
+    if config.get('DACrange', False):
+        axes[0].set_xlim(config['DACrange'])
+        axes[num_plots].set_ylim(config['DACrange'])
+    return fig, axes
+
+def main():
+    import shutil
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("storage_path", help="path of calibration and evaluation directory")
+    parser.add_argument("--calib", help="name of calibration directory", default='')
+    parser.add_argument("--evaluation", help="name of evaluation directory", default='')
+    parser.add_argument("--outdir", help="path of output directory for plots",
+                        default="figures_pandas")
+    parser.add_argument("--neuron_enum", nargs='+', type=int, help="neurons for"
+                        "which the trace of V_reset and V_t should be plotted",
+                        default=None)
+    parser.add_argument("--wafer", help="Wafer enum", type=int,
+                        default=None)
+    parser.add_argument("--hicann", help="HICANN enum", type=int,
+                        default=None)
+    parser.add_argument("--backend_path", help="path to the folder containing the redman xml",
+                        default=".")
+
+    args = parser.parse_args()
+
+    # insert neuron enums (to plot traces of) in config dict
+    if args.neuron_enum:
+        for config in plot_config.itervalues():
+            config['nrns'] = args.neuron_enum
+        neuron_enums = args.neuron_enum
+
+    storage_path = args.storage_path
+    calib_name = args.calib
+    eval_name = args.evaluation
+    fig_dir_name = args.outdir
+    # parameters only needed if no calib data is given (to get defects for
+    # eval)
+    wafer = args.wafer
+    hicann = args.hicann
+    backend_path = args.backend_path
+    if wafer is not None and hicann is not None:
+        patch = False
+    else:
+        patch = True
+
+    # create fig directory if not already there
+    fig_dir_path = make_fig_dir(storage_path, fig_dir_name)
+    cakebin = os.path.split(os.path.abspath(__file__))[0]
+    shutil.copy(os.path.join(cakebin, "overview.html"), fig_dir_path)
+    # trace plots have individual neuron values in file name, add
+    with open(os.path.join(fig_dir_path, "overview.html"), 'rw') as overview:
+        data = overview.readlines()
+        remove = True
+        for nrn in neuron_enums:
+            if nrn == 0:
+                remove = False
+            else:
+                count = 0
+                for ii, line in enumerate(data):
+                    mod = count % 2
+                    if "nrn_0" in line and mod == 0:
+                        count += 1
+                        newline = line.replace('0', str(nrn))
+                        newline1 = data[ii+1].replace('0', str(nrn))
+                        data.insert(ii+2, newline)
+                        data.insert(ii+3, newline1)
+                    elif "nrn_0" in line and mod != 0:
+                        count += 1
+        if remove == True:
+            for ii, line in enumerate(data):
+                if "nrn_0" in line:
+                    data[ii] = "\n"
+    with open(os.path.join(fig_dir_path, "overview.html"), 'w') as overview:
+        overview.writelines(data)
+
+    # load data
+    exp_results, cal_results, eval_results = load_data(storage_path, calib_name,
+                                                       eval_name, patch=patch)
+    # if patch is False, patch from redman
+    if not patch:
+        for results in [exp_results, cal_results, eval_results]:
+            if results:
+                results = patch_defects_redman(results, backend_path, wafer, hicann)
+
+    # patch tau_syn
+    patch_tau_syn_all(exp_results)
+    fig, ax = plt.subplots(figsize=(16,5.))
+    # plot defects, they are patched in every DataFrame so we can take any
+    if len(exp_results) > 0:
+        plot_defects(exp_results.values()[0], ax=ax)
+    else:
+        plot_defects(eval_results.values()[0], ax=ax)
+    fig_filename = 'defect_neurons_vs_neuron_number.png'
+    fig_path = os.path.join(fig_dir_path, fig_filename)
+    print "Saving {}.".format(fig_filename)
+    plt.savefig(fig_path)
+    ax.cla()
 
 
+    fig, ax = plt.subplots()
 
-def plot_v_convoff(reader, name="V_convoff_calibrated_test", extra_plots=True, title="calibrated"):
-    if not reader:
-        raise RuntimeError("missing reader for {}".format(name))
+    # plot readout_shift
+    if 'readout_shift_calib' in cal_results.keys():
+        df = cal_results['readout_shift_calib']
+        config = plot_config['readout_shift']
+        result_key = config['result_key']
 
-    from pyhalbe.HICANN import neuron_parameter
+        hist(df, result_key, x_label=config['result_label'], plot_mean=True, ax=ax)
+        fig_filename = 'analog_readout_offset.png'
+        fig_path = os.path.join(fig_dir_path, fig_filename)
+        print "Saving {}.".format(fig_filename)
+        plt.savefig(fig_path)
+        ax.cla()
 
-    with LogError("problem with {} plots".format(name)):
-        experiment = reader.runner.get_single(name=name).experiment
-        data = experiment.get_all_data(
-            [neuron_parameter.I_gl,
-             neuron_parameter.V_convoffi,
-             neuron_parameter.V_convoffx,
-             neuron_parameter.E_l,
-             neuron_parameter.E_synx,
-             'mean'])
-        data.sortlevel('neuron', inplace=True)
-        plt_name = name.replace("off","off{}_{}")+".{}"
-        for include_defects in [True, False]:
-            reader.include_defects = include_defects
-            nrns = reader.get_neurons() # TODO ???
-            defects_name = "with_defects" if include_defects else "without_defects"
+        plot(df, ['neuron', result_key], ax=ax,
+             level=None, alpha=1., linestyle='', marker='x')
+        ax.set_xlim([0,512])
+        ax.set_ylabel(config['result_label'])
+        fig_filename = 'analog_readout_offset_vs_nrn.png'
+        fig_path = os.path.join(fig_dir_path, fig_filename)
+        print "Saving {}.".format(fig_filename)
+        plt.savefig(fig_path)
+        ax.cla()
 
-            fig = plt.figure()
-            for nrn, nrndata in data.loc[nrns].groupby(level='neuron'):
-                mean = nrndata.groupby('I_gl').mean()
-                std = nrndata.groupby('I_gl').std()
-                #ax.errorbar(mean.index, mean.values, yerr=std.values, alpha=0.3, color='k')
-                plt.plot(nrndata['I_gl'], nrndata['mean'], 'x', alpha=0.1, color='k')
-            for I_gl, tmpdata in data.loc[nrns].groupby('I_gl'):
-                mean = tmpdata['mean'].mean()
-                std = tmpdata['mean'].std()
-                plt.text(I_gl, 1.10,
+    # plot domains
+    keys = cal_results.keys()
+    keys = [k for k in keys if k in ['V_syntci_calib', 'V_syntcx_calib']]
+    for key in keys:
+        df = cal_results[key]
+        plot_domains(df, ax=ax)
+        fig_filename = '{}_domain.png'.format(key[:-6])
+        fig_path = os.path.join(fig_dir_path, fig_filename)
+        print "Saving {}.".format(fig_filename)
+        plt.savefig(fig_path)
+        ax.cla()
+
+    # plot effective resting potential
+    columns = ['I_gl', 'mean']
+    for with_defects in [True, False]:
+        label_wd = 'with_defects' if with_defects else 'without_defects'
+        keys = eval_results.keys()
+        keys = [k for k in keys if k in ['V_convoff_test_calibrated',
+                                         'V_convoff_test_uncalibrated']]
+        for key in keys:
+            label_cal = 'uncalibrated' if 'uncalibrated' in key else 'calibrated'
+            df = eval_results[key]
+            plot(df, columns, ax=ax, level=None,
+                 with_defects=with_defects, marker='x', linestyle='', alpha=0.1, color='k')
+            ax.set_xlim([-10,1023])
+            ax.set_xlabel(r"$I_{gl}$ [DAC]")
+            ax.set_ylabel(r"effective resting potential [V]")
+            for I_gl, tmpdata in df.groupby(columns[0]):
+                mean = tmpdata[columns[1]].mean()
+                std = tmpdata[columns[1]].std()
+                ax.text(I_gl, 1.10,
                          r"${:.0f} \pm {:.0f}$ mV".format(mean * 1000, std * 1000),
                          rotation=35)
-
-            plt.title(title)
-            plt.xlabel("$I_{gl}$ [DAC]")
-            plt.ylabel("effective resting potential [V]")
-            plt.ylim(0.35,1.25)
-            plt.xlim(-10,1023)
-            plt.subplots_adjust(**margins)
-            plt.grid(True)
-            plt.title(title, x=0.125, y=0.9)
-            plt.savefig(os.path.join(fig_dir, plt_name.format('', defects_name, 'png')))
-            plt.savefig(os.path.join(fig_dir, plt_name.format('', defects_name, 'pdf')))
-
-            if extra_plots:
-
-                hist_data = data.loc[nrns].xs(0, level='step')
-
-                args = {"bins": np.linspace(0, 1023, 100)}
-
-                fig = plt.figure()
-                plt.hist(data['V_convoffi'].values, **args)
-                plt.xlabel("choosen $V_{convoffi}$ [DAC]")
-                plt.ylabel("effective resting potential [V]")
-                plt.subplots_adjust(**margins)
-                plt.grid(True)
-                plt.savefig(os.path.join(fig_dir, plt_name.format('i', defects_name, 'png')))
-                plt.savefig(os.path.join(fig_dir, plt_name.format('i', defects_name, 'pdf')))
-
-                fig = plt.figure()
-                plt.hist(data['V_convoffx'].values, **args)
-                plt.xlabel("choosen $V_{convoffx}$ [DAC]")
-                plt.ylabel("effective resting potential [V]")
-                plt.subplots_adjust(**margins)
-                plt.grid(True)
-                plt.savefig(os.path.join(fig_dir, plt_name.format('x', defects_name, 'png')))
-                plt.savefig(os.path.join(fig_dir, plt_name.format('x', defects_name, 'pdf')))
-
-                fig = plt.figure()
-                for I_gl, nrndata in data.loc[nrns].groupby("I_gl"):
-                    too_high_or_low = nrndata[abs(nrndata['mean'] - nrndata['mean'].mean()) > nrndata['mean'].std()]
-                    plt.hist(too_high_or_low['V_convoffx'], bins=np.linspace(0, 1023, 100), label="I_gl={} DAC".format(I_gl), alpha=0.5)
-                plt.legend(loc=0)
-                plt.xlabel("choosen $V_{convoffx}$ [DAC]")
-                plt.ylabel("#")
-                #plt.subplots_adjust(**margins)
-                plt.savefig(os.path.join(fig_dir, plt_name.format('_V_convoffx_E_l_too_high_or_low', defects_name, 'png')))
-                plt.savefig(os.path.join(fig_dir, plt_name.format('_V_convoffx_E_l_too_high_or_low', defects_name, 'pdf')))
-
-if args.backenddir:
-
-    with LogError("problem with offset backend plots"):
-        # offset
-
-        fig = plt.figure()
-
-        calibtic_helper = calibtic.Calibtic(
-            args.backenddir, C.Wafer(C.Enum(args.wafer)), C.HICANNOnWafer(C.Enum(args.hicann)))
-
-        def get_offset(cal, nrnidx):
-            try:
-                offset = cal.nc.at(nrnidx).at(pycalibtic.NeuronCalibrationParameters.Calibrations.ReadoutShift).apply(0)
-                return offset
-            except IndexError:
-                logger.WARN("No offset found for Neuron {}. Is the wafer and hicann enum correct? (w{}, h{})".format(nrnidx,args.wafer,args.hicann))
-                return 0
-            except RuntimeError, e:
-                if e.message == "No transformation available at 23":
-                    logger.WARN("No offset found for Neuron {}.".format(nrnidx))
-                    return 0
-                raise
-
-        offsets = [get_offset(calibtic_helper, n) * 1000 for n in xrange(512)]
-        plt.hist(offsets, bins=100);
-        plt.subplots_adjust(**margins)
-        plt.xlabel("offset [mV]")
-        plt.ylabel("#")
-        plt.subplots_adjust(**margins)
-        plt.xlim(-60,60)
-        plt.savefig(os.path.join(fig_dir,"analog_readout_offset.pdf"))
-        plt.savefig(os.path.join(fig_dir,"analog_readout_offset.png"))
-
-        fig = plt.figure()
-        plt.subplots_adjust(**margins)
-        plt.xlabel("neuron")
-        plt.ylabel("offset [mV]")
-        plt.plot(offsets, 'rx')
-        plt.xlim(0,512)
-        plt.ylim(-60,60)
-        plt.savefig(os.path.join(fig_dir,"analog_readout_offset_vs_nrn.pdf"))
-        plt.savefig(os.path.join(fig_dir,"analog_readout_offset_vs_nrn.png"))
-
-    def plot_vsyntc_domains(cal, excitatory=True):
-        if excitatory:
-            parameter = pycalibtic.NeuronCalibrationParameters.Calibrations.V_syntcx
-        else:
-            parameter = pycalibtic.NeuronCalibrationParameters.Calibrations.V_syntci
-
-        domains = np.zeros((C.NeuronOnHICANN.enum_type.size, 2))
-        for ii, nrn in enumerate(C.iter_all(C.NeuronOnHICANN)):
-            try:
-                lookup_trafo = cal.nc.at(nrn.id().value()).at(parameter)
-            except RuntimeError:
-                continue
-            bounds = lookup_trafo.getDomainBoundaries()
-            low, high = bounds.first, bounds.second
-            if low < -1e10 or high > 1e10:
-                # We do not care about the old default bounds... Recalculate.
-                low_dac = lookup_trafo.apply(low)
-                high_dac = lookup_trafo.apply(high)
-
-                low = lookup_trafo.reverseApply(low_dac)
-                high = lookup_trafo.reverseApply(high_dac + 1)
-            domains[ii] = low, high
-
-        diffs = domains[:, 1] - domains[:, 0]
-        indices = diffs.argsort()[::-1]
-        domains = domains[indices]
-        diffs = diffs[indices]
-        means = domains.mean(axis=1)
-
-        fig, ax = plt.subplots(nrows=1)
-        fig.subplots_adjust(**margins)
-        latex = r"domain of $\tau_{\mathrm{syn}\,%s}$" % (["i", "x"][excitatory])
-        ax.set_ylabel("%s [s]" % latex)
-        ax.errorbar(
-            x=np.arange(0, 512), y=means, yerr=diffs / 2,
-            linestyle="", capsize=0., elinewidth=1.,
-        )
-        ax.set_xlim(0, 512)
-        filename = "V_syntc{}_domain".format(["i", "x"][excitatory])
-        fig.savefig(os.path.join(fig_dir, "{}.pdf".format(filename)))
-        fig.savefig(os.path.join(fig_dir, "{}.png".format(filename)))
-
-    with LogError("problem with V_syntcx domain plots"):
-        plot_vsyntc_domains(calibtic_helper, excitatory=True)
-
-    with LogError("problem with V_syntci domain plots"):
-        plot_vsyntc_domains(calibtic_helper, excitatory=False)
-
-    with LogError("problem with V_convoff backend plots"):
-        def get_vconvoff(cal, nrnidx):
-            try:
-                convoffx = cal.nc.at(nrnidx).at(pycalibtic.NeuronCalibrationParameters.Calibrations.V_convoffx).apply(0)
-                convoffi = cal.nc.at(nrnidx).at(pycalibtic.NeuronCalibrationParameters.Calibrations.V_convoffi).apply(0)
-            except IndexError as i:
-                logger.WARN(str(i) + ", No V_convoff(i or x) found for Neuron {}. Is the wafer and hicann enum correct? (w{}, h{})".format(nrnidx,args.wafer,args.hicann))
-                return np.nan, np.nan
-            except RuntimeError as e:
-                if str(e).startswith("No transformation available at"):
-                    logger.WARN(str(e) + ", No V_convoff(i or x) found for Neuron {}.".format(nrnidx))
-                    return np.nan, np.nan
-                raise
-
-            return convoffx, convoffi
-
-        fig = plt.figure()
-        convoffx_l, convoffi_l = zip(*[get_vconvoff(calibtic_helper, n)  for n in xrange(512)])
-        bins = np.linspace(0, 1024, 128)
-        plt.hist(convoffx_l, label="$V_{convoffx}$", alpha=.5, bins=bins, color="r",
-                 range=(np.nanmin(convoffx_l), np.nanmax(convoffx_l)))
-        plt.hist(convoffi_l, label="$V_{convoffi}$", alpha=.5, bins=bins, color="b",
-                 range=(np.nanmin(convoffi_l), np.nanmax(convoffi_l)))
-        plt.xlim(0, 1024)
-        plt.legend()
-        plt.xlabel("$V_{convoff}$ [DAC]")
-        plt.ylabel("#")
-        plt.subplots_adjust(**margins)
-        plt.savefig(os.path.join(fig_dir,"V_convoff.pdf"))
-        plt.savefig(os.path.join(fig_dir,"V_convoff.png"))
-
-        fig = plt.figure()
-        plt.xlabel("neuron")
-        plt.ylabel("$V_{convoff}$ [DAC]")
-        plt.plot(convoffx_l, 'rx', label="$V_{convoffx}$")
-        plt.plot(convoffi_l, 'bx', label="$V_{convoffi}$")
-        plt.legend()
-        plt.xlim(0, 512)
-        plt.ylim(0, 1024)
-        plt.subplots_adjust(**margins)
-        plt.savefig(os.path.join(fig_dir,"V_convoff_vs_nrn.pdf"))
-        plt.savefig(os.path.join(fig_dir,"V_convoff_vs_nrn.png"))
-
-## V convoff
-
-with LogError("problem with V_convoff test plots"):
-    r_test_v_convoff = test_reader if args.v_convoff_testrunner == None else Reader(args.v_convoff_testrunner)
-
-    with LogError("problem with uncalibrated V_convoff test plots"):
-        plot_v_convoff(r_test_v_convoff, name="V_convoff_test_uncalibrated", extra_plots=False, title="uncalibrated")
-
-    with LogError("problem with calibrated V_convoff test plots"):
-        plot_v_convoff(r_test_v_convoff, name="V_convoff_test_calibrated", extra_plots=True, title="calibrated")
-
-## V_convoffi
-with LogError("problem with uncalibrated V_convoffi plots"):
-
-    r_v_convoffi = reader if args.v_convoffi_runner == None else Reader(args.v_convoffi_runner)
-
-    if r_v_convoffi:
-
-        unit = r_v_convoffi.runner.get_single(name="V_convoffi")
-        calibrator = unit.get_calibrator()
-
-        fig = plt.figure()
-        ax = fig.add_subplot(1, 1, 1)
-
-        for nrn in args.neuron_enum:
-
-            calibrator.plot_fit_for_neuron(C.NeuronOnHICANN(C.Enum(nrn)),ax)
-            plt.ylim(0,0.4)
-            plt.xlabel("V_convoffi [DAC] / 1023")
-
-        plt.subplots_adjust(**margins)
-
-        plt.savefig(os.path.join(fig_dir,"V_convoffi_nrns.pdf"))
-        plt.savefig(os.path.join(fig_dir,"V_convoffi_nrns.png"))
-
-## V_convoffx
-with LogError("problem with uncalibrated V_convoffx plots"):
-
-    r_v_convoffx = reader if args.v_convoffx_runner == None else Reader(args.v_convoffx_runner)
-
-    if r_v_convoffx:
-
-        unit = r_v_convoffx.runner.get_single(name="V_convoffx")
-        calibrator = unit.get_calibrator()
-
-        fig = plt.figure()
-        ax = fig.add_subplot(1, 1, 1)
-
-        for nrn in args.neuron_enum:
-
-            calibrator.plot_fit_for_neuron(C.NeuronOnHICANN(C.Enum(nrn)),ax)
-            plt.ylim(0,0.4)
-            plt.xlabel("V_convoffx [DAC] / 1023")
-
-        plt.subplots_adjust(**margins)
-
-        plt.savefig(os.path.join(fig_dir,"V_convoffx_nrns.pdf"))
-        plt.savefig(os.path.join(fig_dir,"V_convoffx_nrns.png"))
-
-## defects
-
-try:
-
-    r_defects = reader if args.defect_runner == None else Reader(args.defect_runner)
-
-    if r_defects:
-
-        fig, p = r_defects.plot_defect_neurons(sort_by_shared_FG_block=False)
-        plt.subplots_adjust(**margins)
-
-        fig.savefig(os.path.join(fig_dir, "defect_neurons_vs_neuron_number.pdf"))
-        fig.savefig(os.path.join(fig_dir, "defect_neurons_vs_neuron_number.png"))
-
-        fig, p = r_defects.plot_defect_neurons(sort_by_shared_FG_block=True)
-        plt.subplots_adjust(**margins)
-
-        fig.savefig(os.path.join(fig_dir, "defect_neurons_vs_shared_FG_block.pdf"))
-        fig.savefig(os.path.join(fig_dir, "defect_neurons_vs_shared_FG_block.png"))
-
-except Exception as e:
-    logger.ERROR("problem with neuron defect plots: {}".format(e))
-
-## V reset
-try:
-    r_v_reset = reader if args.v_reset_runner == None else Reader(args.v_reset_runner)
-
-    if r_v_reset:
-
-        xmin, xmax = extract_range(r_v_reset, "V_reset", pyhalbe.HICANN.shared_parameter.V_reset)
-
-        uncalibrated_hist("$V_{reset}$ [V]",
-                          r_v_reset,
-                          parameter="V_reset",
-                          key="baseline",
-                          bins=100,
-                          range=(xmin, xmax),
-                          show_legend=True)
-
-        trace("$V_{mem}$ [mV]", r_v_reset, "V_reset", args.neuron_enum, end=2000, suffix="_uncalibrated")
-
-        result("$V_{{reset}}$ {inout}", reader=r_v_reset, parameter="V_reset",key="baseline",alpha=0.05,step_key=pyhalbe.HICANN.shared_parameter.V_reset)
-except Exception as e:
-    logger.ERROR("problem with uncalibrated V_reset plots: {}".format(e))
-
-try:
-    r_test_v_reset = test_reader if args.v_reset_testrunner == None else Reader(args.v_reset_testrunner)
-
-    if r_test_v_reset:
-
-        xmin, xmax = extract_range(r_test_v_reset, "V_reset", pyhalbe.HICANN.shared_parameter.V_reset)
-
-        calibrated_hist("$V_{reset}$ [V]",
-                          r_test_v_reset,
-                          parameter="V_reset",
-                          key="baseline",
-                          bins=100,
-                          range=(xmin, xmax),
-                          show_legend=True)
-
-        trace("$V_{mem}$ [V]", r_test_v_reset, "V_reset", args.neuron_enum, end=510, suffix="_calibrated")
-except Exception as e:
-    logger.ERROR("problem with calibrated V_reset plots: {}".format(e))
-
-## E synx
-
-try:
-    r_e_synx = reader if args.e_synx_runner == None else Reader(args.e_synx_runner)
-
-    if r_e_synx:
-
-        xmin, xmax = extract_range(r_e_synx, "E_synx", pyhalbe.HICANN.neuron_parameter.E_synx)
-
-        uncalibrated_hist("$E_{synx}$ [V]",
-                          r_e_synx,
-                          parameter="E_synx",
-                          key="mean",
-                          bins=100,
-                          range=(xmin,xmax),
-                          show_legend=True);
-
-        result("$E_{{synx}}$ {inout}", reader=r_e_synx, ylim=[xmin,xmax], parameter="E_synx",key="mean",alpha=0.05, step_key=pyhalbe.HICANN.neuron_parameter.E_synx)
-
-        trace("$V_{mem}$ [V]", r_e_synx, "E_synx", args.neuron_enum, end=510, suffix="_uncalibrated")
-except Exception as e:
-    logger.ERROR("problem with uncalibrated E_synx plots: {}".format(e))
-
-try:
-    r_test_e_synx = test_reader if args.e_synx_testrunner == None else Reader(args.e_synx_testrunner)
-
-    if r_test_e_synx:
-
-        xmin, xmax = extract_range(r_test_e_synx, "E_synx", pyhalbe.HICANN.neuron_parameter.E_synx)
-
-        calibrated_hist("$E_{synx}$ [V]",
-                        r_test_e_synx,
-                        parameter="E_synx",
-                        key="mean",
-                        bins=100,
-                        range=(xmin, xmax),
-                        show_legend=True);
-
-        result("$E_{{synx}}$ {inout}", reader=r_test_e_synx, suffix="_calibrated", xlim=[xmin/1.8*1023,xmax/1.8*1023], ylim=[xmin,xmax], parameter="E_synx",key="mean",alpha=0.05, step_key=pyhalbe.HICANN.neuron_parameter.E_synx)
-
-        trace("$V_{mem}$ [V]", r_test_e_synx, "E_synx", args.neuron_enum, end=510, suffix="_calibrated")
-
-    #for k,v in r_test_e_synx.get_results("E_synx", r_test_e_synx.get_neurons(), "mean").iteritems():
-    #        if v[0] < 0.78 or v[0] > 0.82:
-    #            print k, k.id(), v[0]
-except Exception as e:
-    logger.ERROR("problem with calibrated E_synx plots: {}".format(e))
-
-## E syni
-
-try:
-    r_e_syni = reader if args.e_syni_runner == None else Reader(args.e_syni_runner)
-
-    if r_e_syni:
-
-        xmin, xmax = extract_range(r_e_syni, "E_syni", pyhalbe.HICANN.neuron_parameter.E_syni)
-
-        uncalibrated_hist("$E_{syni}$ [V]",
-                          r_e_syni,
-                          parameter="E_syni",
-                          key="mean",
-                          bins=100,
-                          range=(xmin, xmax),
-                          show_legend=True);
-
-        result("$E_{{syni}}$ {inout}", reader=r_e_syni, ylim=[xmin,xmax], parameter="E_syni",key="mean",alpha=0.05, step_key=pyhalbe.HICANN.neuron_parameter.E_syni)
-
-        trace("$V_{mem}$ [V]", r_e_syni, "E_syni", args.neuron_enum, end=510, suffix="_uncalibrated")
-except Exception as e:
-    logger.ERROR("problem with uncalibrated E_syni plots: {}".format(e))
-
-try:
-    r_test_e_syni = test_reader if args.e_syni_testrunner == None else Reader(args.e_syni_testrunner)
-
-    if r_test_e_syni:
-
-        xmin, xmax = extract_range(r_test_e_syni, "E_syni", pyhalbe.HICANN.neuron_parameter.E_syni)
-        
-        calibrated_hist("$E_{syni}$ [V]",
-                        r_test_e_syni,
-                        parameter="E_syni",
-                        key="mean",
-                        bins=100,
-                        range=(xmin, xmax),
-                        show_legend=True);
-
-        result("$E_{{syni}}$ {inout}", reader=r_test_e_syni, suffix="_calibrated", xlim=[xmin/1.8*1023,xmax/1.8*1023], ylim=[xmin,xmax], parameter="E_syni",key="mean",alpha=0.05, step_key=pyhalbe.HICANN.neuron_parameter.E_syni)
-
-        trace("$V_{mem}$ [V]", r_test_e_syni, "E_syni", args.neuron_enum, end=510, suffix="_calibrated")
-except Exception as e:
-    logger.ERROR("problem with calibrated E_syni plots: {}".format(e))
-
-## E l
-
-try:
-    r_e_l = reader if args.e_l_runner == None else Reader(args.e_l_runner)
-
-    if r_e_l:
-
-        xmin, xmax = extract_range(r_e_l, "E_l", pyhalbe.HICANN.neuron_parameter.E_l)
-
-        uncalibrated_hist("$E_{l}$ [V]",
-                          r_e_l,
-                          parameter="E_l",
-                          key="mean",
-                          bins=100,
-                          range=(xmin,xmax),
-                          show_legend=True)
-
-        result("$E_{{l}}$ {inout}", reader=r_e_l, ylim=[xmin,xmax], parameter="E_l",key="mean",alpha=0.05, step_key=pyhalbe.HICANN.neuron_parameter.E_l)
-
-        trace("$V_{mem}$ [V]", r_e_l, "E_l", args.neuron_enum, end=510, suffix="_uncalibrated")
-
-        """
-
-        r_e_l.include_defects = True
-        r_e_l.plot_result("E_l","mean");
-
-        r_e_l.include_defects = False
-
-        neurons = r_e_l.get_neurons()[132:135]
-
-        fig = r_e_l.plot_result("E_l","mean",neurons,marker='o',linestyle="None");
-
-        print r_e_l.runner.coeffs.keys()
-
-        coeffs = r_e_l.runner.coeffs["E_l"]
-
-        xs = np.array([500,900])
-
-        for n in neurons:
-            #print len(coeffs), len(coeffs[0]), len(coeffs[0][1])
-            c = coeffs[0][1][n]
-            if c == None:
-                #print c
-                #continue
-                pass
-            a = c[0]
-            b = c[1]
-            #print a,b, 1/a, -b/a
-            polynomial = numpy.poly1d([1/a,-b/a])
-            #print polynomial
-            plt.plot(xs,np.array(polynomial(xs/1800.*1023.)*1800./1023.), label="Neuron {}".format(n.id().value()))
-
-        plt.xlabel("Input [DAC]")
-        plt.ylabel("Output [V]")
-        plt.subplots_adjust(**margins)
-        plt.xlim(500,900)
-        plt.ylim(500,900)
-        plt.legend(loc="upper left")
-        plt.grid(True)
-        fig.savefig(os.path.join(fig_dir,"calib_example_lines.pdf"))
-        """
-except Exception as e:
-    logger.ERROR("problem with uncalibrated E_l plots: {}".format(e))
-
-try:
-    r_test_e_l = test_reader if args.e_l_testrunner == None else Reader(args.e_l_testrunner)
-
-    if r_test_e_l:
-
-        xmin, xmax = extract_range(r_test_e_l, "E_l", pyhalbe.HICANN.neuron_parameter.E_l)
-
-        calibrated_hist("$E_{l}$ [V]",
-                        r_test_e_l,
-                        parameter="E_l",
-                        key="mean",
-                        show_legend=True,
-                        bins=100,
-                        range=(xmin,xmax))
-
-        result("$E_{{l}}$ {inout}", reader=r_test_e_l, suffix="_calibrated", xlim=[xmin/1.8*1023,xmax/1.8*1023], ylim=[xmin,xmax], parameter="E_l",key="mean",alpha=0.05, step_key=pyhalbe.HICANN.neuron_parameter.E_l)
-
-        trace("$V_{mem}$ [V]", r_test_e_l, "E_l", args.neuron_enum, end=510, suffix="_calibrated")
-except Exception as e:
-    logger.ERROR("problem with calibrated E_l plots: {}".format(e))
-
-## V t
-
-try:
-    r_v_t = reader if args.v_t_runner == None else Reader(args.v_t_runner)
-
-    if r_v_t:
-
-        xmin, xmax = extract_range(r_v_t, "V_t", pyhalbe.HICANN.neuron_parameter.V_t)
-
-        uncalibrated_hist("$V_{t}$ [V]",
-                          r_v_t,
-                          parameter="V_t",
-                          key="max",
-                          bins=100,
-                          range=(xmin,xmax),
-                          show_legend=True)
-
-        result("$V_{{t}}$ {inout}", reader=r_v_t, xlim=[xmin/1.8*1023,xmax/1.8*1023], ylim=[xmin,xmax], parameter="V_t",key="max",alpha=0.05, step_key=pyhalbe.HICANN.neuron_parameter.V_t)
-
-        trace("$V_{mem}$ [V]", r_v_t, "V_t", args.neuron_enum, end=510, suffix="_uncalibrated")
-except Exception as e:
-    logger.ERROR("problem with uncalibrated V_t plots: {}".format(e))
-
-try:
-    r_test_v_t = test_reader if args.v_t_testrunner == None else Reader(args.v_t_testrunner)
-
-    if  r_test_v_t:
-
-        xmin, xmax = extract_range(r_test_v_t, "V_t", pyhalbe.HICANN.neuron_parameter.V_t)
-
-        calibrated_hist("$V_{t}$ [V]",
-                        r_test_v_t,
-                        parameter="V_t",
-                        key="max",
-                        bins=100,
-                        range=(xmin,xmax),
-                        show_legend=True)
-
-        #for k,v in r_test_v_t.get_results("V_t", range(512), "max").iteritems():
-        #        if v[0] < 0.675 or v[0] > 0.725:
-        #            print 0.7, k.id(), v[0]
-        #            print
-        #        if v[1] < 0.725 or v[1] > 0.775:
-        #            print 0.75, k.id(), v[1]
-        #            print
-        #        if v[2] < 0.775 or v[2] > 0.825:
-        #            print 0.8, k.id(), v[2]
-        #            print
-
-        result("$V_{{t}}$ {inout}", reader=r_test_v_t, suffix="_calibrated", xlim=[xmin/1.8*1023,xmax/1.8*1023], ylim=[xmin,xmax], parameter="V_t",key="max",alpha=0.05, step_key=pyhalbe.HICANN.neuron_parameter.V_t)
-
-        trace("$V_{mem}$ [V]", r_test_v_t, "V_t", args.neuron_enum, start=500, end=700, suffix="_calibrated")
-
-        #r_v_t.include_defects = False
-
-        #neurons = r_v_t.get_neurons()[0:1]
-
-        #fig = r_v_t.plot_result("V_t","max",neurons,marker='o',linestyle="None");
-
-        #print r_v_t.runner.coeffs.keys()
-
-        #coeffs = r_v_t.runner.coeffs["V_t"]
-        #
-        #xs = np.array([550,850])
-        #
-        #for n in neurons:
-        #    #print len(coeffs), len(coeffs[0]), len(coeffs[0][1])
-        #    c = coeffs[0][1][n]
-        #    if c == None:
-        #        #print c
-        #        continue
-        #        pass
-        #    a = c[0]
-        #    b = c[1]
-        #    #print a,b, 1/a, -b/a
-        #    polynomial = numpy.poly1d([1/a,-b/a])
-        #    #print polynomial
-        #    plt.plot(xs,np.array(polynomial(xs/1800.*1023.)*1800./1023.))
-except Exception as e:
-    logger.ERROR("problem with calibrated V_t plots: {}".format(e))
-
-## E l, I gl
-
-# In[72]:
-
-#r_e_l_i_gl = #Reader("/afsuser/sschmitt/.calibration-restructure/runner_E_l_I_gl_fixed_0527_1211.p.bz2")
-
-
-# In[76]:
-
-#e=r_e_l_i_gl.runner.experiments["E_l_I_gl_fixed"]
-#m=e.measurements[-1]
-#calibrator = E_l_I_gl_fixed_Calibrator(e)
-#print calibrator.fit_neuron(C.NeuronOnHICANN(C.Enum(1)))
-
-
-#  ——— Spikes ——————————————————————————————————————————————————————————————————
-
-try:
-    r_test_spikes = test_reader if args.spikes_testrunner == None else Reader(args.spikes_testrunner)
-
-    if r_test_spikes:
-
-        for include_defects in [True, False]:
-
-            defects_string = "with_defects" if include_defects else "without_defects"
-
-            r_test_spikes.include_defects = include_defects
-
-            fig = plt.figure()
-
-            n_spikes = np.array(r_test_spikes.get_results("Spikes",r_test_spikes.get_neurons(), "spikes_n_spikes").values())
-
-            # assume the same E_l for all steps
-            E_l = r_test_spikes.runner.config.copy("Spikes").get_parameters()[pyhalbe.HICANN.neuron_parameter.E_l].value
-
-            V_ts = [v[pyhalbe.HICANN.neuron_parameter.V_t].value for v in r_test_spikes.runner.config.copy("Spikes").get_steps()]
-
-            plt.plot(V_ts, np.sum(np.greater(n_spikes,1), axis=0), label="measured")
-            #plt.plot(V_ts, np.array(n_spikes_est), label="estimated")
-
-            n_good_neurons = len(r_test_spikes.get_neurons())
-            plt.axhline(n_good_neurons, color='black', linestyle="dotted")
-            plt.text(min(V_ts)+0.001, n_good_neurons+5, "#not blacklisted", fontsize=12)
-
-            plt.axvline(E_l, color='black', linestyle="dotted")
-            plt.text(E_l+0.005,25,'E$_l$', fontsize=12)
-
-            plt.legend(loc="lower left")
-            plt.ylabel("# spiking neurons")
-            plt.xlabel("$V_t$ [V]")
-            plt.xlim(min(V_ts), max(V_ts))
-
-            plt.subplots_adjust(**margins)
-            plt.savefig(os.path.join(fig_dir,"n_spiking_neurons_"+defects_string+"_calibrated.png"))
-
-            # number of spikes
-
-            r_test_spikes.include_defects = include_defects
-
-            fig = r_test_spikes.plot_result("Spikes","spikes_n_spikes",yfactor=1,average=True,mark_top_bottom=True)
-            plt.legend(loc="lower left")
-            plt.ylabel("average number of recorded spikes per neuron")
-            plt.xlabel("$V_t$ [DAC]")
-
-            plt.subplots_adjust(**margins)
-
-            defects_string = "with_defects" if include_defects else "without_defects"
-
-            plt.savefig(os.path.join(fig_dir,"_".join(["n_spikes",
-                                                       defects_string,
-                                                       "result_calibrated.pdf"])))
-
-            plt.savefig(os.path.join(fig_dir,"_".join(["n_spikes",
-                                                       defects_string,
-                                                       "result_calibrated.png"])))
-except Exception as e:
-    logger.ERROR("problem with Spikes plots: {}".format(e))
-
-## tau ref
-
-try:
-    r_tau_ref = reader if args.tau_ref_runner == None else Reader(args.tau_ref_runner)
-
-    if r_tau_ref:
-        xmin, xmax = extract_range_y(r_tau_ref, "I_pl", pyhalbe.HICANN.neuron_parameter.I_pl.name, "tau_ref",  safety_min=0, safety_max=0)
-
-        uncalibrated_hist(r"$\tau_{ref}$ [s]",
-                          r_tau_ref,
-                          xscale="log",
-                          parameter="I_pl",
-                          key="tau_ref",
-                          bins=np.logspace(np.log10(xmin), np.log10(xmax), 100),
-                          range=(xmin, xmax),
-                          show_legend=True)
-
-        result(r"$\tau_{{ref}}$ {inout}", reader=r_tau_ref, parameter="I_pl", key="tau_ref", alpha=0.05,
-               out_unit_label="[s]")
-
-        #trace("$V_{mem}$ [V]", r_tau_ref, "tau_ref", args.neuron_enum, end=510, suffix="_uncalibrated")
-
-except Exception as e:
-    logger.ERROR("problem with uncalibrated tau_ref plots: {}".format(e))
-
-try:
-    r_test_tau_ref = test_reader if args.tau_ref_testrunner == None else Reader(args.tau_ref_testrunner)
-
-    if r_test_tau_ref:
-
-        xmin, xmax = extract_range(r_test_tau_ref, "I_pl", pyhalbe.HICANN.neuron_parameter.I_pl, safety_min=0, safety_max=0)
-
-        xmin /= 10
-        xmax *= 10
-
-        calibrated_hist(r"$\tau_{ref}$ [s]",
-                        r_test_tau_ref,
-                        xscale="log",
-                        parameter="I_pl",
-                        key="tau_ref",
-                        bins=np.logspace(np.log10(xmin), np.log10(xmax), 100),
-                        range=(xmin, xmax),
-                        show_legend=True)
-
-        result(r"$\tau_{{ref}}$ {inout}", reader=r_test_tau_ref, suffix="_calibrated", parameter="I_pl", key="tau_ref", alpha=0.05,
-               in_unit_label="[s]", out_unit_label="[s]")
-
-        #trace("$V_{mem}$ [V]", r_test_tau_ref, parameter="tau_ref", args.neuron_enum, start=500, end=700, suffix="_calibrated")
-
-except Exception as e:
-    logger.ERROR("problem with calibrated tau_ref plots: {}".format(e))
-
-
-## tau m
-try:
-    r_tau_m = reader if args.tau_m_runner == None else Reader(args.tau_m_runner)
-
-    if r_tau_m:
-
-        xmin, xmax = extract_range(r_tau_m, "I_gl_PSP", pyhalbe.HICANN.neuron_parameter.I_gl, safety_min=0, safety_max=0)
-
-        xmin /= 10
-        xmax *= 10
-
-        uncalibrated_hist(r"$\tau_{m}$ [s]",
-                          r_tau_m,
-                          xscale="log",
-                          parameter="I_gl_PSP",
-                          key="tau_2",
-                          bins=np.logspace(np.log10(xmin), np.log10(xmax), 100),
-                          range=(xmin, xmax),
-                          show_legend=True)
-
-        result(r"$\tau_{{m}}$ {inout}", reader=r_tau_m, parameter="I_gl_PSP", key="tau_2", alpha=0.05,
-               out_unit_label="[s]")
-
-        #trace("$V_{mem}$ [V]", r_tau_m, "tau_m", args.neuron_enum, end=510, suffix="_uncalibrated")
-except Exception as e:
-    logger.ERROR("problem with uncalibrated tau_m plots: {}".format(e))
-
-try:
-    r_test_tau_m = test_reader if args.tau_m_testrunner == None else Reader(args.tau_m_testrunner)
-
-    if  r_test_tau_m:
-
-        xmin, xmax = extract_range(r_test_tau_m, "I_gl_PSP", pyhalbe.HICANN.neuron_parameter.I_gl, safety_min=0, safety_max=0)
-
-        xmin /= 10
-        xmax *= 10
-
-        calibrated_hist(r"$\tau_{m}$ [s]",
-                        r_test_tau_m,
-                        xscale="log",
-                        parameter="I_gl_PSP",
-                        key="tau_2",
-                        bins=np.logspace(np.log10(xmin), np.log10(xmax), 100),
-                        range=(xmin, xmax),
-                        show_legend=True)
-
-        result(r"$\tau_{{m}}$ {inout}", reader=r_test_tau_m, suffix="_calibrated", parameter="I_gl_PSP", key="tau_2", alpha=0.05,
-               in_unit_label="[s]", out_unit_label="[s]")
-
-        #trace("$V_{mem}$ [V]", r_test_tau_m, parameter="tau_m", neuron=args.neuron_enum, start=500, end=700, suffix="_calibrated")
-except Exception as e:
-    logger.ERROR("problem with calibrated tau_m plots: {}".format(e))
-
-#  ——— V_syntcx ————————————————————————————————————————————————————————————————
-
-# Mhhh.  We need to provide the smaller of the two time constants.  Patch, patch, patch.
-# TODO: PSPAnalyzer should already sort the time constants s.t. tau_1 <= tau_2
-
-@contextlib.contextmanager
-def patched_reader_value(reader, parameter, input_keys, *output):
-    data = []
-    neurons = reader.get_neurons()
-    for key_ in input_keys:
-        data.append(pandas.DataFrame.from_dict(reader.get_results(parameter, neurons, key_), orient='index').stack())
-    results = pandas.concat(data, axis=1)
-    results.columns = input_keys
-    results.index.names = ["neuron", "step"]
-    for key, extract in output:
-        results[key] = extract(results)
-
-    try:
-        idx = pandas.Index([ids[0].toSharedFGBlockOnHICANN() for ids in results.index.values], name='shared_block')
-        results.set_index(idx, append=True, inplace=True)
-        results = results.swaplevel('step', 'shared_block').sortlevel('neuron')
-        cu = reader.get_calibration_unit(parameter)
-        ex_res = cu.experiment.results.sortlevel('neuron')
-        cu.experiment.results = pandas.concat([ex_res, results], axis=1)
-        yield
-    finally:
-        if reader.calibration_unit_cache.pop((parameter, 0), None) is None:
-            reader.calibration_unit_cache.clear()
-
-def plot_v_syntc(reader, excitatory=True, calibrated=True):
-    if not reader:
-        return
-    if not isinstance(reader, Reader):
-        reader = Reader(reader)
-
-    parameter = "V_syntcx" if excitatory else "V_syntci"
-
-    with patched_reader_value(
-            reader, parameter, ["tau_1", "tau_2"],
-            ("tau_syn", lambda res: res[['tau_1', 'tau_2']].min(axis='columns')),
-            ("tau_mem", lambda res: res[['tau_1', 'tau_2']].max(axis='columns'))):
-
-        xmin, xmax = extract_range(
-            reader, parameter, getattr(pyhalbe.HICANN.neuron_parameter, parameter),
-            safety_min=0, safety_max=0)
-
-        xmin /= 10
-        xmax *= 10
-
-        latex = r"$\tau_{\mathrm{syn}\,%s}$" % (["i", "x"][excitatory])
-        (calibrated_hist if calibrated else uncalibrated_hist)(
-            r"%s [s]" % latex,
-            reader=reader,
-            parameter=parameter,
-            key="tau_syn",
-            xscale="log",
-            bins=np.logspace(np.log10(xmin), np.log10(xmax), 100),
-            range=(xmin, xmax),
-            show_legend=True)
-
-        result(
-            r"%s {inout}" % latex,
-            reader=reader,
-            parameter=parameter,
-            key="tau_syn",
-            suffix="_calibrated" if calibrated else "_uncalibrated",
-            alpha=0.05,
-            out_unit_label="[s]")
-
-        result(
-            r"%s {inout}" % latex,
-            ylabel=r"$\tau_{\mathrm{mem}\,%s}$ (out) [s]" % (["i", "x"][excitatory]),
-            reader=reader,
-            parameter=parameter,
-            key="tau_mem",
-            suffix="_tau_mem_calibrated" if calibrated else "_tau_mem_uncalibrated",
-            alpha=0.05,
-            out_unit_label="[s]")
-
-with LogError("problem with uncalibrated v_syntcx plots"):
-    plot_v_syntc(args.v_syntcx_runner or reader, excitatory=True, calibrated=False)
-
-with LogError("problem with calibrated v_syntcx plots"):
-    plot_v_syntc(args.v_syntcx_testrunner or test_reader, excitatory=True, calibrated=True)
-
-with LogError("problem with uncalibrated v_syntci plots"):
-    plot_v_syntc(args.v_syntci_runner or reader, excitatory=False, calibrated=False)
-
-with LogError("problem with calibrated v_syntci plots"):
-    plot_v_syntc(args.v_syntci_testrunner or test_reader, excitatory=False, calibrated=True)
-
-cakebin = os.path.split(os.path.abspath(__file__))[0]
-shutil.copy(os.path.join(cakebin, "overview.html"), fig_dir)
+            pad_xaxis(ax)
+            fig_filename = 'V_convoff_{}_test_{}.png'.format(label_wd, label_cal)
+            fig_path = os.path.join(fig_dir_path, fig_filename)
+            print "Saving {}.".format(fig_filename)
+            plt.savefig(fig_path)
+            ax.cla()
+
+    # plot spikes
+    for with_defects in [True, False]:
+        label_wd = 'with_defects' if with_defects else 'without_defects'
+        if 'Spikes' in eval_results.keys():
+            df = eval_results['Spikes']
+            print "Plotting {}, {}".format('Spikes', label_wd)
+
+            plot_spikes(df, ax=ax)
+            pad_xaxis(ax)
+            fig_filename = 'n_spikes_{}_result_calibrated.png'.format(label_wd)
+            fig_path = os.path.join(fig_dir_path, fig_filename)
+            print "Saving {}.".format(fig_filename)
+            plt.savefig(fig_path)
+            ax.cla()
+
+            plot_spiking_neurons(df, ax=ax, with_defects=with_defects)
+            pad_xaxis(ax)
+            fig_filename = 'n_spiking_neurons_{}_calibrated.png'.format(label_wd)
+            fig_path = os.path.join(fig_dir_path, fig_filename)
+            print "Saving {}.".format(fig_filename)
+            plt.savefig(fig_path)
+            ax.cla()
+
+    # plot tau_syn, tau_mem vs V_syntc
+    for with_defects in [True, False]:
+        label_wd = 'with_defects' if with_defects else 'without_defects'
+        keys = exp_results.keys()
+        keys = [k for k in keys if k in ['V_syntci', 'V_syntcx']]
+        for key in keys:
+            print "Plotting {}, {}".format(key, label_wd)
+            df = exp_results[key]
+
+            config = plot_config[key]
+            for tau in ['tau_syn', 'tau_mem']:
+                plot(df, [key, tau], ax=ax, with_defects=with_defects, set_tb=True)
+                if tau is 'tau_syn':
+                    fig_filename = '{}_{}_result_uncalibrated.png'.format(key, label_wd)
+                else:
+                    fig_filename = '{}_{}_result_tau_mem_uncalibrated.png'.format(key, label_wd)
+                pad_xaxis(ax)
+                ax.set_xlabel(config['key_label_cal'])
+                if tau is 'tau_syn':
+                    ax.set_ylabel(r"$\tau_{syn}$ [s]")
+                else:
+                    ax.set_ylabel(r"$\tau_{mem}$ [s]")
+                fig_path = os.path.join(fig_dir_path, fig_filename)
+                print "Saving {}".format(fig_filename)
+                plt.savefig(fig_path)
+                ax.cla()
+
+        keys = eval_results.keys()
+        keys = [k for k in keys if k in ['V_syntci', 'V_syntcx']]
+        for key in keys:
+            print "Plotting {}, {}".format(key, label_wd)
+            df = eval_results[key]
+            patch_tau_syn(df)
+
+            config = plot_config[key]
+            refs = df[key + '_config'].unique()
+            hists(df, config['result_key'], level='step', ax=ax, bins=50, refs=refs,
+                  x_label=config['result_label'], with_defects=with_defects)
+            ax.legend(loc='best').get_frame().set_alpha(0.5)
+            fig_filename = '{}_{}_{}.png'.format(key, label_wd, 'calibrated')
+            fig_path = os.path.join(fig_dir_path, fig_filename)
+            print "Saving {}".format(fig_filename)
+            plt.savefig(fig_path)
+            ax.cla()
+
+
+    # plot the remaining plots
+    for cal_or_eval in ['cal', 'eval']:
+        keys = exp_results.keys() if cal_or_eval in 'cal' else eval_results.keys()
+        keys = [k for k in keys if k in ['V_reset', 'V_t', 'E_synx',
+                                         'E_syni', 'E_l', 'I_pl', 'I_gl_PSP']]
+        label_cal = 'uncalibrated' if cal_or_eval == 'cal' else 'calibrated'
+        for with_defects in [True, False]:
+            label_wd = 'with_defects' if with_defects else 'without_defects'
+
+            for key in keys:
+                load_key = key if key != 'I_gl_PSP' else 'I_gl'
+                df = exp_results[key] if cal_or_eval in 'cal' else eval_results[key]
+                print "Plotting {}, {}, {}".format(key, label_cal, label_wd)
+
+                config = plot_config[load_key]
+                result_key = config['result_key']
+                result_label = config['result_label']
+                if cal_or_eval in 'cal':
+                    columns = [load_key, result_key]
+                else:
+                    columns = [load_key+'_config', result_key]
+                plot(df, columns, ax=ax, with_defects=with_defects, set_tb=True,
+                     rep=config.get('rep', None))
+                ax.set_xlabel(config['key_label_'+cal_or_eval])
+                ax.set_ylabel(config['result_label'])
+                pad_xaxis(ax)
+                fig_filename = '{}_{}_result.png'.format(key, label_wd)
+                if cal_or_eval == 'eval':
+                    fig_filename = fig_filename[:-4]
+                    fig_filename += '_{}.png'.format(label_cal)
+                fig_path = os.path.join(fig_dir_path, fig_filename)
+                print "Saving {}".format(fig_filename)
+                plt.savefig(fig_path)
+                ax.cla()
+
+                if key == 'I_pl' and cal_or_eval == 'cal':
+                    # I_pl is given as DAC values in v4_params, thus there are no refs
+                    refs = None
+                else:
+                    refs = df[load_key+'_config'].unique() if load_key+'_config' in df.columns \
+                                                           else None
+                hists(df, result_key, level='step', ax=ax, bins=config.get('bins', 50),
+                      logx=config.get('logx', False), with_defects=with_defects, refs=refs,
+                      num_steps=config.get('num_steps', None), x_label=config['result_label'])
+                ax.legend(loc='best').get_frame().set_alpha(0.5)
+                fig_filename = '{}_{}_{}.png'.format(key, label_wd, label_cal)
+                fig_path = os.path.join(fig_dir_path, fig_filename)
+                print "Saving {}".format(fig_filename)
+                plt.savefig(fig_path)
+                ax.cla()
+
+                if config.get('per_fg_block', False):
+                    label_nrn = 'shared_FG_block'
+                else:
+                    label_nrn = 'neuron_number'
+                plot(df, ['neuron', result_key], level='step', ax=ax,
+                     refs=refs, with_defects=with_defects,
+                     per_fg_block=config.get('per_fg_block', False),
+                     **{'marker': 'x', 'alpha': 1., 'linestyle': ''})
+                ax.set_ylabel(config['result_label'])
+                fig_filename = '{}_{}_{}_vs_{}.png'.format(key, label_wd, label_cal, label_nrn)
+                fig_path = os.path.join(fig_dir_path, fig_filename)
+                print "Saving {}".format(fig_filename)
+                plt.savefig(fig_path)
+                ax.cla()
+
+                if key in ['V_reset', 'V_t']:
+                    name = calib_name if cal_or_eval == 'cal' else eval_name
+                    nrns = config.get('nrns', [0])
+                    for nrn in nrns:
+                        dfs = load_trace(storage_path, name,
+                                         key, nrn=nrn)
+                        if dfs != []:
+                            plot_trace(dfs, ax=ax, xlim=config.get('xlim', [0, 21e-6]))
+                            fig_filename = '{}_trace_{}_nrn_{}.png'.format(key, label_cal,
+                                                                           nrn)
+                            fig_path = os.path.join(fig_dir_path, fig_filename)
+                            print "Saving {}".format(fig_filename)
+                            plt.savefig(fig_path)
+                            ax.cla()
+
+    # plot fits
+    keys = exp_results.keys()
+    keys = [k for k in keys if k not in ['readout_shift', 'V_convoffx', 'V_convoffi']]
+
+    for key in keys:
+        load_key = key if key != 'I_gl_PSP' else 'I_gl'
+        config = plot_config[load_key]
+        result_key = config['result_key']
+        result_label = config['result_label']
+        df = cal_results[load_key + '_calib']
+        x_range = config.get('xrange', np.linspace(0.2, 1.5, 100))
+        df_fit = fit_func(df, x_range=x_range, cut=False, all_neurons=False)
+        plot(df_fit, ['x', 'y'], with_defects=False, ax=ax,
+             logx=config.get('logx', False), marker='', alpha=1.)
+
+        df = exp_results[key]
+        neurons = list(df_fit.index.get_level_values('neuron').unique().values)
+        ax.legend(ax.get_lines(), neurons, title='neurons')
+        df = df.sortlevel('neuron').loc[neurons,:]
+        columns = [result_key, load_key]
+        ax.set_prop_cycle(None) # reset the color cycle
+        plot(df, columns, ax=ax, with_defects=False,
+             rep=config.get('rep', None), alpha=1.)
+        ax.set_ylim([-20, 1050])
+        ax.set_xlabel(config['result_label'])
+        ax.set_ylabel(config['key_label_cal'])
+        pad_xaxis(ax)
+        fig_filename = '{}_fit.png'.format(load_key)
+        fig_path = os.path.join(fig_dir_path, fig_filename)
+        print "Saving {}.".format(fig_filename)
+        plt.savefig(fig_path)
+        ax.cla()
+
+        df = cal_results[load_key + '_calib']
+        x_range = config.get('xrange', np.linspace(0.2, 1.5, 100))
+        df_fit = fit_func(df, x_range=x_range, cut=False, all_neurons=True)
+        plot(df_fit, ['x', 'y'], with_defects=False, ax=ax,
+             logx=config.get('logx', False), marker='')
+        ax.set_ylim([-20, 1050])
+        ax.set_xlabel(config['result_label'])
+        ax.set_ylabel(config['key_label_cal'])
+        pad_xaxis(ax)
+        fig_filename = '{}_fit_all.png'.format(load_key)
+        fig_path = os.path.join(fig_dir_path, fig_filename)
+        print "Saving {}.".format(fig_filename)
+        plt.savefig(fig_path)
+        ax.cla()
+
+    # plot coefficients
+    for with_defects in [True, False]:
+        label_wd = 'with_defects' if with_defects else 'without_defects'
+        for key, df in cal_results.iteritems():
+            if df[~df['defect_all']]['trafo'].iloc[0] not in 'Lookup':
+                fig, axes = plot_coefficients(df, key, with_defects)
+
+                fig_filename = '{}_{}_hist.png'.format(key, label_wd)
+                fig_path = os.path.join(fig_dir_path, fig_filename)
+                print "Saving {}".format(fig_filename)
+                plt.savefig(fig_path)
+                for ax in axes:
+                    ax.cla()
+
+
+if __name__ == "__main__":
+    main()
