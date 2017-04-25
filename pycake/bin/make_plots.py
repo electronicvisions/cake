@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import pandas as pd
 # deactivate warning
 # http://stackoverflow.com/questions/20625582/how-to-deal-with-settingwithcopywarning-in-pandas
@@ -408,7 +409,7 @@ def load_trace(storage_path, cal_eval_name, parameter, nrn):
                 dfs.append(store['trace_{}'.format(nrn)])
     return dfs
 
-def plot_trace(dfs, **kwargs):
+def plot_trace(dfs, nrn, **kwargs):
     """
     plot voltage traces (data from load_trace)
     """
@@ -421,6 +422,7 @@ def plot_trace(dfs, **kwargs):
 
     if ax.legend() is not None:
         ax.legend().set_visible(False)
+    ax.set_title("Trace of Neuron {}".format(nrn))
     ax.set_xlabel("time [s]")
     ax.set_ylabel(r"$V_{membrane}$ [V]")
     if locals().get('fig', None) is None:
@@ -495,6 +497,7 @@ def plot(df, columns, level='neuron', with_defects=True,
     Returns:
         axis or figure, axis if axis was None
     """
+    first_bottom = 256 #first bottom neuron on HICANN chip
     std_kwargs = {'alpha' : 0.05, 'linestyle' : '-', 'marker' : '.', 'legend' : None}
     for key in std_kwargs.keys():
         if key not in kwargs.keys():
@@ -521,12 +524,8 @@ def plot(df, columns, level='neuron', with_defects=True,
             df_plot = df_plot[columns + [defect_str]]
             df_plot  = df_plot[df_plot[defect_str]==False]
             neurons = df_plot.index.get_level_values('neuron')
-            first_top = neurons[0]
-            first_bottom = [w for w in neurons if w>255][0]
         else:
             df_plot = df_plot.loc[:, columns + [defect_str]]
-            first_top = 0
-            first_bottom = 256
     if rep is not None:
         df_plot = get_rep_slice(df_plot, rep, columns)
     df_plot.sortlevel(level)
@@ -547,7 +546,7 @@ def plot(df, columns, level='neuron', with_defects=True,
             kwargs['alpha'] = al
     else:
         for name, group in df_plot.groupby(level=level):
-            if name == first_bottom and set_tb:
+            if name >= first_bottom and set_tb:
                 kwargs.update({'color' : 'g'})
             group.plot(x=columns[0], y=columns[1], **kwargs)
             if with_defects:
@@ -1109,7 +1108,7 @@ def main():
                         dfs = load_trace(storage_path, name,
                                          key, nrn=nrn)
                         if dfs != []:
-                            plot_trace(dfs, ax=ax, xlim=config.get('xlim', [0, 21e-6]))
+                            plot_trace(dfs, nrn=nrn, ax=ax, xlim=config.get('xlim', [0, 21e-6]))
                             fig_filename = '{}_trace_{}_nrn_{}.png'.format(key, label_cal,
                                                                            nrn)
                             fig_path = os.path.join(fig_dir_path, fig_filename)
@@ -1134,7 +1133,7 @@ def main():
 
         df = exp_results[key]
         neurons = list(df_fit.index.get_level_values('neuron').unique().values)
-        ax.legend(ax.get_lines(), neurons, title='neurons')
+        ax.legend(ax.get_lines(), neurons, title='neuron')
         df = df.sortlevel('neuron').loc[neurons,:]
         columns = [result_key, load_key]
         ax.set_prop_cycle(None) # reset the color cycle
