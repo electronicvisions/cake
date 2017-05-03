@@ -31,7 +31,7 @@ rcParams.update({'figure.autolayout': True, 'axes.formatter.limits': [-4, 4],
 # "EVAL_FOLDER"
 
 # ===========================plot parameters ===============================================
-neuron_enums = [0] # neurons to be plotted (trace), if not specified in args.neuron_enum
+# if the key 'nrns' is added for a parameter, --neuron_enum will be ignored
 plot_config = {'readout_shift': {'result_key': 'coeff0', 'result_label': r"offset [V]",
                                  'xunit': 'V', 'yunit': 'V'},
                'V_reset':   {'result_key': 'baseline', 'result_label': r"$V_{reset}$ [V]",
@@ -67,9 +67,6 @@ plot_config = {'readout_shift': {'result_key': 'coeff0', 'result_label': r"offse
 for plot_dict in plot_config.itervalues():
     if plot_dict.get('result_label', False):
         plot_dict['key_label_eval'] = plot_dict['result_label'] + r" (in)"
-
-for config in plot_config.itervalues():
-    config['nrns'] = neuron_enums
 # ==========================================================================================
 
 def make_fig_dir(path, fig_dir):
@@ -815,9 +812,10 @@ def main():
     parser.add_argument("--evaluation", help="name of evaluation directory", default='')
     parser.add_argument("--outdir", help="path of output directory for plots",
                         default="figures_pandas")
-    parser.add_argument("--neuron_enum", nargs='+', type=int, help="neurons for"
-                        "which the trace of V_reset and V_t should be plotted",
-                        default=None)
+    parser.add_argument("--neuron_enum", nargs='+', type=int, help="neurons for "
+                        "which the trace of V_reset and V_t should be plotted. "
+                         "if the key 'nrns' is in plot_config for a parameter, --neuron_enum will be "
+                         "ignored", default=[0])
     parser.add_argument("--wafer", help="Wafer enum", type=int,
                         default=None)
     parser.add_argument("--hicann", help="HICANN enum", type=int,
@@ -828,10 +826,9 @@ def main():
     args = parser.parse_args()
 
     # insert neuron enums (to plot traces of) in config dict
-    if args.neuron_enum:
-        for config in plot_config.itervalues():
+    for config in plot_config.itervalues():
+        if not config.get('nrns', False):
             config['nrns'] = args.neuron_enum
-        neuron_enums = args.neuron_enum
 
     storage_path = args.storage_path
     calib_name = args.calib
@@ -854,26 +851,27 @@ def main():
     # trace plots have individual neuron values in file name, add
     with open(os.path.join(fig_dir_path, "overview.html"), 'rw') as overview:
         data = overview.readlines()
-        remove = True
-        for nrn in neuron_enums:
-            if nrn == 0:
-                remove = False
-            else:
-                count = 0
+        for key in ['V_reset', 'V_t']:
+            remove = True
+            for nrn in plot_config[key]['nrns']:
+                if nrn == 0:
+                    remove = False
+                else:
+                    count = 0
+                    for ii, line in enumerate(data):
+                        mod = count % 2
+                        if "nrn_0" in line and mod == 0 and key in line:
+                            count += 1
+                            newline = line.replace('0', str(nrn))
+                            newline1 = data[ii+1].replace('0', str(nrn))
+                            data.insert(ii+2, newline)
+                            data.insert(ii+3, newline1)
+                        elif "nrn_0" in line and mod != 0:
+                            count += 1
+            if remove == True:
                 for ii, line in enumerate(data):
-                    mod = count % 2
-                    if "nrn_0" in line and mod == 0:
-                        count += 1
-                        newline = line.replace('0', str(nrn))
-                        newline1 = data[ii+1].replace('0', str(nrn))
-                        data.insert(ii+2, newline)
-                        data.insert(ii+3, newline1)
-                    elif "nrn_0" in line and mod != 0:
-                        count += 1
-        if remove == True:
-            for ii, line in enumerate(data):
-                if "nrn_0" in line:
-                    data[ii] = "\n"
+                    if "nrn_0" in line and key in line:
+                        data[ii] = "\n"
     with open(os.path.join(fig_dir_path, "overview.html"), 'w') as overview:
         overview.writelines(data)
 
