@@ -46,6 +46,7 @@ class CalibrationUnit(object):
             experiment: needed for conversion of old experiments
         """
         t_start = time.time()
+        self.done = False
         self.config = config
         self.name = config.config_name
         self.storage_folder = None
@@ -123,6 +124,7 @@ class CalibrationUnit(object):
                                self.config.get_target_speedup_I_radapt())
         self.write_defects(redman, trafos)
         self.save_calibration_results(trafos)
+        self.done = True
 
     def get_experiment(self, calibitic):
         """ Get the right experiment builder.
@@ -421,14 +423,14 @@ class CalibrationRunner(object):
         self.logger.INFO("Start calibration")
         self._run_measurements()
 
-    def continue_calibration(self, only_with_name):
+    def continue_calibration(self, only_with_name, skip_fits=False):
         """resumes an calibration run
 
         This method will first complete unfinished measurements.
         Afterwards the calibrator will be run. This can overwrite the results
         loaded from an previous run."""
         self.logger.INFO("Continue calibration")
-        self._run_measurements(only_with_name)
+        self._run_measurements(only_with_name, skip_fits)
 
     def finalize(self):
         """to be called after calibration is finished
@@ -467,7 +469,7 @@ class CalibrationRunner(object):
 
                 raise RuntimeError("parameter {} neither shared nor of type neuron".format(parameter))
 
-    def _run_measurements(self, only_with_name=None):
+    def _run_measurements(self, only_with_name=None, skip_fits=False):
         """execute the measurement loop
         Parameters:
             only_with_name: [list] runs only the calibration with a given name
@@ -475,16 +477,24 @@ class CalibrationRunner(object):
         for ii, name in enumerate(self.to_run):
             if only_with_name is None or name in only_with_name:
                 unit = self.create_or_load_unit(ii)
-                unit.run()
-                calibtic = self.load_calibtic()
-                redman = self.load_redman()
-                unit.generate_calibration_data(calibtic, redman)
+                if not unit.done or not skip_fits:
+                    unit.run()
+                    calibtic = self.load_calibtic()
+                    redman = self.load_redman()
+                    unit.generate_calibration_data(calibtic, redman)
+                    unit.save()
+                else:
+                    self.logger.INFO("Measurements and fits for {} already done. Going on with next one.".format(name))
 
     def get_unit_folder(self, ii):
         return os.path.join(self.storage_folder, str(ii))
 
     def load_calibration_unit(self, ii):
-        return CalibrationUnit.load(self.get_unit_folder(ii))
+        unit  = CalibrationUnit.load(self.get_unit_folder(ii))
+        # compatibility for old units that do not have the member 'done'
+        if not hasattr(unit, 'done'):
+            unit.done = False
+        return unit
 
     def create_or_load_unit(self, ii):
         """Receives a pickle calibration unit or creates a new one"""

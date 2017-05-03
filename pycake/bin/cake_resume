@@ -19,8 +19,10 @@ parser.add_argument('runner', type=folder,
         help='Pickled experiment to rerun')
 parser.add_argument('--parameter', type=str, default=None, action='append',
                     help='Resumes only the specified calibrations')
+parser.add_argument('--skip_fits', action='store_true',
+                    help='Skip fits if they are already done. Default is to redo the fits')
 args = parser.parse_args()
 
 runner = CalibrationRunner.load(args.runner)
-runner.continue_calibration(args.parameter)
+runner.continue_calibration(args.parameter, args.skip_fits)
 runner.finalize()
