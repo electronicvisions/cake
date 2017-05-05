@@ -846,8 +846,9 @@ def main():
 
     # create fig directory if not already there
     fig_dir_path = make_fig_dir(storage_path, fig_dir_name)
-    cakebin = os.path.split(os.path.abspath(__file__))[0]
-    shutil.copy(os.path.join(cakebin, "overview.html"), fig_dir_path)
+    overview_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                 'tools/overview.html')
+    shutil.copy(overview_path, fig_dir_path)
     # trace plots have individual neuron values in file name, add
     with open(os.path.join(fig_dir_path, "overview.html"), 'rw') as overview:
         data = overview.readlines()
