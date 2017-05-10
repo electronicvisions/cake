@@ -10,6 +10,7 @@ import pycake
 from helpers.WorkerPool import FakeWorkerPool, WorkerPool, DEFAULT_WORKERS
 from helpers.TracesOnDiskDict import PandasRecordsOnDiskDict
 from helpers.sthal import ADCFreqConfigurator
+from tables.exceptions import HDF5ExtError
 
 import time
 import os
@@ -56,12 +57,16 @@ class Measurement(object):
 
     def save_traces(self, storage_path):
         """Enabling saving of traces to the given file"""
-        dirname, filename = os.path.split(storage_path)
-        if self.traces is not None:
-            self.traces.update_directory(dirname)
-        else:
-            self.logger.info("Storing traces at '{}'".format(storage_path))
-            self.traces = PandasRecordsOnDiskDict(dirname, filename)
+        self.traces = PandasRecordsOnDiskDict(*os.path.split(storage_path))
+        try:
+            # open store to see if it is corrupt/not existing
+            self.traces.h5file
+        except HDF5ExtError:
+            # store could not be opened -> corrupt -> remove it
+            # (this is possible as each measurement is stored in its own store)
+            self.logger.warn("Trace store is corrupt. Store will be removed. "
+                             "Storing traces at '{}'".format(storage_path))
+            os.remove(storage_path)
 
     def finish(self):
         """ Finish the measurement.
