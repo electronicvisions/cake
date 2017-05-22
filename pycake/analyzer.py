@@ -488,7 +488,7 @@ class ADCFreq_Analyzer(Analyzer):
 
         try:
             adc_freq, _ = np.polyfit(expected_t, pos, 1)
-        except RuntimeError as e:
+        except (RuntimeError, TypeError) as e:
             raise RuntimeError("Cannot fit ADC frequency: {}. Is L1 OK?".format(e))
 
         if numpy.abs(self.IDEAL_FREQUENCY - adc_freq) > 1e6:
