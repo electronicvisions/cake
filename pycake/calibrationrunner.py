@@ -234,7 +234,8 @@ class CalibrationUnit(object):
                 fgb_id = nrn.toSharedFGBlockOnHICANN().id().value()
                 if trafo is None:
                     defect = True
-                    data_all.append([nrn_id, fgb_id, defect])
+                    data_all.append([nrn_id, fgb_id, defect, numpy.NaN,
+                                     numpy.NaN, numpy.NaN, numpy.NaN])
                 else:
                     defect = False
                     coeffs = numpy.array(trafo.getData(), ndmin=1,
@@ -250,9 +251,10 @@ class CalibrationUnit(object):
                                     trafo.getDomainBoundaries().second]
                     list_to_save.extend(coeffs)
                     data_all.append(list_to_save)
-            max_coeff_len = max(col[3] for col in data_all if not col[2])
+            # determines the coeff length, if all neurons are blacklisted <=> coeff_len == -1
+            coeff_len = numpy.nanmax([col[3] for col in data_all] + [-1]).astype(int)
             column_names.extend('coeff{}'.format(ii)
-                                for ii in range(max_coeff_len+1))
+                                for ii in range(coeff_len+1))
             df = pandas.DataFrame(data_all, columns=column_names)
             df.set_index(['neuron', 'shared_block'], inplace=True)
             df.sortlevel('neuron', inplace=True)
