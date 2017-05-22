@@ -50,6 +50,7 @@ class CalibrationUnit(object):
         self.config = config
         self.name = config.config_name
         self.storage_folder = None
+        self.pandas_store = None
         self.storage = StorageProcess(compresslevel=9)
         if experiment is None:
             # Store calibtic instance just for debugging
@@ -58,8 +59,6 @@ class CalibrationUnit(object):
             experiment.set_read_fg_values(self.config.get_read_fg_values())
         self.experiment = experiment
         self.set_storage_folder(storage_path)
-        self.pandas_store = os.path.join(os.path.split(
-                                self.storage_folder)[0], "results.h5")
         self.measure_time = -1.0
         self.setup_time = time.time() - t_start
         self.save()
@@ -176,6 +175,7 @@ class CalibrationUnit(object):
         """Update the pathes to calibration units results"""
         pycake.helpers.misc.mkdir_p(folder)
         self.storage_folder = folder
+        self.pandas_store = os.path.join(os.path.dirname(folder), "results.h5")
         if self.config.get_save_traces():
             self.experiment.save_traces(self.storage_folder)
 
