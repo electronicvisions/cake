@@ -528,11 +528,12 @@ class CalibrationRunner(object):
         if not isinstance(data, cls):
             raise RuntimeError("Invalid class loaded!")
         data.set_storage_folder(path)
-        if backend_path is not None:
-            if not os.path.isdir(backend_path):
-                raise RuntimeError("Backend path '{}' not found".format(
-                    backend_path))
-            data.config.parameters['backend'] = backend_path
+        if backend_path is None:
+            backend_path = os.path.join(os.path.dirname(os.path.realpath(path)), "backends")
+        if not os.path.isdir(backend_path):
+            raise RuntimeError("Backend path '{}' not found".format(
+                backend_path))
+        data.config.parameters['backend'] = backend_path
         return data
 
     def save(self):
