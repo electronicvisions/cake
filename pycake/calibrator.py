@@ -596,7 +596,13 @@ class V_syntc_Calibrator(BaseCalibrator):
             fitted.dropna(inplace=True)
 
         # The domain encodes the value range for which we have valid input data
-        domain = (fitted.loc[x[0]], fitted.loc[x[-1]])
+        domain = [fitted.loc[x.max()], fitted.loc[x.min()]]
+        if domain[0] >= domain[1]:
+            self.logger.WARN("For neuron {}: We expect that the measured values descend when "
+                             "increasing the parameter value, but the measured value for the "
+                             "highest parameter value is greater or equal than that for the "
+                             "lowest. Neuron is blacklisted.".format(nrn))
+            return None
 
         return fitted, domain, result
 
