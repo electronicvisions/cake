@@ -569,8 +569,8 @@ class V_syntc_Calibrator(BaseCalibrator):
                 "Fit for {} failed: Not enough valid data points: {}".format(nrn, len(data)))
             return
 
-        x = data['x']
-        y = numpy.log(data['y'])
+        x = data['x'].values
+        y = numpy.log(data['y']).values
 
         p = self.model.make_params()
         p['offset'].set(value=y.min())
