@@ -456,7 +456,7 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
             # Add ADC frequency measurement
             sthal = self.get_sthal()
             if sthal.is_hardware():
-                bg_rate = 25e3
+                bg_rate = 100e3
                 experiment.initial_data['adc_freq_spike_frequency'] = bg_rate
                 experiment.add_initial_measurement(
                     ADCFreq_Measurement(sthal, self.neurons, bg_rate=bg_rate,
