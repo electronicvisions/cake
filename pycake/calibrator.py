@@ -86,7 +86,7 @@ class BaseCalibrator(object):
         """
         transformations = {}
         trafo_type = self.get_trafo_type()
-        for neuron, group in self.get_results().groupby(level='neuron'):
+        for neuron, group in self.get_results().dropna(how='any').groupby(level='neuron'):
             # Need to switch y and x in order to get the right fit
             # (y-axis: configured parameter, x-axis: measurement)
             ys_raw, xs_raw = group.T.values
@@ -201,7 +201,7 @@ class V_reset_Calibrator(BaseCalibrator):
             List of tuples, each containing the neuron parameter and a
             dictionary containing polynomial fit coefficients for each neuron
         """
-        results = self.get_results()
+        results = self.get_results().dropna(how='any')
         results_per_FGBlock = results.groupby(level='shared_block')
         trafos = {}
         trafo_type = self.get_trafo_type()
@@ -685,7 +685,7 @@ class I_pl_Calibrator(BaseCalibrator):
         """
         transformations = {}
         trafo_type = self.get_trafo_type()
-        results = self.get_results().groupby(level='neuron')
+        results = self.get_results().groupby(level='neuron').dropna(how='any')
 
         for neuron, group in results:
             # Need to switch y and x in order to get the right fit
