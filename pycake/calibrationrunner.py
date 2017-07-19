@@ -26,6 +26,7 @@ from socket import gethostname
 from pyhalbe import Coordinate
 from pyhalbe.HICANN import neuron_parameter
 from pyhalbe.HICANN import shared_parameter
+from pysthal import SpeedUp
 
 class UnitNotFound(RuntimeError):
     pass
@@ -279,13 +280,24 @@ class CalibrationUnit(object):
                 "save disk space!".format(key, name))
         results = results.select_dtypes(exclude=[object])
 
+        def normalize_value(k, v):
+            "Helper to convert config values into numeric values if possible"
+            if k in ("speedup_I_gl", "speedup_I_gladapt", "speedup_I_radapt",
+                     "target_speedup_I_gl", "target_speedup_I_gladapt",
+                     "target_speedup_I_radapt") and isinstance(v, basestring):
+                v = SpeedUp.names[v.upper()]
+
+            if isinstance(v, basestring):
+                return v
+            else:
+                return float(v)
+
         # patch 'range' values from config bc. they are not recorded for the
         # evaluation
         params = {}
-        for ii, param in enumerate(
-                            self.config.parameters[self.name +"_range"]):
-            params.update({ii: {n.name + '_config': p.value
-                                for n,p in param.iteritems()}})
+        for ii, param in enumerate(self.config.parameters[self.name +"_range"]):
+            params[ii] = {str(n) + '_config': normalize_value(n, p)
+                          for n,p in param.iteritems()}
         to_merge = pandas.DataFrame.from_dict(params, orient='index')
         to_merge.index.names = ['step']
         results = pandas.merge(results.reset_index(), to_merge.reset_index(),
@@ -544,6 +556,7 @@ class CalibrationRunner(object):
         progress.info("Save calibration runner to {}".format(
             filename))
         storage.save_object(filename, self)
+
 
 class TestRunner(CalibrationRunner):
     logger = pylogging.get("pycake.testrunner")

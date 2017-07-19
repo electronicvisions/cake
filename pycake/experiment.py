@@ -25,7 +25,10 @@ class Experiment(object):
     def __init__(self, analyzer):
         self.analyzer = analyzer
         self.measurements = []
-        self.results = pandas.DataFrame()
+        results_index = pandas.MultiIndex(
+                levels=[[],[],[]], labels=[[],[],[]],
+                names=['neuron', 'shared_block', 'step'])
+        self.results = pandas.DataFrame(index=results_index)
         self.fg_values = {}
         self.run_time = 0.0
 
@@ -181,8 +184,7 @@ class Experiment(object):
             return results
         else:
             assert isinstance(keys, list)
-            names = [p if isinstance(p, basestring) else p.name
-                     for p in keys]
+            names = [str(p) for p in keys]
             return results.loc[:, names]
 
     def get_parameters(self, numeric_index=False):

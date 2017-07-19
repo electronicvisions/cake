@@ -29,6 +29,9 @@ class Unit(object):
     def toDAC(self):
         raise NotImplementedError("Unit.toDAC not implemented")
 
+    def __float__(self):
+        return float(self.value)
+
 class Second(Unit):
     """ Time in s for hardware parameters"""
     def __init__(self, value, **kwargs):
