@@ -691,7 +691,7 @@ class I_pl_Calibrator(BaseCalibrator):
         """
         transformations = {}
         trafo_type = self.get_trafo_type()
-        results = self.get_results().groupby(level='neuron').dropna(how='any')
+        results = self.get_results().dropna(how='any').groupby(level='neuron')
 
         for neuron, group in results:
             # Need to switch y and x in order to get the right fit
