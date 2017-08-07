@@ -87,6 +87,8 @@ parameters = {
         for t in [0.01e-6, 0.1e-6, 0.5e-6, 1e-6]
     ],
 
+    "I_pl_repetitions": 1,
+
     "I_gl_range": [{neuron_parameter.I_gl : Second(t, apply_calibration=True)} for t in [1e-6]],
 
     "I_gl_PSP_range": [
