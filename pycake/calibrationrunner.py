@@ -292,12 +292,19 @@ class CalibrationUnit(object):
             else:
                 return float(v)
 
-        # patch 'range' values from config bc. they are not recorded for the
-        # evaluation
+        # patch 'range' values and repetitions from config bc. they are not
+        # recorded for the evaluation
+        repetitions = self.config.get_repetitions()
+        results['repetitions'] = repetitions
+        num_unique_steps = len(self.config.parameters[self.name +"_range"])
         params = {}
         for ii, param in enumerate(self.config.parameters[self.name +"_range"]):
-            params[ii] = {str(n) + '_config': normalize_value(n, p)
-                          for n,p in param.iteritems()}
+            # _config params are only once in the config, if mutliple
+            # repetitions are set, they have to be copied multiple times
+            for rep in range(repetitions):
+                step_index = ii + rep*num_unique_steps
+                params[step_index] = {str(n) + '_config': normalize_value(n, p)
+                              for n,p in param.iteritems()}
         to_merge = pandas.DataFrame.from_dict(params, orient='index')
         to_merge.index.names = ['step']
         results = pandas.merge(results.reset_index(), to_merge.reset_index(),
