@@ -357,7 +357,7 @@ class CalibrationRunner(object):
             "f{}".format(int(self.config.get_PLL()/1e6)),  # PLL in MHz
             "w{}".format(wafer.value()),
             "h{}".format(hicann.id().value()),
-            time.strftime('%m%d_%H%M%S'),
+            time.strftime('%Y%m%d_%H%M%S'),
         ] if s != ""])
 
         if storage_path is None:
