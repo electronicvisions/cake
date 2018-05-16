@@ -85,9 +85,6 @@ class SimStHALContainer(StHALContainer):
         """Connect to the hardware."""
         pass
 
-    def dump_connect(self, filename, append):
-        raise NotImplementedError()
-
     def connect_adc(self, coord_analog=None):
         """Gets ADC handle.
 

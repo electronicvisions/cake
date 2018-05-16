@@ -46,11 +46,6 @@ class TestSimSthal(unittest.TestCase):
         sthal.write_config()
         sthal.read_adc_status()
 
-    def test_raising(self):
-        """These functions should raise."""
-        sthal = self.sthal
-        self.assertRaises(NotImplementedError, sthal.dump_connect, "foo", "bar")
-
     def test_wafer_status(self):
         status = self.sthal.read_wafer_status()
         self.assertEqual(list(status.hicanns)[0], self.coord_hicann)

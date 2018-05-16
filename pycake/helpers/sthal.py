@@ -246,9 +246,8 @@ class StHALContainer(object):
 
         Args:
             config: Config instance, used to determine Wafer, HICANN, PLL,
-                    big_cap, dump_file, wafer_cfg, speedup
+                    big_cap, wafer_cfg, speedup
                 wafer_cfg: load wafer configuration from this file, ignore rest
-                dump_file: filename for StHAL dump handle instead of hardware
             coord_analog: AnalogOnHICANN Coordinate
             recording_time: ADC recording time in seconds
             neuron_size: Number of denmems to connect
@@ -257,7 +256,6 @@ class StHALContainer(object):
         self.coord_wafer, self.coord_hicann = config.get_coordinates()
         self.hicann_version = config.get_hicann_version()
         self.wafer_cfg = config.get_wafer_cfg()
-        self.dump_file = config.get_dump_file()
         self.save_raw_traces = config.get_save_raw_traces()
 
         # FIXME: should we store the content of the hwdb file instead?
@@ -292,16 +290,12 @@ class StHALContainer(object):
 
     def connect(self):
         """Connect to the hardware."""
-        if self.dump_file is None:
-            if self.hwdb:
-                self.logger.warn("using non-default hardware database {}".format(self.hwdb))
-                db = pysthal.YAMLHardwareDatabase(self.hwdb)
-            else:
-                db = pysthal.MagicHardwareDatabase()
-            self.wafer.connect(db)
+        if self.hwdb:
+            self.logger.warn("using non-default hardware database {}".format(self.hwdb))
+            db = pysthal.YAMLHardwareDatabase(self.hwdb)
         else:
-            # do not actually connect, write to file
-            self.dump_connect(self.dump_file, False)
+            db = pysthal.MagicHardwareDatabase()
+        self.wafer.connect(db)
         self.connect_adc()
         self._connected = True
 
@@ -323,11 +317,7 @@ class StHALContainer(object):
         if coord_analog is None:
             coord_analog = self.coord_analog
 
-        if self.dump_file is None:
-            adc = self.hicann.analogRecorder(coord_analog)
-        else:
-            # do not actually connect
-            adc = FakeAnalogRecorder()
+        adc = self.hicann.analogRecorder(coord_analog)
         adc.setRecordingTime(self.recording_time)
         self.adc = adc
 
