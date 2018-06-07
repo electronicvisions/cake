@@ -20,6 +20,7 @@ from Coordinate import FGRowOnFGBlock
 from Coordinate import GbitLinkOnHICANN
 from Coordinate import NeuronOnFGBlock
 from Coordinate import SynapseDriverOnHICANN
+from Coordinate import DNCMergerOnHICANN
 
 from pysthal import HICANNConfigurator as HICANNv2Configurator
 from pysthal import HICANNv4Configurator
@@ -47,8 +48,17 @@ class UpdateParameterUp(HICANNv4Configurator):
         pass
 
     def config(self, fpga_handle, handle, hicann):
-        self.programm_normal(handle, hicann, self.rows)
+        row_lists = HICANNv4Configurator.row_lists_t()
+        row_lists.append(self.rows)
 
+        # cf. #3131
+        hicann_handles = pysthal.vector_less__boost_scope_shared_ptr_less_HMF_scope_Handle_scope_HICANN_greater___greater_()
+        hicann_handles.append(handle)
+
+        hicann_datas = pysthal.vector_less__boost_scope_shared_ptr_less_sthal_scope_HICANNData_greater___greater_()
+        hicann_datas.append(hicann)
+
+        self.program_normal(hicann_handles, hicann_datas, row_lists)
 
 class UpdateParameterUpAndConfigure(UpdateParameterUp):
     def config(self, fpga_handle, handle, hicann):
@@ -330,6 +340,11 @@ class StHALContainer(object):
 
     def write_config(self, configurator=None):
         """Write full configuration."""
+
+        # cf. #3143
+        settings = pysthal.Settings.get()
+        settings.synapse_switches.max_switches_per_column_per_side = 2
+
         if not self._connected:
             self.connect()
         if configurator is None:
@@ -401,7 +416,7 @@ class StHALContainer(object):
             generator.address(lock_l1address)
             self.logger.DEBUG("activate {!s} with period {}".format(bg, bg_period))
 
-            self.hicann.route(link.toOutputBufferOnHICANN(), driver)
+            self.hicann.route(link.toDNCMergerOnHICANN(), driver)
             self.enable_synapse_line(
                 driver, stim_l1address, gmax_div=gmax_div, excitatory=excitatory,
                 gmax=gmax, weight=weight)
@@ -530,8 +545,8 @@ class StHALContainer(object):
 
         links = []
         for ii in range(4):
-            bg_top = Coordinate.OutputBufferOnHICANN(2*ii+1)
-            bg_bot = Coordinate.OutputBufferOnHICANN(2*ii)
+            bg_top = Coordinate.DNCMergerOnHICANN(2*ii+1)
+            bg_bot = Coordinate.DNCMergerOnHICANN(2*ii)
             links.append(GbitLinkOnHICANN(2 * ii + 1))
             links.append(GbitLinkOnHICANN(2 * ii))
 
@@ -601,15 +616,12 @@ class StHALContainer(object):
             drivers = (SynapseDriverOnHICANN(Enum(111)),
                        SynapseDriverOnHICANN(Enum(112)))
             bg = Coordinate.BackgroundGeneratorOnHICANN(7)
-            output = bg.toOutputBufferOnHICANN()
         elif self.hicann_version == 4:
             drivers = (SynapseDriverOnHICANN(Enum(109)),
                        SynapseDriverOnHICANN(Enum(114)))
             bg = Coordinate.BackgroundGeneratorOnHICANN(6)
         else:
             raise RuntimeError("Invalid HICANN version")
-
-        output = bg.toOutputBufferOnHICANN()
 
         PLL = self.getPLL()
         bg_period = int(math.floor(PLL/rate) - 1)
@@ -625,7 +637,7 @@ class StHALContainer(object):
         self.logger.DEBUG("activate {!s} with period {}".format(bg, bg_period))
 
         for drv in drivers:
-            self.route(output, drv)
+            self.route(DNCMergerOnHICANN(bg.value()), drv)
             self.configure_synapse_driver(drv, l1address, gmax_div=2, gmax=0)
 
         for analog in iter_all(AnalogOnHICANN):
