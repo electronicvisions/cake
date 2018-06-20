@@ -40,7 +40,7 @@ def fit_exponential(t, v, std=None, n_chunks=None, full_output=False, V_rest_ini
 
     # If std of trace and number of reps is given, calculate std of averaged trace
     if (isinstance(std, float) or (isinstance(std, np.ndarray) and std.size == 1)) and n_chunks is not None:
-        std = std / np.sqrt(n_chunks)
+        std = [std / np.sqrt(n_chunks)]*len(t)
 
     try:
         expf, pcov, infodict, errmsg, ier = curve_fit(

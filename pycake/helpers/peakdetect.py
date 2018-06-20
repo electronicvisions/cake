@@ -66,7 +66,7 @@ def peakdet(v, delta, x=None):
                 mxpos = x[i]
                 lookformax = True
 
-    return array(maxtab), array(mintab)
+    return array(maxtab, dtype=object), array(mintab, dtype=object)
 
 if __name__ == "__main__":  # pragma: no cover
     """Run peakdet on example data and visualize result."""

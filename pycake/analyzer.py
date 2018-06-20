@@ -96,7 +96,7 @@ class PeakAnalyzer(Analyzer):
         v = trace['v'].values
         maxtab, mintab = self.get_peaks(t, v)
         mean_max, mean_min, std_max, std_min = self.get_mean_peak(t, v, maxtab, mintab)
-        maxindex = maxtab[:, 0]
+        maxindex = maxtab[:, 0].astype(int)
         spikes = t[maxindex]
         freq = spikes_to_frequency(spikes)
         try:
