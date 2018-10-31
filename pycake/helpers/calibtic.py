@@ -47,7 +47,7 @@ class Calibtic(object):
         if 'hc' not in dic:
             self.hc = self.load_calibration()
 
-    def __init__(self, path, wafer, hicann, pll=100e6):
+    def __init__(self, path, wafer, hicann, pll=100e6, backend_type='xml'):
         self.path = self.make_path(path)
         self.wafer = wafer
         self.hicann = hicann
@@ -57,11 +57,17 @@ class Calibtic(object):
         self.ideal_nc.setDefaults()
         self.ideal_bc = pycalibtic.BlockCollection()
         self.ideal_bc.setDefaults()
-        self.hc = self.load_calibration()
+        self.hc = self.load_calibration(backend_type)
 
     def get_backend(self, type='xml'):
         if type == 'xml':
             lib = pycalibtic.loadLibrary('libcalibtic_xml.so')
+            backend = pycalibtic.loadBackend(lib)
+            backend.config('path', self.path)
+            backend.init()
+            return backend
+        elif type == 'binary':
+            lib = pycalibtic.loadLibrary('libcalibtic_binary.so')
             backend = pycalibtic.loadBackend(lib)
             backend.config('path', self.path)
             backend.init()
@@ -108,7 +114,7 @@ class Calibtic(object):
         name = "w{}-h{}".format(int(wafer_id), int(hicann_id))
         return name
 
-    def load_calibration(self):
+    def load_calibration(self, backend_type='xml'):
         """ Load existing calibration data from backend.
         """
 
@@ -118,7 +124,7 @@ class Calibtic(object):
         # load existing calibration
         try:
             name = self.get_calibtic_name()
-            backend = self.get_backend()
+            backend = self.get_backend(backend_type)
             backend.load(name, md, hc)
             calibration_existed = True
         except RuntimeError, e:
@@ -182,7 +188,8 @@ class Calibtic(object):
                           target_bigcap,
                           target_I_gl_speedup,
                           target_I_gladapt_speedup,
-                          target_I_radapt_speedup):
+                          target_I_radapt_speedup,
+                          backend_type='xml'):
         """ Writes calibration data to backend
 
             Args:
@@ -221,7 +228,7 @@ class Calibtic(object):
             collection.at(index).reset(calib_id, trafo)
             self.logger.TRACE("Resetting coordinate {} parameter {} to {}".format(coord, param_name, trafo))
         md = pycalibtic.MetaData()
-        backend = self.get_backend()
+        backend = self.get_backend(backend_type)
         backend.store(name, md, self.hc)
 
     def get_calibration(self, coord, use_ideal=False):
