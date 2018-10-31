@@ -1,0 +1,12 @@
+[
+	{"id":0, "location":"Rack",     "part":"RCP-2000-48",       "frequency":90000,   "frequency_error":0.05, "count":1, "type":"PWM", "description":"main 48V rack supply"},
+	{"id":1, "location":"FanBoard", "part":"HLG-240H-12A",      "frequency":100000,  "frequency_error":0.05, "count":1, "type":"PWM", "description":"fan board supply"},
+	{"id":2, "location":"PowerIt",  "part":"PTH08T250W",        "frequency":600000,  "frequency_error":0.05, "count":8, "type":"PWM", "description":"main 1.8V VDD and VDDA of wafer"},
+	{"id":3, "location":"PowerIt",  "part":"IB050E096T48N1-00", "frequency":1000000, "frequency_error":0.10, "count":4, "type":"AM",  "description":"9.6V supply of K7-Nodes and main 1.8V generation"},
+	{"id":4, "location":"PowerIt",  "part":"PTMA402050",        "frequency":300000,  "frequency_error":0.16, "count":1, "type":"PWM", "description":"5V supply of RPi"},
+	{"id":5, "location":"FlySpi",   "part":"APTH006A0X",        "frequency":600000,  "frequency_error":0.05, "count":3, "type":"PWM", "description":"three supplies for FPGA, ADC, ect."},
+	{"id":6, "location":"AnaB",     "part":"THN 15-1211",       "frequency":400000,  "frequency_error":0.05, "count":1, "type":"PWM", "description":"5V supply of CUREs and AnaB"},
+	{"id":7, "location":"Ananas",   "part":"OKL-T/3-W12P-C",    "frequency":600000,  "frequency_error":0.05, "count":1, "type":"PWM", "description":"supply for CURE and lsADC"},
+	{"id":8, "location":"Ananas",   "part":"LMZ10500",          "frequency":2000000, "frequency_error":0.05, "count":3, "type":"PWM", "description":"hsADC supply"},
+	{"id":9, "location":"Ananas",   "part":"THN 15-1211",       "frequency":400000,  "frequency_error":0.05, "count":1, "type":"PWM", "description":"FlySpi Supply"}
+]

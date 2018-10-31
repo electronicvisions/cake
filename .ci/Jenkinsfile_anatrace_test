@@ -1,0 +1,64 @@
+@Library("jenlib") _
+
+
+try {
+	def wmodHicannPairs = [["37", "297"],]
+
+	stage("Cleanup") {
+		runOnSlave(label: "frontend") {
+			cleanWs()
+		}
+	}
+
+	wafSetup(projects: ["cake"])
+
+	stage("Recording and Analysis") {
+		def successfulRecordings = 0
+
+		for (wmodHicannPair in wmodHicannPairs) {
+			try {
+				onSlurmResource(partition: "experiment", wmod: wmodHicannPair[0]) {
+					timeout(time: 5, unit: "MINUTES") {
+						withModules(modules: ["nmpm_software/current"]) {
+							jesh("run_nmpm_software python cake/tools/anatrace_test/anatrace_test_record.py " +
+							     "--wnr ${wmodHicannPair[0]} " +
+							     "--hnr ${wmodHicannPair[1]} " +
+							     "--anr 0")
+						}
+					}
+				}
+
+				onSlurmResource(partition: "compile") {
+					withModules(modules: ["nmpm_software/current"]) {
+						jesh("run_nmpm_software python cake/tools/anatrace_test/anatrace_test.py " +
+						     "--wnr ${wmodHicannPair[0]} " +
+						     "--hnr ${wmodHicannPair[1]} " +
+						     "--anr 0")
+					}
+				}
+				successfulRecordings++
+			} catch (Throwable t) {
+				echo("Ignoring exception: $t")
+			} finally {
+				if (successfulRecordings == 0) {
+					echo("0 analyses were successful, setting build 'UNSTABLE'!")
+					setBuildState("UNSTABLE")
+				}
+			}
+		}
+	}
+
+	stage("Archive Data") {
+		runOnSlave(label: "frontend") {
+			archiveArtifacts artifacts: '*.npz, plots/*.png'
+		}
+	}
+
+} catch (Throwable t) {
+	notifyFailure(mattermostChannel: "#hardies")
+	throw t
+}
+
+if (currentBuild.currentResult != "SUCCESS") {
+	notifyFailure(mattermostChannel: "#hardies")
+}
