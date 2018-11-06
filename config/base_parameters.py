@@ -83,7 +83,7 @@ parameters = {
 
         shared_parameter.V_reset:       Volt(0.5),   # * Neuron reset voltage
         shared_parameter.int_op_bias:   DAC(1023),      # internal OP bias
-        shared_parameter.V_dllres:      DAC(200),       # DLL reset voltage
+        shared_parameter.V_dllres:      DAC(275),       # DLL reset voltage
         shared_parameter.V_ccas:        DAC(800),       # layer 1 amplifier bias
         shared_parameter.V_bout:        Ampere(750e-9),   # * Global bias of neuron readout amps
         shared_parameter.V_bexp:        Ampere(2500e-9),  # * exp-term: Must be set to max if I_bexp is 2500
