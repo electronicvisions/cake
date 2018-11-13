@@ -259,7 +259,7 @@ class Calibtic(object):
         else:
             # return empty calibration if none exists
             self.logger.WARN("No calibration dataset found for {}. Returning empty calibration".format(coord))
-            if isinstance(calibration, pycalibtic.NeuronCalibration):
+            if calibration == pycalibtic.NeuronCalibration:
                 return calibration(False)
             else:
                 return calibration()
