@@ -73,38 +73,73 @@ parameters = {
     },
 
     "V_syntcx_range": [
-        {neuron_parameter.V_syntcx: Second(t, apply_calibration=True)}
-        for t in [10e-7, 5e-7, 2e-7]
+        {neuron_parameter.V_syntcx: Second(t, apply_calibration=True),
+        }
+        for t in [6e-7, 5e-7, 4e-7, 3e-7]
     ],
 
     "V_syntci_range": [
-        {neuron_parameter.V_syntci: Second(t, apply_calibration=True)}
-        for t in [10e-7, 5e-7, 2e-7]
+        {neuron_parameter.V_syntci: Second(t, apply_calibration=True),
+        }
+        for t in [6e-7, 5e-7, 4e-7, 3e-7]
     ],
 
     "I_pl_range":   [
         {neuron_parameter.I_pl : Second(t, apply_calibration=True)}
-        for t in [0.01e-6, 0.1e-6, 0.5e-6, 1e-6]
+        for t in [0.1e-6, 0.2e-6, 0.3e-6, 0.4e-6, 0.5e-6]
     ],
 
     "I_pl_repetitions": 1,
 
     "I_gl_range": [{neuron_parameter.I_gl : Second(t, apply_calibration=True)} for t in [1e-6]],
 
+    "I_gl_PSP_parameters": {
+        neuron_parameter.E_l : Volt(0.8, apply_calibration=True),
+        neuron_parameter.E_syni : Volt(0.6, apply_calibration=True),
+        neuron_parameter.E_synx : Volt(1.3),
+        neuron_parameter.V_convoffi : Volt(0.9, apply_calibration=True),
+        neuron_parameter.V_convoffx : Volt(0.9, apply_calibration=True),
+        neuron_parameter.V_t: Volt(1.2, apply_calibration=True),
+        shared_parameter.V_gmax0: Volt(1),
+        shared_parameter.V_reset: Volt(0.3, apply_calibration=True),
+        "gmax_div": 30,
+    },
+
     "I_gl_PSP_range": [
-        {neuron_parameter.I_gl : Second(t, apply_calibration=True)} for t in [3e-6, 2e-6, 1e-6, 0.5e-6]
+
+        {neuron_parameter.V_syntcx: Second(1e-7, apply_calibration=True),
+         neuron_parameter.I_gl : Second(75e-7, apply_calibration=True),
+         "bigcap" : True, "speedup_I_gl" : "slow"},
+
+        {neuron_parameter.V_syntcx: Second(1e-7, apply_calibration=True),
+         neuron_parameter.I_gl : Second(50e-7, apply_calibration=True),
+         "bigcap" : True, "speedup_I_gl" : "slow"},
+
+        {neuron_parameter.V_syntcx: Second(1e-7, apply_calibration=True),
+         neuron_parameter.I_gl : Second(10e-7, apply_calibration=True),
+         "bigcap" : True, "speedup_I_gl" : "normal"},
+
+        {neuron_parameter.V_syntcx: Second(1e-7, apply_calibration=True),
+         neuron_parameter.I_gl : Second(5e-7, apply_calibration=True),
+         "bigcap" : False, "speedup_I_gl" : "normal"},
+
+        {neuron_parameter.V_syntcx: Second(1e-7, apply_calibration=True),
+         neuron_parameter.I_gl : Second(10e-7, apply_calibration=True),
+         "bigcap" : True, "speedup_I_gl" : "fast"},
+
     ],
 
     "Spikes_parameters": {
         neuron_parameter.E_l: Volt(0.8, apply_calibration=True),
         neuron_parameter.E_syni:     Volt(0.6, apply_calibration=True),
         neuron_parameter.E_synx:     Volt(1.3),
-        neuron_parameter.I_gl:       Second(1e-6, apply_calibration=True),
-        neuron_parameter.V_syntcx:   Second(1e-6, apply_calibration=True),
-        neuron_parameter.I_pl:       Ampere(5e-9),
+        neuron_parameter.I_gl:       Second(10e-7, apply_calibration=True),
+        neuron_parameter.I_pl:       Second(1e-7, apply_calibration=True),
         neuron_parameter.V_convoffx: Volt(1.8, apply_calibration=True),
         neuron_parameter.V_convoffi: Volt(1.8, apply_calibration=True),
         shared_parameter.V_reset:    Volt(0.2, apply_calibration=True),
+        "bigcap" : True,
+        "speedup_I_gl" : "normal"
     },
 
     "Spikes_range" : [{neuron_parameter.V_t : Volt(v, apply_calibration=True)}
