@@ -54,6 +54,9 @@ parameters = {
     "fg_bias": 0,
     "fg_biasn": 0,
 
+    # HICANN PLL
+    "PLL": 125e6,
+
     # Here you can set the fixed parameters for each calibration.
     # base_parameters are set for all calibrations
     "base_parameters":   {
