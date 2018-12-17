@@ -10,7 +10,6 @@ def depends(ctx):
     ctx('logger', 'pylogging')
     ctx('calibtic', 'pycalibtic')  # sthal does not depend on pycalibtic
     ctx('redman', 'pyredman')
-    ctx('redman', 'backends')
     # please specify 'waf setup --project=cake --with-sim' to
     # enable simulation, '--without-sim' to disable
     if ctx.options.with_sim:
