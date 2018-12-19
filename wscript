@@ -67,7 +67,7 @@ def build(bld):
     bld.install_files(
         '${PREFIX}/bin',
         bld.path.ant_glob('pycake/bin/cake_*') +
-        bld.path.ant_glob('tools/*') +
+        bld.path.ant_glob('tools/cake_*') +
         bld.path.ant_glob('tools/L1/*'),
         relative_trick=False,
         chmod=Utils.O755,
@@ -79,6 +79,14 @@ def build(bld):
         ['pycake/bin/overview.html'],
         chmod=Utils.O755,
         relative_trick=False
+    )
+
+    bld(
+        target       = 'cake_digital_blacklisting',
+        features     = 'cxx cxxprogram',
+        source       = bld.path.ant_glob('tools/digital_blacklisting/digital_blacklisting.cpp'),
+        use          = [ 'halco', 'halbe', 'redman', 'BOOST4TOOLS', 'hwdb4cpp', 'redman_xml'],
+        install_path = '${PREFIX}/bin',
     )
 
     bld.recurse('test')
