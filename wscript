@@ -34,8 +34,6 @@ def configure(cfg):
     cfg.load('post_task')
     cfg.load('documentation')
     cfg.env.post_sim = cfg.options.with_sim
-    # needed for doc build
-    cfg.find_program("doxypy", mandatory=True)
 
     try:
         disable_bindings = cfg.options.disable_bindings
