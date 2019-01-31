@@ -2,7 +2,7 @@
 
 
 try {
-	def wmodHicannPairs = [["37", "297"],]
+	def wmodHicannPairs = [["22", "297"], ["30", "297"], ["33", "297"], ["37", "297"],]
 
 	stage("Cleanup") {
 		runOnSlave(label: "frontend") {
