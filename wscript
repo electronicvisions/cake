@@ -20,7 +20,7 @@ def depends(ctx):
 
 def options(opt):
     opt.load('post_task')
-    opt.load('documentation')
+    opt.load('doxygen')
 
     # add 'configure' options
     hopts = opt.add_option_group('Cake Options')
@@ -32,7 +32,7 @@ def options(opt):
 
 def configure(cfg):
     cfg.load('post_task')
-    cfg.load('documentation')
+    cfg.load('doxygen')
     cfg.env.post_sim = cfg.options.with_sim
 
     try:
