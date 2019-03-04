@@ -39,12 +39,12 @@ try {
 				successfulRecordings++
 			} catch (Throwable t) {
 				echo("Ignoring exception: $t")
-			} finally {
-				if (successfulRecordings == 0) {
-					echo("0 analyses were successful, setting build 'UNSTABLE'!")
-					setBuildState("UNSTABLE")
-				}
 			}
+		}
+
+		if (successfulRecordings == 0) {
+			echo("0 analyses were successful, setting build 'UNSTABLE'!")
+			setBuildState("UNSTABLE")
 		}
 	}
 
