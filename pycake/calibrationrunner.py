@@ -257,7 +257,7 @@ class CalibrationUnit(object):
                                 for ii in range(coeff_len+1))
             df = pandas.DataFrame(data_all, columns=column_names)
             df.set_index(['neuron', 'shared_block'], inplace=True)
-            df.sortlevel('neuron', inplace=True)
+            df.sort_index(axis=0, level='neuron', inplace=True)
             with pandas.HDFStore(self.pandas_store,
                                  complevel=9, complib='blosc') as store:
                 name = self.check_name(name, store.keys())
