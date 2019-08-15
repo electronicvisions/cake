@@ -193,12 +193,12 @@ def patch_defects(dfs0, dfs1):
         for df in dfs1.itervalues():
             df['defect_all'] = defects
     else:
-        defects_val = defects.sortlevel('neuron').values
+        defects_val = defects.sort_index(axis=0, level='neuron').values
         for df in dfs1.itervalues():
             if 'step' in df.index.names:
                 step_len = len(df.index.get_level_values('step').unique())
                 defects = np.repeat(defects_val, step_len)
-                df.sortlevel('neuron', inplace=True)
+                df.sort_index(axis=0, level='neuron', inplace=True)
             df['defect_all'] = defects
 
 def get_rep_slice(df, rep, columns):
@@ -208,7 +208,7 @@ def get_rep_slice(df, rep, columns):
     values...better if it would be saved during calib
     """
     step_level = df.index.names.index('step')
-    df = df.swaplevel(0, step_level).sortlevel('step')
+    df = df.swaplevel(0, step_level).sort_index(axis=0, level='step')
     step_len = min(len(df[col].unique()) for col in columns)
     df = df.loc[range(step_len*rep, step_len*(rep+1)), :]
     df = df.swaplevel(0,step_level)
@@ -228,7 +228,7 @@ def add_FG_Block(df):
         num_steps = 1
     dfs = []
     for block, group in df.groupby(level='shared_block'):
-        group.sortlevel('neuron', inplace=True)
+        group.sort_index(axis=0, level='neuron', inplace=True)
         group['FGBlock'] = (np.tile(range(group.shape[0]/num_steps), num_steps)
                             + num_nrn/num_shared*block)
         dfs.append(group.copy())
@@ -525,7 +525,7 @@ def plot(df, columns, level='neuron', with_defects=True,
             df_plot = df_plot.loc[:, columns + [defect_str]]
     if rep is not None:
         df_plot = get_rep_slice(df_plot, rep, columns)
-    df_plot.sortlevel(level)
+    df_plot.sort_index(axis=0, level=level)
     if per_fg_block:
         df_plot = add_FG_Block(df_plot)
         columns[0] = 'FGBlock'
@@ -675,10 +675,10 @@ def hists(df, column, level, x_label=None, with_defects=True, all_defects=True,
         axis or figure, axis if axis was None
     """
     if num_steps is not None:
-        df_plot = df.swaplevel(0, 'step').sortlevel('step').loc[:num_steps]
+        df_plot = df.swaplevel(0, 'step').sort_index(axis=0, level='step').loc[:num_steps]
     else:
         df_plot = df
-    for ii, (_, group) in enumerate(df_plot.sortlevel(level).groupby(level=level)):
+    for ii, (_, group) in enumerate(df_plot.sort_index(axis=0, level=level).groupby(level=level)):
         if refs is None:
             hist(group, column, x_label=x_label, with_defects=with_defects,
                  ref=None, plot_mean=plot_mean, **kwargs)
@@ -734,8 +734,8 @@ def plot_spikes(df, **kwargs):
         nrns = range(256) if tb is 'top' else range(256,512)
         color = 'b' if tb is 'top' else 'g'
         cols = ['V_t_config', 'spikes_n_spikes']
-        mean = df.sortlevel('neuron').loc[nrns, cols].mean(0, level='step')
-        std = df.sortlevel('neuron').loc[nrns, cols].std(0, level='step')
+        mean = df.sort_index(axis=0, level='neuron').loc[nrns, cols].mean(0, level='step')
+        std = df.sort_index(axis=0, level='neuron').loc[nrns, cols].std(0, level='step')
         df_plot = pd.concat([mean, std], 1)
         df_plot.columns = ['V_t', 'y', 'xerr', 'yerr']
         df_plot.plot('V_t', 'y', yerr='yerr', label=tb, marker='o', color=color, **kwargs)
@@ -1133,7 +1133,7 @@ def main():
         df = exp_results[key]
         neurons = list(df_fit.index.get_level_values('neuron').unique().values)
         ax.legend(ax.get_lines(), neurons, title='neuron')
-        df = df.sortlevel('neuron').loc[neurons,:]
+        df = df.sort_index(axis=0, level='neuron').loc[neurons,:]
         columns = [result_key, load_key]
         ax.set_prop_cycle(None) # reset the color cycle
         plot(df, columns, ax=ax, with_defects=False,
