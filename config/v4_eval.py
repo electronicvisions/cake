@@ -113,8 +113,8 @@ parameters = {
                                                   [.83, .84, .85, 0.9]])],
 
     "parameter_order": [
-        #'readout_shift',
-        shared_parameter.V_reset.name,
+        'readout_shift', # dummy eval. cf. https://brainscales-r.kip.uni-heidelberg.de/projects/cake/work_packages/3276/
+        shared_parameter.V_reset.name, # V_reset must come before V_t for plotting script to work
         neuron_parameter.V_t.name,
         neuron_parameter.E_syni.name,
         neuron_parameter.E_synx.name,

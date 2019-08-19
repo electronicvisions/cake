@@ -509,6 +509,8 @@ class IncrementalExperiment(SequentialExperiment):
         self.run_initial_measurements()
         t_start = time.time()
         sthal = copy.deepcopy(self.measurements_to_run[0].sthal)
+        # FIXME: copy of defects does not include resource cache
+        sthal.wafer.set_defects(self.measurements_to_run[0].sthal.wafer.get_defects())
         sthal.write_config()
         configurator = self.configurator(**self.configurator_args)
         i_max = len(self.measurements_to_run)
@@ -521,7 +523,7 @@ class IncrementalExperiment(SequentialExperiment):
                 configurator=configurator, disconnect=False)
             for parameter, values in self.fg_values.iteritems():
                 values[i] = sthal.read_floating_gates(parameter)
-            measurement.sthal = copy.deepcopy(measurement.sthal)
+
             self.append_measurement_and_result(measurement, result)
             yield False # No need to save, because we can't resume any way
         sthal.disconnect()

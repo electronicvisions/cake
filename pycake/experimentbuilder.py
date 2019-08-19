@@ -474,6 +474,10 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
         measurement = copy.deepcopy(measurements[0])
         measurement.sthal.hicann.clear_complete_l1_routing()
         measurement.sthal.set_recording_time(self.recording_time, self.no_spikes)
+
+        # FIXME: copy of defects does not include resource cache
+        measurement.sthal.wafer.set_defects(measurements[0].sthal.wafer.get_defects())
+
         for nrn in Coordinate.iter_all(Coordinate.NeuronOnHICANN):
             measurement.sthal.hicann.floating_gates.setNeuron(
                 nrn, neuron_parameter.V_syntci, 511)
