@@ -1073,8 +1073,15 @@ def main():
                     # I_pl is given as DAC values in v4_params, thus there are no refs
                     refs = None
                 else:
-                    refs = df[load_key+'_config'].unique() if load_key+'_config' in df.columns \
-                                                           else None
+                    if load_key+'_config' in df.columns:
+                        # keep only step as key
+                        dropped = df[load_key+'_config'].droplevel(["neuron", "shared_block"])
+                        # get all steps
+                        idxs = dropped.keys().unique()
+                        # put together the list of target/reference values
+                        refs = np.concatenate([dropped[idx].unique() for idx in idxs])
+                    else:
+                        refs = None
                 hists(df, result_key, level='step', ax=ax, bins=config.get('bins', 50),
                       logx=config.get('logx', False), with_defects=with_defects, refs=refs,
                       num_steps=config.get('num_steps', None), x_label=config['result_label'])
