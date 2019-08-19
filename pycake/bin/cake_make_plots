@@ -397,13 +397,16 @@ def load_trace(storage_path, cal_eval_name, parameter, nrn):
     elif parameter == 'V_t':
         path = paths[1]
     else:
-        raise LookupError("No traces exist for this parameter")
+        raise LookupError("No traces exist for {}".format(parameter))
     dfs = []
     for file_store in os.listdir(path):
         if ".hdf5" in file_store:
             store_path = os.path.join(path, file_store)
             with pd.HDFStore(store_path) as store:
-                dfs.append(store['trace_{}'.format(nrn)])
+                try:
+                    dfs.append(store['trace_{}'.format(nrn)])
+                except Exception as e:
+                    raise LookupError("No traces exist for {}".format(parameter))
     return dfs
 
 def plot_trace(dfs, nrn, **kwargs):
