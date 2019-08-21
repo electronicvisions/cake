@@ -92,7 +92,7 @@ class TraceAverager(object):
     def __init__(self, adc_freq):
         self.adc_freq = adc_freq
         msg = "Initialized TraceAverager with adc frequency of {} MHz"
-        logger.INFO(msg.format(self.adc_freq))
+        logger.DEBUG(msg.format(self.adc_freq))
 
     def get_chunks(self, trace, dt):
         """Splits trace in chunks of lenght dt"""
