@@ -818,7 +818,7 @@ def main():
     parser.add_argument("--neuron_enum", nargs='+', type=int, help="neurons for "
                         "which the trace of V_reset and V_t should be plotted. "
                          "if the key 'nrns' is in plot_config for a parameter, --neuron_enum will be "
-                         "ignored", default=[0])
+                         "ignored", default=[])
     parser.add_argument("--wafer", help="Wafer enum", type=int,
                         default=None)
     parser.add_argument("--hicann", help="HICANN enum", type=int,
