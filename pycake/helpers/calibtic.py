@@ -47,7 +47,7 @@ class Calibtic(object):
         if 'hc' not in dic:
             self.hc = self.load_calibration()
 
-    def __init__(self, path, wafer, hicann, pll=100e6, backend_type='xml'):
+    def __init__(self, path, wafer, hicann, pll=125e6, backend_type='xml'):
         self.path = self.make_path(path)
         self.wafer = wafer
         self.hicann = hicann
