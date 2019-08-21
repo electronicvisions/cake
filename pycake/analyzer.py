@@ -655,7 +655,7 @@ class PSPAnalyzer(Analyzer):
         err_estimate = additional_data[neuron]['error_estimate']
 
         result = self.psp_fit(t, v_avg, err_estimate)
-        result['v'] = v_avg
+        #result['v'] = v_avg # Too much data -> do not store
         result['n'] = cnt
         result['err_estimate'] = err_estimate
         result['mean'] = numpy.mean(v)
@@ -665,7 +665,6 @@ class PSPAnalyzer(Analyzer):
         result['v_ptp'] = numpy.ptp(v_avg)
         result['signal_to_noise'] = (result['v_std'] / err_estimate)**2
         if not self.excitatory:
-            result['v'] *= -1.0
             if 'height' in result:
                 result['height'] *= -1.0
             if 'offset' in result:

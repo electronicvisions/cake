@@ -553,7 +553,7 @@ class V_syntc_Calibrator(BaseCalibrator):
         Returns:
             pandas.DataFrame
         """
-        data = self.get_results([self.target_parameter, 'v',
+        data = self.get_results([self.target_parameter,
                     self.calib_feature, 'start', 'offset', 'chi2',
                     'signal_to_noise', 'mean', 'std'])
         data['x'] = data[self.target_parameter.name]
