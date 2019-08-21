@@ -30,8 +30,8 @@ parameters = {
 
     # Set whether you want to keep traces or delete them after analysis
     "save_traces":  False,
-    "V_reset_save_traces":  True,
-    "V_t_save_traces":  True,
+    #"V_reset_save_traces":  True,
+    #"V_t_save_traces":  True,
 
     # Selecet specific neurons only
     "neurons": [NeuronOnHICANN(Enum(i)) for i in range(512)],
