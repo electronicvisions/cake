@@ -32,7 +32,7 @@ parameters = {
         } for v in (0.7, 0.8)],
 
     "E_synx_range":   [{
-        neuron_parameter.E_synx : Volt(v, apply_calibration=False),
+        neuron_parameter.E_synx : Volt(v, apply_calibration=True),
         } for v in (1.0, 1.1)],
 
     "E_l_range": [{
