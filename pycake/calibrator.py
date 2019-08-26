@@ -47,6 +47,7 @@ class BaseCalibrator(object):
     """
     logger = pylogging.get("pycake.calibrator")
     target_parameter = None
+    targeted_defect_coordinate = None
 
     def __init__(self, experiment, config):
         self.experiment = experiment

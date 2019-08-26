@@ -122,7 +122,8 @@ class CalibrationUnit(object):
                                self.config.get_target_speedup_I_gl(),
                                self.config.get_target_speedup_I_gladapt(),
                                self.config.get_target_speedup_I_radapt())
-        self.write_defects(redman, trafos)
+        if self.get_calibrator().targeted_defect_coordinate:
+            self.write_defects(redman, trafos)
         self.save_calibration_results(trafos)
         self.done = True
 
@@ -170,7 +171,7 @@ class CalibrationUnit(object):
             progress.info(
                 "Write defects for {}: {} of {} are bad.".format(
                     parameter, len(defects), len(data)))
-            redman.write_defects(defects)
+            redman.write_defects(defects, self.get_calibrator().targeted_defect_coordinate)
 
     def set_storage_folder(self, folder):
         """Update the pathes to calibration units results"""
