@@ -553,10 +553,10 @@ class I_gl_Measurement_multiple_currents(I_gl_Measurement):
         return worker.join()
 
 class ADCFreq_Measurement(ADCMeasurement):
-    def __init__(self, sthal, neurons, bg_rate=100e3, readout_shifts=None):
+    def __init__(self, sthal, neurons, aout, bg_rate=100e3, readout_shifts=None):
         super(ADCFreq_Measurement, self).__init__(
             sthal, neurons, readout_shifts=readout_shifts)
-        self.bg_rate = self.sthal.stimulatePreout(bg_rate)
+        self.bg_rate = self.sthal.stimulatePreout(bg_rate, aout)
         # Record about 2000 spikes
         self.sthal.set_recording_time(1.0/self.bg_rate, 2000.0)
 

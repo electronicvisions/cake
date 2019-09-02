@@ -459,7 +459,7 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
                 bg_rate = 100e3
                 experiment.initial_data['adc_freq_spike_frequency'] = bg_rate
                 experiment.add_initial_measurement(
-                    ADCFreq_Measurement(sthal, self.neurons, bg_rate=bg_rate,
+                    ADCFreq_Measurement(sthal, self.neurons, aout=self.config.get_analog(), bg_rate=bg_rate,
                                         readout_shifts=self.get_readout_shifts(self.neurons)),
                     ADCFreq_Analyzer())
             else:
@@ -592,7 +592,7 @@ class Parrot_Experimentbuilder(BaseExperimentBuilder):
             This measurement determines the ADC frequency needed for the TraceAverager
         """
         sthal = self.get_sthal()
-        measurement = ADCFreq_Measurement(sthal, self.neurons, bg_rate=100e3)
+        measurement = ADCFreq_Measurement(sthal, self.neurons, aout=self.config.get_analog(), bg_rate=100e3)
         analyzer = ADCFreq_Analyzer()
         experiment.add_initial_measurement(measurement, analyzer)
         experiment.initial_data['spike_interval'] = self.recording_time
@@ -631,7 +631,7 @@ class I_gl_Experimentbuilder(BaseExperimentBuilder):
         wafer_cfg = self.config.get_wafer_cfg()
         PLL = self.config.get_PLL()
         sthal = self.get_sthal()
-        measurement = ADCFreq_Measurement(sthal, self.neurons, bg_rate=100e3)
+        measurement = ADCFreq_Measurement(sthal, self.neurons, aout=self.config.get_analog(), bg_rate=100e3)
         analyzer = ADCFreq_Analyzer()
         experiment.add_initial_measurement(measurement, analyzer)
         return experiment

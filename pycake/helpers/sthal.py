@@ -596,14 +596,10 @@ class StHALContainer(object):
                 self.hicann.synapses[target_synapse_line].weights = self.hicann.synapses[synapse_line].weights
             driver = target_driver
 
-    def stimulatePreout(self, rate):
+    def stimulatePreout(self, rate, aout):
         """
         Stimulate the synapse drivers, which have the debug output. And connects
         the debug output to the analog output.
-
-        Note:
-            This function will only work on HICANNv4, because the synapse drivers
-            with debug outputs differ (v2: 111 and 112; v4: 109 and 114).
 
         Returns:
             Actual spike rate in Hz
@@ -640,8 +636,7 @@ class StHALContainer(object):
             self.route(DNCMergerOnHICANN(bg.value()), drv)
             self.configure_synapse_driver(drv, l1address, gmax_div=2, gmax=0)
 
-        for analog in iter_all(AnalogOnHICANN):
-            self.hicann.analog.set_preout(analog)
+        self.hicann.analog.set_preout(aout)
 
         return rate 
 
