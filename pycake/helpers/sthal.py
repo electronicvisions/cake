@@ -181,16 +181,19 @@ class UpdateParameter(HICANNv2Configurator):
                 HICANN.set_fg_row_values(handle, block, row, data, write_down)
 
 
-class ADCFreqConfigurator(HICANNv2Configurator):
+class ADCFreqConfigurator(HICANNv4Configurator):
+    """
+    Attention: Do not disable writing of floating gates otherwise
+    resuming an aborted experiment or starting a calibration which
+    needs the ADC frequency might not work as the floating gates might be in a
+    state that prohibits proper operation.
+    """
+
     def hicann_init(self, h):
         pyhalbe.HICANN.init(h, False)
 
     def config_synapse_array(self, handle, data):
         pass
-
-    def config_floating_gates(self, handle, data):
-        pass
-
 
 class FakeAnalogRecorder(object):
     """Fake AnalogRecorder for testing purposes.

@@ -475,6 +475,11 @@ class Spikes_Analyzer(Analyzer):
 
 
 class ADCFreq_Analyzer(Analyzer):
+    """Calculate correction required to locate pulses on a long trace,
+    due to small mismatches between HICANN and AnaRM clocks.
+    The correction is typically within a few hundred Hertz [Koke's PhD diss.]
+
+    """
     KEY = "adc_freq"
     IDEAL_FREQUENCY = 96e6
     def __call__(self, trace, bg_rate, **other):
@@ -502,6 +507,9 @@ class ADCFreq_Analyzer(Analyzer):
         """Detects spikes in a trace of the HICANN preout
 
         The signal of the preout seems to be usually quite strong.
+        A single pulse can get distorted and span several samples. Thus,
+        the transition time is calculated by weighting the index by the
+        measured amplitude (dot product is used here to that end)
         """
         th = 0.5
         tmp = np.where((trace >= th)[:-1] != (trace >= th)[1:])[0]
