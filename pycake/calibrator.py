@@ -589,12 +589,13 @@ class V_syntc_Calibrator(BaseCalibrator):
                 "Fit for {} failed: {}".format(nrn, result.message))
             return None
 
-        # Exp creates to large numbers for for some fits, put in NaNs and drop
+        # Exp creates too large numbers for some fits, replace with NaNs and drop
         # them.
         with numpy.errstate(over='ignore'):
             xi = numpy.arange(1024)
             fitted = pandas.Series(
                     numpy.exp(self.model.eval(result.params, x=xi)), index=xi)
+            fitted.replace([np.inf, -np.inf], np.nan, inplace=True)
             fitted.dropna(inplace=True)
 
         # The domain encodes the value range for which we have valid input data
