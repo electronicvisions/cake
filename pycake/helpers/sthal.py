@@ -834,15 +834,15 @@ class StHALContainer(object):
         h = self.hicann
         return [nrn for nrn in iter_all(NeuronOnHICANN) if h.neurons[nrn].enable_current_input()]
 
-    def set_recording_time(self, recording_time, repeations):
+    def set_recording_time(self, recording_time, repetitions):
         """Sets the recording time of the ADC.
 
         The recording_time should be as small as theoretical required for the
-        measurement. And the repeations factor should be the amount you need
+        measurement. And the repetitions factor should be the amount you need
         to cope with readout noise. This is to speed up simulations
         """
 
-        self.recording_time = recording_time * repeations
+        self.recording_time = recording_time * repetitions
 
     def set_neuron_size(self, n):
         self.logger.INFO("Setting neuron size to {}".format(n))

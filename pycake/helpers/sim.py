@@ -260,10 +260,10 @@ class SimStHALContainer(StHALContainer):
         """Sets the recording time of the ADC.
 
         The recording_time should be as small as theoretical required for the
-        measurement. And the repeations factor should be the amount you need
+        measurement. And the repetitions factor should be the amount you need
         to cope with readout noise. This is to speed up simulations.
 
-        To speed up simulations this implementation ignores repeations factor!
+        To speed up simulations this implementation ignores repetitions factor!
         """
         self.recording_time = recording_time + self.simulation_init_time
         self.spike_counter_offset = self.simulation_init_time

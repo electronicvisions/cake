@@ -264,7 +264,7 @@ class V_reset_Experimentbuilder(BaseExperimentBuilder):
         return pycake.analyzer.V_reset_Analyzer()
 
     def prepare_specific_config(self, sthal, parameters):
-        sthal.set_recording_time(25.0e-6, 4)
+        sthal.set_recording_time(25.0e-6, repetitions=4)
         sthal.maximum_spikes = 3
         return sthal
 
@@ -275,7 +275,7 @@ class V_t_Experimentbuilder(BaseExperimentBuilder):
         return pycake.analyzer.V_t_Analyzer()
 
     def prepare_specific_config(self, sthal, parameters):
-        sthal.set_recording_time(25.0e-6, 4)
+        sthal.set_recording_time(25.0e-6, repetitions=4)
         sthal.maximum_spikes = 10
         return sthal
 
@@ -347,7 +347,7 @@ class E_syn_Experimentbuilder(BaseExperimentBuilder):
 
     def prepare_specific_config(self, sthal, parameters):
         sthal.simulation_init_time = 100.0e-6
-        sthal.set_recording_time(10e-6, 10)
+        sthal.set_recording_time(10e-6, repetitions=10)
         sthal.stimulateNeurons(5.0e6, 1, excitatory=self.IS_EXCITATORY)
         sthal.maximum_spikes = 1
         sthal.spike_counter_offset = 0.0
@@ -381,7 +381,7 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
         no_spikes = parameters.get('no_of_spikes', self.no_spikes)
         recording_time = parameters.get('recording_time', self.recording_time)
 
-        sthal.set_recording_time(recording_time, no_spikes)
+        sthal.set_recording_time(recording_time, repetitions=no_spikes)
         if no_spikes > 1:
             weight = parameters.get('synapse_weight', 15)
             gmax = parameters.get('gmax', 0)
@@ -474,7 +474,7 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
         # Add membrane noise measurement
         measurement = copy.deepcopy(measurements[0])
         measurement.sthal.hicann.clear_complete_l1_routing()
-        measurement.sthal.set_recording_time(self.recording_time, self.no_spikes)
+        measurement.sthal.set_recording_time(self.recording_time, repetitions=self.no_spikes)
 
         # FIXME: copy of defects does not include resource cache
         measurement.sthal.wafer.set_defects(measurements[0].sthal.wafer.get_defects())
@@ -573,7 +573,7 @@ class Parrot_Experimentbuilder(BaseExperimentBuilder):
         self.no_spikes = 50
 
     def prepare_specific_config(self, sthal, parameters):
-        sthal.set_recording_time(self.recording_time, self.no_spikes)
+        sthal.set_recording_time(self.recording_time, repetitions=self.no_spikes)
         weight = parameters.get('synapse_weight', 15)
         gmax = parameters.get('gmax', 0)
         gmax_div = parameters.get('gmax_div', 2)
