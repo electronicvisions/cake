@@ -659,7 +659,7 @@ class PSPAnalyzer(Analyzer):
             v_avg *= -1.0
 
         v_avg = self.align(v_avg)
-        t = numpy.arange(len(v_avg)) / 96e6  # TODO
+        t = numpy.arange(len(v_avg)) / additional_data['adc_freq']
         err_estimate = additional_data[neuron]['error_estimate']
 
         result = self.psp_fit(t, v_avg, err_estimate)
