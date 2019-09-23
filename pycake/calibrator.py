@@ -391,6 +391,9 @@ class V_convoff_Calibrator(BaseCalibrator):
 
         fit_data = self.prepare_data(data.copy(), v_range, spiking_threshold)
         if len(fit_data[0]) < 4:
+            self.logger.WARN("V_convoff_Calibrator: Not enough valid data points: {}. "
+                             "Expected at least 4. Spiking threshold {}".format(len(fit_data[0]),
+                                                                                spiking_threshold))
             return fit_data, None, None
 
         results = []
@@ -449,7 +452,7 @@ class V_convoff_Calibrator(BaseCalibrator):
         """
         Get the the threshold for considering a neuron spiking
         """
-        return self.experiment.initial_data[nrn].get('std', 0.001) * 1.2
+        return self.experiment.initial_data[nrn].get('std', 0.001) * 1.5
 
     def believably(self, value):
         """
@@ -464,7 +467,13 @@ class V_convoff_Calibrator(BaseCalibrator):
             results = self.find_optimum(
                 data, self.v_range, self.get_spiking_threshold(nrn))
             value = self.V_convoff(results)
-            fits[nrn] = Constant(value) if self.believably(value) else None
+            if self.believably(value):
+                fits[nrn] = Constant(value)
+            elif value is not None:
+                self.logger.WARN("V_convoff_Calibrator: Unbelievable value {}.".format(value))
+                fits[nrn] = None
+            else:
+                fits[nrn] = None
         return [(self.target_parameter, fits)]
 
 
