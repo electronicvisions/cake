@@ -185,8 +185,8 @@ parameters = {
 
     "V_syntci_parameters": {
         neuron_parameter.E_l : Volt(0.8, apply_calibration=True),
-        neuron_parameter.E_syni : Volt(0.6, apply_calibration=True),
-        neuron_parameter.E_synx : Volt(1.3),
+        neuron_parameter.E_syni : Volt(0.3, apply_calibration=True),
+        neuron_parameter.E_synx : Volt(1.3, apply_calibration=True),
         neuron_parameter.I_gl: Ampere(0.3e-6),
         neuron_parameter.V_convoffi : Volt(1.8, apply_calibration=True),
         neuron_parameter.V_convoffx : Volt(1.8, apply_calibration=True),
@@ -208,7 +208,7 @@ parameters = {
     "V_syntcx_parameters": {
         neuron_parameter.E_l : Volt(0.8, apply_calibration=True),
         neuron_parameter.E_syni : Volt(0.6, apply_calibration=True),
-        neuron_parameter.E_synx : Volt(1.3),
+        neuron_parameter.E_synx : Volt(1.3, apply_calibration=True),
         neuron_parameter.I_gl: Ampere(0.3e-6),
         neuron_parameter.V_convoffi : Volt(1.8, apply_calibration=True),
         neuron_parameter.V_convoffx : Volt(1.8, apply_calibration=True),
