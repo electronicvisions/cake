@@ -1,0 +1,137 @@
+@Library("jenlib") _
+
+timestamps {
+	addBuildParameter(string(
+	                  name: 'WAFER',
+	                  defaultValue: "24,30,33,37",
+	                  description: "comma separated list of wafers"
+	))
+	addBuildParameter(string(
+	                  name: 'BLACKLISTING_PATH',
+	                  defaultValue: "/wang/data/commissioning/BSS-1/rackplace",
+	                  description: "path where results are stored (will be split in `wafer/communication` and `wafer/digital_blacklisting`"
+	))
+	addBuildParameter(string(
+	                  name: 'MODULE',
+	                  defaultValue: "nmpm_software/current"
+	))
+	addBuildParameter(string(
+	                  name: 'SEED',
+	                  defaultValue: "1 2 3 4 5 6 7 8 9 10",
+	                  description: "blank space separated list of used seeds"
+	))
+
+	// Evaluate WAFER string
+	String[] wafer_strings = params.get('WAFER').split(",");
+	int[] wafers = new int[wafer_strings.length];
+	for (int i = 0; i < wafers.length; i++) {
+		wafers[i] = wafer_strings[i].toInteger();
+	}
+
+	// current date
+	def date = new Date().format( 'yyyy-MM-dd' )
+
+	stage("Checkout") {
+		runOnSlave(label: "frontend") {
+			checkout scm
+		}
+	}
+
+	for (int w = 0; w < wafers.length; w++) {
+		String comm_path
+		String blacklisting_path
+
+		// communication test
+		stage("Run commtest on Wafer ${wafers[w]}") {
+			// create empty directory
+			def path = BLACKLISTING_PATH + "/" + wafer_strings[w] + "/communication/" + "jenkins-" + date
+			runOnSlave(label: "frontend") {
+				comm_path = jesh (script: ".ci/evaluate_path.sh $path",
+				returnStdout: true)
+			}
+
+			// run communication test
+			onSlurmResource(partition: "calib",
+			                "wmod" : wafers[w],
+			                "job-name" : "comm_test") {
+				withModules(modules: ["${MODULE}"]) {
+					withModules(modules: ["slurm-singularity"]) {
+						jesh ("run_nmpm_software_clusterize sthal_multi_chip_comm_test.py --wafer ${wafers[w]}" +
+						      " --hicann `seq 0 383` --backend_path_pattern ${comm_path.trim()}/w{}h{}")
+					}
+				}
+			}
+		}
+
+		// merge communication test results
+		stage("Merge results of Wafer ${wafers[w]}") {
+			runOnSlave(label: "frontend") {
+				withModules(modules: ["${MODULE}"]) {
+					jesh ("run_nmpm_software .ci/merge_comm_test_results.sh ${wafers[w]} ${comm_path.trim()}")
+				}
+			}
+		}
+
+		// visualize results
+		stage("Visualize commtest results of Wafer ${wafers[w]}") {
+			runOnSlave(label: "frontend") {
+				withModules(modules: ["${MODULE}"]) {
+					jesh ("cd ${comm_path.trim()} && run_nmpm_software cake_redman_overview.py ${wafers[w]} ${comm_path.trim()}")
+					// add write permissions for group
+					jesh ("chmod -R 777 ${comm_path.trim()}/*")
+				}
+			}
+		}
+
+		// digital_blacklisting
+		stage("Run blacklisting on Wafer ${wafers[w]}") {
+			// create empty directory
+			def path = BLACKLISTING_PATH + "/" + wafer_strings[w] + "/digital_blacklisting/" + "jenkins-" + date
+			runOnSlave(label: "frontend") {
+				blacklisting_path = jesh (script: ".ci/evaluate_path.sh $path",
+				returnStdout: true)
+			}
+
+			// define blacklisting task for each fpga -> parallel testing
+			def parallel_tasks = [:]
+			for (int f = 0; f < 48; f++) {
+				def fpga = f
+				parallel_tasks["Check FPGA ${fpga}"] = {
+					catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+						jesh ("srun -p calib -n1 --wmod ${wafers[w]} --fpga-without-aout ${fpga} --job-name blacklisting" +
+						      " --time 60:00 --skip-hicann-init --mem-per-cpu 400 run_nmpm_software_clusterize cake_blacklist_fpga.py" +
+						      " --wafer ${wafers[w]} --fpga ${fpga} --seeds ${SEED} --input_backend_path ${comm_path.trim()}" +
+						      " --output_backend_path ${blacklisting_path.trim()}")
+					}
+				}
+			}
+
+			runOnSlave(label: "frontend") {
+				withModules(modules: ["${MODULE}"]) {
+					withModules(modules: ["slurm-singularity"]) {
+						parallel parallel_tasks
+					}
+				}
+			}
+
+			// copy commtest results and add write permissions for group
+			runOnSlave(label: "frontend") {
+				jesh (script: "cp ${comm_path.trim()}/fpga-${wafers[w]}-*.xml ${blacklisting_path.trim()}",
+				returnStatus: true) 
+				jesh (script: "cp ${comm_path.trim()}/wafer-Wafer\\(${wafers[w]}\\).xml ${blacklisting_path.trim()}",
+				returnStatus: true) 
+			}
+		}
+
+		// visualize results
+		stage("Visualize blacklisting results of Wafer ${wafers[w]}") {
+			runOnSlave(label: "frontend") {
+				withModules(modules: ["${MODULE}"]) {
+					jesh ("cd ${blacklisting_path.trim()} && run_nmpm_software cake_redman_overview.py ${wafers[w]} ${blacklisting_path.trim()}")
+					// add write permissions for group
+					jesh ("chmod -R 777 ${blacklisting_path.trim()}/*")
+				}
+			}
+		}
+	}
+}
