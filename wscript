@@ -68,6 +68,7 @@ def build(bld):
         '${PREFIX}/bin',
         bld.path.ant_glob('pycake/bin/cake_*') +
         bld.path.ant_glob('tools/cake_*') +
+        bld.path.ant_glob('tools/digital_blacklisting/cake_blacklist_fpga.py') +
         bld.path.ant_glob('tools/L1/*'),
         relative_trick=False,
         chmod=Utils.O755,
