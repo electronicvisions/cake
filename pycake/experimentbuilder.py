@@ -479,7 +479,8 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
         # FIXME: copy of defects does not include resource cache
         measurement.sthal.wafer.set_defects(measurements[0].sthal.wafer.get_defects())
 
-        for nrn in pyhalco_common.iter_all(pyhalco_hicann_v2.NeuronOnHICANN):
+        neurons = self.config.get_neurons()
+        for nrn in neurons:
             measurement.sthal.hicann.floating_gates.setNeuron(
                 nrn, neuron_parameter.V_syntci, 511)
             measurement.sthal.hicann.floating_gates.setNeuron(

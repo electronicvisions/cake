@@ -459,7 +459,7 @@ class V_convoff_Calibrator(BaseCalibrator):
 
     def generate_transformations(self):
         fits = {}
-        data = self.get_results([self.target_parameter, 'mean', 'std'])
+        data = self.get_results([self.target_parameter, 'mean', 'std']).dropna(how='any')
         for nrn, data in data.groupby(level='neuron'):
             results = self.find_optimum(
                 data, self.v_range, self.get_spiking_threshold(nrn))
@@ -795,7 +795,7 @@ class readout_shift_Calibrator(BaseCalibrator):
         n_blocks = 512/neuron_size # no. of interconnected neurons
         readout_shifts = {}
 
-        results = self.get_results([self.get_key()])
+        results = self.get_results([self.get_key()]).dropna(how='any')
         for block_id in range(n_blocks):
             neurons_in_block = self.get_neuron_block(block_id, neuron_size)
 

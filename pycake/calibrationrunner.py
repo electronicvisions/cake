@@ -227,9 +227,10 @@ class CalibrationUnit(object):
             name += '_calib'
             # Transform FGBlock indexed data to Neuron indexed
             if isinstance(parameter, shared_parameter):
+                neurons = self.config.get_neurons()
                 data = {nrn: data[nrn.toSharedFGBlockOnHICANN()]
                         for nrn
-                        in iter_all(Coordinate.NeuronOnHICANN)}
+                        in neurons}
             data_all = []
             for nrn, trafo in data.iteritems():
                 nrn_id = nrn.toEnum().value()
