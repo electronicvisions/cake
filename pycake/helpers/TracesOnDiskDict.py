@@ -61,7 +61,7 @@ class TracesOnDiskDict(collections.MutableMapping):
 
     def get_key(self, key):
         """Generates a uniqeu key from a coordinate"""
-        new_key = "trace_{:0>3}".format(key.id().value())
+        new_key = "trace_{:0>3}".format(key.toEnum().value())
         self.reverse_keys[new_key] = key
         return new_key
 
@@ -162,7 +162,7 @@ class PandasRecordsOnDiskDict(RecordsOnDiskDict):
 
     def get_key(self, key):
         """Generates a uniqeu key from a coordinate"""
-        new_key = "/trace_{:0>3}".format(key.id().value())
+        new_key = "/trace_{:0>3}".format(key.toEnum().value())
         self.reverse_keys[new_key] = key
         return new_key
 

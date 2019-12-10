@@ -260,12 +260,12 @@ def vt_calib(neuron_blacklist):
     print "Run V_t calibration"
     meassured = []
     for neuron in Coordinate.iter_all(Coordinate.NeuronOnHICANN):
-        if int(neuron.id()) in neuron_blacklist:
+        if int(neuron.toEnum()) in neuron_blacklist:
             continue
         adc = 0
         trace = hardware.record_neuron(neuron, adc, 1e-5)
         v_t = np.mean(trace) + 0.06
-        meassured.append((int(neuron.id()), np.mean(trace)))
+        meassured.append((int(neuron.toEnum()), np.mean(trace)))
         params.neuron_parameters[neuron] = {
             neuron_parameter.V_t: Volt(v_t, apply_calibration=True)}
 
@@ -536,7 +536,7 @@ if __name__ == "__main__":
     for block in shallow.Coordinate.iter_all(shallow.Coordinate.FGBlockOnHICANN):
         for name, param in sp.names.iteritems():
             try:
-                shared[int(block.id())][name] = fgc.getShared(block, param)
+                shared[int(block.toEnum())][name] = fgc.getShared(block, param)
             except IndexError:
                 pass
 

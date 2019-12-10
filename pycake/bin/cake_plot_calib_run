@@ -34,7 +34,7 @@ if __name__ == '__main__':
 
     if args.list_only:
         print "=== available neurons: =========="
-        print pformat([str(i.id()) for i in reader.get_neurons()])
+        print pformat([str(i.toEnum()) for i in reader.get_neurons()])
 
         print "=== available parameters: ======="
         print pformat(reader.get_parameters())

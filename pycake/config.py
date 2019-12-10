@@ -231,7 +231,7 @@ class Config(object):
         coord_wafer = self.parameters["coord_wafer"]
         coord_hicann = self.parameters["coord_hicann"]
         wafer_id = coord_wafer.value()
-        hicann_id = coord_hicann.id().value()
+        hicann_id = coord_hicann.toEnum().value()
         name = "w{}-h{}".format(int(wafer_id), int(hicann_id))
         path = self.get_backend_path()
         return (path, name)

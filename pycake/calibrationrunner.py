@@ -230,8 +230,8 @@ class CalibrationUnit(object):
                         in Coordinate.iter_all(Coordinate.NeuronOnHICANN)}
             data_all = []
             for nrn, trafo in data.iteritems():
-                nrn_id = nrn.id().value()
-                fgb_id = nrn.toSharedFGBlockOnHICANN().id().value()
+                nrn_id = nrn.toEnum().value()
+                fgb_id = nrn.toSharedFGBlockOnHICANN().toEnum().value()
                 if trafo is None:
                     defect = True
                     data_all.append([nrn_id, fgb_id, defect, numpy.NaN,
@@ -356,7 +356,7 @@ class CalibrationRunner(object):
             self.config.get_folder_prefix(),
             "f{}".format(int(self.config.get_PLL()/1e6)),  # PLL in MHz
             "w{}".format(wafer.value()),
-            "h{}".format(hicann.id().value()),
+            "h{}".format(hicann.toEnum().value()),
             time.strftime('%Y%m%d_%H%M%S'),
         ] if s != ""])
 

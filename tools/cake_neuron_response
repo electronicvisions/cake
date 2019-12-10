@@ -115,7 +115,7 @@ class RecordJob(object):
 
     def nice_name(self):
         return "RecordJob_neuron{:0>3}_size{:0>2}_synrow{:0>3}_freq{}".format(
-                self.neuron.id().value(),
+                self.neuron.toEnum().value(),
                 self.neuronsize,
                 self.synapse_row.value(),
                 self.stim_freq)
@@ -285,11 +285,11 @@ class RecordTraces(object):
 
         # apply calibration
         for block in Coordinate.iter_all(Coordinate.FGBlockOnHICANN):
-            param = calib.bc.applySharedCalibration(500, block.id())
+            param = calib.bc.applySharedCalibration(500, block.toEnum())
             param.toHW(block, fg_control)
 
         for neuron in Coordinate.iter_all(Coordinate.NeuronOnHICANN):
-            param = calib.nc.applyNeuronCalibration(parameters, neuron.id())
+            param = calib.nc.applyNeuronCalibration(parameters, neuron.toEnum())
             param.toHW(neuron, fg_control)
 
 

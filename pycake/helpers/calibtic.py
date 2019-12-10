@@ -110,7 +110,7 @@ class Calibtic(object):
 
     def get_calibtic_name(self):
         wafer_id = self.wafer.value()
-        hicann_id = self.hicann.id().value()
+        hicann_id = self.hicann.toEnum().value()
         name = "w{}-h{}".format(int(wafer_id), int(hicann_id))
         return name
 
@@ -221,7 +221,7 @@ class Calibtic(object):
             else:
                 raise RuntimeError("Cannot write calibration for parameter {} of coordinate {}".format(parameter, coord))
 
-            index = coord.id().value()
+            index = coord.toEnum().value()
 
             if not collection.exists(index):
                 collection.insert(index, cal)
@@ -238,7 +238,7 @@ class Calibtic(object):
             This is turned off by default.
             If no calibration is found for a coordinate, it returns an empty calibration.
         """
-        c_id = coord.id().value()
+        c_id = coord.toEnum().value()
 
         if isinstance(coord, Coordinate.FGBlockOnHICANN):
             collection = self.bc
@@ -408,7 +408,7 @@ class Calibtic(object):
                 # e.g. __last_*
                 continue
             # Check if parameter exists for this block
-            even = block.id().value() % 2
+            even = block.toEnum().value() % 2
             if even and param.name in ['V_clra', 'V_bout']:
                 continue
             if not even and param.name in ['V_clrc', 'V_bexp']:

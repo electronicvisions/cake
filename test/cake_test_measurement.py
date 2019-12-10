@@ -48,7 +48,7 @@ class TestMeasurement(unittest.TestCase):
         for ii, (neuron, trace) in enumerate(self.testdata.iteritems()):
             if ii < 10:
                 measurement.traces[neuron] = trace
-                trace_keys.append('/trace_{:0>3}'.format(neuron.id().value()))
+                trace_keys.append('/trace_{:0>3}'.format(neuron.toEnum().value()))
         with pandas.HDFStore(temp_trace_path) as store:
             self.assertListEqual(sorted(store.keys()), sorted(trace_keys))
         # traces could be saved correctly, now test what happens if the store is corrupt
@@ -62,7 +62,7 @@ class TestMeasurement(unittest.TestCase):
         for ii, (neuron, trace) in enumerate(self.testdata.iteritems()):
             if 20 < ii and ii < 30:
                 measurement2.traces[neuron] = trace
-                trace_keys.append('/trace_{:0>3}'.format(neuron.id().value()))
+                trace_keys.append('/trace_{:0>3}'.format(neuron.toEnum().value()))
         self.assertTrue(os.path.exists(temp_trace_path))
         # try to open the store again and check for the keys
         with pandas.HDFStore(temp_trace_path) as store:

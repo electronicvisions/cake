@@ -187,7 +187,7 @@ class SimStHALContainer(StHALContainer):
         param.simulator_settings.max_spike_count = self.maximum_spikes
 
         if self.mc_seed is not None:
-            mc_run = int(neuron.id())/2 + 1
+            mc_run = int(neuron.toEnum())/2 + 1
             param.simulator_settings.set_mc_run(self.mc_seed, mc_run)
 
         # set the unused neuron to "harmless" parameters

@@ -51,9 +51,9 @@ class TestNeuronCalibration(unittest.TestCase):
         # apply calibration
         c_nrn = self.config["c_nrn"]
         ncal_params = pycalibtic.NeuronCalibrationParameters()
-        hwparam_n = neuron_cal.applyNeuronCalibration(parameters, c_nrn.id().value(), ncal_params)
+        hwparam_n = neuron_cal.applyNeuronCalibration(parameters, c_nrn.toEnum().value(), ncal_params)
 
-        block_id = int(c_nrn.toSharedFGBlockOnHICANN().id())
+        block_id = int(c_nrn.toSharedFGBlockOnHICANN().toEnum())
         hwparam_s = shared_cal.applySharedCalibration(self.config["hw_vreset"], block_id)
 
         # modify FGControl using calibrated parameters

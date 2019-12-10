@@ -153,7 +153,7 @@ class FindRepeaterNeurons(object):
             spikes = tmp[tmp[:, 1] == int(self.neuron_l1address)][:, 0]
 
             data = (trace, spikes)
-            numpy.save('hicann_l1_delay_N{:0>3}'.format(int(neuron.id())), data)
+            numpy.save('hicann_l1_delay_N{:0>3}'.format(int(neuron.toEnum())), data)
 
             if link_out == GbitLinkOnHICANN(7):
                 hicann.analog.set_preout(self.analog)
@@ -167,7 +167,7 @@ class FindRepeaterNeurons(object):
                 tmp = hicann.receivedSpikes(link_out)
                 spikes = tmp[tmp[:, 1] == int(self.neuron_l1address)][:, 0]
                 data = (trace, spikes)
-                numpy.save('hicann_l1_preout_delay_N{:0>3}'.format(int(neuron.id())), data)
+                numpy.save('hicann_l1_preout_delay_N{:0>3}'.format(int(neuron.toEnum())), data)
 
     def initial_configuration(self, wafer, hicann):
         for merger in Coordinate.iter_all(DNCMergerOnHICANN):

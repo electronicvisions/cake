@@ -923,7 +923,7 @@ class StHALContainer(object):
             index = pandas.MultiIndex.from_tuples(
                 [get_row_names(block, row) for row in iter_all(FGRowOnFGBlock)],
                 names=['shared', 'neuron', 'row'])
-            fg_values[int(block.id())] = pandas.DataFrame(tmp, index=index)
+            fg_values[int(block.toEnum())] = pandas.DataFrame(tmp, index=index)
         result = pandas.concat(fg_values, names=['block'])
         self.connect_adc()
         return result

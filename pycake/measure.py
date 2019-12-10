@@ -217,7 +217,7 @@ class SpikeMeasurement(Measurement):
 
             for i in nbs:
 
-                if neuron.id().value() >= 32*i and neuron.id().value() < 32*(i+1):
+                if neuron.toEnum().value() >= 32*i and neuron.toEnum().value() < 32*(i+1):
                     addr = neuron.toNeuronOnNeuronBlock().x().value() + neuron.toNeuronOnNeuronBlock().y().value()*32
 
                     self.sthal.hicann.enable_l1_output(neuron, pyhalbe.HICANN.L1Address(addr))

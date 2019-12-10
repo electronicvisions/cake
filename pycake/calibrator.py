@@ -840,7 +840,7 @@ class Parrot_Calibrator(BaseCalibrator):
             'neuron_parameters' : {n: {p: Volt(V, apply_calibration=True)}
                                    for n, V, ok in V_t.itertuples() if ok},
         }
-        parrot_blacklist = [int(n.id()) for n in V_t.index[~V_t['good']]]
+        parrot_blacklist = [int(n.toEnum()) for n in V_t.index[~V_t['good']]]
 
         with open(self.settings, 'w') as out:
             cPickle.dump(parrot_calib, out, -1)

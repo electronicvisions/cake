@@ -175,7 +175,7 @@ class Experiment(object):
         results = self.results
         if numeric_index:
             results = results.copy()
-            idx = [(index[0].id().value(), index[1].id().value(), index[2])
+            idx = [(index[0].toEnum().value(), index[1].toEnum().value(), index[2])
                      for index in results.index]
             idx = pandas.MultiIndex.from_tuples(idx, names=['neuron', 'shared_block', 'step'])
             results.index = idx
@@ -241,7 +241,7 @@ class Experiment(object):
             index. All other keys are returned as Series.
         """
         def nrn_id(n):
-            return int(n.id().value()) if numeric_index else n
+            return int(n.toEnum().value()) if numeric_index else n
 
         def value(v):
             if v is None:
@@ -330,7 +330,7 @@ class Experiment(object):
             values = values.reorder_levels(['neuron', 'shared block', 'step'])
             if numeric_index:
                 values.index = pandas.MultiIndex.from_tuples(
-                    [(nrn.id().value(), blk.id().value(), step)
+                    [(nrn.toEnum().value(), blk.toEnum().value(), step)
                      for nrn, blk, step in values.index.values],
                     names=values.index.names)
             fg_values[p.name] = values

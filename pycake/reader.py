@@ -172,9 +172,9 @@ class Reader(object):
 
         for n in self.neurons_only_defect:
             if not sort_by_shared_FG_block:
-                x_values.append(n.id().value())
+                x_values.append(n.toEnum().value())
             else:
-                x_values.append(n.id().value()%256/2 + n.toSharedFGBlockOnHICANN().id().value()*128)
+                x_values.append(n.toEnum().value()%256/2 + n.toSharedFGBlockOnHICANN().toEnum().value()*128)
 
             results_list.append(1)
 
@@ -205,9 +205,9 @@ class Reader(object):
 
         for n in neurons:
             if not sort_by_shared_FG_block:
-                x_values.append(n.id().value())
+                x_values.append(n.toEnum().value())
             else:
-                x_values.append(n.id().value()%256/2 + n.toSharedFGBlockOnHICANN().id().value()*128)
+                x_values.append(n.toEnum().value()%256/2 + n.toSharedFGBlockOnHICANN().toEnum().value()*128)
 
             results_list.append(results[n])
 
