@@ -12,12 +12,10 @@ def depends(ctx):
 
 def options(opt):
     opt.load('pytest')
-    opt.load('post_task')
 
 
 def configure(cfg):
     cfg.load('pytest')
-    cfg.load('post_task')
 
 
 def build(bld):
@@ -28,7 +26,7 @@ def build(bld):
     bld(
         name='pycake_tests',
         tests=bld.path.ant_glob('cake_test_*.py', excl=exclude_tests),
-        features='pytest post_task',
+        features='pytest',
         use=['pycalibtic', 'calibtic_xml',
              'pyredman', 'redman_xml',
              'pyhalbe_tests', 'pysthal_tests', 'sim_denmem_ts',

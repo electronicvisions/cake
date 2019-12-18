@@ -19,7 +19,6 @@ def depends(ctx):
 
 
 def options(opt):
-    opt.load('post_task')
     opt.load('doxygen')
 
     # add 'configure' options
@@ -31,7 +30,6 @@ def options(opt):
 
 
 def configure(cfg):
-    cfg.load('post_task')
     cfg.load('doxygen')
     cfg.env.post_sim = cfg.options.with_sim
 
@@ -57,8 +55,8 @@ def build(bld):
     bld(
         target='pycake',
         source=bld.path.ant_glob('pycake/**/*.py'),
-        features='py post_task',
-        post_task=post_task,
+        features='py',
+        depends_on = post_task,
         pythonpath=['.'],
         install_from='.',
         install_path='${PREFIX}/lib',
