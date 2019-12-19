@@ -26,7 +26,7 @@ class Experiment(object):
         self.analyzer = analyzer
         self.measurements = []
         results_index = pandas.MultiIndex(
-                levels=[[],[],[]], labels=[[],[],[]],
+                levels=[[],[],[]], codes=[[],[],[]],
                 names=['neuron', 'shared_block', 'step'])
         self.results = pandas.DataFrame(index=results_index)
         self.fg_values = {}
