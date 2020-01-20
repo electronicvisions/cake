@@ -34,8 +34,13 @@ os.makedirs(logfile)
 for c, hicann in enumerate(C.iter_all(C.HICANNOnDNC)):
     hicann_on_wafer = hicann.toHICANNOnWafer(fpga_c).toEnum().value()
     with open(os.path.join(logfile, "HICANN_" + str(hicann_on_wafer) + "_out.txt"), 'w') as fout, open(os.path.join(logfile, "HICANN_" + str(hicann_on_wafer) + "_err.txt"), 'w') as ferr:
-        bl_exit = subprocess.call(["cake_digital_blacklisting", "-w", str(args.wafer), "-h", str(hicann_on_wafer), "--seeds"] + args.seeds + [
-                                  "--output_backend_path", args.output_backend_path, "--input_backend_path", args.input_backend_path], stdout=fout, stderr=ferr)
+        # reset fpga before each HICANN test
+        cmd = ["fpga_remote_init.py", "-r", "1", "-w", str(args.wafer), "-f", str(args.fpga), "--alloc", "existing"]
+        subprocess.call(cmd, stdout=fout, stderr=ferr)
+        # run blacklisting
+        cmd = ["cake_digital_blacklisting", "-w", str(args.wafer), "-h", str(hicann_on_wafer), "--seeds"] + args.seeds +\
+              ["--output_backend_path", args.output_backend_path, "--input_backend_path", args.input_backend_path]
+        bl_exit = subprocess.call(cmd, stdout=fout, stderr=ferr)
         if bl_exit:
             ferr.write("Error during test of HICANN " + str(hicann_on_wafer) +
                        " on FPGA " + str(args.fpga) + " on Wafer " + str(args.wafer))
