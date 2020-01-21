@@ -1,7 +1,7 @@
 import numpy as np
 import pylogging
-from Coordinate import NeuronOnHICANN, FGBlockOnHICANN, iter_all, GbitLinkOnHICANN
-import Coordinate
+from pyhalco_common import Enum, iter_all
+from pyhalco_hicann_v2 import NeuronOnHICANN, FGBlockOnHICANN, GbitLinkOnHICANN
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
 import pyhalbe
 import pysthal
@@ -225,7 +225,7 @@ class SpikeMeasurement(Measurement):
 
                     activated_neurons.append(neuron)
 
-        for channel in Coordinate.iter_all(Coordinate.GbitLinkOnHICANN):
+        for channel in iter_all(GbitLinkOnHICANN):
             self.sthal.hicann.layer1[channel] = pyhalbe.HICANN.GbitLink.Direction.TO_DNC
 
         self.sthal.wafer.configure(pycake.helpers.sthal.SpikeReadoutHICANNConfigurator())
@@ -255,7 +255,7 @@ class SpikeMeasurement(Measurement):
                 else:
                     n = 256 + (a-32) + ii*32
 
-                addr_spikes[Coordinate.NeuronOnHICANN(Coordinate.Enum(int(n)))].append(t)
+                addr_spikes[NeuronOnHICANN(Enum(int(n)))].append(t)
 
         for neuron, spikes in addr_spikes.iteritems():
 

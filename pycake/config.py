@@ -12,10 +12,10 @@ import copy
 import errno
 import pylogging
 
-from Coordinate import Enum
-from Coordinate import FGBlockOnHICANN
-from Coordinate import NeuronOnHICANN
-from Coordinate import AnalogOnHICANN
+from pyhalco_common import Enum
+from pyhalco_hicann_v2 import FGBlockOnHICANN
+from pyhalco_hicann_v2 import NeuronOnHICANN
+from pyhalco_hicann_v2 import AnalogOnHICANN
 
 from helpers.WorkerPool import DEFAULT_WORKERS
 

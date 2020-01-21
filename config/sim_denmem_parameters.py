@@ -3,11 +3,11 @@
 import os
 import numpy
 from itertools import product
-from Coordinate import Enum
-from Coordinate import FGBlockOnHICANN
-from Coordinate import HICANNOnWafer
-from Coordinate import NeuronOnHICANN
-from Coordinate import Wafer
+from pyhalco_common import Enum
+from pyhalco_hicann_v2 import FGBlockOnHICANN
+from pyhalco_hicann_v2 import HICANNOnWafer
+from pyhalco_hicann_v2 import NeuronOnHICANN
+from pyhalco_hicann_v2 import Wafer
 from pycake.helpers.units import Ampere
 from pycake.helpers.units import DAC
 from pycake.helpers.units import Volt

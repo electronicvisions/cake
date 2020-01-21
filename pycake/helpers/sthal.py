@@ -6,21 +6,19 @@ import pandas
 import pyhalbe
 import pysthal
 import pylogging
-import Coordinate
 from pyhalbe import HICANN
 from pyhalbe.HICANN import neuron_parameter
 from pyhalbe.HICANN import shared_parameter
-from Coordinate import iter_all
-from Coordinate import Enum, X, Y, top, bottom
-from Coordinate import AnalogOnHICANN
-from Coordinate import BackgroundGeneratorOnHICANN
-from Coordinate import FGBlockOnHICANN
-from Coordinate import FGCellOnFGBlock
-from Coordinate import FGRowOnFGBlock
-from Coordinate import GbitLinkOnHICANN
-from Coordinate import NeuronOnFGBlock
-from Coordinate import SynapseDriverOnHICANN
-from Coordinate import DNCMergerOnHICANN
+from pyhalco_common import iter_all, Enum, X, Y, top, bottom
+from pyhalco_hicann_v2 import AnalogOnHICANN
+from pyhalco_hicann_v2 import BackgroundGeneratorOnHICANN
+from pyhalco_hicann_v2 import FGBlockOnHICANN
+from pyhalco_hicann_v2 import FGCellOnFGBlock
+from pyhalco_hicann_v2 import FGRowOnFGBlock
+from pyhalco_hicann_v2 import GbitLinkOnHICANN
+from pyhalco_hicann_v2 import NeuronOnFGBlock
+from pyhalco_hicann_v2 import SynapseDriverOnHICANN
+from pyhalco_hicann_v2 import DNCMergerOnHICANN
 
 from pysthal import HICANNConfigurator as HICANNv2Configurator
 from pysthal import HICANNv4Configurator
@@ -554,9 +552,9 @@ class StHALContainer(object):
             links.append(GbitLinkOnHICANN(2 * ii))
 
             drv_top = Coordinate.SynapseDriverOnHICANN(
-                Coordinate.Enum(83 + ii * 4))
+                Enum(83 + ii * 4))
             drv_bot = Coordinate.SynapseDriverOnHICANN(
-                Coordinate.Enum(142 - ii * 4))
+                Enum(142 - ii * 4))
             if ii < no_generators:
                 self.route(bg_top, drv_top)
                 self.route(bg_bot, drv_bot)
@@ -657,7 +655,7 @@ class StHALContainer(object):
         assert(0 <= gmax <= 3)
         assert(1 <= gmax_div <= 30)
 
-        from Coordinate import left, right, top, bottom
+        from pyhalco_hicann_v2 import left, right, top, bottom
 
         driver = self.hicann.synapses[driver_c]
         driver_decoder = l1address.getDriverDecoderMask()
@@ -680,7 +678,7 @@ class StHALContainer(object):
                             excitatory=True, weight=15, gmax=0):
         """
         """
-        from Coordinate import top, bottom
+        from pyhalco_hicann_v2 import top, bottom
         assert(0 <= weight <= 15)
 
         self.configure_synapse_driver(driver_c, l1address, gmax_div, gmax)

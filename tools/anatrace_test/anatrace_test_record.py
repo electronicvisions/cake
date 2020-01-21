@@ -4,7 +4,8 @@ import optparse as op
 import numpy as np
 import pyhalbe
 import pysthal
-import Coordinate as C
+from pyhalco_common import Enum
+import pyhalco_hicann_v2 as C
 import pylogging
 
 parser = op.OptionParser()
@@ -19,12 +20,12 @@ pylogging.set_loglevel(pylogging.get("sthal.HICANNConfigurator.Time"), pylogging
 pylogging.set_loglevel(pylogging.get("Default"), pylogging.LogLevel.INFO)
 
 w = pysthal.Wafer(C.Wafer(opts.wnr))
-h = w[C.HICANNOnWafer(C.Enum(opts.hnr))]
+h = w[C.HICANNOnWafer(Enum(opts.hnr))]
 
 #w.force_listen_local(True)
 
 aout = C.AnalogOnHICANN(opts.anr)
-nrn = C.NeuronOnHICANN(C.Enum(opts.anr))
+nrn = C.NeuronOnHICANN(Enum(opts.anr))
 
 # set reset above threshold
 h.floating_gates.setNeuron(nrn, pyhalbe.HICANN.neuron_parameter.E_l, 600)

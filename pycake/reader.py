@@ -4,7 +4,8 @@ import numpy as np
 import pandas as pd
 import pylogging
 from pycake.calibrationrunner import CalibrationRunner
-import Coordinate as C
+from pyhalco_common import Enum
+import pyhalco_hicann_v2 as C
 import pyhalbe
 from operator import itemgetter
 from helpers.misc import load_pickled_file
@@ -79,7 +80,7 @@ class Reader(object):
         ex = unit.experiment
 
         if isinstance(neuron, int):
-            neuron = C.NeuronOnHICANN(C.Enum(neuron))
+            neuron = C.NeuronOnHICANN(Enum(neuron))
         df = ex.get_all_data([parameter, key]).sortlevel('neuron').loc[neuron]
         #FIXME: to be compatible with the plotting script, the df is converted
         #to a dict.
@@ -105,7 +106,7 @@ class Reader(object):
         nrn_coord = []
         for neuron in neurons:
             if isinstance(neuron, int):
-                neuron = C.NeuronOnHICANN(C.Enum(neuron))
+                neuron = C.NeuronOnHICANN(Enum(neuron))
             nrn_coord.append(neuron)
         # calibration name is I_gl_PSP, but parameter name still is I_gl -->
         # convert it
@@ -283,7 +284,7 @@ class Reader(object):
             if isinstance(n, C.NeuronOnHICANN):
                 coord_neurons.append(n)
             elif isinstance(n, int):
-                coord_neurons.append(C.NeuronOnHICANN(C.Enum(n)))
+                coord_neurons.append(C.NeuronOnHICANN(Enum(n)))
             else:
                 raise RuntimeError("unexpected type {} for neuron".format(type(n)))
 

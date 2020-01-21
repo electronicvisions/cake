@@ -14,7 +14,8 @@ import tempfile
 import pylogging
 import pycalibtic
 from pycake.helpers.calibtic import Calibtic, create_pycalibtic_transformation
-from pyhalbe import Coordinate as C
+from pyhalco_common import iter_all, Enum
+import pyhalco_hicann_v2 as C
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
 
 
@@ -25,7 +26,7 @@ class TestCalibticHelper(unittest.TestCase):
         self.basedir = basedir
 
         wafer = C.Wafer(0)
-        hicann = C.HICANNOnWafer(C.Enum(94))
+        hicann = C.HICANNOnWafer(Enum(94))
         self.calibtic = Calibtic(self.basedir, wafer, hicann)
 
     def test_polynomial(self):
@@ -49,7 +50,7 @@ class TestCalibticHelper(unittest.TestCase):
 
     def test_readout_shift(self):
         c = self.calibtic
-        neuron = C.NeuronOnHICANN(C.Enum(482))
+        neuron = C.NeuronOnHICANN(Enum(482))
 
         # read without data
         c.clear_calibration()
@@ -58,13 +59,13 @@ class TestCalibticHelper(unittest.TestCase):
 
         # read with data, but no readout shift
         trafo = create_pycalibtic_transformation([4,2,3])
-        data = {c: trafo for c in C.iter_all(C.NeuronOnHICANN)}
+        data = {c: trafo for c in iter_all(C.NeuronOnHICANN)}
         c.write_calibration(neuron_parameter.V_t, data, False, "normal", "normal", "normal")
         self.assertEqual(c.get_readout_shift(neuron), 0.0)
 
         # write readout shift, read
         trafo = create_pycalibtic_transformation([4])
-        data = {c: trafo for c in C.iter_all(C.NeuronOnHICANN)}
+        data = {c: trafo for c in iter_all(C.NeuronOnHICANN)}
         c.write_calibration("readout_shift", data, False, "normal", "normal", "normal")
         self.assertEqual(c.get_readout_shift(neuron), 4.0)
 
@@ -75,14 +76,14 @@ class TestCalibticHelper(unittest.TestCase):
         # NeuronCalibration
         # same data for all neurons
         trafo = create_pycalibtic_transformation([4,2,3])
-        data = {c: trafo for c in C.iter_all(C.NeuronOnHICANN)}
+        data = {c: trafo for c in iter_all(C.NeuronOnHICANN)}
         c.write_calibration(neuron_parameter.V_t, data, False, "normal", "normal", "normal")
         c._loaded = False  # reload
         c.clear_one_calibration(neuron_parameter.V_t)
 
         # FGBlock
         trafo = create_pycalibtic_transformation([4, 2, 5])
-        data = {c: trafo for c in C.iter_all(C.FGBlockOnHICANN)}
+        data = {c: trafo for c in iter_all(C.FGBlockOnHICANN)}
         c._loaded = False  # reload
         c.write_calibration(shared_parameter.V_reset, data, False, "normal", "normal", "normal")
         c.clear_one_calibration(shared_parameter.V_reset)
@@ -90,7 +91,7 @@ class TestCalibticHelper(unittest.TestCase):
     def test_overwrite(self):
         c = self.calibtic
         trafo = create_pycalibtic_transformation([4,2,3])
-        data = {c: trafo for c in C.iter_all(C.NeuronOnHICANN)}
+        data = {c: trafo for c in iter_all(C.NeuronOnHICANN)}
         c.write_calibration(neuron_parameter.V_t, data, False, "normal", "normal", "normal")
         c.write_calibration(neuron_parameter.V_t, data, False, "normal", "normal", "normal")
         c.clear_calibration()
@@ -100,7 +101,7 @@ class TestCalibticHelper(unittest.TestCase):
         c.clear_calibration()
         c._loaded = False  # reload
 
-        neuron = C.NeuronOnHICANN(C.Enum(27))
+        neuron = C.NeuronOnHICANN(Enum(27))
         parameter = neuron_parameter.V_t
         calib = pycalibtic.NeuronCalibrationParameters.Calibrations.V_t
         calib_missing = pycalibtic.NeuronCalibrationParameters.Calibrations.E_l
@@ -108,7 +109,7 @@ class TestCalibticHelper(unittest.TestCase):
         # write data
         coeffs = [4, 2, 3]
         trafos = create_pycalibtic_transformation(coeffs)
-        data = {c: trafos for c in C.iter_all(C.NeuronOnHICANN)}
+        data = {c: trafos for c in iter_all(C.NeuronOnHICANN)}
         c.write_calibration(parameter, data, False, "normal", "normal", "normal")
 
         # test apply with data
@@ -126,10 +127,10 @@ class TestCalibticHelper(unittest.TestCase):
         # same for FGBlock
         coeffs = [-6, 2, 3]
         trafos = create_pycalibtic_transformation(coeffs)
-        data = {c: trafos for c in C.iter_all(C.FGBlockOnHICANN)}
+        data = {c: trafos for c in iter_all(C.FGBlockOnHICANN)}
         parameter = shared_parameter.V_reset
         c.write_calibration(parameter, data, False, "normal", "normal", "normal")
-        block = C.FGBlockOnHICANN(C.Enum(2))
+        block = C.FGBlockOnHICANN(Enum(2))
         c._loaded = False  # reload
         bcal = c.get_calibration(block)
         poly = bcal.at(parameter)
@@ -145,7 +146,7 @@ class TestCalibticHelper(unittest.TestCase):
     def test_init_nodir(self):
         """init backend in non-existing directory"""
         wafer = C.Wafer(0)
-        hicann = C.HICANNOnWafer(C.Enum(315))
+        hicann = C.HICANNOnWafer(Enum(315))
         nonexistdir = os.path.join(self.basedir, "newdir")
         self.assertFalse(os.path.exists(nonexistdir))
         c = Calibtic(nonexistdir, wafer, hicann)

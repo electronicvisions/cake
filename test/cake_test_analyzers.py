@@ -6,7 +6,8 @@ import numpy as np
 import pycake.analyzer
 from pycake.helpers.TraceAverager import TraceAverager
 
-import Coordinate
+import pyhalco_hicann_v2
+import pyhalco_common
 import pickle
 
 import pandas
@@ -215,7 +216,7 @@ class TestAnalyzers(unittest.TestCase):
         """
         Test I_pl_Analyzer using a previously measured dataset.
         """
-        neuron = Coordinate.NeuronOnHICANN(Coordinate.Enum(100))
+        neuron = pyhalco_hicann_v2.NeuronOnHICANN(pyhalco_common.Enum(100))
         testdata = pickle.load(open('/wang/data/calibration/testdata/testdata.p'))['I_pl']
         analyzer = pycake.analyzer.I_pl_Analyzer()
         data = testdata['initial_data'][neuron]
@@ -232,7 +233,7 @@ class TestAnalyzers(unittest.TestCase):
         """
         Test I_pl_Analyzer using a previously measured dataset.
         """
-        neuron = Coordinate.NeuronOnHICANN(Coordinate.Enum(100))
+        neuron = pyhalco_hicann_v2.NeuronOnHICANN(pyhalco_common.Enum(100))
         testdata = pickle.load(open('/wang/data/calibration/testdata/testdata.p'))['I_gl']
         analyzer = pycake.analyzer.I_gl_Analyzer()
         additional_data = {}
@@ -288,7 +289,7 @@ class TestAnalyzers(unittest.TestCase):
 
         # excitatory (1)
 
-        res = a(Coordinate.NeuronOnHICANN(), trace=trace)
+        res = a(pyhalco_hicann_v2.NeuronOnHICANN(), trace=trace)
 
         self.assertEqual(res['baseline'], 1)
         self.assertEqual(res['peakvalue'], 7)
@@ -305,7 +306,7 @@ class TestAnalyzers(unittest.TestCase):
 
         trace = pandas.DataFrame({'v': v}, index=t)
 
-        res = a(Coordinate.NeuronOnHICANN(), trace=trace)
+        res = a(pyhalco_hicann_v2.NeuronOnHICANN(), trace=trace)
 
         self.assertEqual(res['baseline'], -2)
         self.assertEqual(res['peakvalue'], 4)
@@ -322,7 +323,7 @@ class TestAnalyzers(unittest.TestCase):
 
         trace = pandas.DataFrame({'v': v}, index=t)
 
-        res = a(Coordinate.NeuronOnHICANN(), trace=trace)
+        res = a(pyhalco_hicann_v2.NeuronOnHICANN(), trace=trace)
 
         self.assertEqual(res['baseline'], 2)
         self.assertEqual(res['peakvalue'], -4)
@@ -339,7 +340,7 @@ class TestAnalyzers(unittest.TestCase):
 
         trace = pandas.DataFrame({'v': v}, index=t)
 
-        res = a(Coordinate.NeuronOnHICANN(), trace=trace)
+        res = a(pyhalco_hicann_v2.NeuronOnHICANN(), trace=trace)
 
         self.assertEqual(res['baseline'], -2)
         self.assertEqual(res['peakvalue'], -8)

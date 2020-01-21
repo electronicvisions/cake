@@ -3,7 +3,7 @@ import numpy as np
 import pysthal
 import pyhalbe
 import pylogging
-import Coordinate
+import pyhalco_hicann_v2 as Coordinate
 import time
 from pycake.helpers.sthal import StHALContainer
 

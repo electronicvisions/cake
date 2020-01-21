@@ -9,7 +9,8 @@ import pylogging
 from pysthal.command_line_util import init_logger
 
 import numpy as np
-import Coordinate as C
+from pyhalco_common import Enum
+import pyhalco_hicann_v2 as C
 from pycake.helpers.calibtic import Calibtic
 import pycalibtic
 pnc = pycalibtic.NeuronCalibration.Calibrations
@@ -43,8 +44,8 @@ vals_for_DAC[pnc.I_pl] = defaultdict(
 trafo_data = {}
 trafo_data[pnc.E_syni] = []
 
-hicanns = [C.HICANNOnWafer(C.Enum(h_enum)) for h_enum in args.hicann]
-nrns = [C.NeuronOnHICANN(C.Enum(h_enum)) for h_enum in args.neuron]
+hicanns = [C.HICANNOnWafer(Enum(h_enum)) for h_enum in args.hicann]
+nrns = [C.NeuronOnHICANN(Enum(h_enum)) for h_enum in args.neuron]
 
 def get_val_for_DAC(DAC,neuron_calibration, parameter, outside_domain_behaviour):
     try:

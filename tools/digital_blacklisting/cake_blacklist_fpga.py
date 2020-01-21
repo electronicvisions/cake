@@ -3,7 +3,8 @@
 import os
 import argparse
 import subprocess
-import pyhalbe.Coordinate as C
+from pyhalco_common import Enum
+import pyhalco_hicann_v2 as C
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--wafer", type=int, help="Wafer enum", required=True)
@@ -18,7 +19,7 @@ parser.add_argument("--output_backend_path", type=str,
 args = parser.parse_args()
 
 wafer_c = C.Wafer(args.wafer)
-fpga_c = C.FPGAOnWafer(C.Enum(args.fpga))
+fpga_c = C.FPGAOnWafer(Enum(args.fpga))
 successful = True
 
 logbase = os.path.join(args.output_backend_path,

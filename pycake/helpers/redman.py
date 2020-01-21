@@ -2,10 +2,10 @@ import os
 import time
 import shutil
 import pyredman
-import Coordinate
+import pyhalco_hicann_v2 as Coordinate
 import pylogging
 
-from Coordinate import iter_all
+from pyhalco_common import iter_all
 
 class Redman(object):
     logger = pylogging.get("pycake.redman")

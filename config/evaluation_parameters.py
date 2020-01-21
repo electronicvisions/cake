@@ -1,5 +1,6 @@
 import pyhalbe
-from Coordinate import NeuronOnHICANN, FGBlockOnHICANN, Enum
+from pyhalco_common import Enum
+from pyhalco_hicann_v2 import NeuronOnHICANN, FGBlockOnHICANN
 from pycake.helpers.units import Volt, Ampere, Second
 from pycake.helpers.units import linspace_voltage, linspace_current
 

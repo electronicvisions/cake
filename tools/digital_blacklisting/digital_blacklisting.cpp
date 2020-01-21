@@ -208,7 +208,7 @@ int main(int argc, char* argv[])
 	std::uniform_int_distribution<int> number8bit(0, 255);
 	std::uniform_int_distribution<int> number16bit(0, 65535);
 	std::uniform_int_distribution<int> numberRepBlock(
-	    0, (1 << HMF::Coordinate::TestPortOnRepeaterBlock::end) - 1);
+	    0, (1 << halco::hicann::v2::TestPortOnRepeaterBlock::end) - 1);
 	std::uniform_int_distribution<int> numberstpcap(
 	    0, (1 << HMF::HICANN::SynapseDriver::num_cap) - 1);
 

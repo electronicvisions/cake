@@ -13,7 +13,7 @@ import numpy
 
 from pycake.helpers.sthal import StHALContainer
 from pycake.config import Config
-from pyhalbe import Coordinate as C
+import pyhalco_hicann_v2 as C
 from pyhalbe.HICANN import L1Address
 from PysthalTest import PysthalTest, hardware
 

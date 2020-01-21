@@ -6,8 +6,8 @@ import os
 import pandas
 import itertools
 
-from Coordinate import iter_all
-from Coordinate import NeuronOnHICANN
+from pyhalco_hicann_v2 import iter_all
+from pyhalco_hicann_v2 import NeuronOnHICANN
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
 
 plogger = pylogging.get('progress.experiment')

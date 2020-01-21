@@ -15,8 +15,8 @@ from pycake.helpers.calibtic import Calibtic
 
 import pyhalbe
 import pycalibtic
-Coordinate = pyhalbe.Coordinate
-Enum = pyhalbe.Coordinate.Enum
+from pyhalco_common import Enum
+import pyhalco_hicann_v2 as Coordinate
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
 
 

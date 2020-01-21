@@ -14,7 +14,8 @@ import numpy
 import pandas
 
 from pycake.config import Config
-import Coordinate as C
+from pyhalco_common import iter_all, Enum
+import pyhalco_hicann_v2 as C
 from pycake.helpers.sim import SimStHALContainer
 import pycake.measure
 import pycake.analyzer
@@ -28,13 +29,13 @@ class TestMeasurement(unittest.TestCase):
         rng_trace = numpy.random
         rng_trace.seed(3215)
 
-        self.neurons = [neuron for neuron in C.iter_all(C.NeuronOnHICANN)]
+        self.neurons = [neuron for neuron in iter_all(C.NeuronOnHICANN)]
         traces = [rng_trace.random(3000) for _ in self.neurons]
         times = [numpy.linspace(0., 1e-3, len(traces[0]))  for _ in self.neurons]
         self.testdata = {nn: pandas.DataFrame({'v': v}, index=t) for nn,t,v in zip(self.neurons, times, traces)}
 
         cfg = Config(None, {"sim_denmem": ":0", "hicann_version": -1,
-                            "coord_hicann": C.HICANNOnWafer(C.Enum(365)), "coord_wafer" : C.Wafer(4)})
+                            "coord_hicann": C.HICANNOnWafer(Enum(365)), "coord_wafer" : C.Wafer(4)})
         self.sthal = SimStHALContainer(cfg)
 
     def test_save_traces(self):

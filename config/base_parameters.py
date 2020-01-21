@@ -11,9 +11,9 @@ from pycake.helpers.units import Volt
 from pyhalbe.HICANN import neuron_parameter
 from pyhalbe.HICANN import shared_parameter
 
-from Coordinate import Enum
-from Coordinate import FGBlockOnHICANN
-from Coordinate import NeuronOnHICANN
+from pyhalco_common import Enum
+from pyhalco_hicann_v2 import FGBlockOnHICANN
+from pyhalco_hicann_v2 import NeuronOnHICANN
 
 parameters = {
     # Measurement runs twice by default: first to generate calibration data,

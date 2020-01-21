@@ -1,5 +1,6 @@
 import pyhalbe
-from Coordinate import NeuronOnHICANN, FGBlockOnHICANN, Enum
+from pyhalco_common import Enum
+from pyhalco_hicann_v2 import Wafer, HICANNOnWafer, NeuronOnHICANN, FGBlockOnHICANN
 from pycake.helpers.units import DAC, Volt, Ampere
 from pycake.helpers.units import linspace_voltage, linspace_current
 import os
@@ -95,8 +96,8 @@ parameters = {
     "backend":      os.path.join(folder, "backends"),
 
     # Wafer and HICANN coordinates
-    "coord_wafer":  pyhalbe.Coordinate.Wafer(),
-    "coord_hicann": pyhalbe.Coordinate.HICANNOnWafer(pyhalbe.Coordinate.Enum(280)),
+    "coord_wafer":  Wafer(),
+    "coord_hicann": HICANNOnWafer(Enum(280)),
 
 
     # Here you can set the fixed parameters for each calibration.

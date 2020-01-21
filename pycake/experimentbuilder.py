@@ -1,5 +1,6 @@
 import pylogging
-import Coordinate
+import pyhalco_common
+import pyhalco_hicann_v2
 import pyhalbe
 import pysthal
 import copy
@@ -23,7 +24,7 @@ from pycake.analyzer import ADCFreq_Analyzer
 import pycalibtic
 
 # shorter names
-Enum = Coordinate.Enum
+Enum = pyhalco_common.Enum
 neuron_parameter = pyhalbe.HICANN.neuron_parameter
 shared_parameter = pyhalbe.HICANN.shared_parameter
 
@@ -157,10 +158,10 @@ class BaseExperimentBuilder(object):
         floating_gates = pysthal.FloatingGates()
 
         for ii in range(floating_gates.getNoProgrammingPasses()):
-            cfg = floating_gates.getFGConfig(Coordinate.Enum(ii))
+            cfg = floating_gates.getFGConfig(Enum(ii))
             cfg.fg_bias = self.config.get_fg_bias()
             cfg.fg_biasn = self.config.get_fg_biasn()
-            floating_gates.setFGConfig(Coordinate.Enum(ii), cfg)
+            floating_gates.setFGConfig(Enum(ii), cfg)
 
         self.calibtic.set_calibrated_parameters(
             step_parameters, self.neurons, self.blocks, floating_gates,
@@ -292,7 +293,7 @@ class I_pl_Experimentbuilder(BaseExperimentBuilder):
 
     To be used with hardware."""
     def prepare_specific_config(self, sthal, parameters):
-        I_pl_DAC = sthal.hicann.floating_gates.getNeuron(Coordinate.NeuronOnHICANN(Enum(0)), neuron_parameter.I_pl)
+        I_pl_DAC = sthal.hicann.floating_gates.getNeuron(pyhalco_hicann_v2.NeuronOnHICANN(Enum(0)), neuron_parameter.I_pl)
         expected_ISI = self.calibtic.ideal_nc.at(0).from_dac(I_pl_DAC, pycalibtic.NeuronCalibrationParameters.Calibrations.I_pl)
         # estimate 1e-6 as minimum ISI, to get long enough measurement times for approx 10 spikes at large t_ref values
         expected_ISI += 1e-6
@@ -391,7 +392,7 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
 
             if mirror_drivers is not None:
                 sthal.mirror_synapse_driver(
-                    Coordinate.SynapseDriverOnHICANN(Coordinate.Enum(83)),
+                    pyhalco_hicann_v2.SynapseDriverOnHICANN(Enum(83)),
                     mirror_drivers)
 
             self.bg_rate = sthal.stimulateNeurons(
@@ -478,7 +479,7 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
         # FIXME: copy of defects does not include resource cache
         measurement.sthal.wafer.set_defects(measurements[0].sthal.wafer.get_defects())
 
-        for nrn in Coordinate.iter_all(Coordinate.NeuronOnHICANN):
+        for nrn in pyhalco_common.iter_all(pyhalco_hicann_v2.NeuronOnHICANN):
             measurement.sthal.hicann.floating_gates.setNeuron(
                 nrn, neuron_parameter.V_syntci, 511)
             measurement.sthal.hicann.floating_gates.setNeuron(
@@ -580,7 +581,7 @@ class Parrot_Experimentbuilder(BaseExperimentBuilder):
                                excitatory=self.IS_EXCITATORY,
                                gmax_div=gmax_div,
                                gmax=gmax, weight=weight)
-        for channel in Coordinate.iter_all(Coordinate.GbitLinkOnHICANN):
+        for channel in pyhalco_common.iter_all(pyhalco_hicann_v2.GbitLinkOnHICANN):
             sthal.hicann.layer1[channel] = pyhalbe.HICANN.GbitLink.Direction.TO_DNC
         return sthal
 

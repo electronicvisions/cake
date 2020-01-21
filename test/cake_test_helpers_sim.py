@@ -13,7 +13,8 @@ import pickle
 import numpy
 
 from pycake.config import Config
-from pyhalbe import Coordinate as C
+from pyhalco_common import Enum
+import pyhalco_hicann_v2 as C
 from PysthalTest import PysthalTest
 
 
@@ -23,7 +24,7 @@ class TestSimSthal(unittest.TestCase):
         # import here because dependencies are optional
         from pycake.helpers.sim import SimStHALContainer
         coord_wafer = C.Wafer(4)
-        self.coord_hicann = C.HICANNOnWafer(C.Enum(365))
+        self.coord_hicann = C.HICANNOnWafer(Enum(365))
         cfg = Config(None, {"sim_denmem": ":0", "hicann_version": -1,
                             "coord_hicann": self.coord_hicann, "coord_wafer" : coord_wafer})
         self.sthal = SimStHALContainer(cfg)

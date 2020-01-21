@@ -1,8 +1,6 @@
 import numpy as np
 import os
 
-import Coordinate
-
 from pycake.measure import ADCMeasurement
 from pycake.analyzer import PeakAnalyzer
 from pycake.experimentbuilder import BaseExperimentBuilder

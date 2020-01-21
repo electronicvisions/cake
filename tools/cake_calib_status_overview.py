@@ -4,7 +4,8 @@ import itertools
 
 import pycake.helpers.plotting
 import matplotlib
-import Coordinate as C
+from pyhalco_common import iter_all, Enum
+import pyhalco_hicann_v2 as C
 
 import pycake.helpers.calibtic
 import pycalibtic
@@ -30,12 +31,12 @@ calibs_to_check = [
     [pycalibtic.NeuronCalibrationParameters.Calibrations.calib.V_t]
     ]
 
-wafer_c = C.Wafer(C.Enum(args.wafer))
+wafer_c = C.Wafer(Enum(args.wafer))
 
 cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["green", "red"])
 
 cals = {}
-for hicann_c in C.iter_all(C.HICANNOnWafer):
+for hicann_c in iter_all(C.HICANNOnWafer):
     try:
         cal = pycake.helpers.calibtic.Calibtic(args.calib_path, wafer_c, hicann_c, backend_type="binary")
         cals[hicann_c] = cal.hc.atNeuronCollection()

@@ -1,5 +1,6 @@
 import pyhalbe
-from Coordinate import NeuronOnHICANN, FGBlockOnHICANN, Enum
+from pyhalco_common import Enum
+from pyhalco_hicann_v2 import HICANNOnWafer, NeuronOnHICANN, FGBlockOnHICANN
 from pycake.helpers.units import Voltage, Current
 from pycake.helpers.units import linspace_voltage, linspace_current
 
@@ -28,7 +29,7 @@ eval_parameters = {
         "wafer_cfg" : "wafer.xml",
 
         # has to match wafer_cfg
-        "coord_hicann": pyhalbe.Coordinate.HICANNOnWafer(pyhalbe.Coordinate.Enum(276)),
+        "coord_hicann": HICANNOnWafer(Enum(276)),
 
         # Set which calibrations you want to run
         "run_V_reset":  False,

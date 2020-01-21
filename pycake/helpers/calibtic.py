@@ -7,7 +7,7 @@ import copy
 import time
 import numpy as np
 
-import Coordinate
+import pyhalco_hicann_v2 as Coordinate
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
 from pycake.helpers.units import DAC, Volt, Ampere, Unit, Second
 

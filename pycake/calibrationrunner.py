@@ -23,7 +23,8 @@ import errno
 from collections import OrderedDict
 from socket import gethostname
 
-from pyhalbe import Coordinate
+from pyhalco_common import iter_all
+import pyhalco_hicann_v2 as Coordinate
 from pyhalbe.HICANN import neuron_parameter
 from pyhalbe.HICANN import shared_parameter
 from pysthal import SpeedUp
@@ -228,7 +229,7 @@ class CalibrationUnit(object):
             if isinstance(parameter, shared_parameter):
                 data = {nrn: data[nrn.toSharedFGBlockOnHICANN()]
                         for nrn
-                        in Coordinate.iter_all(Coordinate.NeuronOnHICANN)}
+                        in iter_all(Coordinate.NeuronOnHICANN)}
             data_all = []
             for nrn, trafo in data.iteritems():
                 nrn_id = nrn.toEnum().value()

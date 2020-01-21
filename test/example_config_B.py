@@ -1,6 +1,5 @@
 """Example configuration used by test_config.py"""
 
-import Coordinate
 from pyhalbe.HICANN import shared_parameter
 from pycake.helpers.units import DAC
 

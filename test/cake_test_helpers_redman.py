@@ -12,7 +12,8 @@ import shutil
 import tempfile
 
 from pycake.helpers.redman import Redman
-from pyhalbe import Coordinate as C
+from pyhalco_common import Enum
+import pyhalco_hicann_v2 as C
 
 
 class TestRedmanHelper(unittest.TestCase):
@@ -21,7 +22,7 @@ class TestRedmanHelper(unittest.TestCase):
 
     def test_init(self):
         """init backend"""
-        hicann = C.HICANNGlobal(C.Enum(94))
+        hicann = C.HICANNGlobal(Enum(94))
         r = Redman(self.basedir, hicann)
 
         # initializing magic type should raise
@@ -34,7 +35,7 @@ class TestRedmanHelper(unittest.TestCase):
 
     def test_init_nodir(self):
         """init backend in non-existing directory"""
-        hicann = C.HICANNGlobal(C.Enum(315))
+        hicann = C.HICANNGlobal(Enum(315))
         nonexistdir = os.path.join(self.basedir, "newdir")
         self.assertFalse(os.path.exists(nonexistdir))
         r = Redman(nonexistdir, hicann)
@@ -42,8 +43,8 @@ class TestRedmanHelper(unittest.TestCase):
         self.assertTrue(os.path.isdir(nonexistdir))
 
     def test_defects(self):
-        hicann = C.HICANNGlobal(C.Enum(11))
-        n99 = C.NeuronOnHICANN(C.Enum(99))
+        hicann = C.HICANNGlobal(Enum(11))
+        n99 = C.NeuronOnHICANN(Enum(99))
         r = Redman(self.basedir, hicann)
         r.clear_defects()
         self.assertTrue(r.hicann_with_backend.neurons().has(n99))

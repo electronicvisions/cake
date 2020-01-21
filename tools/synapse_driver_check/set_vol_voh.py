@@ -3,7 +3,7 @@ import pysthal
 import pylogging
 import shallow
 import sys
-from Coordinate import *
+from pyhalco_hicann_v2 import *
 
 pylogging.default_config()
 

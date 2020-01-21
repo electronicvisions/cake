@@ -15,8 +15,8 @@ from collections import defaultdict
 import numpy as np
 import pyhalbe
 import pysthal
-import Coordinate
-from Coordinate import Enum, NeuronOnHICANN
+import pyhalco_hicann_v2 as Coordinate
+from pyhalco_common import Enum, iter_all
 from pyhalbe.HICANN import neuron_parameter
 from pyhalbe.HICANN import shared_parameter
 from pycake.helpers.units import Volt
@@ -143,7 +143,7 @@ def aquire(seg, driver):
         hardware.enable_readout(rl)
 
     # Create input spike trains
-    print hardware.hicann.synapses[Coordinate.SynapseDriverOnHICANN(Coordinate.Enum(driver))]
+    print hardware.hicann.synapses[Coordinate.SynapseDriverOnHICANN(Enum(driver))]
 
     start_offset = 5e-6
     n_input_spikes = args.ninputspikes
@@ -259,7 +259,7 @@ def aquire(seg, driver):
 def vt_calib(neuron_blacklist):
     print "Run V_t calibration"
     meassured = []
-    for neuron in Coordinate.iter_all(Coordinate.NeuronOnHICANN):
+    for neuron in iter_all(Coordinate.NeuronOnHICANN):
         if int(neuron.toEnum()) in neuron_blacklist:
             continue
         adc = 0
@@ -482,12 +482,12 @@ if __name__ == "__main__":
     fgc = hardware.hicann.floating_gates
 
     for p in range(0, int(fgc.getNoProgrammingPasses())):
-        f_p = fgc.getFGConfig(shallow.Coordinate.Enum(p))
+        f_p = fgc.getFGConfig(shallow.Enum(p))
         f_p.fg_bias = 0
         f_p.fg_biasn = 0
         f_p.pulselength = int(f_p.pulselength.to_ulong() * float(FREQ)/100.0)
-        fgc.setFGConfig(shallow.Coordinate.Enum(p), f_p)
-        print fgc.getFGConfig(shallow.Coordinate.Enum(p))
+        fgc.setFGConfig(shallow.Enum(p), f_p)
+        print fgc.getFGConfig(shallow.Enum(p))
 
     hardware.connect()
 
@@ -545,7 +545,7 @@ if __name__ == "__main__":
     blk.annotations['shared_parameters'] = shared
 
 #    for p in range(0,int(fgc.getNoProgrammingPasses())):
-#        print fgc.getFGConfig(shallow.Coordinate.Enum(p))
+#        print fgc.getFGConfig(shallow.Enum(p))
 
     if not args.nooutput:
         reader.write(blk)
@@ -561,7 +561,7 @@ if __name__ == "__main__":
 #
 #    hardware.wafer.configure(HRC)
 #
-#    readout_hicann = readout_wafer[shallow.Coordinate.HICANNOnWafer(shallow.Coordinate.Enum(HICANN))]
+#    readout_hicann = readout_wafer[shallow.Coordinate.HICANNOnWafer(shallow.Enum(HICANN))]
 #
 #    print hardware.hicann
 #    print readout_hicann

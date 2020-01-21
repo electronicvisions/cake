@@ -2,9 +2,9 @@
 Repeat HICANN v4 simulations with the sim denmem software
 """
 
-from Coordinate import Enum
-from Coordinate import FGBlockOnHICANN
-from Coordinate import NeuronOnHICANN
+from pyhalco_common import Enum
+from pyhalco_hicann_v2 import FGBlockOnHICANN
+from pyhalco_hicann_v2 import NeuronOnHICANN
 from pycake.helpers import units
 
 MC = False

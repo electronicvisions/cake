@@ -5,6 +5,8 @@ import time
 import numpy as np
 import copy
 
+from pyhalco_common import Enum, top, bottom, left, right, Y, iter_all
+import pyhalco_hicann_v2 as Coordinate
 import pyhalbe
 from pyhalbe.HICANN import neuron_parameter
 from pyhalbe.HICANN import shared_parameter
@@ -23,13 +25,12 @@ except:
     log = logging.getLogger("shallow")
 
 # Set up shortcuts
-Coordinate = pyhalbe.Coordinate
 HICANN = pyhalbe.HICANN
 
 # Select L1 addresses
 BG_ADDRESS = pyhalbe.HICANN.L1Address(0)
-TOP = Coordinate.top
-BOT = Coordinate.bottom
+TOP = top
+BOT = bottom
 
 class Parameters(ValueStorage):
     def __init__(self):
@@ -48,10 +49,10 @@ class Parameters(ValueStorage):
                 },
             'neuron_parameters': {
                 nrn : {} for nrn in
-                Coordinate.iter_all(Coordinate.NeuronOnHICANN)},
+                iter_all(Coordinate.NeuronOnHICANN)},
             'shared_parameters': {
                 blk : {} for blk in
-                Coordinate.iter_all(Coordinate.FGBlockOnHICANN)},
+                iter_all(Coordinate.FGBlockOnHICANN)},
             'synapse_driver': ValueStorage({
                 'stp': None,
                 'cap': DAC(0),
@@ -141,7 +142,7 @@ class VOLVOHHICANNConfigurator(pysthal.HICANNConfigurator):
 class Hardware(object):
     def __init__(self, wafer, hicann, calibration_backend=None, freq=100e6, bg_period=10000):
         wafer_c = Coordinate.Wafer(wafer)
-        hicann_c = Coordinate.HICANNOnWafer(Coordinate.Enum(hicann))
+        hicann_c = Coordinate.HICANNOnWafer(Enum(hicann))
 
         self.wafer = pysthal.Wafer(wafer_c)
         self.wafer.commonFPGASettings().setPLL(freq)
@@ -159,11 +160,11 @@ class Hardware(object):
         self._fg_written = False
 
         # Activate firing for all neurons to work around 1.2V bug
-        for nrn in Coordinate.iter_all(Coordinate.NeuronOnHICANN):
+        for nrn in iter_all(Coordinate.NeuronOnHICANN):
             self.hicann.neurons[nrn].activate_firing(True)
 
         # Configure background generators to fire on L1 address 0
-        for bg in Coordinate.iter_all(Coordinate.BackgroundGeneratorOnHICANN):
+        for bg in iter_all(Coordinate.BackgroundGeneratorOnHICANN):
             generator = self.hicann.layer1[bg]
             generator.enable(True)
             generator.random(False)
@@ -194,20 +195,20 @@ class Hardware(object):
 
         if top:
             if synapse_driver % 2 == 1:
-                side = Coordinate.left
+                side = left
             else:
-                side = Coordinate.right
+                side = right
         else:
             if synapse_driver % 2 == 0:
-                side = Coordinate.left
+                side = left
             else:
-                side = Coordinate.right
+                side = right
 
         # Select neuron
         address = pyhalbe.HICANN.L1Address(address)
-        neuron_c = Coordinate.NeuronOnHICANN(Coordinate.Enum(neuron))
+        neuron_c = Coordinate.NeuronOnHICANN(Enum(neuron))
 
-        driver_line_c = Coordinate.SynapseSwitchRowOnHICANN(Coordinate.Y(synapse_driver), side)
+        driver_line_c = Coordinate.SynapseSwitchRowOnHICANN(Y(synapse_driver), side)
 
         # Configure synapse driver
         driver = self.hicann.synapses[Coordinate.SynapseDriverOnHICANN(driver_line_c)]
@@ -215,12 +216,12 @@ class Hardware(object):
         driver.set_l1() # Set to process spikes from L1
 
         if neuron % 2 == 0:
-            driver[line].set_decoder(Coordinate.top, address.getDriverDecoderMask())
+            driver[line].set_decoder(top, address.getDriverDecoderMask())
         else:
-            driver[line].set_decoder(Coordinate.bottom, address.getDriverDecoderMask())
+            driver[line].set_decoder(bottom, address.getDriverDecoderMask())
 
-        driver[line].set_syn_in(Coordinate.left, 1)
-        driver[line].set_syn_in(Coordinate.right, 0)
+        driver[line].set_syn_in(left, 1)
+        driver[line].set_syn_in(right, 0)
 
         # Configure synaptic inputs
         synapse_line_c = Coordinate.SynapseRowOnHICANN(Coordinate.SynapseDriverOnHICANN(driver_line_c.line(), side), line)
@@ -240,51 +241,51 @@ class Hardware(object):
 
         if top:
             if synapse_driver % 2 == 1:
-                side = Coordinate.left
+                side = left
             else:
-                side = Coordinate.right
+                side = right
         else:
             if synapse_driver % 2 == 0:
-                side = Coordinate.left
+                side = left
             else:
-                side = Coordinate.right
+                side = right
 
         # Select neuron
         address = pyhalbe.HICANN.L1Address(address)
-        neuron_c = Coordinate.NeuronOnHICANN(Coordinate.Enum(neuron))
+        neuron_c = Coordinate.NeuronOnHICANN(Enum(neuron))
 
         # Setup Gbit Links and merger tree
         self.sending_link = Coordinate.GbitLinkOnHICANN(bus)
         self.hicann.layer1[self.sending_link] = pyhalbe.HICANN.GbitLink.Direction.TO_HICANN
 
-        for merger in Coordinate.iter_all(Coordinate.Merger0OnHICANN):
+        for merger in iter_all(Coordinate.Merger0OnHICANN):
             merger = self.hicann.layer1[merger]
 #            merger.slow = True
 
-        for merger in Coordinate.iter_all(Coordinate.Merger1OnHICANN):
+        for merger in iter_all(Coordinate.Merger1OnHICANN):
             merger = self.hicann.layer1[merger]
 #            merger.slow = True
 
-        for merger in Coordinate.iter_all(Coordinate.Merger2OnHICANN):
+        for merger in iter_all(Coordinate.Merger2OnHICANN):
             merger = self.hicann.layer1[merger]
 #            merger.slow = True
 
-        for merger in Coordinate.iter_all(Coordinate.Merger3OnHICANN):
+        for merger in iter_all(Coordinate.Merger3OnHICANN):
             merger = self.hicann.layer1[merger]
 #            merger.slow = True
 
-        for merger in Coordinate.iter_all(Coordinate.DNCMergerOnHICANN):
+        for merger in iter_all(Coordinate.DNCMergerOnHICANN):
             merger = self.hicann.layer1[merger]
             merger.slow = True
             merger.loopback = False
 
         # Configure sending repeater to forward spikes to the right
         h_line = Coordinate.HLineOnHICANN(2 * 4 * (8 - bus) - 2)
-        sending_repeater = self.hicann.repeater[Coordinate.HRepeaterOnHICANN(h_line, Coordinate.left)]
-        sending_repeater.setOutput(Coordinate.right, True)
+        sending_repeater = self.hicann.repeater[Coordinate.HRepeaterOnHICANN(h_line, left)]
+        sending_repeater.setOutput(right, True)
 
         # Enable a crossbar switch to route the signal into the first vertical line
-        if side == Coordinate.left:
+        if side == left:
             v_line_c = Coordinate.VLineOnHICANN(4*bus + 32)
         else:
             v_line_c = Coordinate.VLineOnHICANN(159 - 4*bus + 32)
@@ -292,7 +293,7 @@ class Hardware(object):
         self.hicann.crossbar_switches.set(v_line_c, h_line, True)
          
         # Configure synapse switches and forward to synapse switch row 81
-        driver_line_c = Coordinate.SynapseSwitchRowOnHICANN(Coordinate.Y(synapse_driver), side)
+        driver_line_c = Coordinate.SynapseSwitchRowOnHICANN(Y(synapse_driver), side)
         self.hicann.synapse_switches.set(v_line_c, driver_line_c.line(), True)
          
         # Configure synapse driver
@@ -301,12 +302,12 @@ class Hardware(object):
         driver.set_l1() # Set to process spikes from L1
         
         if neuron % 2 == 0:
-            driver[line].set_decoder(Coordinate.top, address.getDriverDecoderMask())
+            driver[line].set_decoder(top, address.getDriverDecoderMask())
         else:
-            driver[line].set_decoder(Coordinate.bottom, address.getDriverDecoderMask())
+            driver[line].set_decoder(bottom, address.getDriverDecoderMask())
 
-        driver[line].set_syn_in(Coordinate.left, 1)
-        driver[line].set_syn_in(Coordinate.right, 0)
+        driver[line].set_syn_in(left, 1)
+        driver[line].set_syn_in(right, 0)
 
         # Configure synaptic inputs
         synapse_line_c = Coordinate.SynapseRowOnHICANN(Coordinate.SynapseDriverOnHICANN(driver_line_c.line(), side), line)
@@ -324,8 +325,8 @@ class Hardware(object):
         self.hicann.layer1[dnc_link] = pyhalbe.HICANN.GbitLink.Direction.TO_DNC
 
     def assign_address(self, neuron, address):
-        self.hicann.enable_l1_output(Coordinate.NeuronOnHICANN(Coordinate.Enum(neuron)), HICANN.L1Address(address))
-        self.hicann.neurons[Coordinate.NeuronOnHICANN(Coordinate.Enum(neuron))].activate_firing(True)
+        self.hicann.enable_l1_output(Coordinate.NeuronOnHICANN(Enum(neuron)), HICANN.L1Address(address))
+        self.hicann.neurons[Coordinate.NeuronOnHICANN(Enum(neuron))].activate_firing(True)
 
     @reset_configuration()
     def clear_routes(self):
@@ -337,7 +338,7 @@ class Hardware(object):
 
         #self.hicann.synapses.clear_synapses() # make me configurable
 
-        for nrn in Coordinate.iter_all(Coordinate.NeuronOnHICANN):
+        for nrn in iter_all(Coordinate.NeuronOnHICANN):
             self.hicann.neurons[nrn].enable_spl1_output(False)
             self.hicann.neurons[nrn].activate_firing(False)
 
@@ -347,7 +348,7 @@ class Hardware(object):
 
     @reset_configuration()
     def enable_adc(self, neuron, adc):
-        neuron_c = Coordinate.NeuronOnHICANN(Coordinate.Enum(neuron))
+        neuron_c = Coordinate.NeuronOnHICANN(Enum(neuron))
         self.hicann.enable_aout(neuron_c, Coordinate.AnalogOnHICANN(adc))
 
     def connect(self):
@@ -372,12 +373,12 @@ class Hardware(object):
     def configure(self, write_floating_gates=True, reset=True):
         s = time.time()
         # Configure synapse drivers
-        for driver_c in Coordinate.iter_all(Coordinate.SynapseDriverOnHICANN):
+        for driver_c in iter_all(Coordinate.SynapseDriverOnHICANN):
             driver = self.hicann.synapses[driver_c]
             for i in [TOP, BOT]:
                 driver[i].set_gmax(self.params.synapse_driver.gmax.toDAC().value)
-                driver[i].set_gmax_div(Coordinate.left, self.params.synapse_driver.gmax_div.toDAC().value)
-                driver[i].set_gmax_div(Coordinate.right, self.params.synapse_driver.gmax_div.toDAC().value)
+                driver[i].set_gmax_div(left, self.params.synapse_driver.gmax_div.toDAC().value)
+                driver[i].set_gmax_div(right, self.params.synapse_driver.gmax_div.toDAC().value)
 
             if self.params.synapse_driver.stp == 'facilitation':
                 driver.set_stf()
@@ -388,12 +389,12 @@ class Hardware(object):
 
         # Now we can set the floating gate parameters for the neurons
         if write_floating_gates:
-            for neuron in Coordinate.iter_all(Coordinate.NeuronOnHICANN):
+            for neuron in iter_all(Coordinate.NeuronOnHICANN):
                 params = copy.deepcopy(self.params.base_parameters)
                 params.update(self.params.neuron_parameters[neuron])
                 self.calibration.set_neuron_parameters(
                     params, neuron, self.hicann.floating_gates)
-            for block in  Coordinate.iter_all(Coordinate.FGBlockOnHICANN):
+            for block in  iter_all(Coordinate.FGBlockOnHICANN):
                 params = copy.deepcopy(self.params.base_parameters)
                 params.update(self.params.shared_parameters[block])
                 self.calibration.set_shared_parameters(

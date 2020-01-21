@@ -10,7 +10,8 @@ from scipy.optimize import curve_fit
 import pylogging
 from collections import defaultdict
 from pyhalbe.HICANN import neuron_parameter, shared_parameter
-import Coordinate
+from pyhalco_common import Enum
+import pyhalco_hicann_v2 as Coordinate
 import pycalibtic
 from pycake.helpers.calibtic import create_pycalibtic_transformation
 from pycalibtic import Constant
@@ -774,7 +775,7 @@ class readout_shift_Calibrator(BaseCalibrator):
         nids_top = np.arange(size/2*block_id,size/2*block_id+size/2)
         nids_bottom = np.arange(256+size/2*block_id,256+size/2*block_id+size/2)
         nids = np.concatenate([nids_top, nids_bottom])
-        neurons = [Coordinate.NeuronOnHICANN(Coordinate.Enum(int(nid))) for nid in nids]
+        neurons = [Coordinate.NeuronOnHICANN(Enum(int(nid))) for nid in nids]
         return neurons
 
     def get_readout_shifts(self, neuron_size):

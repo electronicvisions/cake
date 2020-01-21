@@ -7,9 +7,9 @@ import cPickle
 from collections import defaultdict
 
 import pylogging
-import Coordinate
-from Coordinate import X
-from Coordinate import NeuronOnHICANN
+import pyhalco_hicann_v2
+from pyhalco_common import X
+from pyhalco_hicann_v2 import NeuronOnHICANN
 
 from pycake.helpers.sthal import StHALContainer
 from pycake.helpers.sthal import FakeAnalogRecorder
@@ -36,7 +36,7 @@ class SimStHALContainer(StHALContainer):
 
     def __init__(self,
                  config,
-                 coord_analog=Coordinate.AnalogOnHICANN(0),
+                 coord_analog=pyhalco_hicann_v2.AnalogOnHICANN(0),
                  recording_time=30.0e-6,
                  resample_output=True):
         """Initialize StHAL. kwargs default to vertical setup configuration.
@@ -51,7 +51,7 @@ class SimStHALContainer(StHALContainer):
         """
         super(SimStHALContainer, self).__init__(
             config, coord_analog, recording_time)
-        self.current_neuron = Coordinate.NeuronOnHICANN()
+        self.current_neuron = pyhalco_hicann_v2.NeuronOnHICANN()
         host, port = config.get_sim_denmem().split(':')
         self.remote_host = host
         self.remote_port = int(port)
@@ -89,7 +89,7 @@ class SimStHALContainer(StHALContainer):
         """Gets ADC handle.
 
         Args:
-            coord_analog: Coordinate.AnalogOnHICANN to override default behavior
+            coord_analog: pyhalco_hicann_v2.AnalogOnHICANN to override default behavior
         """
         pass
 

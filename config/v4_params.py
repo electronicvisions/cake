@@ -5,7 +5,7 @@ Calibration parameters for the HICANN v4.
 import os
 import numpy
 
-from Coordinate import Enum
+from pyhalco_common import Enum
 from pycake.helpers.units import DAC, Volt, Ampere
 from pycake.helpers.units import linspace_voltage, linspace_current
 from pyhalbe.HICANN import neuron_parameter

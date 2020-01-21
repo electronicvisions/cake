@@ -2,7 +2,8 @@
 
 import pycake.helpers.plotting
 import matplotlib
-import Coordinate as C
+from pyhalco_common import iter_all
+import pyhalbe_hicann_v2 as C
 import pyredman
 import pyredman.load
 import os.path
@@ -44,7 +45,7 @@ for res in enum_resources:
 for res in non_enum_resources:
     exec (res[0]+ " = {}")
 
-for hicann in C.iter_all(C.HICANNOnWafer):
+for hicann in iter_all(C.HICANNOnWafer):
     hicann_with_backend = wafer_with_backend.get(hicann)
     fpga_with_backend = wafer_with_backend.get(hicann.toFPGAOnWafer())
     hicann_id = hicann.toEnum().value()

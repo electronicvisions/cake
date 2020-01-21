@@ -9,8 +9,8 @@ import unittest
 import tempfile
 import os
 from numpy.testing import assert_array_equal
-from Coordinate import iter_all
-from Coordinate import NeuronOnHICANN
+from pyhalco_common import iter_all
+from pyhalco_hicann_v2 import NeuronOnHICANN
 
 from pycake.helpers.TracesOnDiskDict import RecordsOnDiskDict
 
