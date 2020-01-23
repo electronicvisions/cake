@@ -797,7 +797,7 @@ int main(int argc, char* argv[])
 				}
 			} // check horizontal
 
-		} catch (const std::logic_error& e) {
+		} catch (const std::exception& e) {
 			LOG4CXX_ERROR(
 			    test_logger, "Error during test of HICANN " << hicann << " using seed " << seed
 			                                                << ": " << e.what());
