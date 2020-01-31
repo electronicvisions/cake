@@ -223,6 +223,12 @@ int main(int argc, char* argv[])
 		unavailable_syn_row.push_back(C::SynapseRowOnHICANN(row));
 	}
 
+	// Synapse controller needed for dummy waits. Writing default constructed
+	// values to hardware is valid, since configuration register is not altered
+	// in this test.
+	HMF::HICANN::SynapseController const synapse_controller;
+
+
 	// Once touch all tested components to set has_value = True
 	// Used to distinguish between tested and not tested components
 	// If error occurs during test xml file is not saved anyway
@@ -361,9 +367,9 @@ int main(int argc, char* argv[])
 						weight_row[syn_column_c] = syn_weight;
 					}
 					// use halbe backend functions to write and read
-					Backend::HICANN::set_weights_row(*hicann_handle, syn_row_c, weight_row);
+					Backend::HICANN::set_weights_row(*hicann_handle, synapse_controller, syn_row_c, weight_row);
 					HMF::HICANN::WeightRow const read_weight_row =
-					    Backend::HICANN::get_weights_row(*hicann_handle, syn_row_c);
+					    Backend::HICANN::get_weights_row(*hicann_handle, synapse_controller, syn_row_c);
 
 					// compare and blacklist the associated coordinate of defect synapses
 					int error_counter = 0;
@@ -404,9 +410,9 @@ int main(int argc, char* argv[])
 					}
 					// write and read values
 					Backend::HICANN::set_decoder_double_row(
-					    *hicann_handle, syn_drv_c, decoder_double_row);
+					    *hicann_handle, synapse_controller, syn_drv_c, decoder_double_row);
 					HMF::HICANN::DecoderDoubleRow const read_decoder_row =
-					    Backend::HICANN::get_decoder_double_row(*hicann_handle, syn_drv_c);
+					    Backend::HICANN::get_decoder_double_row(*hicann_handle, synapse_controller, syn_drv_c);
 					// compare values
 					for (auto const& row_number : C::iter_all<C::RowOnSynapseDriver>()) {
 						for (auto const& syn_column_c : C::iter_all<C::SynapseColumnOnHICANN>()) {
