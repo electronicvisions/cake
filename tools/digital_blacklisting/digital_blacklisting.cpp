@@ -328,9 +328,9 @@ int main(int argc, char* argv[])
 						    C::bottom, HMF::HICANN::DriverDecoder(drv_dec_num(generator)));
 					}
 					// use halbe backend functions to write and read
-					Backend::HICANN::set_synapse_driver(*hicann_handle, syn_drv_c, syn_drv);
+					Backend::HICANN::set_synapse_driver(*hicann_handle, synapse_controller, syn_drv_c, syn_drv);
 					HMF::HICANN::SynapseDriver const read_synapse_driver =
-					    Backend::HICANN::get_synapse_driver(*hicann_handle, syn_drv_c);
+					    Backend::HICANN::get_synapse_driver(*hicann_handle, synapse_controller, syn_drv_c);
 					// compare and blacklist the associated coordinate
 					// SynapseDriver::operator== compares all driver variables
 					// not used here to distinguish error in whole driver or only in row on driver
