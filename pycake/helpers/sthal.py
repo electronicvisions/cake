@@ -26,6 +26,7 @@ from pyhalco_hicann_v2 import NeuronOnHICANN
 
 from pysthal import HICANNConfigurator as HICANNv2Configurator
 from pysthal import HICANNv4Configurator
+from pysthal import ConfigurationStage
 
 
 class UpdateParameterUp(HICANNv4Configurator):
@@ -49,36 +50,44 @@ class UpdateParameterUp(HICANNv4Configurator):
     def config_fpga(self, fpga_handle, fpga):
         pass
 
-    def config(self, fpga_handle, handle, hicann):
-        row_lists = HICANNv4Configurator.row_lists_t()
-        row_lists.append(self.rows)
+    def config(self, fpga_handle, handles, hicanns, stage):
+        if stage is ConfigurationStage.TIMING_UNCRITICAL:
+            row_lists = HICANNv4Configurator.row_lists_t()
+            row_lists.append(self.rows)
 
-        # cf. #3131
-        hicann_handles = pysthal.vector_less__boost_scope_shared_ptr_less_HMF_scope_Handle_scope_HICANN_greater___greater_()
-        hicann_handles.append(handle)
+            for h, hicann in zip(handles, hicanns):
+                # cf. #3131
+                hicann_handles = pysthal.vector_less__boost_scope_shared_ptr_less_HMF_scope_Handle_scope_HICANN_greater___greater_()
+                hicann_handles.append(h)
 
-        hicann_datas = pysthal.vector_less__boost_scope_shared_ptr_less_sthal_scope_HICANNData_greater___greater_()
-        hicann_datas.append(hicann)
+                hicann_datas = pysthal.vector_less__boost_scope_shared_ptr_less_sthal_scope_HICANNData_greater___greater_()
+                hicann_datas.append(hicann)
 
-        self.program_normal(hicann_handles, hicann_datas, row_lists)
+                self.program_normal(hicann_handles, hicann_datas, row_lists)
+        else:
+            pass
 
 class UpdateParameterUpAndConfigure(UpdateParameterUp):
-    def config(self, fpga_handle, handle, hicann):
-        UpdateParameterUp.config(self, fpga_handle, handle, hicann)
+    def config(self, fpga_handle, handles, hicanns, stage):
+        UpdateParameterUp.config(self, fpga_handle, handles, hicanns, stage)
 
-        self.config_neuron_quads(handle, hicann)
-        self.config_phase(handle, hicann)
-        self.config_gbitlink(handle, hicann)
-        self.config_synapse_array(handle, hicann)
-        self.config_synapse_drivers(handle, hicann)
-        self.config_synapse_switch(handle, hicann)
-        self.config_crossbar_switches(handle, hicann)
-        self.config_repeater(handle, hicann)
-        self.config_merger_tree(handle, hicann)
-        self.config_dncmerger(handle, hicann)
-        self.config_background_generators(handle, hicann)
-        self.lock_repeater(handle, hicann)
-        self.flush_hicann(handle)
+        #TODO: Use smart configuration of components (cf. CS 9140)
+        if stage is ConfigurationStage.TIMING_UNCRITICAL:
+            for h, hicann in zip(handles, hicanns):
+                self.config_neuron_quads(h, hicann)
+                self.config_phase(h, hicann)
+                self.config_gbitlink(h, hicann)
+                self.config_synapse_array(h, hicann)
+                self.config_synapse_drivers(h, hicann)
+                self.config_synapse_switch(h, hicann)
+                self.config_crossbar_switches(h, hicann)
+                self.config_repeater(h, hicann)
+                self.config_merger_tree(h, hicann)
+                self.config_dncmerger(h, hicann)
+                self.config_background_generators(h, hicann)
+                self.flush_hicann(h)
+        else:
+            pass
 
 
 class SpikeReadoutHICANNConfigurator(HICANNv2Configurator):
@@ -111,7 +120,6 @@ class SpikeReadoutHICANNConfigurator(HICANNv2Configurator):
         self.config_dncmerger(handle, data)
         self.config_background_generators(handle, data)
         self.flush_hicann(handle)
-        self.lock_repeater(handle, data)
 
         self.config_neuron_config(handle, data)
         self.config_neuron_quads(handle, data)
