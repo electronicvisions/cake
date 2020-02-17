@@ -47,6 +47,7 @@ int main(int argc, char* argv[])
 	size_t hicann;
 	std::string hwdb_path;
 	size_t pll_freq;
+	size_t jtag_frequency;
 	bool allow_rewrite;
 	std::string input_backend_path;
 	std::string output_backend_path;
@@ -61,6 +62,7 @@ int main(int argc, char* argv[])
 	    "path,p", po::value<std::string>(&hwdb_path)->default_value("/wang/data/bss-hwdb/db.yaml"),
 	    "set path to hwdb")(
 	    "pll", po::value<size_t>(&pll_freq)->default_value(125), "set PLL frequency")(
+	    "jtag_frequency,j", po::value<size_t>(&jtag_frequency)->default_value(10e6), "set JTAG frequency in Hz")(
 	    "allow_rewrite", po::value<bool>(&allow_rewrite)->default_value(true),
 	    "allow to rewrite already disabled values")(
 	    "input_backend_path", po::value<std::string>(&input_backend_path)->default_value("./"),
@@ -176,7 +178,7 @@ int main(int argc, char* argv[])
 	                                             usable_hicanns,
 	                                             hwdb_wafer.setup_type,
 	                                             hwdb_wafer.macu,
-	                                             C::JTAGFrequency()};
+	                                             C::JTAGFrequency(jtag_frequency)};
 
 	HMF::Handle::FPGAHw fpga_handle(handle_param);
 	auto hicann_handle = fpga_handle.get(C::HICANNGlobal(hicann_c, wafer_c));
