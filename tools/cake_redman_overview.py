@@ -3,7 +3,7 @@
 import pycake.helpers.plotting
 import matplotlib
 from pyhalco_common import iter_all
-import pyhalbe_hicann_v2 as C
+import pyhalco_hicann_v2 as C
 import pyredman
 import pyredman.load
 import os.path
