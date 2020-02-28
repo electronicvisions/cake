@@ -9,7 +9,7 @@ import pylogging
 from pyhalbe import HICANN
 from pyhalbe.HICANN import neuron_parameter
 from pyhalbe.HICANN import shared_parameter
-from pyhalco_common import iter_all, Enum, X, Y, top, bottom
+from pyhalco_common import iter_all, Enum, X, Y, top, bottom, left, right
 from pyhalco_hicann_v2 import AnalogOnHICANN
 from pyhalco_hicann_v2 import BackgroundGeneratorOnHICANN
 from pyhalco_hicann_v2 import FGBlockOnHICANN
@@ -19,6 +19,10 @@ from pyhalco_hicann_v2 import GbitLinkOnHICANN
 from pyhalco_hicann_v2 import NeuronOnFGBlock
 from pyhalco_hicann_v2 import SynapseDriverOnHICANN
 from pyhalco_hicann_v2 import DNCMergerOnHICANN
+from pyhalco_hicann_v2 import VLineOnHICANN
+from pyhalco_hicann_v2 import SynapseRowOnHICANN
+from pyhalco_hicann_v2 import FGRowOnFGBlock
+from pyhalco_hicann_v2 import NeuronOnHICANN
 
 from pysthal import HICANNConfigurator as HICANNv2Configurator
 from pysthal import HICANNv4Configurator
@@ -156,9 +160,9 @@ class UpdateParameter(HICANNv2Configurator):
     def __init__(self, neuron_parameters):
         HICANNv2Configurator.__init__(self)
         self.blocks = dict(
-            (row, []) for row in Coordinate.iter_all(Coordinate.FGRowOnFGBlock))
+            (row, []) for row in iter_all(FGRowOnFGBlock))
         for parameter in neuron_parameters:
-            for block in Coordinate.iter_all(Coordinate.FGBlockOnHICANN):
+            for block in iter_all(FGBlockOnHICANN):
                 self.blocks[HICANN.getNeuronRow(block, parameter)].append(block)
 
     def hicann_init(self, h):
@@ -463,7 +467,7 @@ class StHALContainer(object):
                                            index=self.adc.getTimestamps())
 
                 recv_spikes = []
-                for link in Coordinate.iter_all(GbitLinkOnHICANN):
+                for link in iter_all(GbitLinkOnHICANN):
                     tmp = self.hicann.receivedSpikes(link)
                     if len(tmp):
                         times, addrs = tmp.T
@@ -536,7 +540,7 @@ class StHALContainer(object):
         self.logger.info("Stimulating neurons from {} background generators"
                          " with isi {}".format(no_generators, bg_period))
 
-        for bg in Coordinate.iter_all(Coordinate.BackgroundGeneratorOnHICANN):
+        for bg in iter_all(BackgroundGeneratorOnHICANN):
             generator = self.hicann.layer1[bg]
             generator.enable(bg.value()/2 < no_generators)
             generator.random(False)
@@ -546,14 +550,14 @@ class StHALContainer(object):
 
         links = []
         for ii in range(4):
-            bg_top = Coordinate.DNCMergerOnHICANN(2*ii+1)
-            bg_bot = Coordinate.DNCMergerOnHICANN(2*ii)
+            bg_top = DNCMergerOnHICANN(2*ii+1)
+            bg_bot = DNCMergerOnHICANN(2*ii)
             links.append(GbitLinkOnHICANN(2 * ii + 1))
             links.append(GbitLinkOnHICANN(2 * ii))
 
-            drv_top = Coordinate.SynapseDriverOnHICANN(
+            drv_top = SynapseDriverOnHICANN(
                 Enum(83 + ii * 4))
-            drv_bot = Coordinate.SynapseDriverOnHICANN(
+            drv_bot = SynapseDriverOnHICANN(
                 Enum(142 - ii * 4))
             if ii < no_generators:
                 self.route(bg_top, drv_top)
@@ -591,8 +595,8 @@ class StHALContainer(object):
             self.hicann.synapses[target_driver].locin = False
 
             for ii in (top, bottom):
-                synapse_line = Coordinate.SynapseRowOnHICANN(driver, ii)
-                target_synapse_line = Coordinate.SynapseRowOnHICANN(target_driver, ii)
+                synapse_line = SynapseRowOnHICANN(driver, ii)
+                target_synapse_line = SynapseRowOnHICANN(target_driver, ii)
                 self.hicann.synapses[target_synapse_line].decoders = self.hicann.synapses[synapse_line].decoders
                 self.hicann.synapses[target_synapse_line].weights = self.hicann.synapses[synapse_line].weights
             driver = target_driver
@@ -612,11 +616,11 @@ class StHALContainer(object):
         if self.hicann_version == 2:
             drivers = (SynapseDriverOnHICANN(Enum(111)),
                        SynapseDriverOnHICANN(Enum(112)))
-            bg = Coordinate.BackgroundGeneratorOnHICANN(7)
+            bg = BackgroundGeneratorOnHICANN(7)
         elif self.hicann_version == 4:
             drivers = (SynapseDriverOnHICANN(Enum(109)),
                        SynapseDriverOnHICANN(Enum(114)))
-            bg = Coordinate.BackgroundGeneratorOnHICANN(6)
+            bg = BackgroundGeneratorOnHICANN(6)
         else:
             raise RuntimeError("Invalid HICANN version")
 
@@ -690,8 +694,8 @@ class StHALContainer(object):
             w_top = [pyhalbe.HICANN.SynapseWeight(0)] * 256
             w_bottom = [pyhalbe.HICANN.SynapseWeight(weight)] * 256
 
-        synapse_line_top = Coordinate.SynapseRowOnHICANN(driver_c, top)
-        synapse_line_bottom = Coordinate.SynapseRowOnHICANN(driver_c, bottom)
+        synapse_line_top = SynapseRowOnHICANN(driver_c, top)
+        synapse_line_bottom = SynapseRowOnHICANN(driver_c, bottom)
         self.hicann.synapses[synapse_line_top].weights[:] = w_top
         self.hicann.synapses[synapse_line_bottom].weights[:] = w_bottom
         synapse_decoder = [l1address.getSynapseDecoderMask()] * 256
@@ -704,13 +708,13 @@ class StHALContainer(object):
         """
         """
 
-        top = Coordinate.top
-        bottom = Coordinate.bottom
+        top = top
+        bottom = bottom
 
         driver = self.hicann.synapses[driver_c]
         driver.disable()
-        synapse_line_top = Coordinate.SynapseRowOnHICANN(driver_c, top)
-        synapse_line_bottom = Coordinate.SynapseRowOnHICANN(driver_c, bottom)
+        synapse_line_top = SynapseRowOnHICANN(driver_c, top)
+        synapse_line_bottom = SynapseRowOnHICANN(driver_c, bottom)
         weights = [pyhalbe.HICANN.SynapseWeight(0)] * 256
         self.hicann.synapses[synapse_line_top].weights[:] = weights
         self.hicann.synapses[synapse_line_bottom].weights[:] = weights
@@ -728,14 +732,14 @@ class StHALContainer(object):
         driver_line = driver.line()
 
         repeater_data = self.hicann.repeater[repeater]
-        repeater_data.setOutput(Coordinate.right, True)
-        if driver.toSideHorizontal() == Coordinate.left:
+        repeater_data.setOutput(right, True)
+        if driver.toSideHorizontal() == left:
             v_line_value = 31 - out_line.value()/2
             v_line_value += 32 * route
-        if driver.toSideHorizontal() == Coordinate.right:
+        if driver.toSideHorizontal() == right:
             v_line_value = 128 + out_line.value()/2
             v_line_value += 32 * route
-        v_line = Coordinate.VLineOnHICANN(v_line_value)
+        v_line = VLineOnHICANN(v_line_value)
         chain = (output_buffer, repeater, out_line, v_line, driver_line, driver)
         dbg = " -> ".join(['{!s}'] * len(chain))
         self.logger.DEBUG("connected " + dbg.format(*chain))
@@ -828,7 +832,7 @@ class StHALContainer(object):
     def get_stimulated_neurons(self):
         """Which neurons are connected to stimulus"""
         h = self.hicann
-        return [nrn for nrn in Coordinate.iter_all(Coordinate.NeuronOnHICANN) if h.neurons[nrn].enable_current_input()]
+        return [nrn for nrn in iter_all(NeuronOnHICANN) if h.neurons[nrn].enable_current_input()]
 
     def set_recording_time(self, recording_time, repeations):
         """Sets the recording time of the ADC.

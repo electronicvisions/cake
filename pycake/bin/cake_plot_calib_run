@@ -24,7 +24,8 @@ if __name__ == '__main__':
     import pylab as p
 
     import pyhalbe
-    import Coordinate
+    from pyhalco_common import Enum
+    from pyhalco_hicann_v2 import NeuronOnHICANN
     from pycake.calibrationrunner import CalibrationRunner
     from pycake.reader import Reader
     from pyhalbe.HICANN import neuron_parameter
@@ -61,7 +62,7 @@ if __name__ == '__main__':
             [i for i in dir(neuron_parameter) if not i.startswith("_")])
         exit(0)
 
-    neuron = Coordinate.NeuronOnHICANN(Coordinate.Enum(args.neuron))
+    neuron = NeuronOnHICANN(Enum(args.neuron))
 
     x = experiment.get_parameters(neuron,
                                   (getattr(neuron_parameter, args.parameter_name), )

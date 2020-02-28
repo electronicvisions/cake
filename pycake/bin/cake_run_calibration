@@ -3,7 +3,8 @@ import argparse
 import os
 import sys
 import pylogging
-import Coordinate
+
+from pyhalco_hicann_v2 import AnalogOnHICANN
 
 import pycake.config
 from pycake.calibrationrunner import CalibrationRunner, TestRunner
@@ -26,7 +27,7 @@ class DictionaryAction(argparse.Action):
         'int': int,
         'string': str,
         'bool' : bool,
-        'AnalogOnHICANN' : lambda x: Coordinate.AnalogOnHICANN(int(x)),
+        'AnalogOnHICANN' : lambda x: AnalogOnHICANN(int(x)),
     }
     METAVAR = ('<key>', '<type>', '<value>')
 

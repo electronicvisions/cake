@@ -5,7 +5,6 @@ import os
 import copy
 import numpy
 import cPickle
-import Coordinate
 import pyhalbe
 import pysthal
 import pylogging
@@ -19,6 +18,10 @@ from pycake.helpers.TraceAverager import createTraceAverager
 from pycake.helpers.TraceAverager import TraceAverager
 import pyNN.standardmodels.cells as pynn
 
+from pyhalco_common import Enum, iter_all, SideVertical, X, Y
+from pyhalco_hicann_v2 import AnalogOnHICANN, NeuronOnHICANN, FGBlockOnHICANN, SynapseOnHICANN, DNCMergerOnHICANN
+from pyhalco_hicann_v2 import GbitLinkOnHICANN, SynapseRowOnHICANN, SynapseDriverOnHICANN, SynapseColumnOnHICANN
+from pyhalco_hicann_v2 import BackgroundGeneratorOnHICANN
 logger = pylogging.get(__name__.replace('_', ''))
 
 class UpdateConfigurator(pysthal.HICANNConfigurator):
@@ -32,15 +35,15 @@ class UpdateConfigurator(pysthal.HICANNConfigurator):
     def config_synapse_array(self, handle, data):
         """ Differential update of synapse array """
         synapses = data.synapses
-        for syndrv in Coordinate.iter_all(Coordinate.SynapseDriverOnHICANN):
+        for syndrv in iter_all(SynapseDriverOnHICANN):
             row = synapses.getDecoderDoubleRow(syndrv)
             if row != self.last_array.getDecoderDoubleRow(syndrv):
                 self.last_array.setDecoderDoubleRow(syndrv, row)
                 pyhalbe.HICANN.set_decoder_double_row(handle, syndrv, row)
                 self.getLogger().info("update decoder row {}".format(syndrv))
 
-            for side in Coordinate.iter_all(Coordinate.SideVertical):
-                synrow = Coordinate.SynapseRowOnHICANN(syndrv, side)
+            for side in iter_all(SideVertical):
+                synrow = SynapseRowOnHICANN(syndrv, side)
                 row_data = synapses[synrow].weights
                 if row_data != self.last_array[synrow].weights:
                     self.last_array[synrow].weights = row_data
@@ -76,9 +79,9 @@ class RecordJob(object):
     VALID_NEURONSIZES = [2**x for x in range(7)]
 
     def __init__(self, neuron, synapse, stim_freq, neuronsize):
-        if not isinstance(neuron, Coordinate.NeuronOnHICANN):
+        if not isinstance(neuron, NeuronOnHICANN):
             raise TypeError("neuron must be NeuronOnHICANN")
-        if not isinstance(synapse, Coordinate.SynapseOnHICANN):
+        if not isinstance(synapse, SynapseOnHICANN):
             raise TypeError("synapse must be SynapseOnHICANN")
         if int(neuronsize) not in self.VALID_NEURONSIZES:
             msg = "neuronsize {} is invalid, valid values are: {}".format(
@@ -143,7 +146,7 @@ class RecordTraces(object):
         self.bg_l1address = pyhalbe.HICANN.L1Address(0)
         self.gmax_div = 1
         self.weight = pyhalbe.HICANN.SynapseWeight(15)
-        self.analog = Coordinate.AnalogOnHICANN(0)
+        self.analog = AnalogOnHICANN(0)
         self.runtime = 0.04
 
     def create_trace_averager(self, adc_freq):
@@ -192,20 +195,20 @@ class RecordTraces(object):
         return job
 
     def init_configuration(self, hicann):
-        for bg in Coordinate.iter_all(Coordinate.BackgroundGeneratorOnHICANN):
+        for bg in iter_all(BackgroundGeneratorOnHICANN):
             hicann.layer1[bg].enable(True)
             hicann.layer1[bg].random(False)
             hicann.layer1[bg].period(3000)
             hicann.layer1[bg].address(self.bg_l1address)
 
-        for merger in Coordinate.iter_all(Coordinate.DNCMergerOnHICANN):
+        for merger in iter_all(DNCMergerOnHICANN):
             m = hicann.layer1[merger]
             m.config = m.MERGE
             m.slow = True
             m.loopback = False
 
         TO_HICANN = pyhalbe.HICANN.GbitLink.Direction.TO_HICANN
-        for channel in Coordinate.iter_all(Coordinate.GbitLinkOnHICANN):
+        for channel in iter_all(GbitLinkOnHICANN):
             hicann.layer1[channel] = TO_HICANN
 
         hicann.synapses.set_all(self.l1address.getSynapseDecoderMask(),
@@ -228,9 +231,9 @@ class RecordTraces(object):
         PLL = wafer.commonFPGASettings().getPLL()
         bg_period = int(math.floor(PLL/job.stim_freq) - 1)
         job.stim_freq = PLL / (bg_period + 1)
-        for bg in Coordinate.iter_all(Coordinate.BackgroundGeneratorOnHICANN):
+        for bg in iter_all(BackgroundGeneratorOnHICANN):
             hicann.layer1[bg].period(bg_period)
-        hicann.route(job.output_buffer, job.driver, Coordinate.Enum(0))
+        hicann.route(job.output_buffer, job.driver, Enum(0))
         self.config_driver(hicann, job.driver)
         hicann.synapses[job.synapse].weight = self.weight
 
@@ -251,7 +254,7 @@ class RecordTraces(object):
         hicann.sendSpikes(job.gbitlink, spikes)
 
     def config_driver(self, hicann, driver_c):
-        from Coordinate import top, bottom, left, right
+        from pyhalco_common import top, bottom, left, right
         driver = hicann.synapses[driver_c]
         driver_decoder = self.l1address.getDriverDecoderMask()
         driver[top].set_decoder(top, driver_decoder)
@@ -284,11 +287,11 @@ class RecordTraces(object):
         parameters = pycellparameters.IF_cond_exp(pynn_parameters)
 
         # apply calibration
-        for block in Coordinate.iter_all(Coordinate.FGBlockOnHICANN):
+        for block in iter_all(FGBlockOnHICANN):
             param = calib.bc.applySharedCalibration(500, block.toEnum())
             param.toHW(block, fg_control)
 
-        for neuron in Coordinate.iter_all(Coordinate.NeuronOnHICANN):
+        for neuron in iter_all(NeuronOnHICANN):
             param = calib.nc.applyNeuronCalibration(parameters, neuron.toEnum())
             param.toHW(neuron, fg_control)
 
@@ -368,12 +371,12 @@ def add_options(parser):
         """Helper to parse neuron argument"""
         try:
             xcoord, ycoord, synapse_row, bg_freq, neuronsize = arg.split(",")
-            xcoord = Coordinate.X(int(xcoord))
-            ycoord = Coordinate.Y(int(ycoord))
-            hicann = Coordinate.NeuronOnHICANN(xcoord, ycoord)
-            synapse_column = Coordinate.SynapseColumnOnHICANN(xcoord)
-            synapse_row = Coordinate.SynapseRowOnHICANN(int(synapse_row))
-            synapse = Coordinate.SynapseOnHICANN(synapse_column, synapse_row)
+            xcoord = X(int(xcoord))
+            ycoord = Y(int(ycoord))
+            hicann = NeuronOnHICANN(xcoord, ycoord)
+            synapse_column = SynapseColumnOnHICANN(xcoord)
+            synapse_row = SynapseRowOnHICANN(int(synapse_row))
+            synapse = SynapseOnHICANN(synapse_column, synapse_row)
             return RecordJob(hicann, synapse, bg_freq, neuronsize)
         except Exception as err:
             raise argparse.ArgumentTypeError(

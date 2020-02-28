@@ -23,13 +23,13 @@ import commands
 import sqlite3
 
 import pyhalbe
-import Coordinate
 import pysthal
 from pycake.helpers.sthal import StHALContainer
 from pycake.helpers.TraceAverager import _find_spikes_in_preout
 import pycake.config
 
-Enum = Coordinate.Enum
+from pyhalco_common import Enum
+from pyhalco_hicann_v2 import HICANNOnWafer, AnalogOnHICANN, GbitLinkOnHICANN, SynapseDriverOnHICANN, BackgroundGeneratorOnHICANN, Wafer
 
 
 class CubeIBoard(object):
@@ -126,19 +126,19 @@ class PreoutTest(object):
 
         if setup == "wafer":
             if wafer != None:
-                coord_wafer = Coordinate.Wafer(int(wafer))
-                coord_hicann = Coordinate.HICANNOnWafer(Enum(int(hicann))) 
+                coord_wafer = Wafer(int(wafer))
+                coord_hicann = HICANNOnWafer(Enum(int(hicann))) 
             else:
                 raise ValueError("wafer is {}, expected integer.".format(wafer))
             self.hicann_version = 2
         elif setup == "cube":
             # cube setup: Wafer(4), HICANN(88) v2, HICANN(89) v4
-            coord_wafer = Coordinate.Wafer(4)
+            coord_wafer = Wafer(4)
             if hicann == "first":
-                coord_hicann = Coordinate.HICANNOnWafer(Enum(88))
+                coord_hicann = HICANNOnWafer(Enum(88))
                 self.hicann_version = 2
             if hicann == "third":
-                coord_hicann = Coordinate.HICANNOnWafer(Enum(89))
+                coord_hicann = HICANNOnWafer(Enum(89))
                 self.hicann_version = 4
             else:
                 raise ValueError("unknown hicann {}, expected first/third".format(hicann))
@@ -146,8 +146,8 @@ class PreoutTest(object):
 
         elif setup == "vertical":
             # We are on a vertical setup, the Wafer coordinate must be 0, the first HICANN is 280.
-            coord_wafer = Coordinate.Wafer(0)
-            coord_hicann = Coordinate.HICANNOnWafer(Enum(280))
+            coord_wafer = Wafer(0)
+            coord_hicann = HICANNOnWafer(Enum(280))
             self.hicann_version = 4
         else:
             raise ValueError("unknown setup {}".format(setup))
@@ -175,13 +175,13 @@ class PreoutTest(object):
     def route_link_enable_background(self):
         if self.hicann_version == 4:
             # We are testing HICANNv4, the left SynapseDriver connected to preout is 109. Use GbitLink 6 because
-            coord_link = Coordinate.GbitLinkOnHICANN(6)
-            coord_bg = Coordinate.BackgroundGeneratorOnHICANN(6)
-            coord_driver = Coordinate.SynapseDriverOnHICANN(Enum(109))
+            coord_link = GbitLinkOnHICANN(6)
+            coord_bg = BackgroundGeneratorOnHICANN(6)
+            coord_driver = SynapseDriverOnHICANN(Enum(109))
         elif self.hicann_version == 2:
-            coord_link = Coordinate.GbitLinkOnHICANN(7)
-            coord_bg = Coordinate.BackgroundGeneratorOnHICANN(7)
-            coord_driver = Coordinate.SynapseDriverOnHICANN(Enum(111))
+            coord_link = GbitLinkOnHICANN(7)
+            coord_bg = BackgroundGeneratorOnHICANN(7)
+            coord_driver = SynapseDriverOnHICANN(Enum(111))
         coord_output = coord_bg.toOutputBufferOnHICANN()
 
         # We need to mix in background generator spikes for locking. Background generator can only send on L1Address(0) in random mode (hardware bug, issue #xxxx).
@@ -200,7 +200,7 @@ class PreoutTest(object):
         self.sthal.hicann.route(coord_output, coord_driver)
 
         # Connect the driver to preout.
-        self.sthal.hicann.analog.set_preout(Coordinate.AnalogOnHICANN(0))
+        self.sthal.hicann.analog.set_preout(AnalogOnHICANN(0))
 
     def set_voltages(self, vol, voh):
         """vol and voh in Volt"""
@@ -262,11 +262,11 @@ class PreoutTest(object):
         print myaddress
 
         if self.hicann_version == 4:
-            coord_link = Coordinate.GbitLinkOnHICANN(6)
-            coord_driver = Coordinate.SynapseDriverOnHICANN(Enum(109))
+            coord_link = GbitLinkOnHICANN(6)
+            coord_driver = SynapseDriverOnHICANN(Enum(109))
         elif self.hicann_version == 2:
-            coord_link = Coordinate.GbitLinkOnHICANN(7)
-            coord_driver = Coordinate.SynapseDriverOnHICANN(Enum(111))
+            coord_link = GbitLinkOnHICANN(7)
+            coord_driver = SynapseDriverOnHICANN(Enum(111))
         sthal.configure_synapse_driver(coord_driver, myaddress, 2, 0)
 
         spikes = pysthal.Vector_Spike()

@@ -12,7 +12,6 @@ Result see https://brainscales-r.kip.uni-heidelberg.de/issues/1185
 import copy
 import os
 
-import Coordinate
 import pyhalbe
 import pysthal
 import pylogging
@@ -30,12 +29,15 @@ from pycake.helpers.calibtic import Calibtic
 
 from pyhalbe.HICANN import neuron_parameter as np
 
-from Coordinate import X, Y, Enum, top, bottom, left, right
-from Coordinate import DNCMergerOnHICANN
-from Coordinate import GbitLinkOnHICANN
-from Coordinate import NeuronOnHICANN
-from Coordinate import SynapseDriverOnHICANN
-from Coordinate import RowOnSynapseDriver
+from pyhalco_common import X, Y, Enum, top, bottom, left, right, SideVertical
+from pyhalco_hicann_v2 import DNCMergerOnHICANN
+from pyhalco_hicann_v2 import GbitLinkOnHICANN
+from pyhalco_hicann_v2 import NeuronOnHICANN
+from pyhalco_hicann_v2 import SynapseDriverOnHICANN
+from pyhalco_hicann_v2 import RowOnSynapseDriver
+from pyhalco_hicann_v2 import SynapseRowOnHICANN
+from pyhalco_hicann_v2 import AnalogOnHICANN
+from pyhalco_hicann_v2 import BackgroundGeneratorOnHICANN
 
 
 REPEATER = {
@@ -84,15 +86,15 @@ class FindRepeaterNeurons(object):
         def config_synapse_array(self, handle, data):
             """ Differential update of synapse array """
             synapses = data.synapses
-            for syndrv in Coordinate.iter_all(Coordinate.SynapseDriverOnHICANN):
+            for syndrv in iter_all(SynapseDriverOnHICANN):
                 row = synapses.getDecoderDoubleRow(syndrv)
                 if row != self.last_array.getDecoderDoubleRow(syndrv):
                     self.last_array.setDecoderDoubleRow(syndrv, row)
                     pyhalbe.HICANN.set_decoder_double_row(handle, syndrv, row)
                     self.getLogger().info("update decoder row {}".format(syndrv))
 
-                for side in Coordinate.iter_all(Coordinate.SideVertical):
-                    synrow = Coordinate.SynapseRowOnHICANN(syndrv, side)
+                for side in iter_all(SideVertical):
+                    synrow = SynapseRowOnHICANN(syndrv, side)
                     row_data = synapses[synrow].weights
                     if row_data != self.last_array[synrow].weights:
                         self.last_array[synrow].weights = row_data
@@ -113,7 +115,7 @@ class FindRepeaterNeurons(object):
 
     def __init__(self, calibration_path):
 
-        self.analog = Coordinate.AnalogOnHICANN(0)
+        self.analog = AnalogOnHICANN(0)
         self.bg_l1address = pyhalbe.HICANN.L1Address(0)
         self.stim_l1address = pyhalbe.HICANN.L1Address(16)
         self.weight = pyhalbe.HICANN.SynapseWeight(15)
@@ -164,7 +166,7 @@ class FindRepeaterNeurons(object):
                 stim_spikes[neuron] = tmp
 
         good = []
-        for neuron in Coordinate.iter_all(NeuronOnHICANN):
+        for neuron in iter_all(NeuronOnHICANN):
             spikes = len(neuron_spikes[neuron])
             if neuron in stim_spikes and spikes == len(stim_spikes[neuron]):
                 _, link_out = self.get_gbit_links(neuron)
@@ -174,19 +176,19 @@ class FindRepeaterNeurons(object):
                     numpy.mean(dt), numpy.std(dt), MTREE_DEPTH[link_out])
 
     def initial_configuration(self, wafer, hicann):
-        for merger in Coordinate.iter_all(DNCMergerOnHICANN):
+        for merger in iter_all(DNCMergerOnHICANN):
             m = hicann.layer1[merger]
             m.config = m.MERGE
             m.slow = True
             m.loopback = False
 
-        for bg in Coordinate.iter_all(Coordinate.BackgroundGeneratorOnHICANN):
+        for bg in iter_all(BackgroundGeneratorOnHICANN):
             hicann.layer1[bg].enable(True)
             hicann.layer1[bg].random(False)
             hicann.layer1[bg].period(3000)
             hicann.layer1[bg].address(self.bg_l1address)
 
-        for channel in Coordinate.iter_all(GbitLinkOnHICANN):
+        for channel in iter_all(GbitLinkOnHICANN):
             hicann.layer1[channel] = pyhalbe.HICANN.GbitLink.OFF
 
         self.set_neuron_parameters(wafer, hicann)
@@ -203,11 +205,11 @@ class FindRepeaterNeurons(object):
 
         hicann.enable_aout(neuron0, self.analog)
 
-        for merger in Coordinate.iter_all(Coordinate.DNCMergerOnHICANN):
+        for merger in iter_all(DNCMergerOnHICANN):
             m = hicann.layer1[merger]
             m.loopback = False
 
-        for channel in Coordinate.iter_all(GbitLinkOnHICANN):
+        for channel in iter_all(GbitLinkOnHICANN):
             hicann.layer1[channel] = pyhalbe.HICANN.GbitLink.OFF
 
         link_in, link_out = self.get_gbit_links(neuron0)
@@ -224,7 +226,7 @@ class FindRepeaterNeurons(object):
 
         hicann.layer1[DNCMergerOnHICANN(int(link_in))].loopback = True
 
-        synrow = Coordinate.SynapseRowOnHICANN(driver, self.driver_row)
+        synrow = SynapseRowOnHICANN(driver, self.driver_row)
         weights = hicann.synapses[synrow].weights
 
         neuron_addresses = {}
@@ -273,7 +275,7 @@ class FindRepeaterNeurons(object):
         # load calibration data
         calib = Calibtic(self.calibration_path, wafer.index(), hicann.index())
 
-        for neuron in Coordinate.iter_all(NeuronOnHICANN):
+        for neuron in iter_all(NeuronOnHICANN):
             for param, value in REPEATER.iteritems():
                 value_dac = value.toDAC()
                 if value_dac.apply_calibration:

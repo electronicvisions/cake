@@ -6,8 +6,6 @@ import pickle
 import os
 import pylogging
 
-import Coordinate
-
 from pysthal.command_line_util import add_default_coordinate_options
 from pysthal.command_line_util import add_logger_options
 from pysthal.command_line_util import init_logger
@@ -21,6 +19,8 @@ from pycake.calibration.capacitance import Capacitance_Analyzer
 from pycake.calibration.capacitance import Capacitance_Experimentbuilder
 from pycake.calibration.capacitance import Capacitance_Calibrator
 
+from pyhalco_common import Enum
+from pyhalco_hicann_v2 import NeuronOnHICANN
 def check_file(string):
     if not os.path.isfile(string):
         msg = "parameter file '%r' not found! :p" % string
@@ -100,5 +100,5 @@ if __name__ == "__main__":
 
     pickle.dump(caps, open(os.path.join(outdir, 'results.p'), 'wb'))
 
-    result_array = np.array([caps[Coordinate.NeuronOnHICANN(Coordinate.Enum(nid))] for nid in range(512)])
+    result_array = np.array([caps[NeuronOnHICANN(Enum(nid))] for nid in range(512)])
     np.savetxt(os.path.join(outdir, 'results.npy'), result_array)

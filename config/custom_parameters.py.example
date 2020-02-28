@@ -1,5 +1,6 @@
 import pyhalbe
-import Coordinate
+from pyhalco_common import Enum
+from pyhalco_hicann_v2 import Wafer, HICANNOnWafer
 from pycake.helpers.units import linspace_voltage, Current, Voltage
 import os
 from itertools import product
@@ -33,8 +34,8 @@ custom = {
         "backend":      os.path.join(folder, "backends"),
 
         # Wafer and HICANN coordinates
-        "coord_wafer":  Coordinate.Wafer(),
-        "coord_hicann": Coordinate.HICANNOnWafer(Coordinate.Enum(276)),
+        "coord_wafer":  Wafer(),
+        "coord_hicann": HICANNOnWafer(Enum(276)),
 
         "E_l_parameters": {
             neuron_parameter.V_t:        Voltage(1200),
