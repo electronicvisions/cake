@@ -185,7 +185,7 @@ int main(int argc, char* argv[])
 	HMF::FPGA::Reset r;
 	r.PLL_frequency = pll_freq;
 	HMF::FPGA::reset(fpga_handle, r);
-	HMF::FPGA::init(fpga_handle, false);
+	HMF::FPGA::init(fpga_handle, true);
 
 	// generate integer distributions to define the range of the random values
 	std::uniform_int_distribution<int> true_false(0, 1);
