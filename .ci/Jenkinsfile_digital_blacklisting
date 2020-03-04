@@ -12,6 +12,11 @@ timestamps {
 	                  description: "path where results are stored (will be split in `wafer/communication` and `wafer/digital_blacklisting`"
 	))
 	addBuildParameter(string(
+	                  name: 'COMM_TEST_RESULT_PATH',
+	                  defaultValue: "new",
+	                  description: "path to commtest results. Use `new` to run new commtest"
+	))
+	addBuildParameter(string(
 	                  name: 'MODULE',
 	                  defaultValue: "nmpm_software/current"
 	))
@@ -42,45 +47,61 @@ timestamps {
 		String blacklisting_path
 
 		// communication test
-		stage("Run commtest on Wafer ${wafers[w]}") {
-			// create empty directory
-			def path = BLACKLISTING_PATH + "/" + wafer_strings[w] + "/communication/" + "jenkins-" + date
-			runOnSlave(label: "frontend") {
-				comm_path = jesh (script: ".ci/evaluate_path.sh $path",
-				returnStdout: true)
-			}
+		if (COMM_TEST_RESULT_PATH == "new") {	
+			stage("Run commtest on Wafer ${wafers[w]}") {
+				// create empty directory
+				def path = BLACKLISTING_PATH + "/" + wafer_strings[w] + "/communication/" + "jenkins-" + date
+				runOnSlave(label: "frontend") {
+					comm_path = jesh (script: ".ci/evaluate_path.sh $path",
+					returnStdout: true)
+				}
 
-			// run communication test
-			onSlurmResource(partition: "calib",
-			                "wmod" : wafers[w],
-			                "job-name" : "comm_test") {
-				withModules(modules: ["${MODULE}"]) {
-					withModules(modules: ["slurm-singularity"]) {
-						jesh ("run_nmpm_software_clusterize sthal_multi_chip_comm_test.py --wafer ${wafers[w]}" +
-						      " --hicann `seq 0 383` --backend_path_pattern ${comm_path.trim()}/w{}h{}")
+				// define commtest task for each fpga -> parallel testing
+				def parallel_tasks = [:]
+				for (int f = 0; f < 48; f++) {
+					def fpga = f
+					parallel_tasks["Check FPGA ${fpga}"] = {
+						catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+							jesh ("srun -p calib -n1 --wmod ${wafers[w]} --fpga-without-aout ${fpga} --job-name comm_test" +
+							      " --time 60:00 --skip-hicann-init --mem-per-cpu 400 run_nmpm_software_clusterize" +
+							      " sthal_multi_chip_comm_test.py --wafer ${wafers[w]} --hicann"  +
+							      " \$(run_nmpm_software halbe_list_hicanns.py --wafer ${wafers[w]} --fpga ${fpga})" +
+							      " --backend_path_pattern ${comm_path.trim()}/w{}h{}")
+						}
+					}
+				}
+
+				// run communication test
+				runOnSlave(label: "frontend") {
+					withModules(modules: ["${MODULE}"]) {
+						withModules(modules: ["slurm-singularity"]) {
+							parallel parallel_tasks
+						}
 					}
 				}
 			}
-		}
 
-		// merge communication test results
-		stage("Merge results of Wafer ${wafers[w]}") {
-			runOnSlave(label: "frontend") {
-				withModules(modules: ["${MODULE}"]) {
-					jesh ("run_nmpm_software .ci/merge_comm_test_results.sh ${wafers[w]} ${comm_path.trim()}")
+			// merge communication test results
+			stage("Merge results of Wafer ${wafers[w]}") {
+				runOnSlave(label: "frontend") {
+					withModules(modules: ["${MODULE}"]) {
+						jesh ("run_nmpm_software .ci/merge_comm_test_results.sh ${wafers[w]} ${comm_path.trim()}")
+					}
 				}
 			}
-		}
 
-		// visualize results
-		stage("Visualize commtest results of Wafer ${wafers[w]}") {
-			runOnSlave(label: "frontend") {
-				withModules(modules: ["${MODULE}"]) {
-					jesh ("cd ${comm_path.trim()} && run_nmpm_software cake_redman_overview.py ${wafers[w]} ${comm_path.trim()}")
-					// add write permissions for group
-					jesh ("chmod -R 777 ${comm_path.trim()}/*")
+			// visualize results
+			stage("Visualize commtest results of Wafer ${wafers[w]}") {
+				runOnSlave(label: "frontend") {
+					withModules(modules: ["${MODULE}"]) {
+						jesh ("cd ${comm_path.trim()} && run_nmpm_software cake_redman_overview.py ${wafers[w]} ${comm_path.trim()}")
+						// add write permissions for group
+						jesh ("chmod -R 777 ${comm_path.trim()}/*")
+					}
 				}
 			}
+		} else {
+			comm_path = COMM_TEST_RESULT_PATH
 		}
 
 		// digital_blacklisting
