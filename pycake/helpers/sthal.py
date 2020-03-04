@@ -659,7 +659,7 @@ class StHALContainer(object):
         assert(0 <= gmax <= 3)
         assert(1 <= gmax_div <= 30)
 
-        from pyhalco_hicann_v2 import left, right, top, bottom
+        from pyhalco_common import left, right, top, bottom
 
         driver = self.hicann.synapses[driver_c]
         driver_decoder = l1address.getDriverDecoderMask()
@@ -682,7 +682,7 @@ class StHALContainer(object):
                             excitatory=True, weight=15, gmax=0):
         """
         """
-        from pyhalco_hicann_v2 import top, bottom
+        from pyhalco_common import top, bottom
         assert(0 <= weight <= 15)
 
         self.configure_synapse_driver(driver_c, l1address, gmax_div, gmax)
