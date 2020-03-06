@@ -199,6 +199,7 @@ int main(int argc, char* argv[])
 	    HMF::HICANN::L1Address::min, HMF::HICANN::L1Address::max);
 	std::uniform_int_distribution<int> number2(0, 2);
 	std::uniform_int_distribution<int> number3(0, 3);
+	std::uniform_int_distribution<int> number4(0, 4);
 	std::uniform_int_distribution<int> number5(0, 5);
 	std::uniform_int_distribution<int> number9(0, 9);
 	std::uniform_int_distribution<int> number15(0, 15);
@@ -700,7 +701,7 @@ int main(int argc, char* argv[])
 				HMF::HICANN::VerticalRepeater vrepeater;
 				vrepeater.setRen(number3(generator));
 				vrepeater.setLen(number3(generator));
-				switch (number5(generator)) {
+				switch (number4(generator)) {
 					case 0:
 						vrepeater.setIdle();
 						break;
@@ -708,13 +709,10 @@ int main(int argc, char* argv[])
 						vrepeater.setForwarding(C::SideVertical(true_false(generator)));
 						break;
 					case 2:
-						vrepeater.setInput();
-						break;
-					case 3:
 						vrepeater.setInput(C::SideVertical(true_false(generator)));
 						break;
 					// set output: both directions false not allowed
-					case 4:
+					case 3:
 						switch (number2(generator)) {
 							case 0:
 								vrepeater.setOutput(C::SideVertical(0), true);
@@ -730,7 +728,7 @@ int main(int argc, char* argv[])
 								break;
 						}
 						break;
-					case 5:
+					case 4:
 						vrepeater.setLoopback();
 						break;
 				}
@@ -755,7 +753,7 @@ int main(int argc, char* argv[])
 				HMF::HICANN::HorizontalRepeater hrepeater;
 				hrepeater.setRen(number3(generator));
 				hrepeater.setLen(number3(generator));
-				switch (number5(generator)) {
+				switch (number4(generator)) {
 					case 0:
 						hrepeater.setIdle();
 						break;
@@ -763,13 +761,10 @@ int main(int argc, char* argv[])
 						hrepeater.setForwarding(C::SideHorizontal(true_false(generator)));
 						break;
 					case 2:
-						hrepeater.setInput();
-						break;
-					case 3:
 						hrepeater.setInput(C::SideHorizontal(true_false(generator)));
 						break;
 					// set output: not allowed that both directions are false
-					case 4:
+					case 3:
 						switch (number2(generator)) {
 							case 0:
 								hrepeater.setOutput(C::SideHorizontal(0), true);
@@ -785,7 +780,7 @@ int main(int argc, char* argv[])
 								break;
 						}
 						break;
-					case 5:
+					case 4:
 						hrepeater.setLoopback();
 						break;
 				}
