@@ -708,9 +708,7 @@ class StHALContainer(object):
         """
         """
 
-        top = top
-        bottom = bottom
-
+        from pyhalco_common import top, bottom
         driver = self.hicann.synapses[driver_c]
         driver.disable()
         synapse_line_top = SynapseRowOnHICANN(driver_c, top)
