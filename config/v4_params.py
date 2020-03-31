@@ -138,7 +138,7 @@ parameters = {
     "V_convoffi_range": [
         {
             neuron_parameter.V_convoffi: Volt(v),
-        } for v in numpy.linspace(0.4, 1.4, 25)
+        } for v in numpy.linspace(0.0, 1.8, 25)
     ],
 
     "V_convoffi_parameters": {
@@ -158,7 +158,7 @@ parameters = {
     "V_convoffx_range": [
         {
             neuron_parameter.V_convoffx: Volt(v),
-        } for v in numpy.linspace(0.4, 1.4, 25)
+        } for v in numpy.linspace(0.0, 1.8, 25)
     ],
 
     "V_convoffx_parameters": {
