@@ -554,24 +554,27 @@ int main(int argc, char* argv[])
 				}
 
 				// check set_dnc_merger
-				LOG4CXX_INFO(
-				    test_logger,
-				    "Test component: DNCMergerLine on HICANN " << hicann << " with seed " << seed);
-				HMF::HICANN::DNCMergerLine merger_line;
-				for (auto const& merger_c : C::iter_all<C::DNCMergerOnHICANN>()) {
-					// possible values of Merger: RIGHT_ONLY=0, LEFT_ONLY=1, MERGE=2 or use
-					// HMF::Merge::MERGE
-					HMF::HICANN::DNCMerger merger(number2(generator), true_false(generator));
-					merger_line[merger_c] = merger;
-				}
-				// write and read values
-				Backend::HICANN::set_dnc_merger(*hicann_handle, merger_line);
-				HMF::HICANN::DNCMergerLine const read_merger_line =
-				    Backend::HICANN::get_dnc_merger(*hicann_handle);
-				// disable defect dnc_merger
-				for (auto const& merger_c : C::iter_all<C::DNCMergerOnHICANN>()) {
-					if (merger_line[merger_c] != read_merger_line[merger_c]) {
-						redman_hicann.dncmergers()->disable(merger_c, rewrite_policy);
+				// skip if all DNCMerger are already disabled
+				if (redman_hicann_previous_test.dncmergers()->available()) {
+					LOG4CXX_INFO(
+					    test_logger,
+					    "Test component: DNCMergerLine on HICANN " << hicann << " with seed " << seed);
+					HMF::HICANN::DNCMergerLine merger_line;
+					for (auto const& merger_c : C::iter_all<C::DNCMergerOnHICANN>()) {
+						// possible values of Merger: RIGHT_ONLY=0, LEFT_ONLY=1, MERGE=2 or use
+						// HMF::Merge::MERGE
+						HMF::HICANN::DNCMerger merger(number2(generator), true_false(generator));
+						merger_line[merger_c] = merger;
+					}
+					// write and read values
+					Backend::HICANN::set_dnc_merger(*hicann_handle, merger_line);
+					HMF::HICANN::DNCMergerLine const read_merger_line =
+					    Backend::HICANN::get_dnc_merger(*hicann_handle);
+					// disable defect dnc_merger
+					for (auto const& merger_c : C::iter_all<C::DNCMergerOnHICANN>()) {
+						if (merger_line[merger_c] != read_merger_line[merger_c]) {
+							redman_hicann.dncmergers()->disable(merger_c, rewrite_policy);
+						}
 					}
 				}
 
