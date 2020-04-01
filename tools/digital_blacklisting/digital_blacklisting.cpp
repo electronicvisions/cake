@@ -517,6 +517,9 @@ int main(int argc, char* argv[])
 				// check set_background_generator
 				// skip if all background generators are already disabled
 				if (redman_hicann_previous_test.backgroundgenerators()->available()) {
+					LOG4CXX_INFO(
+					    test_logger,
+					    "Test component: BackgroundGeneratorArray on HICANN " << hicann << " with seed " << seed);
 					HMF::HICANN::BackgroundGeneratorArray backgroundgeneratorarray;
 					// Fill BackgroundGeneratorArray with random values
 					// use one seed since seed not gettable from hardware but check if it was delivered to
@@ -551,6 +554,9 @@ int main(int argc, char* argv[])
 				}
 
 				// check set_dnc_merger
+				LOG4CXX_INFO(
+				    test_logger,
+				    "Test component: DNCMergerLine on HICANN " << hicann << " with seed " << seed);
 				HMF::HICANN::DNCMergerLine merger_line;
 				for (auto const& merger_c : C::iter_all<C::DNCMergerOnHICANN>()) {
 					// possible values of Merger: RIGHT_ONLY=0, LEFT_ONLY=1, MERGE=2 or use
@@ -570,6 +576,9 @@ int main(int argc, char* argv[])
 				}
 
 				// check set_merger_tree
+				LOG4CXX_INFO(
+				    test_logger,
+				    "Test component: MergerTree on HICANN " << hicann << " with seed " << seed);
 				HMF::HICANN::MergerTree merger_tree;
 				for (auto const& merger0 : C::iter_all<C::Merger0OnHICANN>()) {
 					HMF::HICANN::Merger merger(number2(generator), true_false(generator));
@@ -676,6 +685,10 @@ int main(int argc, char* argv[])
 			// check set_crossbar_switch_row
 			for (auto const& hline : C::iter_all<C::HLineOnHICANN>()) {
 				for (auto const& side : C::iter_all<C::Side>()) {
+					LOG4CXX_INFO(
+					    test_logger,
+					    "Test component: CrossbarSwitchRow on " << side << ", " << hline
+					    <<" on HICANN " << hicann << " with seed " << seed);
 					HMF::HICANN::CrossbarRow crossbar_row;
 					// Fill with random values 4x bool
 					for (auto const& crossbar_switch : C::iter_all<C::CrossbarSwitchOnCrossbarSwitchRow>()) {
