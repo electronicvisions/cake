@@ -105,7 +105,10 @@ timestamps {
 				runOnSlave(label: "frontend") {
 					withModules(modules: ["${MODULE}"]) {
 						jesh ("cd ${comm_path.trim()} && run_nmpm_software cake_redman_overview.py ${wafers[w]} ${comm_path.trim()}")
+						// create symlink to latest jenkins file
+						jesh ("ln -fnrs ${comm_path.trim()} ${BLACKLISTING_PATH}/${wafer_strings[w]}/communication/latest-jenkins")
 						// change group and add write permissions
+						jesh ("chgrp -h commissioners_bss1 ${BLACKLISTING_PATH}/${wafer_strings[w]}/communication/latest-jenkins")
 						jesh ("chgrp -R commissioners_bss1 ${comm_path.trim()}")
 						jesh ("chmod -R 775 ${comm_path.trim()}/*")
 					}
@@ -161,7 +164,10 @@ timestamps {
 				runOnSlave(label: "frontend") {
 					withModules(modules: ["${MODULE}"]) {
 						jesh ("cd ${blacklisting_path.trim()} && run_nmpm_software cake_redman_overview.py ${wafers[w]} ${blacklisting_path.trim()}")
+						// create symlink to latest jenkins file
+						jesh ("ln -fnrs ${blacklisting_path.trim()} ${BLACKLISTING_PATH}/${wafer_strings[w]}/digital_blacklisting/latest-jenkins")
 						// change group and add write permissions
+						jesh ("chgrp -h commissioners_bss1 ${BLACKLISTING_PATH}/${wafer_strings[w]}/digital_blacklisting/latest-jenkins")
 						jesh ("chgrp -R commissioners_bss1 ${blacklisting_path.trim()}")
 						jesh ("chmod -R 775 ${blacklisting_path.trim()}/*")
 					}
@@ -206,7 +212,10 @@ timestamps {
 			runOnSlave(label: "frontend") {
 				withModules(modules: ["${MODULE}"]) {
 					jesh ("cd ${derived_blacklisting_path.trim()} && run_nmpm_software cake_redman_overview.py ${wafers[w]} ${derived_blacklisting_path.trim()}")
+					// create symlink to latest jenkins file
+					jesh ("ln -fnrs ${derived_blacklisting_path.trim()} ${BLACKLISTING_PATH}/${wafer_strings[w]}/derived_blacklisting/latest-jenkins")
 					// change group and add write permissions
+					jesh ("chgrp -h commissioners_bss1 ${BLACKLISTING_PATH}/${wafer_strings[w]}/derived_blacklisting/latest-jenkins")
 					jesh ("chgrp -R commissioners_bss1 ${derived_blacklisting_path.trim()}")
 					jesh ("chmod -R 775 ${derived_blacklisting_path.trim()}/*")
 				}
