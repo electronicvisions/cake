@@ -515,35 +515,38 @@ int main(int argc, char* argv[])
 				} // check set_analog
 
 				// check set_background_generator
-				HMF::HICANN::BackgroundGeneratorArray backgroundgeneratorarray;
-				// Fill BackgroundGeneratorArray with random values
-				// use one seed since seed not gettable from hardware but check if it was delivered to
-				// the hardware
-				int seed_value = number16bit(generator);
-				for (auto const& background_generator_c :
-				     C::iter_all<C::BackgroundGeneratorOnHICANN>()) {
-					HMF::HICANN::BackgroundGenerator backgroundgenerator;
-					backgroundgenerator.enable(true_false(generator));
-					backgroundgenerator.random(true_false(generator));
-					backgroundgenerator.seed(seed_value);
-					backgroundgenerator.period(number16bit(generator));
-					backgroundgenerator.address(HMF::HICANN::L1Address(l1_address(generator)));
-					// fill array with generated values
-					backgroundgeneratorarray[background_generator_c] = backgroundgenerator;
-				}
-				// write and read values
-				Backend::HICANN::set_background_generator(*hicann_handle, backgroundgeneratorarray);
-				HMF::HICANN::BackgroundGeneratorArray const read_backgroundgeneratorarray =
-				    Backend::HICANN::get_background_generator(*hicann_handle);
-				// disable defect BackgroundGenerators
-				for (auto const& background_generator_c :
-				     C::iter_all<C::BackgroundGeneratorOnHICANN>()) {
-					// seed neglected in == operator
-					if (!(backgroundgeneratorarray[background_generator_c] ==
-					      read_backgroundgeneratorarray[background_generator_c]) ||
-					    !(backgroundgeneratorarray[background_generator_c].seed() ==
-					      read_backgroundgeneratorarray[background_generator_c].seed())) {
-						redman_hicann.backgroundgenerators()->disable(background_generator_c, rewrite_policy);
+				// skip if all background generators are already disabled
+				if (redman_hicann_previous_test.backgroundgenerators()->available()) {
+					HMF::HICANN::BackgroundGeneratorArray backgroundgeneratorarray;
+					// Fill BackgroundGeneratorArray with random values
+					// use one seed since seed not gettable from hardware but check if it was delivered to
+					// the hardware
+					int seed_value = number16bit(generator);
+					for (auto const& background_generator_c :
+					     C::iter_all<C::BackgroundGeneratorOnHICANN>()) {
+						HMF::HICANN::BackgroundGenerator backgroundgenerator;
+						backgroundgenerator.enable(true_false(generator));
+						backgroundgenerator.random(true_false(generator));
+						backgroundgenerator.seed(seed_value);
+						backgroundgenerator.period(number16bit(generator));
+						backgroundgenerator.address(HMF::HICANN::L1Address(l1_address(generator)));
+						// fill array with generated values
+						backgroundgeneratorarray[background_generator_c] = backgroundgenerator;
+					}
+					// write and read values
+					Backend::HICANN::set_background_generator(*hicann_handle, backgroundgeneratorarray);
+					HMF::HICANN::BackgroundGeneratorArray const read_backgroundgeneratorarray =
+					    Backend::HICANN::get_background_generator(*hicann_handle);
+					// disable defect BackgroundGenerators
+					for (auto const& background_generator_c :
+					     C::iter_all<C::BackgroundGeneratorOnHICANN>()) {
+						// seed neglected in == operator
+						if (!(backgroundgeneratorarray[background_generator_c] ==
+						      read_backgroundgeneratorarray[background_generator_c]) ||
+						    !(backgroundgeneratorarray[background_generator_c].seed() ==
+						      read_backgroundgeneratorarray[background_generator_c].seed())) {
+							redman_hicann.backgroundgenerators()->disable(background_generator_c, rewrite_policy);
+						}
 					}
 				}
 
