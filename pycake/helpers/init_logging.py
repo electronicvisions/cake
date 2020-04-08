@@ -38,6 +38,7 @@ def init_cake_logging(overwrite_defaults=[]):
         ("pycake.analyzer", pylogging.LogLevel.TRACE),
         ("pycake.calibrationrunner", pylogging.LogLevel.DEBUG),
         ("pycake.calibrationunit", pylogging.LogLevel.DEBUG),
+        ("pycake.calibrator", pylogging.LogLevel.DEBUG),
         ("pycake.calibtic", pylogging.LogLevel.DEBUG),
         ("pycake.config", pylogging.LogLevel.INFO),
         ("pycake.experiment", pylogging.LogLevel.DEBUG),
