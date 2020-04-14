@@ -16,6 +16,8 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("wafer", type=int, help="wafer enum")
 parser.add_argument("calib_path", type=str, help="path to calib files")
+parser.add_argument('backend_type', type=str, choices=["xml", "binary"], default="xml",
+                    help="Calibration backend type")
 args = parser.parse_args()
 
 calibs_to_check = [
@@ -38,7 +40,7 @@ cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["green", "red"])
 cals = {}
 for hicann_c in iter_all(C.HICANNOnWafer):
     try:
-        cal = pycake.helpers.calibtic.Calibtic(args.calib_path, wafer_c, hicann_c, backend_type="binary")
+        cal = pycake.helpers.calibtic.Calibtic(args.calib_path, wafer_c, hicann_c, backend_type=args.backend_type)
         cals[hicann_c] = cal.hc.atNeuronCollection()
     except Exception as e:
         pass
