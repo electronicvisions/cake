@@ -66,9 +66,10 @@ int main(int argc, char* argv[])
 	    "allow_rewrite", po::value<bool>(&allow_rewrite)->default_value(true),
 	    "allow to rewrite already disabled values")(
 	    "input_backend_path", po::value<std::string>(&input_backend_path)->default_value("./"),
-	    "path to blacklisting data")(
+	    "path to communication test results")(
 	    "output_backend_path", po::value<std::string>(&output_backend_path)->default_value("./"),
-	    "path where blacklisting results of this test are stored")(
+	    "path where blacklisting results of this test are stored. If blacklisting information is already present,"
+	    " it gets adapted and is used to control the test")(
 	    "highspeed", po::value<bool>(&highspeed)->default_value(1), "use highspeed otherwise JTAG")(
 	    "seeds", po::value<std::vector<size_t> >(&seeds)->multitoken()->required(), "used seeds");
 	po::variables_map vm;
@@ -103,7 +104,11 @@ int main(int argc, char* argv[])
 	if (!input_backend || !output_backend) {
 		throw std::runtime_error("unable to load xml backend");
 	}
+	// input_backend contains the communication test results, which are used to establish the
+	// connection to the reticle (redman_wafer, redman_fpga)
 	input_backend->config("path", input_backend_path);
+	// output_backend is used to store the results. If blacklisting information is already present
+	// it gets adapted (redman_hicann). Additionally it is used to control the test (redman_hicann_previous_test)
 	output_backend->config("path", output_backend_path);
 	input_backend->init();
 	output_backend->init();
