@@ -74,12 +74,11 @@ int main(int argc, char* argv[])
 	    "seeds", po::value<std::vector<size_t> >(&seeds)->multitoken()->required(), "used seeds");
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, options), vm);
-	po::notify(vm);
-
 	if (vm.count("help")) {
 		std::cout << options << "\n";
 		return EXIT_SUCCESS;
 	}
+	po::notify(vm);
 
 	logger_default_config(log4cxx::Level::getInfo());
 	log4cxx::LoggerPtr test_logger = log4cxx::Logger::getLogger("cake.digital_blacklisting");
