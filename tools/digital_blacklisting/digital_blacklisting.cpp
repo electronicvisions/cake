@@ -210,6 +210,8 @@ int main(int argc, char* argv[])
 	std::uniform_int_distribution<int> number3(0, 3);
 	std::uniform_int_distribution<int> number4(0, 4);
 	std::uniform_int_distribution<int> number5(0, 5);
+	std::uniform_int_distribution<int> number7(0, 7);
+	std::uniform_int_distribution<int> number8(0, 8);
 	std::uniform_int_distribution<int> number9(0, 9);
 	std::uniform_int_distribution<int> number15(0, 15);
 	std::uniform_int_distribution<int> number223(0, 223);
@@ -217,6 +219,7 @@ int main(int argc, char* argv[])
 	std::uniform_int_distribution<int> number6bit(0, 63);
 	std::uniform_int_distribution<int> number8bit(0, 255);
 	std::uniform_int_distribution<int> number16bit(0, 65535);
+	std::uniform_int_distribution<unsigned long int> number32bit(0, 4294967295);
 	std::uniform_int_distribution<int> numberRepBlock(
 	    0, (1 << halco::hicann::v2::TestPortOnRepeaterBlock::end) - 1);
 	std::uniform_int_distribution<int> numberstpcap(
@@ -252,6 +255,7 @@ int main(int argc, char* argv[])
 		touch_component<RR::components::Mergers1>(redman_hicann.mergers1());
 		touch_component<RR::components::Mergers2>(redman_hicann.mergers2());
 		touch_component<RR::components::Mergers3>(redman_hicann.mergers3());
+		touch_component<RR::components::SynapseArrays>(redman_hicann.synapsearrays());
 	}
 	touch_component<RR::components::FGBlocks>(redman_hicann.fgblocks());
 	touch_component<RR::components::SynapseSwitches>(redman_hicann.synapseswitches());
@@ -634,6 +638,169 @@ int main(int argc, char* argv[])
 						redman_hicann.mergers3()->disable(merger3, rewrite_policy);
 					}
 				}
+
+				// check synapse control register
+				for (auto const& synarray : C::iter_all<C::SynapseArrayOnHICANN>()) {
+					if (!redman_hicann_previous_test.synapsearrays()->has(synarray))
+						continue;
+					LOG4CXX_INFO(
+					    test_logger, "Test synapse control register on " << synarray
+									    << " on HICANN " << hicann
+									    << " with seed " << seed);
+
+					HMF::HICANN::SynapseControlRegister ctrl_reg;
+
+					ctrl_reg.sca = true_false(generator);
+					ctrl_reg.scc = true_false(generator);
+					ctrl_reg.without_reset = true_false(generator);
+					ctrl_reg.sel = HMF::HICANN::SynapseSel(number7(generator));
+					ctrl_reg.row = C::SynapseRowOnArray(number223(generator));
+					ctrl_reg.last_row = C::SynapseRowOnArray(number223(generator));
+					// set newcmd to false such that the hardware stays idle and does not
+					// perform any commands
+					ctrl_reg.newcmd = false;
+					ctrl_reg.continuous = true_false(generator);
+					ctrl_reg.encr = true_false(generator);
+					switch (number8(generator)) {
+						case 0:
+							ctrl_reg.cmd = HMF::HICANN::SynapseControllerCmd::IDLE;
+							break;
+						case 1:
+							ctrl_reg.cmd = HMF::HICANN::SynapseControllerCmd::READ;
+							break;
+						case 2:
+							ctrl_reg.cmd = HMF::HICANN::SynapseControllerCmd::START_RDEC;
+							break;
+						case 3:
+							ctrl_reg.cmd = HMF::HICANN::SynapseControllerCmd::WRITE;
+							break;
+						case 4:
+							ctrl_reg.cmd = HMF::HICANN::SynapseControllerCmd::WDEC;
+							break;
+						case 5:
+							ctrl_reg.cmd = HMF::HICANN::SynapseControllerCmd::RDEC;
+							break;
+						case 6:
+							ctrl_reg.cmd = HMF::HICANN::SynapseControllerCmd::START_READ;
+							break;
+						case 7:
+							ctrl_reg.cmd = HMF::HICANN::SynapseControllerCmd::CLOSE_ROW;
+							break;
+						case 8:
+							ctrl_reg.cmd = HMF::HICANN::SynapseControllerCmd::RST_CORR;
+							break;
+					}
+
+					// write and read values
+					Backend::HICANN::set_syn_ctrl(*hicann_handle, synarray, ctrl_reg);
+					HMF::HICANN::SynapseControlRegister read_ctrl_reg =
+						Backend::HICANN::get_syn_ctrl(*hicann_handle, synarray);
+
+					if (ctrl_reg != read_ctrl_reg) {
+						// disable whole synapsearray
+						redman_hicann.synapsearrays()->disable(synarray, rewrite_policy);
+					}
+				}
+
+				// check synapse configuration register
+				for (auto const& synarray : C::iter_all<C::SynapseArrayOnHICANN>()) {
+					if (!redman_hicann_previous_test.synapsearrays()->has(synarray))
+						continue;
+					LOG4CXX_INFO(
+					    test_logger, "Test synapse configuration register on " << synarray
+									    << " on HICANN " << hicann
+									    << " with seed " << seed);
+
+					HMF::HICANN::SynapseConfigurationRegister cnfg_reg;
+
+					cnfg_reg.synarray_timings.write_delay =
+						HMF::HICANN::SynapseWriteDelay(number3(generator));
+					cnfg_reg.synarray_timings.output_delay =
+						HMF::HICANN::SynapseOutputDelay(number4bit(generator));
+					cnfg_reg.synarray_timings.setup_precharge =
+						HMF::HICANN::SynapseSetupPrecharge(number4bit(generator));
+					cnfg_reg.synarray_timings.enable_delay =
+						HMF::HICANN::SynapseEnableDelay(number4bit(generator));
+					cnfg_reg.dllresetb =
+						HMF::HICANN::SynapseDllresetb(number3(generator));
+					cnfg_reg.gen =
+						HMF::HICANN::SynapseGen(number4bit(generator));
+					cnfg_reg.pattern0.aa = true_false(generator);
+					cnfg_reg.pattern0.ac = true_false(generator);
+					cnfg_reg.pattern0.ca = true_false(generator);
+					cnfg_reg.pattern0.cc = true_false(generator);
+					cnfg_reg.pattern1.aa = true_false(generator);
+					cnfg_reg.pattern1.ac = true_false(generator);
+					cnfg_reg.pattern1.ca = true_false(generator);
+					cnfg_reg.pattern1.cc = true_false(generator);
+
+					// write and read values
+					Backend::HICANN::set_syn_cnfg(*hicann_handle, synarray, cnfg_reg);
+					HMF::HICANN::SynapseConfigurationRegister read_cnfg_reg =
+						Backend::HICANN::get_syn_cnfg(*hicann_handle, synarray);
+
+
+					if (cnfg_reg != read_cnfg_reg) {
+						// disable whole synapsearray
+						redman_hicann.synapsearrays()->disable(synarray, rewrite_policy);
+					}
+				}
+
+				// check STDP LUT register
+				for (auto const& synarray : C::iter_all<C::SynapseArrayOnHICANN>()) {
+					if (!redman_hicann_previous_test.synapsearrays()->has(synarray))
+						continue;
+					LOG4CXX_INFO(
+					    test_logger, "Test STDP LUT register on " << synarray
+									    << " on HICANN " << hicann
+									    << " with seed " << seed);
+
+					HMF::HICANN::STDPLUT stdp_lut;
+
+					for (uint8_t ii = HMF::HICANN::SynapseWeight::min;
+							ii < HMF::HICANN::SynapseWeight::end; ++ii)
+					{
+						typedef HMF::HICANN::SynapseWeight weight_t;
+						stdp_lut.causal[weight_t(ii)] = weight_t(number4bit(generator));
+						stdp_lut.acausal[weight_t(ii)] = weight_t(number4bit(generator));
+						stdp_lut.combined[weight_t(ii)] = weight_t(number4bit(generator));
+					}
+
+					// write and read values
+					Backend::HICANN::set_stdp_lut(*hicann_handle, synarray, stdp_lut);
+					HMF::HICANN::STDPLUT read_stdp_lut =
+						Backend::HICANN::get_stdp_lut(*hicann_handle, synarray);
+
+					if (stdp_lut != read_stdp_lut) {
+						// disable whole synapsearray
+						redman_hicann.synapsearrays()->disable(synarray, rewrite_policy);
+					}
+				}
+
+				// check SYNRST register
+				for (auto const& synarray : C::iter_all<C::SynapseArrayOnHICANN>()) {
+					if (!redman_hicann_previous_test.synapsearrays()->has(synarray))
+						continue;
+					LOG4CXX_INFO(
+					    test_logger, "Test SYNRST register on " << synarray
+									    << " on HICANN " << hicann
+									    << " with seed " << seed);
+
+					HMF::HICANN::SynapseController::syn_rst_t syn_rst;
+
+					syn_rst = number32bit(generator);
+
+					// write and read values
+					Backend::HICANN::set_syn_rst(*hicann_handle, synarray, syn_rst);
+					HMF::HICANN::SynapseController::syn_rst_t read_syn_rst =
+						Backend::HICANN::get_syn_rst(*hicann_handle, synarray);
+
+					if (syn_rst != read_syn_rst) {
+						// disable whole synapsearray
+						redman_hicann.synapsearrays()->disable(synarray, rewrite_policy);
+					}
+				}
+
 			} // highspeed avail
 
 			// check set_fg_config
