@@ -5,6 +5,8 @@ import sys
 import pylogging
 
 from pyhalco_hicann_v2 import AnalogOnHICANN
+from pyhalco_hicann_v2 import NeuronOnHICANN
+from pyhalco_common import Enum
 
 import pycake.config
 from pycake.calibrationrunner import CalibrationRunner, TestRunner
@@ -28,6 +30,7 @@ class DictionaryAction(argparse.Action):
         'string': str,
         'bool' : bool,
         'AnalogOnHICANN' : lambda x: AnalogOnHICANN(int(x)),
+        'NeuronOnHICANN' : lambda x: [NeuronOnHICANN(Enum(i)) for i in range(int(x))],
     }
     METAVAR = ('<key>', '<type>', '<value>')
 
