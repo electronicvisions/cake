@@ -142,8 +142,10 @@ int main(int argc, char* argv[])
 	}
 
 	// check redman data for all HICANNs on reticle
-	// stores if currently used hicanns has highspeed -> used to skip some tests without highspeed
-	bool highspeed_avail = false;
+	// if HICANN is jtag-only it is only used for routing
+	//  -> some tests and associated resets can be skipped
+	bool test_additional_components = false;
+	bool reset_weights_and_decoders = false;
 	for (auto h : C::iter_all<C::HICANNOnDNC>()) {
 		C::HICANNOnWafer h_on_wafer = h.toHICANNOnWafer(fpga_c);
 		if (redman_wafer.has(h_on_wafer)) {
@@ -163,7 +165,8 @@ int main(int argc, char* argv[])
 		if (redman_fpga.hslinks()->has(h.toHighspeedLinkOnDNC()) && highspeed) {
 			highspeed_hicanns.insert(h);
 			if (hicann_c == h_on_wafer) {
-				highspeed_avail = true;
+				test_additional_components = true;
+				reset_weights_and_decoders = true;
 			}
 			LOG4CXX_INFO(
 			    test_logger, "HICANN " << h_on_wafer.toEnum().value() << " on Wafer " << wafer
@@ -189,7 +192,9 @@ int main(int argc, char* argv[])
 	HMF::FPGA::Reset r;
 	r.PLL_frequency = pll_freq;
 	HMF::FPGA::reset(fpga_handle, r);
-	HMF::FPGA::init(fpga_handle, true);
+
+	// reprogram all usable HICANNs of FPGA and optionally set weight and decoder values to 0
+	HMF::FPGA::init(fpga_handle, reset_weights_and_decoders);
 
 	// generate integer distributions to define the range of the random values
 	std::uniform_int_distribution<int> true_false(0, 1);
@@ -236,7 +241,7 @@ int main(int argc, char* argv[])
 	// Once touch all tested components to set has_value = True
 	// Used to distinguish between tested and not tested components
 	// If error occurs during test xml file is not saved anyway
-	if (highspeed_avail) {
+	if (test_additional_components) {
 		touch_component<RR::components::SynapseDrivers>(redman_hicann.drivers());
 		touch_component<RR::components::SynapseRows>(redman_hicann.synapserows());
 		touch_component<RR::components::Synapses>(redman_hicann.synapses());
@@ -261,7 +266,7 @@ int main(int argc, char* argv[])
 		// HICANN with defect component has to be checked manually
 		try {
 			// skip some tests for HICANNs without Highspeed
-			if (highspeed_avail) {
+			if (test_additional_components) {
 				// check set_Synapse_Driver
 				// iterate Hicann Synapse Driver
 				for (auto syn_drv_c : C::iter_all<C::SynapseDriverOnHICANN>()) {
@@ -827,13 +832,13 @@ int main(int argc, char* argv[])
 			LOG4CXX_ERROR(
 			    test_logger, "Error during test of HICANN " << hicann << " using seed " << seed
 			                                                << ": " << e.what());
-			// reset HICANN
+			// reprogram HICANN
 			::HMF::FPGA::init(fpga_handle, false);
 			return EXIT_FAILURE;
 		} catch (...) {
 			LOG4CXX_ERROR(
 			    test_logger, "Error during test of HICANN " << hicann << " using seed " << seed);
-			// reset HICANN
+			// reprogram HICANN
 			::HMF::FPGA::init(fpga_handle, false);
 			return EXIT_FAILURE;
 		}
@@ -842,7 +847,7 @@ int main(int argc, char* argv[])
 	// store redman
 	redman_hicann.save();
 
-	// reset HICANN
+	// reprogram HICANN
 	::HMF::FPGA::init(fpga_handle, false);
 	LOG4CXX_INFO(test_logger, "Successfully tested HICANN " << hicann << " on Wafer " << wafer);
 
