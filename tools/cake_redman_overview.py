@@ -19,14 +19,18 @@ wafer_with_backend = pyredman.load.WaferWithBackend(args.defects_path, C.Wafer(a
 blacklisted = {}
 jtag = {}
 
-# Format [name, Coordinat name, add text]
+# Format [redman name, halco name (OnHICANN is added later), add text]
 enum_resources = [
 ["neurons" , "Neuron", "True"],
 ["drivers" , "SynapseDriver", "True"],
 ["synapses" , "Synapse", "False"],
 ["fgblocks" , "FGBlock", "True"],
 ["vrepeaters" , "VRepeater", "True"],
-["hrepeaters" , "HRepeater", "True"]]
+["hrepeaters" , "HRepeater", "True"],
+["synaptic_inputs" , "SynapticInput", "True"],
+["synapseswitches" , "SynapseSwitch", "True"],
+["crossbarswitches" , "CrossbarSwitch", "True"],
+["synapseswitchrows" , "SynapseSwitchRow", "True"]]
 
 non_enum_resources = [
 ["hbuses" , "HLine", "True"],
