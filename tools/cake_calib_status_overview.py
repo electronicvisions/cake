@@ -58,7 +58,9 @@ for hicann_c, nc in cals.iteritems():
     except IndexError as e:
         pass
 
-figures.append([pycake.helpers.plotting.get_bokeh_figure("any", data, cmap=cmap, add_text = True, default_fill_color = 'blue')])
+names = [calib_enum.name for sublist in calibs_to_check for calib_enum in sublist]
+names = "{} or {}".format(", ".join(names[:-1]), names[-1])
+figures.append([pycake.helpers.plotting.get_bokeh_figure("{} not calibrated".format(names), data, cmap=cmap, add_text = True, default_fill_color = 'blue')])
 
 # individual
 for calib_enums in calibs_to_check:
