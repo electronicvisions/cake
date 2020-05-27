@@ -89,6 +89,7 @@ cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", [
                                                            "red", "green"])
 
 figures = [[blacklisted_figure], [jtag_figure]]
+table = {}
 for res in resources:
     # coordinate is either enum or non enum type
     try:
@@ -98,6 +99,15 @@ for res in resources:
         max_value = getattr(hicann_with_backend, res[0])().resource.end
     figures.append(pycake.helpers.plotting.get_bokeh_figure(
         res[0], components[res[0]], max_value, cmap, add_text=res[1], default_fill_color='blue'))
+    # fill table, not tested components have value -1
+    table[res[0]] = [-1] * 384
+    for h in components[res[0]]:
+        table[res[0]][h] = max_value - components[res[0]][h]
 
+# plot overview
 pycake.helpers.plotting.store_bokeh("Redman Wafer {} Overview".format(
     args.wafer), figures, "redman_w{}.html".format(args.wafer))
+
+# plot table
+pycake.helpers.plotting.store_bokeh_table("Redman Wafer {} Table".format(
+    args.wafer), table, "redman_w{}_table.html".format(args.wafer), [res[0] for res in resources])

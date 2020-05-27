@@ -10,12 +10,90 @@ import bokeh.embed
 import bokeh.resources
 import bokeh.models
 import bokeh.models.glyphs
+from bokeh.models import ColumnDataSource, CustomJS
+from bokeh.models.widgets import DataTable, TableColumn, HTMLTemplateFormatter, Button
+from bokeh.layouts import grid, row
+from bokeh.io import output_file, save
 
 import matplotlib.cm
 import matplotlib.colors
 
 from pyhalco_common import Enum
 import pyhalco_hicann_v2 as C
+
+def store_bokeh_table(name, table, filename, column_names):
+    template= """
+    <div style="background: white
+        color: black">
+    <%= value %></div>
+    """
+    formatter = HTMLTemplateFormatter(template=template)
+    source = ColumnDataSource(data=table)
+    columns = [TableColumn(field=column_name, title=column_name,
+                           formatter=formatter) for column_name in column_names]
+    blacklist_table = DataTable(
+        source=source, columns=columns, sizing_mode="stretch_both")
+
+    savebutton = Button(label="Save", button_type="success", width=200)
+    savebutton.callback = CustomJS(
+        args=dict(source_data=source),
+        code="""
+            const columns = Object.keys(source_data.data);
+            const nrows = source_data.get_length();
+            const lines = [columns.join(',')];
+            for (let i = 0; i < nrows; i++) {
+                let row = [];
+                for (let j = 0; j < columns.length; j++) {
+                    const column = columns[j]
+                    row.push(source_data.data[column][i].toString())
+                }
+                lines.push(row.join(','))
+            }
+            var file = new Blob([lines.join('\\n').concat('\\n')], {type: 'text/plain'});
+            var elem = window.document.createElement('a');
+            elem.href = window.URL.createObjectURL(file);
+            elem.download = 'selected-data.txt';
+            document.body.appendChild(elem);
+            elem.click();
+            document.body.removeChild(elem);
+            """,
+    )
+
+    colorbutton = Button(label="color", width=200)
+    colorbutton.callback = CustomJS(
+        args=dict(source=blacklist_table),
+        code="""
+             var nocolor = '<div style="background: white'+
+                           'color: black">'+
+                           '<%= value %></div>'
+             var color = '<div style="background:<%='+
+                         '(function colorfromint(){'+
+                         'if(value == -1){'+
+                         'return("blue")}'+
+                         'else if(value > 0){'+
+                         'return("red")}'+
+                         'else {return("white")}'+
+                         '}()) %>;'+
+                         'color: <%='+
+                         '(function colorfromint(){'+
+                         'if(value == -1){'+
+                         'return("blue")}'+
+                         '}()) %>;">'+
+                         '<%= value %></div>'
+             if (source.columns[0].formatter.attributes.template == color){
+             source.columns[0].formatter.attributes.template=nocolor
+             } else {
+             source.columns[0].formatter.attributes.template=color
+             }
+             source.change.emit();
+             """,
+    )
+
+    buttons = row(savebutton, colorbutton)
+    layout = grid([buttons, blacklist_table])
+    # using store_bokeh resizing is not working
+    output_file(filename)
+    save(layout, title=name + " {0}".format(datetime.datetime.now()))
 
 def get_cmap_dict(max_value, cmap_name, missing_color='black'):
     cmap_mpl = matplotlib.cm.get_cmap(cmap_name)
