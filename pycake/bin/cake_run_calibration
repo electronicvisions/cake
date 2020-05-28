@@ -30,7 +30,7 @@ class DictionaryAction(argparse.Action):
         'string': str,
         'bool' : bool,
         'AnalogOnHICANN' : lambda x: AnalogOnHICANN(int(x)),
-        'NeuronOnHICANN' : lambda x: [NeuronOnHICANN(Enum(i)) for i in range(int(x))],
+        'NeuronOnHICANN' : lambda x: [NeuronOnHICANN(Enum(int(i))) for i in str(x).split(" ")],
     }
     METAVAR = ('<key>', '<type>', '<value>')
 
