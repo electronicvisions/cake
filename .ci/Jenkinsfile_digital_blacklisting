@@ -222,6 +222,19 @@ timestamps {
 					jesh ("chmod -R 775 ${derived_blacklisting_path.trim()}/*")
 				}
 			}
+			// archive all visu results in Jenkinsjob
+			runOnSlave(label: "frontend") {
+				// only files in jenkins workspace can be archived
+				output_path = WORKSPACE
+				if (comm_path.trim() != "new") {
+					jesh ("mkdir ${output_path.trim()}/commtest && cp ${comm_path.trim()}/*.html ${output_path.trim()}/commtest/")
+					archiveArtifacts "commtest/*.html"
+				}
+				jesh ("mkdir ${output_path.trim()}/digital && cp ${blacklisting_path.trim()}/*.html ${output_path.trim()}/digital/")
+				jesh ("mkdir ${output_path.trim()}/derived && cp ${derived_blacklisting_path.trim()}/*.html ${output_path.trim()}/derived/")
+				archiveArtifacts "digital/*.html"
+				archiveArtifacts "derived/*.html"
+			}
 		}
 	}
 }
