@@ -23,6 +23,7 @@ jtag = {}
 resources = [
     ["neurons", True],
     ["drivers", True],
+    ["synapsearrays", True],
     ["synapses", False],
     ["fgblocks", True],
     ["vrepeaters", True],
