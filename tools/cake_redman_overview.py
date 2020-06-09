@@ -19,28 +19,28 @@ wafer_with_backend = load.WaferWithBackend(
 blacklisted = {}
 jtag = {}
 
-# Format [redman name, halco name, add text]
+# Format [redman name, add text]
 resources = [
-    ["neurons", "NeuronOnHICANN", True],
-    ["drivers", "SynapseDriverOnHICANN", True],
-    ["synapses", "SynapseOnHICANN", False],
-    ["fgblocks", "FGBlockOnHICANN", True],
-    ["vrepeaters", "VRepeaterOnHICANN", True],
-    ["hrepeaters", "HRepeaterOnHICANN", True],
-    ["synaptic_inputs", "SynapticInputOnHICANN", True],
-    ["synapseswitches", "SynapseSwitchOnHICANN", True],
-    ["crossbarswitches", "CrossbarSwitchOnHICANN", True],
-    ["synapseswitchrows", "SynapseSwitchRowOnHICANN", True],
-    ["hbuses", "HLineOnHICANN", True],
-    ["vbuses", "VLineOnHICANN", True],
-    ["mergers0", "Merger0OnHICANN", True],
-    ["mergers1", "Merger1OnHICANN", True],
-    ["mergers2", "Merger2OnHICANN", True],
-    ["mergers3", "Merger3OnHICANN", True],
-    ["dncmergers", "DNCMergerOnHICANN", True],
-    ["synapserows", "SynapseRowOnHICANN", True],
-    ["analogs", "AnalogOnHICANN", True],
-    ["backgroundgenerators", "BackgroundGeneratorOnHICANN", True]]
+    ["neurons", True],
+    ["drivers", True],
+    ["synapses", False],
+    ["fgblocks", True],
+    ["vrepeaters", True],
+    ["hrepeaters", True],
+    ["synaptic_inputs", True],
+    ["synapseswitches", True],
+    ["crossbarswitches", True],
+    ["synapseswitchrows", True],
+    ["hbuses", True],
+    ["vbuses", True],
+    ["mergers0", True],
+    ["mergers1", True],
+    ["mergers2", True],
+    ["mergers3", True],
+    ["dncmergers", True],
+    ["synapserows", True],
+    ["analogs", True],
+    ["backgroundgenerators", True]]
 
 # store blacklisting data for each component and each HICANN
 components = {}
@@ -91,11 +91,12 @@ figures = [[blacklisted_figure], [jtag_figure]]
 for res in resources:
     # coordinate is either enum or non enum type
     try:
-        max_value = getattr(C, res[1]).enum_type.end
+        max_value = getattr(hicann_with_backend,
+                            res[0])().resource.enum_type.end
     except AttributeError:
-        max_value = getattr(C, res[1]).end
+        max_value = getattr(hicann_with_backend, res[0])().resource.end
     figures.append(pycake.helpers.plotting.get_bokeh_figure(
-        res[0], components[res[0]], max_value, cmap, add_text=res[2], default_fill_color='blue'))
+        res[0], components[res[0]], max_value, cmap, add_text=res[1], default_fill_color='blue'))
 
 pycake.helpers.plotting.store_bokeh("Redman Wafer {} Overview".format(
     args.wafer), figures, "redman_w{}.html".format(args.wafer))
