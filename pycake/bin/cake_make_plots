@@ -326,8 +326,11 @@ def fit_func(df, x_range, cut=False, all_neurons=False, neurons=None):
                 # would give too many neurons
                 neurons = df.index.get_level_values('neuron').unique().values
                 nrn_min, nrn_max = np.min(neurons), np.max(neurons)
-                lin_neurons = np.linspace(nrn_min, nrn_max, 6, dtype=int)
-                neurons = list(neurons[lin_neurons])
+                # in case of a continuous universe of neurons and 6 or more of them,
+                # use a subset of 6 for the fits
+                if (nrn_max - nrn_min + 1) == neurons.size and neurons.size >= 6:
+                    lin_neurons = np.linspace(nrn_min, nrn_max, 6, dtype=int)
+                    neurons = list(neurons[lin_neurons - nrn_min])
         df_fit = df_fit.loc[neurons,:]
     dfs = []
     for x in x_range:
