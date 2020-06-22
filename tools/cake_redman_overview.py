@@ -24,7 +24,7 @@ resources = [
     ["neurons", True],
     ["drivers", True],
     ["synapsearrays", True],
-    ["synapses", False],
+    ["synapses", True],
     ["fgblocks", True],
     ["vrepeaters", True],
     ["hrepeaters", True],
@@ -85,8 +85,6 @@ cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", [
 max_value = 1
 blacklisted_figure = pycake.helpers.plotting.get_bokeh_figure(
     "blacklisted", blacklisted, max_value, cmap, default_fill_color='blue')
-cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", [
-                                                           "red", "green"])
 
 figures = [[blacklisted_figure], [jtag_figure]]
 table = {}
@@ -97,12 +95,18 @@ for res in resources:
                             res[0])().resource.enum_type.end
     except AttributeError:
         max_value = getattr(hicann_with_backend, res[0])().resource.end
+
+    # calculate number of blacklisted components
+    blacklisted_components = {h: max_value -
+                              components[res[0]][h] for h in components[res[0]]}
+
+    # fill overview
     figures.append(pycake.helpers.plotting.get_bokeh_figure(
-        res[0], components[res[0]], max_value, cmap, add_text=res[1], default_fill_color='blue'))
+        res[0], blacklisted_components, max_value, cmap, add_text=res[1], default_fill_color='blue'))
     # fill table, not tested components have value -1
     table[res[0]] = [-1] * 384
     for h in components[res[0]]:
-        table[res[0]][h] = max_value - components[res[0]][h]
+        table[res[0]][h] = blacklisted_components[h]
 
 # plot overview
 pycake.helpers.plotting.store_bokeh("Redman Wafer {} Overview".format(
