@@ -2,10 +2,10 @@
 
 import datetime
 import numpy as np
+import pandas as pd
 from collections import defaultdict
 
 import bokeh.plotting
-import bokeh.layouts
 import bokeh.embed
 import bokeh.resources
 import bokeh.models
@@ -21,7 +21,7 @@ import matplotlib.colors
 from pyhalco_common import Enum
 import pyhalco_hicann_v2 as C
 
-def store_bokeh_table(name, table, filename, column_names):
+def generate_bokeh_table(table, column_names):
     template= """
     <div style="background: white
         color: black">
@@ -91,9 +91,7 @@ def store_bokeh_table(name, table, filename, column_names):
 
     buttons = row(savebutton, colorbutton)
     layout = grid([buttons, blacklist_table])
-    # using store_bokeh resizing is not working
-    output_file(filename)
-    save(layout, title=name + " {0}".format(datetime.datetime.now()))
+    return layout
 
 def get_cmap_dict(max_value, cmap_name, missing_color='black'):
     cmap_mpl = matplotlib.cm.get_cmap(cmap_name)
@@ -185,10 +183,50 @@ def get_bokeh_figure(title, value_by_hicann_enum, max_value = None, cmap = matpl
 
     return bokeh_figure
 
-def store_bokeh(name, bokeh_figures, filename):
+def get_bokeh_histogram(title, hist, edges):
+    hist_df = pd.DataFrame({"value": hist,
+                            "normal": hist,
+                            "type": "normal",
+                            "left": edges[:-1],
+                            "right": edges[1:]})
+    hist_df["log"] = np.log(hist_df["value"], where=(hist_df["value"] != 0))
+    hist_df["interval"] = ["%d to %d" % (left, right) for left,
+                           right in zip(hist_df["left"], hist_df["right"])]
+    source = ColumnDataSource(hist_df)
 
-    layouted = bokeh.layouts.layout(bokeh_figures)
-    html = bokeh.embed.file_html(layouted, bokeh.resources.INLINE, name + " {0}".format(datetime.datetime.now()))
+    p = bokeh.plotting.figure(
+        title=title, y_axis_label="# of HICANNs", tools='box_zoom, pan, wheel_zoom, undo, redo, reset, save', background_fill_color="#fafafa")
+    p.quad(top="value", bottom=0, left="left", right="right", source=source,
+           fill_color="SteelBlue", line_color="white", alpha=0.5, hover_fill_alpha=1.0, hover_fill_color="Tan")
+    p.y_range.start = 0
+    p.xaxis.axis_label = '# blacklisted components'
+    p.grid.grid_line_color = "white"
+    hover = bokeh.models.HoverTool(tooltips=[("# blacklisted {}".format(
+        title), '@interval'), ('# HICANNs', "@normal")])
+    p.add_tools(hover)
 
-    with open(filename, 'wb') as html_file:
-        html_file.write(html)
+    logbutton = Button(label="LOG", button_type="success", width=200)
+    callback = CustomJS(
+        args=dict(source=source, label=p.yaxis[0]),
+        code="""
+             if (source.data["type"][0] == "normal"){
+             source.data["value"] = source.data["log"];
+             source.data["type"][0] = "log";
+             label.axis_label = "Log(# of HICANNs)"
+             } else {
+             source.data["value"] = source.data["normal"];
+             source.data["type"][0] = "normal";
+             label.axis_label = "# of HICANNs"
+             }
+             source.change.emit();
+             label.trigger("change");
+             """,
+    )
+    logbutton.js_on_click(callback)
+
+    layout = grid([logbutton, p])
+    return layout
+
+def store_bokeh(name, bokeh_figure, filename):
+    output_file(filename)
+    save(bokeh_figure, title=name + " {0}".format(datetime.datetime.now()))

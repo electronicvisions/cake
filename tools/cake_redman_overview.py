@@ -6,6 +6,7 @@ from pyhalco_common import iter_all
 import pyhalco_hicann_v2 as C
 from pyredman import load
 import os.path
+import numpy as np
 
 import argparse
 parser = argparse.ArgumentParser()
@@ -86,8 +87,9 @@ max_value = 1
 blacklisted_figure = pycake.helpers.plotting.get_bokeh_figure(
     "blacklisted", blacklisted, max_value, cmap, default_fill_color='blue')
 
-figures = [[blacklisted_figure], [jtag_figure]]
+figures = [blacklisted_figure, jtag_figure]
 table = {}
+histograms = []
 for res in resources:
     # coordinate is either enum or non enum type
     try:
@@ -108,10 +110,21 @@ for res in resources:
     for h in components[res[0]]:
         table[res[0]][h] = blacklisted_components[h]
 
+    # fill histogram, not tested components have value -1
+    hist, edges = np.histogram(table[res[0]], bins="auto")
+    histograms.append(
+        pycake.helpers.plotting.get_bokeh_histogram(res[0], hist, edges))
+
 # plot overview
 pycake.helpers.plotting.store_bokeh("Redman Wafer {} Overview".format(
     args.wafer), figures, "redman_w{}.html".format(args.wafer))
 
 # plot table
-pycake.helpers.plotting.store_bokeh_table("Redman Wafer {} Table".format(
-    args.wafer), table, "redman_w{}_table.html".format(args.wafer), [res[0] for res in resources])
+table_plot = pycake.helpers.plotting.generate_bokeh_table(
+    table, [res[0] for res in resources])
+pycake.helpers.plotting.store_bokeh("Redman Wafer {} Table".format(
+    args.wafer), table_plot, "redman_w{}_table.html".format(args.wafer))
+
+# plot histogram
+pycake.helpers.plotting.store_bokeh("Redman Wafer {} histogram".format(
+    args.wafer), histograms, "redman_w{}_histogram.html".format(args.wafer))
