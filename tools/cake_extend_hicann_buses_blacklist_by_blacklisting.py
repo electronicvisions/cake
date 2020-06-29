@@ -3,29 +3,46 @@
 import argparse
 from pyhalco_hicann_v2 import Wafer, HICANNGlobal, HICANNOnWafer, HRepeaterOnWafer
 from pyhalco_hicann_v2 import HRepeaterOnHICANN, VRepeaterOnWafer, VRepeaterOnHICANN
+from pyhalco_hicann_v2 import short_format
 from pyhalco_common import iter_all
 
 from pyredman.load import load
 
-def disable_by_neighbor_hrepeater(hr, outdir):
-    hline_on_neighbor = hr.toHLineOnWafer()[1]
-    if (hline_on_neighbor):
-        redman_hicann_output = load.HicannWithBackend(outdir,
-                                                      HICANNGlobal(hline_on_neighbor.toHICANNOnWafer(), wafer_c))
-        hline = hline_on_neighbor.toHLineOnHICANN()
-        redman_hicann_output.hbuses().disable(hline)
-        redman_hicann_output.save()
-        print ("disable hline {}".format(hline))
+def disable_hline(hl, outdir, wafer):
+    hicann_global = HICANNGlobal(hl.toHICANNOnWafer(), wafer)
+    redman_hicann_output = load.HicannWithBackend(outdir, hicann_global)
+    hline = hl.toHLineOnHICANN()
+    redman_hicann_output.hbuses().disable(hline)
+    redman_hicann_output.save()
+    print ("disable {} on {}".format(hline, short_format(hicann_global)))
 
-def disable_by_neighbor_vrepeater(vr, outdir):
-    vline_on_neighbor = vr.toVLineOnWafer()[1]
-    if (vline_on_neighbor):
-        redman_hicann_output = load.HicannWithBackend(outdir,
-                                                      HICANNGlobal(vline_on_neighbor.toHICANNOnWafer(), wafer_c))
-        vline = vline_on_neighbor.toVLineOnHICANN()
-        redman_hicann_output.vbuses().disable(vline)
-        redman_hicann_output.save()
-        print ("disable vline {}".format(vline))
+def disable_vline(vl, outdir, wafer):
+    hicann_global = HICANNGlobal(vl.toHICANNOnWafer(), wafer)
+    redman_hicann_output = load.HicannWithBackend(outdir, hicann_global)
+    vline = vl.toVLineOnHICANN()
+    redman_hicann_output.vbuses().disable(vline)
+    redman_hicann_output.save()
+    print ("disable {} on {}".format(vline, short_format(hicann_global)))
+
+def disable_by_local_hrepeater(hr, outdir, wafer):
+    local_hline = hr.toHLineOnWafer()[0]
+    disable_hline(local_hline, outdir, wafer)
+
+def disable_by_neighbor_hrepeater(hr, outdir, wafer):
+    neighboring_hline = hr.toHLineOnWafer()[1]
+    # check if neighboring hline exists
+    if (neighboring_hline):
+        disable_hline(neighboring_hline, outdir, wafer)
+
+def disable_by_local_vrepeater(vr, outdir, wafer):
+    local_vline = vr.toVLineOnWafer()[0]
+    disable_vline(local_vline, outdir, wafer)
+
+def disable_by_neighbor_vrepeater(vr, outdir, wafer):
+    neighboring_vline = vr.toVLineOnWafer()[1]
+    # check if neighboring vline exists
+    if (neighboring_vline):
+        disable_vline(neighboring_vline, outdir, wafer)
 
 if __name__ == "__main__":
 
@@ -43,16 +60,24 @@ if __name__ == "__main__":
         redman_hicann_input = load.HicannWithBackend(args.input_dir, HICANNGlobal(hicann, wafer_c))
         for hr in iter_all(HRepeaterOnHICANN):
             if not redman_wafer_input.has(hicann) or not redman_hicann_input.hrepeaters().has(hr):
+                hr_on_wafer = HRepeaterOnWafer(hr,hicann)
                 try:
-                    hr_on_wafer = HRepeaterOnWafer(hr,hicann)
-                    disable_by_neighbor_hrepeater(hr_on_wafer, args.output_dir)
-                except Exception as e:
+                    disable_by_local_hrepeater(hr_on_wafer, args.output_dir, wafer_c)
+                except RuntimeError as e:
+                    print e
+                try:
+                    disable_by_neighbor_hrepeater(hr_on_wafer, args.output_dir, wafer_c)
+                except RuntimeError as e:
                     print e
 
         for vr in iter_all(VRepeaterOnHICANN):
             if not redman_wafer_input.has(hicann) or not redman_hicann_input.vrepeaters().has(vr):
+                vr_on_wafer = VRepeaterOnWafer(vr,hicann)
                 try:
-                    vr_on_wafer = VRepeaterOnWafer(vr,hicann)
-                    disable_by_neighbor_vrepeater(vr_on_wafer, args.output_dir)
-                except Exception as e:
+                    disable_by_local_vrepeater(vr_on_wafer, args.output_dir, wafer_c)
+                except RuntimeError as e:
+                    print e
+                try:
+                    disable_by_neighbor_vrepeater(vr_on_wafer, args.output_dir, wafer_c)
+                except RuntimeError as e:
                     print e
