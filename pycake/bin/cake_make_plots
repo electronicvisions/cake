@@ -1138,7 +1138,7 @@ def main():
         config = plot_config[load_key]
         result_key = config['result_key']
         result_label = config['result_label']
-        df = cal_results[load_key + '_calib']
+        df = cal_results[load_key + '_calib'].dropna()
         x_range = config.get('xrange', np.linspace(0.2, 1.5, 100))
         df_fit = fit_func(df, x_range=x_range, cut=False, all_neurons=False)
         plot(df_fit, ['x', 'y'], with_defects=False, ax=ax,
@@ -1162,7 +1162,7 @@ def main():
         plt.savefig(fig_path)
         ax.cla()
 
-        df = cal_results[load_key + '_calib']
+        df = cal_results[load_key + '_calib'].dropna()
         x_range = config.get('xrange', np.linspace(0.2, 1.5, 100))
         df_fit = fit_func(df, x_range=x_range, cut=False, all_neurons=True)
         plot(df_fit, ['x', 'y'], with_defects=False, ax=ax,
@@ -1181,7 +1181,7 @@ def main():
     for with_defects in [True, False]:
         label_wd = 'with_defects' if with_defects else 'without_defects'
         for key, df in cal_results.iteritems():
-            if df[~df['defect_all']]['trafo'].iloc[0] not in 'Lookup':
+            if df[~df['defect_all']]['trafo'].dropna().iloc[0] not in 'Lookup':
                 fig, axes = plot_coefficients(df, key, with_defects)
 
                 fig_filename = '{}_{}_hist.png'.format(key, label_wd)
