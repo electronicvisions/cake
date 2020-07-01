@@ -10,6 +10,7 @@ from pyhalbe import HICANN
 from pyhalbe.HICANN import neuron_parameter
 from pyhalbe.HICANN import shared_parameter
 from pyhalco_common import iter_all, Enum, X, Y, top, bottom, left, right
+from pyhalco_common import SideVertical
 from pyhalco_hicann_v2 import AnalogOnHICANN
 from pyhalco_hicann_v2 import BackgroundGeneratorOnHICANN
 from pyhalco_hicann_v2 import FGBlockOnHICANN
@@ -283,6 +284,7 @@ class StHALContainer(object):
         # FIXME: should we store the content of the hwdb file instead?
         self.hwdb = config.get_hwdb()
 
+        # better way to store the config?
         self.config = config
 
         self.wafer = pysthal.Wafer(self.coord_wafer)
@@ -403,9 +405,9 @@ class StHALContainer(object):
         self.hicann.enable_aout(coord_neuron, self.coord_analog)
         self.write_config(configurator=UpdateAnalogOutputConfigurator())
 
-    def send_spikes_to_all_neurons(self, spike_times, excitatory=True,
+    def send_spikes_to_neurons(self, neurons, spike_times, excitatory=True,
                                    gmax_div=2, gmax=0, weight=15, locking_freq=0.05e6):
-        """Stimulates all neurons with the given spike train"""
+        """Stimulates neurons with the given spike train"""
         assert(locking_freq <= 5.0e6)
 
         self.hicann.clear_complete_l1_routing()
@@ -432,7 +434,7 @@ class StHALContainer(object):
 
             self.hicann.route(link.toDNCMergerOnHICANN(), driver)
             self.enable_synapse_line(
-                driver, stim_l1address, gmax_div=gmax_div, excitatory=excitatory,
+                driver, neurons, stim_l1address, gmax_div=gmax_div, excitatory=excitatory,
                 gmax=gmax, weight=weight)
 
             self.hicann.layer1[link] = HICANN.GbitLink.TO_HICANN
@@ -521,11 +523,12 @@ class StHALContainer(object):
             cfg.fg_biasn = biasn
             fg.setFGConfig(Enum(ii), cfg)
 
-    def stimulateNeurons(self, rate, no_generators=1, excitatory=True,
+    def stimulateNeurons(self, neurons, rate, no_generators=1, excitatory=True,
                          gmax=0, gmax_div=2, weight=15):
         """Stimulate neurons via background generators
 
         Args:
+            neurons: List of stimulated neurons
             rate: Rate of a single generator in Hertz. This value will be
                   rounded upwards to the next possible value for the given
                   PLL setting.
@@ -588,7 +591,7 @@ class StHALContainer(object):
             self.route(dnc, drv)
 
             self.enable_synapse_line(
-                drv, stimulating_addr, gmax_div=gmax_div, excitatory=excitatory,
+                drv, neurons, stimulating_addr, gmax_div=gmax_div, excitatory=excitatory,
                 gmax=gmax, weight=weight)
 
         return rate
@@ -698,7 +701,7 @@ class StHALContainer(object):
         driver[bottom].set_syn_in(left, 0)
         driver[bottom].set_syn_in(right, 1)
 
-    def enable_synapse_line(self, driver_c, l1address, gmax_div=2,
+    def enable_synapse_line(self, driver_c, neurons, l1address, gmax_div=2,
                             excitatory=True, weight=15, gmax=0):
         """
         """
@@ -707,20 +710,35 @@ class StHALContainer(object):
 
         self.configure_synapse_driver(driver_c, l1address, gmax_div, gmax)
 
-        if excitatory:
-            w_top = [pyhalbe.HICANN.SynapseWeight(weight)] * 256
-            w_bottom = [pyhalbe.HICANN.SynapseWeight(0)] * 256
-        else:
-            w_top = [pyhalbe.HICANN.SynapseWeight(0)] * 256
-            w_bottom = [pyhalbe.HICANN.SynapseWeight(weight)] * 256
+        # Enable only one synapse per recorded neuron.
+        # Setting weight to 0 is not disabling the synapse!
+        # -> Synapse decoder is set to a value different from the stimulating address.
+        # Eg. 0 (with driver mask 3 this corresponds to L1 address 48)
+        unused_decoder_mask = pyhalbe.HICANN.SynapseDecoder(0)
+        stimulating_decoder_mask = l1address.getSynapseDecoderMask()
 
-        synapse_line_top = SynapseRowOnHICANN(driver_c, top)
-        synapse_line_bottom = SynapseRowOnHICANN(driver_c, bottom)
-        self.hicann.synapses[synapse_line_top].weights[:] = w_top
-        self.hicann.synapses[synapse_line_bottom].weights[:] = w_bottom
-        synapse_decoder = [l1address.getSynapseDecoderMask()] * 256
-        self.hicann.synapses[synapse_line_top].decoders[:] = synapse_decoder
-        self.hicann.synapses[synapse_line_bottom].decoders[:] = synapse_decoder
+        decoder_row = {}
+        weight_row = {}
+        for side in iter_all(SideVertical):
+            decoder_row[side] = [unused_decoder_mask] * 256
+            weight_row[side] = [pyhalbe.HICANN.SynapseWeight(0)] * 256
+
+        # Top row configured for excitatory input, bottom row for inhibitory
+        side = top if excitatory else bottom
+        # Use top driver if neuron is top, else use bottom
+        # Using different synapse lines for larger logical neurons
+        # not implemented
+        for neuron in neurons:
+            if driver_c.toSideVertical() != neuron.toSideVertical():
+                continue
+            nrn_number = neuron.x().value()
+            weight_row[side][nrn_number] = pyhalbe.HICANN.SynapseWeight(weight)
+            decoder_row[side][nrn_number] = stimulating_decoder_mask
+
+        for side in iter_all(SideVertical):
+            synapse_line = SynapseRowOnHICANN(driver_c, side)
+            self.hicann.synapses[synapse_line].weights[:] = weight_row[side]
+            self.hicann.synapses[synapse_line].decoders[:] = decoder_row[side]
         self.logger.DEBUG("enabled {!s} listing to {!s}".format(
             driver_c, l1address))
 

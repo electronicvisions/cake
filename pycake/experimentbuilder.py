@@ -224,7 +224,7 @@ class InputSpike_Experimentbuilder(BaseExperimentBuilder):
     def prepare_specific_config(self, sthal, parameters):
         spikes = self.config.get_input_spikes()
         sthal.set_input_spikes(spikes)
-        sthal.stimulateNeurons(100000., 1)
+        sthal.stimulateNeurons(self.neurons, 100000., 1)
         return sthal
 
     def make_measurement(self, sthal, neurons, readout_shifts):
@@ -348,7 +348,7 @@ class E_syn_Experimentbuilder(BaseExperimentBuilder):
     def prepare_specific_config(self, sthal, parameters):
         sthal.simulation_init_time = 100.0e-6
         sthal.set_recording_time(10e-6, repetitions=10)
-        sthal.stimulateNeurons(5.0e6, 1, excitatory=self.IS_EXCITATORY)
+        sthal.stimulateNeurons(self.neurons, 5.0e6, 1, excitatory=self.IS_EXCITATORY)
         sthal.maximum_spikes = 1
         sthal.spike_counter_offset = 0.0
         return sthal
@@ -396,16 +396,16 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
                     mirror_drivers)
 
             self.bg_rate = sthal.stimulateNeurons(
-                1.0/recording_time, spike_generators,
+                self.neurons, 1.0/recording_time, spike_generators,
                 excitatory=excitatory, gmax_div=gmax_div,
                 gmax=gmax, weight=weight)
 
             #  The simulation, doesn't evaluate the background yet
             if not sthal.is_hardware():
                 spike_times = [0.4/self.bg_rate]
-                sthal.send_spikes_to_all_neurons(
-                        spike_times, excitatory=True, gmax_div=gmax_div,
-                        gmax=gmax, weight=weight)
+                sthal.send_spikes_to_neurons(
+                        self.neurons, spike_times, excitatory=True,
+                        gmax_div=gmax_div, gmax=gmax, weight=weight)
 
         return sthal
 
@@ -578,7 +578,7 @@ class Parrot_Experimentbuilder(BaseExperimentBuilder):
         weight = parameters.get('synapse_weight', 15)
         gmax = parameters.get('gmax', 0)
         gmax_div = parameters.get('gmax_div', 2)
-        sthal.stimulateNeurons(1.0/self.recording_time, 1,
+        sthal.stimulateNeurons(self.neurons, 1.0/self.recording_time, 1,
                                excitatory=self.IS_EXCITATORY,
                                gmax_div=gmax_div,
                                gmax=gmax, weight=weight)
@@ -672,13 +672,13 @@ class E_l_I_gl_fixed_Experimentbuilder(E_l_Experimentbuilder):
 
 class V_syntci_psp_max_Experimentbuilder(BaseExperimentBuilder):
     def prepare_specific_config(self, sthal, parameters):
-        sthal.stimulateNeurons(0.1e6, 1, excitatory=False)
+        sthal.stimulateNeurons(self.neurons, 0.1e6, 1, excitatory=False)
         return sthal
 
 
 class V_syntcx_psp_max_Experimentbuilder(BaseExperimentBuilder):
     def prepare_specific_config(self, sthal, parameters):
-        sthal.stimulateNeurons(0.1e6, 1, excitatory=True)
+        sthal.stimulateNeurons(self.neurons, 0.1e6, 1, excitatory=True)
         return sthal
 
 
