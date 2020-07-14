@@ -283,6 +283,8 @@ class StHALContainer(object):
         # FIXME: should we store the content of the hwdb file instead?
         self.hwdb = config.get_hwdb()
 
+        self.config = config
+
         self.wafer = pysthal.Wafer(self.coord_wafer)
         if self.wafer_cfg:
             self.logger.info("Loading {}".format(self.wafer_cfg))
@@ -545,7 +547,12 @@ class StHALContainer(object):
         assert(0 <= gmax <= 3)
 
         self.hicann.clear_complete_l1_routing()
-        l1address = pyhalbe.HICANN.L1Address(0)
+
+        locking_generator = self.hicann.layer1[BackgroundGeneratorOnHICANN(Enum(self.config.get_locking_generator()))]
+        locking_generator.enable(True)
+        locking_generator.random(False)
+        locking_generator.period(self.config.get_locking_period())
+        locking_generator.address(pyhalbe.HICANN.L1Address(self.config.get_locking_address()))
 
         PLL = self.getPLL()
         bg_period = int(math.floor(PLL/rate) - 1)
@@ -553,37 +560,37 @@ class StHALContainer(object):
         self.logger.info("Stimulating neurons from {} background generators"
                          " with isi {}".format(no_generators, bg_period))
 
-        for bg in iter_all(BackgroundGeneratorOnHICANN):
-            generator = self.hicann.layer1[bg]
-            generator.enable(bg.value()/2 < no_generators)
-            generator.random(False)
-            generator.period(bg_period)
-            generator.address(l1address)
-            self.logger.DEBUG("activate {!s} with period {}".format(bg, bg_period))
+        stimulating_addr = pyhalbe.HICANN.L1Address(self.config.get_stimulating_address())
+        stimulating_generator = self.hicann.layer1[BackgroundGeneratorOnHICANN(Enum(self.config.get_stimulating_generator()))]
+        stimulating_generator.enable(True)
+        stimulating_generator.random(False)
+        stimulating_generator.period(bg_period)
+        stimulating_generator.address(stimulating_addr)
 
-        links = []
-        for ii in range(4):
-            bg_top = DNCMergerOnHICANN(2*ii+1)
-            bg_bot = DNCMergerOnHICANN(2*ii)
-            links.append(GbitLinkOnHICANN(2 * ii + 1))
-            links.append(GbitLinkOnHICANN(2 * ii))
+        mt = self.hicann.layer1.getMergerTree()
+        mt.set_eight_on_one()
+        self.hicann.layer1.setMergerTree(mt)
+        # dnc merger 3 is where all 8 outputs are merged to
+        dnc = DNCMergerOnHICANN(Enum(3))
 
-            drv_top = SynapseDriverOnHICANN(
-                Enum(83 + ii * 4))
-            drv_bot = SynapseDriverOnHICANN(
-                Enum(142 - ii * 4))
-            if ii < no_generators:
-                self.route(bg_top, drv_top)
-                self.route(bg_bot, drv_bot)
-                self.enable_synapse_line(
-                    drv_top, l1address, gmax_div=gmax_div, excitatory=excitatory,
-                    gmax=gmax, weight=weight)
-                self.enable_synapse_line(
-                    drv_bot, l1address, gmax_div=gmax_div, excitatory=excitatory,
-                    gmax=gmax, weight=weight)
-            else:
-                self.disable_synapse_line(drv_top)
-                self.disable_synapse_line(drv_bot)
+        drv_top = SynapseDriverOnHICANN(Enum(self.config.get_stimulating_driver_top()))
+        drv_bot = SynapseDriverOnHICANN(Enum(self.config.get_stimulating_driver_bottom()))
+
+        if not drv_top.isTop():
+            raise RuntimeError("{} is not top".format(drv_top))
+
+        if not drv_bot.isBottom():
+            raise RuntimeError("{} is not bottom".format(drv_bot))
+
+        drvs = [drv_top, drv_bot]
+
+        for drv in drvs:
+            self.route(dnc, drv)
+
+            self.enable_synapse_line(
+                drv, stimulating_addr, gmax_div=gmax_div, excitatory=excitatory,
+                gmax=gmax, weight=weight)
+
         return rate
 
     def mirror_synapse_driver(self, driver, count, upwards=True, skip=0):

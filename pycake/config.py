@@ -61,7 +61,16 @@ DEFAULT_PARAMETERS = {
     "repetitions": 1,
     "input_spikes": {},
 
-    "hwdb": ""
+    "hwdb": "",
+
+    "locking_generator" : 0,
+    "locking_period" : 125,
+    "locking_address" : 0,
+
+    "stimulating_generator" : 1,
+    "stimulating_address" : 63,
+    "stimulating_driver_top" : 23,
+    "stimulating_driver_bottom" : 136
 }
 
 
@@ -363,3 +372,24 @@ class Config(object):
 
     def get_read_fg_values(self):
         return self.parameters['read_fg_values']
+
+    def get_locking_period(self):
+        return self.parameters['locking_period']
+
+    def get_locking_generator(self):
+        return self.parameters['locking_generator']
+
+    def get_locking_address(self):
+        return self.parameters['locking_address']
+
+    def get_stimulating_generator(self):
+        return self.parameters['stimulating_generator']
+
+    def get_stimulating_address(self):
+        return self.parameters['stimulating_address']
+
+    def get_stimulating_driver_top(self):
+        return self.parameters['stimulating_driver_top']
+
+    def get_stimulating_driver_bottom(self):
+        return self.parameters['stimulating_driver_bottom']
