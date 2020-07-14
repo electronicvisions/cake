@@ -519,7 +519,7 @@ class StHALContainer(object):
             cfg.fg_biasn = biasn
             fg.setFGConfig(Enum(ii), cfg)
 
-    def stimulateNeurons(self, rate, no_generators, excitatory=True,
+    def stimulateNeurons(self, rate, no_generators=1, excitatory=True,
                          gmax=0, gmax_div=2, weight=15):
         """Stimulate neurons via background generators
 
@@ -527,12 +527,18 @@ class StHALContainer(object):
             rate: Rate of a single generator in Hertz. This value will be
                   rounded upwards to the next possible value for the given
                   PLL setting.
-            number: Number of generators to use in parallel (per Neuron)
+            no_generators: Deprecated, was: Number of generators to use in parallel (per Neuron)
+            excitatory: excitatory if True, inhibitory if False
+            gmax: select V_gmax{}.format(gmax)
+            gmax_div: gmax divisor
+            weight: 4-bit weight
 
         Returns:
             Actual spike rate in Hz
         """
-        assert(no_generators >= 0 and no_generators <= 4)
+        if no_generators != 1:
+            raise RuntimeError("Number of background generators must be 1 not {}".format(no_generators))
+
         assert(rate <= 5.0e6)
         assert(1 <= gmax_div <= 30)
         assert(0 <= weight <= 15)

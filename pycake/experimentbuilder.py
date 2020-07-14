@@ -224,7 +224,7 @@ class InputSpike_Experimentbuilder(BaseExperimentBuilder):
     def prepare_specific_config(self, sthal, parameters):
         spikes = self.config.get_input_spikes()
         sthal.set_input_spikes(spikes)
-        sthal.stimulateNeurons(100000., 4)
+        sthal.stimulateNeurons(100000., 1)
         return sthal
 
     def make_measurement(self, sthal, neurons, readout_shifts):

@@ -53,16 +53,11 @@ def _find_spikes_in_preout(trace):
 @hardware
 def _get_preout_trace(config, bg_rate, recording_time):
     """
-    Read preout of upper (debug) synapse driver.
-
-    note: This won't work on Analog 1, because stimulateNeurons doesn't give input
-    to the lower synapse driver with debug output.
+    Read preout of (debug) synapse driver.
     """
     analog = Coordinate.AnalogOnHICANN(0)
     sthal = StHALContainer(config, analog, recording_time)
-    # We need SynapseDriverOnHICANN(Enum(111)), this should be covered
-    sthal.stimulateNeurons(bg_rate, 4)
-    sthal.hicann.analog.set_preout(analog)
+    sthal.stimulatePreout(bg_rate, analog)
     # TODO skip floating gates to speed up
     sthal.write_config(configurator=Configurator())
     times, trace = sthal.read_adc()
