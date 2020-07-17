@@ -50,14 +50,15 @@ for res in resources:
     components[res[0]] = {}
 
 for hicann in iter_all(C.HICANNOnWafer):
-    hicann_with_backend = wafer_with_backend.get(hicann)
-    fpga_with_backend = wafer_with_backend.get(hicann.toFPGAOnWafer())
     hicann_id = hicann.toEnum().value()
 
     # fill blacklisted HICANNs and continue if blacklisted (since no additional information available)
     blacklisted[hicann_id] = not wafer_with_backend.hicanns().has(hicann)
     if (not wafer_with_backend.hicanns().has(hicann)):
         continue
+    # load associated backends
+    hicann_with_backend = wafer_with_backend.get(hicann)
+    fpga_with_backend = wafer_with_backend.get(hicann.toFPGAOnWafer())
     jtag[hicann_id] = not fpga_with_backend.hslinks().has(
         hicann.toHighspeedLinkOnDNC())
     # check if HICANN file exists for not blacklisted HICANNS
@@ -87,16 +88,20 @@ max_value = 1
 blacklisted_figure = pycake.helpers.plotting.get_bokeh_figure(
     "blacklisted", blacklisted, max_value, cmap, default_fill_color='blue')
 
+# dummy used to evaluate max_value of coordinates. Should not be changed.
+# else plotting fails if all hicanns are blacklisted
+dummy_backend = load.HicannWithBackend(
+    args.defects_path, C.HICANNGlobal(), ignore_missing=True)
 figures = [blacklisted_figure, jtag_figure]
 table = {}
 histograms = []
 for res in resources:
     # coordinate is either enum or non enum type
     try:
-        max_value = getattr(hicann_with_backend,
+        max_value = getattr(dummy_backend,
                             res[0])().resource.enum_type.end
     except AttributeError:
-        max_value = getattr(hicann_with_backend, res[0])().resource.end
+        max_value = getattr(dummy_backend, res[0])().resource.end
 
     # calculate number of blacklisted components
     blacklisted_components = {h: max_value -
