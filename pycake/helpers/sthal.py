@@ -56,11 +56,10 @@ class UpdateParameterUp(HICANNv4Configurator):
             row_lists.append(self.rows)
 
             for h, hicann in zip(handles, hicanns):
-                # cf. #3131
-                hicann_handles = pysthal.vector_less__boost_scope_shared_ptr_less_HMF_scope_Handle_scope_HICANN_greater___greater_()
+                hicann_handles = pysthal.VectorHICANNHandle()
                 hicann_handles.append(h)
 
-                hicann_datas = pysthal.vector_less__boost_scope_shared_ptr_less_sthal_scope_HICANNData_greater___greater_()
+                hicann_datas = pysthal.VectorHICANNData()
                 hicann_datas.append(hicann)
 
                 self.program_normal(hicann_handles, hicann_datas, row_lists)
