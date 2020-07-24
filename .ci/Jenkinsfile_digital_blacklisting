@@ -73,7 +73,7 @@ timestamps {
 					parallel_tasks["Check FPGA ${fpga}"] = {
 						catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
 							jesh ("srun -p calib -n1 --wmod ${wafers[w]} --fpga-without-aout ${fpga} --job-name comm_test" +
-							      " --time 60:00 --skip-hicann-init --mem-per-cpu 400 run_nmpm_software_clusterize" +
+							      " --time 60:00 --skip-hicann-init --mem-per-cpu 400 run_nmpm_software" +
 							      " sthal_multi_chip_comm_test.py --wafer ${wafers[w]} --hicann"  +
 							      " \$(run_nmpm_software halbe_list_hicanns.py --wafer ${wafers[w]} --fpga ${fpga})" +
 							      " --backend_path_pattern ${comm_path.trim()}/w{}h{}")
@@ -135,7 +135,7 @@ timestamps {
 					parallel_tasks["Check FPGA ${fpga}"] = {
 						catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
 							jesh ("srun -p calib -n1 --wmod ${wafers[w]} --fpga-without-aout ${fpga} --job-name blacklisting" +
-							      " --time 60:00 --skip-hicann-init --mem-per-cpu 400 run_nmpm_software_clusterize cake_blacklist_fpga.py" +
+							      " --time 60:00 --skip-hicann-init --mem-per-cpu 400 run_nmpm_software cake_blacklist_fpga.py" +
 							      " --wafer ${wafers[w]} --fpga ${fpga} --seeds ${SEED} --input_backend_path ${comm_path.trim()}" +
 							      " --output_backend_path ${blacklisting_path.trim()}")
 						}
