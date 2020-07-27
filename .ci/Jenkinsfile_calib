@@ -1,185 +1,192 @@
 @Library("jenlib") _
 
 timestamps {
-    addBuildParameter(string(
-                      name: 'WAFERS',
-                      defaultValue: "37",
-                      description: "List of wafers. One is drawn randomly"
-    ))
-    addBuildParameter(string(
-                      name: 'HICANNS',
-                      defaultValue: "120 121 122",
-                      description: "List of hicanns. One is drawn randomly"
-    ))
-    addBuildParameter(string(
-                      name: 'NEURONS',
-                      defaultValue: "1 2 255 256",
-                      description: "List of neurons to calibrate. For all: -1"
-    ))
-    addBuildParameter(string(
-                      name: 'PARAMETERS2CALIB',
-                      defaultValue: "readout_shift V_reset V_t E_syni E_synx I_pl E_l V_convoffx V_convoffi I_gl_PSP V_syntcx V_syntci",
-                      description: "Parameters that will be calibrated"
-    ))
-    addBuildParameter(string(
-                      name: 'BLACKLISTING_PATH',
-                      defaultValue: "/wang/data/commissioning/BSS-1/rackplace",
-                      description: "Blacklisting base path for inquiry of defects. To be extended with Wafer no., derived blacklisting"
-    ))
-    addBuildParameter(string(
-                      name: 'SOFTWARE_MODULE',
-                      defaultValue: "nmpm_software/current",
-                      description: "Software module to use"
-    ))
-    addBuildParameter(string(
-                      name: 'OUTPUT_PATH',
-                      defaultValue: "",
-                      description: "Optional. If not provided, only the plots will be archived"
-    ))
-    addBuildParameter(string(
-                      name: 'EXISTING_CALIBRATION_PATH',
-                      defaultValue: "",
-                      description: "If provided, only evaluation will be run using an existing calibration"
-    ))
-    addBuildParameter(booleanParam(
-                      name: 'RUN_EVALUATION',
-                      defaultValue: true,
-                      description: "Allows for faster runs if evaluation is skipped"
-    ))
+    catchError{
+        addBuildParameter(string(
+                        name: 'WAFERS',
+                        defaultValue: "37",
+                        description: "List of wafers. One is drawn randomly"
+        ))
+        addBuildParameter(string(
+                        name: 'HICANNS',
+                        defaultValue: "120 121 122",
+                        description: "List of hicanns. One is drawn randomly"
+        ))
+        addBuildParameter(string(
+                        name: 'NEURONS',
+                        defaultValue: "1 2 255 256",
+                        description: "List of neurons to calibrate. For all: -1"
+        ))
+        addBuildParameter(string(
+                        name: 'PARAMETERS2CALIB',
+                        defaultValue: "readout_shift V_reset V_t E_syni E_synx I_pl E_l V_convoffx V_convoffi I_gl_PSP V_syntcx V_syntci",
+                        description: "Parameters that will be calibrated"
+        ))
+        addBuildParameter(string(
+                        name: 'BLACKLISTING_PATH',
+                        defaultValue: "/wang/data/commissioning/BSS-1/rackplace",
+                        description: "Blacklisting base path for inquiry of defects. To be extended with Wafer no., derived blacklisting"
+        ))
+        addBuildParameter(string(
+                        name: 'SOFTWARE_MODULE',
+                        defaultValue: "nmpm_software/current",
+                        description: "Software module to use"
+        ))
+        addBuildParameter(string(
+                        name: 'OUTPUT_PATH',
+                        defaultValue: "",
+                        description: "Optional. If not provided, only the plots will be archived"
+        ))
+        addBuildParameter(string(
+                        name: 'EXISTING_CALIBRATION_PATH',
+                        defaultValue: "",
+                        description: "If provided, only evaluation will be run using an existing calibration"
+        ))
+        addBuildParameter(booleanParam(
+                        name: 'RUN_EVALUATION',
+                        defaultValue: true,
+                        description: "Allows for faster runs if evaluation is skipped"
+        ))
 
-    String[] wafers = params.get('WAFERS').split(" ");
-    String[] hicanns = params.get('HICANNS').split(" ");
-    Random rnd = new Random()
+        String[] wafers = params.get('WAFERS').split(" ");
+        String[] hicanns = params.get('HICANNS').split(" ");
+        Random rnd = new Random()
 
-    wafer = wafers[rnd.nextInt(wafers.size())]
-    println("wafer: ${wafer}")
-    hicann = hicanns[rnd.nextInt(hicanns.size())]
-    println("hicann: ${hicann}")
+        wafer = wafers[rnd.nextInt(wafers.size())]
+        println("wafer: ${wafer}")
+        hicann = hicanns[rnd.nextInt(hicanns.size())]
+        println("hicann: ${hicann}")
 
-    def date = new Date().format( 'yyyy-MM-dd' )
-    def output_path
-    def neurons
+        def date = new Date().format( 'yyyy-MM-dd' )
+        def output_path
+        def neurons
 
-    String defects_path
-    String hdf_path
-    String backend_dir
+        String defects_path
+        String hdf_path
+        String backend_dir
 
-    stage("Checkout") {
-        runOnSlave(label: "frontend") {
-            checkout scm
-        }
-    }
-
-    runOnSlave(label: "frontend") {
-        if (params.OUTPUT_PATH == "") {
-            output_path = WORKSPACE
-        } else {
-            output_path = params.OUTPUT_PATH.trim()
-        }
-        println("Output path: " + output_path)
-        if (params.NEURONS.trim() == "-1") {
-            def neuronList = []
-        for (int i=0; i<512; i++) {
-            neuronList << i
-        }
-        neurons = neuronList.join(' ')
-        } else {
-            neurons = params.NEURONS.trim()
-        }
-        println("Neurons: " + neurons)
-        defects_path = params.BLACKLISTING_PATH.trim() + "/" + wafer + "/derived_blacklisting/current/"
-        println("Defects path: " + defects_path)
-    }
-
-    if (params.EXISTING_CALIBRATION_PATH == "") {
-        stage("Run calibration on W${wafer}H${hicann}") {
-            withEnv(['STHAL_DEFECTS_PATH=' + defects_path]) {
-                onSlurmResource(partition: "calib",
-                                    "wmod" : wafer,
-                                    "hicann-with-aout" : hicann,
-                                    "job-name" : "calibration_ci") {
-                    withModules(modules: ["${params.SOFTWARE_MODULE}"]) {
-                        jesh ("run_nmpm_software cake_run_calibration --wafer '${wafer}' " +
-                                "--hicann '${hicann}' --outdir '${output_path}' " +
-                                "--parameter ${params.PARAMETERS2CALIB.trim()} " +
-                                "--overwrite neurons NeuronOnHICANN '${neurons}' " +
-                                "config/v4_params.py")
-                    }
-                }
+        stage("Checkout") {
+            runOnSlave(label: "frontend") {
+                checkout scm
             }
         }
 
-        stage("Plot calib results W${wafer}H${hicann}") {
-            onSlurmResource(partition: "calib", "job-name" : "calibration_plot_integration_test") {
-                hdf_path = jesh(script: ".ci/get_paths.sh cal " +
-                    output_path + "/", returnStdout: true).trim()
-                backend_dir = jesh(script: ".ci/get_paths.sh cal " +
-                    output_path + "/ backend",
-                    returnStdout: true).trim()
-                println("backend: " + backend_dir)
-                jesh(script: "mkdir '${output_path}'/figures",
+        runOnSlave(label: "frontend") {
+            if (params.OUTPUT_PATH == "") {
+                output_path = WORKSPACE
+            } else {
+                output_path = params.OUTPUT_PATH.trim()
+            }
+            println("Output path: " + output_path)
+            if (params.NEURONS.trim() == "-1") {
+                def neuronList = []
+            for (int i=0; i<512; i++) {
+                neuronList << i
+            }
+            neurons = neuronList.join(' ')
+            } else {
+                neurons = params.NEURONS.trim()
+            }
+            println("Neurons: " + neurons)
+            defects_path = params.BLACKLISTING_PATH.trim() + "/" + wafer + "/derived_blacklisting/current/"
+            println("Defects path: " + defects_path)
+        }
+
+        if (params.EXISTING_CALIBRATION_PATH == "") {
+            stage("Run calibration on W${wafer}H${hicann}") {
+                withEnv(['STHAL_DEFECTS_PATH=' + defects_path]) {
+                    onSlurmResource(partition: "calib",
+                                        "wmod" : wafer,
+                                        "hicann-with-aout" : hicann,
+                                        "job-name" : "calibration_ci") {
+                        withModules(modules: ["${params.SOFTWARE_MODULE}"]) {
+                            jesh ("run_nmpm_software cake_run_calibration --wafer '${wafer}' " +
+                                    "--hicann '${hicann}' --outdir '${output_path}' " +
+                                    "--parameter ${params.PARAMETERS2CALIB.trim()} " +
+                                    "--overwrite neurons NeuronOnHICANN '${neurons}' " +
+                                    "config/v4_params.py")
+                        }
+                    }
+                }
+            }
+
+            stage("Plot calib results W${wafer}H${hicann}") {
+                onSlurmResource(partition: "calib", "job-name" : "calibration_plot_integration_test") {
+                    hdf_path = jesh(script: ".ci/get_paths.sh cal " +
+                        output_path + "/", returnStdout: true).trim()
+                    backend_dir = jesh(script: ".ci/get_paths.sh cal " +
+                        output_path + "/ backend",
+                        returnStdout: true).trim()
+                    println("backend: " + backend_dir)
+                    jesh(script: "mkdir '${output_path}'/figures",
+                        returnStdout: false)
+                    withModules(modules: ["${params.SOFTWARE_MODULE}"]) {
+                        jesh("run_nmpm_software cake_make_plots '${output_path}' " +
+                                "--wafer '${wafer}' --hicann '${hicann}' --calib '${hdf_path}' " +
+                                "--outdir figures --backend_path '${backend_dir}' ")
+                    }
+                }
+            }
+
+        } else {
+            runOnSlave(label: "frontend") {
+                jesh(script: "mkdir -pv ${output_path}/backends",
                     returnStdout: false)
-                withModules(modules: ["${params.SOFTWARE_MODULE}"]) {
-                    jesh("run_nmpm_software cake_make_plots '${output_path}' " +
-                            "--wafer '${wafer}' --hicann '${hicann}' --calib '${hdf_path}' " +
-                            "--outdir figures --backend_path '${backend_dir}' ")
-                }
+                jesh(script: "cp -v ${params.EXISTING_CALIBRATION_PATH.trim()}/*${wafer}*${hicann}*xml ${output_path}/backends",
+                    returnStdout: false)
+                backend_dir = output_path + "/backends/"
+                println("backend: " + backend_dir)
             }
         }
 
-    } else {
-        runOnSlave(label: "frontend") {
-            jesh(script: "mkdir -pv ${output_path}/backends",
-                returnStdout: false)
-            jesh(script: "cp -v ${params.EXISTING_CALIBRATION_PATH.trim()}/*${wafer}*${hicann}*xml ${output_path}/backends",
-                returnStdout: false)
-            backend_dir = output_path + "/backends/"
-            println("backend: " + backend_dir)
-        }
-    }
+        if (params.RUN_EVALUATION) {
+            stage("Run evaluation for W${wafer}H${hicann}") {
+                withEnv(['STHAL_DEFECTS_PATH=' + defects_path]) {
+                    onSlurmResource(partition: "calib",
+                                        "wmod" : wafer,
+                                        "hicann-with-aout" : hicann,
+                                        "job-name" : "calibration_ci_eval") {
+                        withModules(modules: ["${params.SOFTWARE_MODULE}"]) {
+                            jesh ("run_nmpm_software cake_run_calibration --wafer '${wafer}' " +
+                                    "--hicann '${hicann}' --outdir '${output_path}' " +
+                                    "--parameter ${params.PARAMETERS2CALIB.trim()} " +
+                                    "--overwrite neurons NeuronOnHICANN '${neurons}' " +
+                                    "config/v4_eval.py")
+                        }
+                    }
+                }
+            }
 
-    if (params.RUN_EVALUATION) {
-        stage("Run evaluation for W${wafer}H${hicann}") {
-            withEnv(['STHAL_DEFECTS_PATH=' + defects_path]) {
+            stage("Plot eval results for W${wafer}H${hicann}") {
                 onSlurmResource(partition: "calib",
-                                    "wmod" : wafer,
-                                    "hicann-with-aout" : hicann,
-                                    "job-name" : "calibration_ci_eval") {
+                                    "job-name" : "calibration_eval_plot_integration_test") {
+                    hdf_path = jesh(script: ".ci/get_paths.sh eval " +
+                        output_path + "/", returnStdout: true).trim()
+                    println("Eval path: " + hdf_path)
                     withModules(modules: ["${params.SOFTWARE_MODULE}"]) {
-                        jesh ("run_nmpm_software cake_run_calibration --wafer '${wafer}' " +
-                                "--hicann '${hicann}' --outdir '${output_path}' " +
-                                "--parameter ${params.PARAMETERS2CALIB.trim()} " +
-                                "--overwrite neurons NeuronOnHICANN '${neurons}' " +
-                                "config/v4_eval.py")
+                        jesh ("run_nmpm_software cake_make_plots '${output_path}' " +
+                            "--wafer '${wafer}' --hicann '${hicann}' --evaluation '${hdf_path}' " +
+                            "--outdir figures --backend_path '${backend_dir}' ")
                     }
                 }
             }
         }
 
-        stage("Plot eval results for W${wafer}H${hicann}") {
-            onSlurmResource(partition: "calib",
-                                "job-name" : "calibration_eval_plot_integration_test") {
-                hdf_path = jesh(script: ".ci/get_paths.sh eval " +
-                    output_path + "/", returnStdout: true).trim()
-                println("Eval path: " + hdf_path)
-                withModules(modules: ["${params.SOFTWARE_MODULE}"]) {
-                    jesh ("run_nmpm_software cake_make_plots '${output_path}' " +
-                        "--wafer '${wafer}' --hicann '${hicann}' --evaluation '${hdf_path}' " +
-                        "--outdir figures --backend_path '${backend_dir}' ")
-                }
+        runOnSlave(label: "frontend") {
+            if (params.OUTPUT_PATH != "") {
+                jesh(script: "cp -r ${output_path}/figures '${WORKSPACE}'",
+                    returnStdout: false)
+                jesh(script: "chgrp -R commissioners_bss1 ${output_path}/*",
+                    returnStdout: false)
+                jesh(script: "chmod -R 775 ${output_path}/*",
+                    returnStdout: false)
             }
+            archiveArtifacts "figures/*.png"
         }
     }
-
-    runOnSlave(label: "frontend") {
-        if (params.OUTPUT_PATH != "") {
-            jesh(script: "cp -r ${output_path}/figures '${WORKSPACE}'",
-                returnStdout: false)
-            jesh(script: "chgrp -R commissioners_bss1 ${output_path}/*",
-                returnStdout: false)
-            jesh(script: "chmod -R 775 ${output_path}/*",
-                returnStdout: false)
-        }
-        archiveArtifacts "figures/*.png"
+    node(label: "frontend") {
+        step([$class: 'Mailer', notifyEveryUnstableBuild: true,
+                recipients:'jose.montes@kip.uni-heidelberg.de,hschmidt@kip.uni-heidelberg.de',
+                sendToIndividuals: true])
     }
 }
