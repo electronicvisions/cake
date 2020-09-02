@@ -4,6 +4,7 @@ import argparse
 from collections import defaultdict
 
 from pyhalco_hicann_v2 import Wafer, HICANNGlobal, HICANNOnWafer, HLineOnHICANN, VLineOnHICANN
+from pyhalco_hicann_v2 import short_format
 from pyhalco_common import Enum, iter_all
 from pyredman.load import load
 
@@ -49,12 +50,20 @@ if __name__ == "__main__":
     for hicann, hbuses in blacklist_hbuses.iteritems():
         redman_hicann = load.HicannWithBackend(args.outdir, HICANNGlobal(hicann, wafer_c))
         for hb in hbuses:
-            redman_hicann.hbuses().disable(hb)
+            if redman_hicann.hbuses().has(hb):
+                redman_hicann.hbuses().disable(hb)
+                print("disable {} on {}".format(hb, short_format(hicann)))
+            else:
+                print("{} on {} already disabled -> skipped".format(hb, short_format(hicann)))
         redman_hicann.save()
 
     for hicann, vbuses in blacklist_vbuses.iteritems():
         redman_hicann = load.HicannWithBackend(args.outdir, HICANNGlobal(hicann, wafer_c))
         for vb in vbuses:
-            redman_hicann.vbuses().disable(vb)
+            if redman_hicann.vbuses().has(vb):
+                redman_hicann.vbuses().disable(vb)
+                print("disable {} on {}".format(vb, short_format(hicann)))
+            else:
+                print("{} on {} already disabled -> skipped".format(vb, short_format(hicann)))
         redman_hicann.save()
 
