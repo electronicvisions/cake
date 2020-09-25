@@ -4,31 +4,32 @@ timestamps {
 	addBuildParameter(string(
 	                  name: 'WAFER',
 	                  defaultValue: "24,30,33,37",
-	                  description: "comma separated list of wafers"
+	                  description: "comma-separated list of wafers"
 	))
 	addBuildParameter(string(
 	                  name: 'BLACKLISTING_PATH',
 	                  defaultValue: "/wang/data/commissioning/BSS-1/rackplace",
-	                  description: "path where results are stored (will be split in `$WAFER/communication` and `$WAFER/digital_blacklisting`"
+	                  description: "path where results are stored (will be split in subfolders `$WAFER/communication` and `$WAFER/digital_blacklisting`)"
 	))
 	addBuildParameter(string(
 	                  name: 'COMM_TEST_RESULT_PATH',
 	                  defaultValue: "new",
-	                  description: "path to commtest results. Use `new` to run new commtest"
+	                  description: "If provided, commtest is skipped and the remaining steps are executed with the specified existing commtest results. Use `new` to run a new commtest"
 	))
 	addBuildParameter(string(
 	                  name: 'BLACKLISTING_RESULT_PATH',
 	                  defaultValue: "new",
-	                  description: "path to blacklisting results. Use `new` to run new digital blacklisting test"
+	                  description: "If provided, commtest and digital blacklisting are skipped and the derived blacklisting will use the specified existing digital blacklisting results. Use `new` to run a new digital blacklisting"
 	))
 	addBuildParameter(string(
 	                  name: 'MODULE',
-	                  defaultValue: "nmpm_software/current"
+	                  defaultValue: "nmpm_software/current",
+	                  description: "NMPM software version. The default is a link to the last stable version"
 	))
 	addBuildParameter(string(
 	                  name: 'SEED',
 	                  defaultValue: "1 2 3 4 5 6 7 8 9 10",
-	                  description: "blank space separated list of used seeds"
+	                  description: "space-separated list of seeds for random-number generation, used for the write/read digital checks. More seeds will require more runtime"
 	))
 
 	// Evaluate WAFER string
@@ -105,7 +106,7 @@ timestamps {
 				runOnSlave(label: "frontend") {
 					withModules(modules: ["${MODULE}"]) {
 						jesh ("cd ${comm_path.trim()} && run_nmpm_software cake_redman_overview.py ${wafers[w]} ${comm_path.trim()}")
-						// create symlink to latest jenkins file
+						// create symlink to latest jenkins-generated results
 						jesh ("ln -fnrs ${comm_path.trim()} ${BLACKLISTING_PATH}/${wafer_strings[w]}/communication/latest-jenkins")
 						// change group and add write permissions
 						jesh ("chgrp -h commissioners_bss1 ${BLACKLISTING_PATH}/${wafer_strings[w]}/communication/latest-jenkins")
@@ -215,7 +216,7 @@ timestamps {
 			runOnSlave(label: "frontend") {
 				withModules(modules: ["${MODULE}"]) {
 					jesh ("cd ${derived_blacklisting_path.trim()} && run_nmpm_software cake_redman_overview.py ${wafers[w]} ${derived_blacklisting_path.trim()}")
-					// create symlink to latest jenkins file
+					// create symlink to latest jenkins-generated results
 					jesh ("ln -fnrs ${derived_blacklisting_path.trim()} ${BLACKLISTING_PATH}/${wafer_strings[w]}/derived_blacklisting/latest-jenkins")
 					// change group and add write permissions
 					jesh ("chgrp -h commissioners_bss1 ${BLACKLISTING_PATH}/${wafer_strings[w]}/derived_blacklisting/latest-jenkins")
