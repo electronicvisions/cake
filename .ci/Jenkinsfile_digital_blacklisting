@@ -187,6 +187,9 @@ timestamps {
 
 			// copy blacklisting results
 			runOnSlave(label: "frontend") {
+				// store path to digital blacklisting
+				jesh (script: "echo ${blacklisting_path.trim()} > ${derived_blacklisting_path.trim()}/digital_blacklisting_path.txt",
+				returnStatus: true)
 				jesh (script: "cp ${blacklisting_path.trim()}/fpga-${wafers[w]}-*.xml ${derived_blacklisting_path.trim()}",
 				returnStatus: true)
 				jesh (script: "cp ${blacklisting_path.trim()}/wafer-Wafer\\(${wafers[w]}\\).xml ${derived_blacklisting_path.trim()}",
