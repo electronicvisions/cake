@@ -86,7 +86,7 @@ cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", [
                                                            "green", "red"])
 max_value = 1
 blacklisted_figure = pycake.helpers.plotting.get_bokeh_figure(
-    "blacklisted", blacklisted, max_value, cmap, default_fill_color='blue')
+    "blacklisted (full HICANN)", blacklisted, max_value, cmap, default_fill_color='blue')
 
 # dummy used to evaluate max_value of coordinates. Should not be changed.
 # else plotting fails if all hicanns are blacklisted
