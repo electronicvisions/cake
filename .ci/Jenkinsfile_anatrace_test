@@ -43,8 +43,7 @@ try {
 		}
 
 		if (successfulRecordings == 0) {
-			echo("0 analyses were successful, setting build 'UNSTABLE'!")
-			setBuildState("UNSTABLE")
+			setBuildState(state: "UNSTABLE", reason: "0 analyses were successful.")
 		}
 	}
 
