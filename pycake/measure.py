@@ -177,7 +177,7 @@ class Measurement(object):
         self.finish()
         if disconnect:
             self.sthal.disconnect()
-        self.tun_time = time.time() - t_start
+        self.run_time = time.time() - t_start
         self.logger.INFO("Measurement done.")
         return result
 
