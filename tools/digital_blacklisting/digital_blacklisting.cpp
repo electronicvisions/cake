@@ -41,6 +41,17 @@ void touch_component(boost::shared_ptr<res> component)
 		component->enable_all();
 }
 
+// checks if driver exists on HICANN v4
+bool drv_exists(C::SynapseDriverOnHICANN syn_drv)
+{
+	// synapse rows of synase drivers 110 - 113 were removed on HICANN v4
+	size_t drv_enum = syn_drv.toEnum();
+	if (110 <= drv_enum && drv_enum < 114) {
+		return false;
+	}
+	return true;
+}
+
 int main(int argc, char* argv[])
 {
 	size_t wafer;
@@ -225,21 +236,10 @@ int main(int argc, char* argv[])
 	std::uniform_int_distribution<int> numberstpcap(
 	    0, (1 << HMF::HICANN::SynapseDriver::num_cap) - 1);
 
-	// Some coordinates are not available on HICANN v4
-	std::vector<C::SynapseDriverOnHICANN> unavailable_syn_drv;
-	for (size_t drv = 110; drv < 114; drv++) {
-		unavailable_syn_drv.push_back(C::SynapseDriverOnHICANN(C::Enum(drv)));
-	}
-	std::vector<C::SynapseRowOnHICANN> unavailable_syn_row;
-	for (size_t row = 220; row < 228; row++) {
-		unavailable_syn_row.push_back(C::SynapseRowOnHICANN(row));
-	}
-
 	// Synapse controller needed for dummy waits. Writing default constructed
 	// values to hardware is valid, since configuration register is not altered
 	// in this test.
 	HMF::HICANN::SynapseController const synapse_controller;
-
 
 	// Once touch all tested components to set has_value = True
 	// Used to distinguish between tested and not tested components
@@ -274,8 +274,7 @@ int main(int argc, char* argv[])
 				// check set_Synapse_Driver
 				// iterate Hicann Synapse Driver
 				for (auto syn_drv_c : C::iter_all<C::SynapseDriverOnHICANN>()) {
-					if (std::find(unavailable_syn_drv.begin(), unavailable_syn_drv.end(), syn_drv_c) !=
-					    unavailable_syn_drv.end()) {
+					if (!drv_exists(syn_drv_c)) {
 						continue;
 					}
 					// if component already blacklisted continue
@@ -361,8 +360,7 @@ int main(int argc, char* argv[])
 
 				// check set_weights_row
 				for (auto const& syn_row_c : C::iter_all<C::SynapseRowOnHICANN>()) {
-					if (std::find(unavailable_syn_row.begin(), unavailable_syn_row.end(), syn_row_c) !=
-					    unavailable_syn_row.end()) {
+					if (!drv_exists(syn_row_c.toSynapseDriverOnHICANN())) {
 						continue;
 					}
 					// if component already blacklisted continue
@@ -402,8 +400,7 @@ int main(int argc, char* argv[])
 
 				// check set decoder_double_row
 				for (auto const& syn_drv_c : C::iter_all<C::SynapseDriverOnHICANN>()) {
-					if (std::find(unavailable_syn_drv.begin(), unavailable_syn_drv.end(), syn_drv_c) !=
-					    unavailable_syn_drv.end()) {
+					if (!drv_exists(syn_drv_c)) {
 						continue;
 					}
 					// if component already blacklisted continue
