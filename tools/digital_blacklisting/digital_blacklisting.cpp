@@ -1,5 +1,6 @@
 #include <iostream>
 #include <random>
+#include <sstream>
 #include <string>
 
 #include <boost/program_options.hpp>
@@ -52,6 +53,128 @@ bool drv_exists(C::SynapseDriverOnHICANN syn_drv)
 	return true;
 }
 
+/**
+ * @brief Repeatedly r/w test the synapse weights and decoders with the same values
+ * A random number generator is used to generate different test values per component
+ * @param array Synapse array coordinate which will be checked
+ * @param generator Random number generator (seeded with stability_seed)
+ * @param hicann_handle Handle of tested HICANN
+ * @param number_of_repetitions How often the same value is tested per component
+ * @param synapse_controller Synapse controller needed for dummy waits
+ * @return false if unstable behaviour was found else true
+ */
+bool test_synapse_array_stability(
+    C::SynapseArrayOnHICANN const& syn_array_c,
+    std::mt19937& generator,
+    boost::shared_ptr<Handle::HICANNHw> const& hicann_handle,
+    size_t number_of_repetitions,
+    HMF::HICANN::SynapseController const& synapse_controller,
+    log4cxx::LoggerPtr test_logger)
+{
+	std::uniform_int_distribution<int> syn_weight_num(
+	    HMF::HICANN::SynapseWeight::min, HMF::HICANN::SynapseWeight::max);
+	// check weight stability
+	for (auto const& syn_row_on_array_c : C::iter_all<C::SynapseRowOnArray>()) {
+		C::SynapseRowOnHICANN const syn_row_c(syn_row_on_array_c, syn_array_c);
+		// skip unavailable components
+		if (!drv_exists(syn_row_c.toSynapseDriverOnHICANN())) {
+			continue;
+		}
+		HMF::HICANN::WeightRow weight_row;
+		// initialize each synapse with a random weight
+		for (auto const& syn_column_c : C::iter_all<C::SynapseColumnOnHICANN>()) {
+			// generate SynapseWeight objects to fill WeightRow with random weights
+			HMF::HICANN::SynapseWeight syn_weight(syn_weight_num(generator));
+			weight_row[syn_column_c] = syn_weight;
+		}
+		std::set<int> found_defect_numbers;
+		for (size_t repetition = 0; repetition < number_of_repetitions; repetition++) {
+			int defect_counter = 0;
+			// use halbe backend functions to write and read
+			Backend::HICANN::set_weights_row(
+			    *hicann_handle, synapse_controller, syn_row_c, weight_row);
+			HMF::HICANN::WeightRow const read_weight_row =
+			    Backend::HICANN::get_weights_row(*hicann_handle, synapse_controller, syn_row_c);
+			// compare to extract the number of defect synapses
+			for (auto const& syn_column_c : C::iter_all<C::SynapseColumnOnHICANN>()) {
+				if (weight_row[syn_column_c] != read_weight_row[syn_column_c]) {
+					defect_counter++;
+				}
+			}
+			found_defect_numbers.insert(defect_counter);
+		}
+		if (found_defect_numbers.size() != 1) {
+			// unstable defect behaviour found
+			std::stringstream out;
+			out << "Unstable behaviour during weight stability test on " << syn_row_c << " on "
+			    << syn_array_c << '\n';
+			out << "Error counts: [";
+			for (auto count : found_defect_numbers) {
+				out << count << " ";
+			}
+			out << "]";
+			LOG4CXX_INFO(test_logger, out.str());
+			return false;
+		}
+	} // check weight stability
+	// check decoder stability
+	std::uniform_int_distribution<int> syn_dec_num(
+	    HMF::HICANN::SynapseDecoder::min, HMF::HICANN::SynapseDecoder::max);
+	for (auto const& syn_drv_c : C::iter_all<C::SynapseDriverOnHICANN>()) {
+		// skip drivers on other synapse array
+		if (syn_drv_c.toSynapseArrayOnHICANN() != syn_array_c) {
+			continue;
+		}
+		// skip if driver is unavailable on HICANN v4
+		if (!drv_exists(syn_drv_c)) {
+			continue;
+		}
+		HMF::HICANN::DecoderDoubleRow decoder_double_row;
+		// Initialize each decoder with random values
+		for (auto const& row_number : C::iter_all<C::RowOnSynapseDriver>()) {
+			HMF::HICANN::DecoderRow dec_row;
+			for (auto const& syn_column_c : C::iter_all<C::SynapseColumnOnHICANN>()) {
+				dec_row[syn_column_c] = HMF::HICANN::SynapseDecoder(syn_dec_num(generator));
+			}
+			decoder_double_row[row_number] = dec_row;
+		}
+		std::set<int> found_defect_numbers;
+		for (size_t repetition = 0; repetition < number_of_repetitions; repetition++) {
+			int defect_counter = 0;
+			// write and read values
+			Backend::HICANN::set_decoder_double_row(
+			    *hicann_handle, synapse_controller, syn_drv_c, decoder_double_row);
+			HMF::HICANN::DecoderDoubleRow const read_decoder_row =
+			    Backend::HICANN::get_decoder_double_row(
+			        *hicann_handle, synapse_controller, syn_drv_c);
+			// compare values
+			for (auto const& row_number : C::iter_all<C::RowOnSynapseDriver>()) {
+				for (auto const& syn_column_c : C::iter_all<C::SynapseColumnOnHICANN>()) {
+					if (decoder_double_row[row_number][syn_column_c] !=
+					    read_decoder_row[row_number][syn_column_c]) {
+						defect_counter++;
+					}
+				}
+			}
+			found_defect_numbers.insert(defect_counter);
+		}
+		if (found_defect_numbers.size() != 1) {
+			// unstable defect behaviour found
+			std::stringstream out;
+			out << "Unstable behaviour during decoder stability test on decoder double row of "
+			    << syn_drv_c << " on " << syn_array_c << '\n';
+			out << "Error counts: [";
+			for (auto count : found_defect_numbers) {
+				out << count << " ";
+			}
+			out << "]";
+			LOG4CXX_INFO(test_logger, out.str());
+			return false;
+		}
+	} // check decoder stability
+	return true;
+}
+
 int main(int argc, char* argv[])
 {
 	size_t wafer;
@@ -64,6 +187,8 @@ int main(int argc, char* argv[])
 	std::string output_backend_path;
 	bool highspeed;
 	std::vector<size_t> seeds;
+	size_t stability_seed;
+	size_t stability_repetitions;
 
 	// parse arguments from command line
 	po::options_description options("Allowed options");
@@ -82,7 +207,11 @@ int main(int argc, char* argv[])
 	    "path where blacklisting results of this test are stored. If blacklisting information is already present,"
 	    " it gets adapted and is used to control the test")(
 	    "highspeed", po::value<bool>(&highspeed)->default_value(1), "use highspeed otherwise JTAG")(
-	    "seeds", po::value<std::vector<size_t> >(&seeds)->multitoken()->required(), "used seeds");
+	    "seeds", po::value<std::vector<size_t> >(&seeds)->multitoken()->required(), "used seeds")(
+	    "stability_seed", po::value<size_t>(&stability_seed)->default_value(10),
+	    "used seed for synapse stability test")(
+	    "stability_repetitions", po::value<size_t>(&stability_repetitions)->default_value(20),
+	    "number of repetitions in the synapse stability test");
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, options), vm);
 	if (vm.count("help")) {
@@ -1007,6 +1136,36 @@ int main(int argc, char* argv[])
 			return EXIT_FAILURE;
 		}
 	} // seed
+
+	// blacklist synapse array if it contains unstable synapses
+	if (test_additional_components) {
+		std::mt19937 generator(stability_seed);
+		for (auto const& syn_array_c : C::iter_all<C::SynapseArrayOnHICANN>()) {
+			try {
+				LOG4CXX_INFO(
+				    test_logger, "Test synapse stability on synapse array "
+				                     << syn_array_c << " on HICANN " << hicann
+				                     << " with fixed seed " << stability_seed);
+				if (!test_synapse_array_stability(
+				        syn_array_c, generator, hicann_handle, stability_repetitions,
+				        synapse_controller, test_logger)) {
+					// disable synapsearray
+					redman_hicann.synapsearrays()->disable(syn_array_c, rewrite_policy);
+					LOG4CXX_INFO(
+					    test_logger, "Synapse array " << syn_array_c << " on HICANN " << hicann
+					                                  << " is unstable and was blacklisted");
+				}
+			} catch (...) {
+				LOG4CXX_ERROR(
+				    test_logger, "Error during array stability test of synapse array "
+				                     << syn_array_c << " on HICANN " << hicann << " using seed "
+				                     << stability_seed);
+				// reprogram HICANN
+				::HMF::FPGA::init(fpga_handle, false);
+				return EXIT_FAILURE;
+			}
+		}
+	}
 
 	// store redman
 	redman_hicann.save();
