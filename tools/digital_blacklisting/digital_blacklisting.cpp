@@ -53,6 +53,30 @@ bool drv_exists(C::SynapseDriverOnHICANN syn_drv)
 	return true;
 }
 
+// read/write test "repeater_c" with settings "repeater" and return false if a mismatch is found or
+// an illegal config is read back.
+template <typename R, typename C>
+bool test_repeater(
+    boost::shared_ptr<HMF::Handle::HICANNHw> const& hicann_handle,
+    C const& repeater_c,
+    R const& repeater,
+    log4cxx::LoggerPtr test_logger)
+{
+	Backend::HICANN::set_repeater(*hicann_handle, repeater_c, repeater);
+	// catch special error (illegal repeater config is read back) and blacklist
+	try {
+		auto const read_repeater = Backend::HICANN::get_repeater(*hicann_handle, repeater_c);
+		if (repeater != read_repeater) {
+			return false;
+		}
+	} catch (const std::domain_error& e) {
+		LOG4CXX_WARN(
+		    test_logger, "Catched error during Repeater " << repeater_c << " test: " << e.what());
+		return false;
+	}
+	return true;
+}
+
 /**
  * @brief Repeatedly r/w test the synapse weights and decoders with the same values
  * A random number generator is used to generate different test values per component
@@ -1060,11 +1084,8 @@ int main(int argc, char* argv[])
 						break;
 				}
 				// write and read values
-				Backend::HICANN::set_repeater(*hicann_handle, vrepeater_c, vrepeater);
-				HMF::HICANN::VerticalRepeater const read_vrepeater =
-				    Backend::HICANN::get_repeater(*hicann_handle, vrepeater_c);
-				// disable defect vrepeater
-				if (vrepeater != read_vrepeater) {
+				if (!test_repeater(hicann_handle, vrepeater_c, vrepeater, test_logger)) {
+					// disable defect vrepeater
 					redman_hicann.vrepeaters()->disable(vrepeater_c, rewrite_policy);
 				}
 			} // check vertical
@@ -1112,11 +1133,8 @@ int main(int argc, char* argv[])
 						break;
 				}
 				// write and read values
-				Backend::HICANN::set_repeater(*hicann_handle, hrepeater_c, hrepeater);
-				HMF::HICANN::HorizontalRepeater const read_hrepeater =
-				    Backend::HICANN::get_repeater(*hicann_handle, hrepeater_c);
-				// disable defect vrepeater
-				if (hrepeater != read_hrepeater) {
+				if (!test_repeater(hicann_handle, hrepeater_c, hrepeater, test_logger)) {
+					// disable defect hrepeater
 					redman_hicann.hrepeaters()->disable(hrepeater_c, rewrite_policy);
 				}
 			} // check horizontal
