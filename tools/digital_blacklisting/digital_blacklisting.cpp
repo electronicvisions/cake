@@ -843,10 +843,18 @@ int main(int argc, char* argv[])
 
 					// write and read values
 					Backend::HICANN::set_syn_ctrl(*hicann_handle, synarray, ctrl_reg);
-					HMF::HICANN::SynapseControlRegister read_ctrl_reg =
-						Backend::HICANN::get_syn_ctrl(*hicann_handle, synarray);
+					try {
+						HMF::HICANN::SynapseControlRegister read_ctrl_reg =
+						    Backend::HICANN::get_syn_ctrl(*hicann_handle, synarray);
 
-					if (ctrl_reg != read_ctrl_reg) {
+						if (ctrl_reg != read_ctrl_reg) {
+							// disable whole synapsearray
+							redman_hicann.synapsearrays()->disable(synarray, rewrite_policy);
+						}
+					} catch (const std::overflow_error& e) {
+						LOG4CXX_WARN(
+						    test_logger, "Catched error during synapse control register test on "
+						                     << synarray << ": " << e.what());
 						// disable whole synapsearray
 						redman_hicann.synapsearrays()->disable(synarray, rewrite_policy);
 					}
