@@ -76,7 +76,7 @@ timestamps {
 							      " --time 60:00 --skip-hicann-init --mem-per-cpu 400 run_nmpm_software" +
 							      " sthal_multi_chip_comm_test.py --wafer ${wafers[w]} --hicann"  +
 							      " \$(run_nmpm_software halbe_list_hicanns.py --wafer ${wafers[w]} --fpga ${fpga})" +
-							      " --backend_path_pattern ${comm_path.trim()}/w{}h{}")
+							      " --backend_path_pattern ${comm_path.trim()}/w{}h{} --pll 125 --zero-synapses")
 						}
 					}
 				}
