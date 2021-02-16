@@ -198,6 +198,7 @@ timestamps {
 			runOnSlave(label: "frontend") {
 				withModules(modules: ["${MODULE}"]) {
 					jesh ("run_nmpm_software cake_extend_hicann_syndrvs_blacklist.py --wafer ${wafers[w]} --hicann `seq 0 383` --defects_path ${derived_blacklisting_path.trim()}")
+					jesh ("run_nmpm_software cake_extend_hicann_repeater_blacklist_by_blacklisting.py --wafer ${wafers[w]} --input_dir ${derived_blacklisting_path.trim()} --output_dir ${derived_blacklisting_path.trim()}")
 					// Use hicann_blacklist_by_fgblock_blacklisting before calling hicann_buses_blacklist_by_blacklisting, else the neighboring buses are not blacklisted!
 					jesh ("run_nmpm_software cake_extend_hicann_blacklist_by_fgblock_blacklisting.py --wafer ${wafers[w]} --input_dir ${derived_blacklisting_path.trim()} --output_dir ${derived_blacklisting_path.trim()}")
 					jesh ("run_nmpm_software cake_extend_hicann_neuron_and_dnc_blacklist_by_blacklisting.py ${wafers[w]} ${derived_blacklisting_path.trim()} ${derived_blacklisting_path.trim()}")
