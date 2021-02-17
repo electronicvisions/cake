@@ -34,6 +34,9 @@ namespace Handle = HMF::Handle;
 namespace Backend = HMF;
 namespace po = boost::program_options;
 
+// Define logger variable
+log4cxx::LoggerPtr test_logger = log4cxx::Logger::getLogger("cake.digital_blacklisting");
+
 // sets has_value = True if component not already touched
 template <typename res>
 void touch_component(boost::shared_ptr<res> component)
@@ -53,20 +56,25 @@ bool drv_exists(C::SynapseDriverOnHICANN syn_drv)
 	return true;
 }
 
-// read/write test "repeater_c" with settings "repeater" and return false if a mismatch is found or
-// an illegal config is read back.
-template <typename R, typename C>
-bool test_repeater(
-    boost::shared_ptr<HMF::Handle::HICANNHw> const& hicann_handle,
-    C const& repeater_c,
-    R const& repeater,
-    log4cxx::LoggerPtr test_logger)
+/**
+ * @brief Write/read repeater_c with repeater settings.
+ * @param hicann_handle Handle of tested HICANN
+ * @param repeater_c Repeater coordinate
+ * @param repeater_settings Repeater settings
+ * @return false if mismatch or wrong configuration is read back, otherwise true.
+ */
+template <typename R, typename Co>
+bool write_read_test_repeater(
+    boost::shared_ptr<Handle::HICANNHw> const& hicann_handle,
+    Co const& repeater_c,
+    R const& repeater_settings)
 {
-	Backend::HICANN::set_repeater(*hicann_handle, repeater_c, repeater);
+	Backend::HICANN::set_repeater(*hicann_handle, repeater_c, repeater_settings);
 	// catch special error (illegal repeater config is read back) and blacklist
 	try {
-		auto const read_repeater = Backend::HICANN::get_repeater(*hicann_handle, repeater_c);
-		if (repeater != read_repeater) {
+		auto const read_repeater_settings =
+		    Backend::HICANN::get_repeater(*hicann_handle, repeater_c);
+		if (repeater_settings != read_repeater_settings) {
 			return false;
 		}
 	} catch (const std::domain_error& e) {
@@ -75,6 +83,101 @@ bool test_repeater(
 		return false;
 	}
 	return true;
+}
+
+/**
+ * @brief Get associated repeater configuration container for repeater coordinate
+ * @param repeater_c repeater coordinate
+ * @return Associated halbe repeater
+ */
+template <typename Co>
+auto get_repeater_container(Co const& repeater_c)
+{
+	if constexpr (repeater_c.size == C::VRepeaterOnHICANN::size) {
+		return HMF::HICANN::VerticalRepeater();
+	} else if constexpr (repeater_c.size == C::HRepeaterOnHICANN::size) {
+		return HMF::HICANN::HorizontalRepeater();
+	}
+}
+
+/**
+ * @brief Get associated repeater directions for repeater coordinate
+ * @param repeater_c repeater coordinate
+ * @return Associated repeater directions
+ */
+template <typename Co>
+auto get_direction(Co const& repeater_c)
+{
+	if constexpr (repeater_c.size == C::VRepeaterOnHICANN::size) {
+		return std::array{C::top, C::bottom};
+	} else if constexpr (repeater_c.size == C::HRepeaterOnHICANN::size) {
+		return std::array{C::left, C::right};
+	}
+}
+
+/**
+ * @brief Write/read tests H/V repeater with all possible configurations and
+ *  blacklist if a mismatch is found
+ * @param hicann_handle Handle of tested HICANN
+ * @param repeater_c Repeater coordinate
+ * @param defects Redman hicann defects file where component gets blacklisted
+ * @param rewrite_policy Redman policy to allow overwriting
+ */
+template <typename Co, typename D>
+void test_repeater(
+    boost::shared_ptr<Handle::HICANNHw> const& hicann_handle,
+    Co const& repeater_c,
+    D const& defects,
+    auto const rewrite_policy)
+{
+	auto repeater_settings(get_repeater_container(repeater_c));
+	auto direction(get_direction(repeater_c));
+	for (auto ren = 0; ren < 4; ren++) {
+		for (auto len = 0; len < 4; len++) {
+			for (auto opt = 0; opt < 9; opt++) {
+				repeater_settings.setRen(ren);
+				repeater_settings.setLen(len);
+				switch (opt) {
+					case 0:
+						repeater_settings.setIdle();
+						break;
+					case 1:
+						repeater_settings.setForwarding(direction[0]);
+						break;
+					case 2:
+						repeater_settings.setForwarding(direction[1]);
+						break;
+					case 3:
+						repeater_settings.setInput(direction[0]);
+						break;
+					case 4:
+						repeater_settings.setInput(direction[1]);
+						break;
+					// set output: not allowed that both directions are false
+					case 5:
+						repeater_settings.setOutput(direction[0], true);
+						repeater_settings.setOutput(direction[1], false);
+						break;
+					case 6:
+						repeater_settings.setOutput(direction[1], true);
+						repeater_settings.setOutput(direction[0], false);
+						break;
+					case 7:
+						repeater_settings.setOutput(direction[0], true);
+						repeater_settings.setOutput(direction[1], true);
+						break;
+					case 8:
+						repeater_settings.setLoopback();
+						break;
+				}
+				// write and read values
+				if (!write_read_test_repeater(hicann_handle, repeater_c, repeater_settings)) {
+					// disable defect repeater
+					defects->disable(repeater_c, rewrite_policy);
+				}
+			}
+		}
+	}
 }
 
 /**
@@ -92,8 +195,7 @@ bool test_synapse_array_stability(
     std::mt19937& generator,
     boost::shared_ptr<Handle::HICANNHw> const& hicann_handle,
     size_t number_of_repetitions,
-    HMF::HICANN::SynapseController const& synapse_controller,
-    log4cxx::LoggerPtr test_logger)
+    HMF::HICANN::SynapseController const& synapse_controller)
 {
 	std::uniform_int_distribution<int> syn_weight_num(
 	    HMF::HICANN::SynapseWeight::min, HMF::HICANN::SynapseWeight::max);
@@ -244,8 +346,8 @@ int main(int argc, char* argv[])
 	}
 	po::notify(vm);
 
+	// Initialize logger and set log level
 	logger_default_config(log4cxx::Level::getInfo());
-	log4cxx::LoggerPtr test_logger = log4cxx::Logger::getLogger("cake.digital_blacklisting");
 
 	redman::switch_mode::type const rewrite_policy = allow_rewrite ? redman::switch_mode::NONTHROW : redman::switch_mode::THROW;
 
@@ -1047,106 +1149,6 @@ int main(int argc, char* argv[])
 				}
 			} // check set_crossbar_switch_row
 
-			// check set_repeater
-			// overloaded with horizontal and vertical repeater
-			// vertical
-			for (auto const& vrepeater_c : C::iter_all<C::VRepeaterOnHICANN>()) {
-				// if component already blacklisted continue
-				if (!redman_hicann_previous_test.vrepeaters()->has(vrepeater_c))
-					continue;
-				LOG4CXX_INFO(
-				    test_logger, "Test component: " << vrepeater_c << " on HICANN " << hicann
-				                                    << " with seed " << seed);
-				HMF::HICANN::VerticalRepeater vrepeater;
-				vrepeater.setRen(number3(generator));
-				vrepeater.setLen(number3(generator));
-				switch (number4(generator)) {
-					case 0:
-						vrepeater.setIdle();
-						break;
-					case 1:
-						vrepeater.setForwarding(C::SideVertical(true_false(generator)));
-						break;
-					case 2:
-						vrepeater.setInput(C::SideVertical(true_false(generator)));
-						break;
-					// set output: both directions false not allowed
-					case 3:
-						switch (number2(generator)) {
-							case 0:
-								vrepeater.setOutput(C::SideVertical(0), true);
-								vrepeater.setOutput(C::SideVertical(1), false);
-								break;
-							case 1:
-								vrepeater.setOutput(C::SideVertical(1), true);
-								vrepeater.setOutput(C::SideVertical(0), false);
-								break;
-							case 2:
-								vrepeater.setOutput(C::SideVertical(0), true);
-								vrepeater.setOutput(C::SideVertical(1), true);
-								break;
-						}
-						break;
-					case 4:
-						vrepeater.setLoopback();
-						break;
-				}
-				// write and read values
-				if (!test_repeater(hicann_handle, vrepeater_c, vrepeater, test_logger)) {
-					// disable defect vrepeater
-					redman_hicann.vrepeaters()->disable(vrepeater_c, rewrite_policy);
-				}
-			} // check vertical
-
-			// horizontal
-			for (auto const& hrepeater_c : C::iter_all<C::HRepeaterOnHICANN>()) {
-				// if component already blacklisted continue
-				if (!redman_hicann_previous_test.hrepeaters()->has(hrepeater_c))
-					continue;
-				LOG4CXX_INFO(
-				    test_logger, "Test component: " << hrepeater_c << " on HICANN " << hicann
-				                                    << " with seed " << seed);
-				HMF::HICANN::HorizontalRepeater hrepeater;
-				hrepeater.setRen(number3(generator));
-				hrepeater.setLen(number3(generator));
-				switch (number4(generator)) {
-					case 0:
-						hrepeater.setIdle();
-						break;
-					case 1:
-						hrepeater.setForwarding(C::SideHorizontal(true_false(generator)));
-						break;
-					case 2:
-						hrepeater.setInput(C::SideHorizontal(true_false(generator)));
-						break;
-					// set output: not allowed that both directions are false
-					case 3:
-						switch (number2(generator)) {
-							case 0:
-								hrepeater.setOutput(C::SideHorizontal(0), true);
-								hrepeater.setOutput(C::SideHorizontal(1), false);
-								break;
-							case 1:
-								hrepeater.setOutput(C::SideHorizontal(1), true);
-								hrepeater.setOutput(C::SideHorizontal(0), false);
-								break;
-							case 2:
-								hrepeater.setOutput(C::SideHorizontal(0), true);
-								hrepeater.setOutput(C::SideHorizontal(1), true);
-								break;
-						}
-						break;
-					case 4:
-						hrepeater.setLoopback();
-						break;
-				}
-				// write and read values
-				if (!test_repeater(hicann_handle, hrepeater_c, hrepeater, test_logger)) {
-					// disable defect hrepeater
-					redman_hicann.hrepeaters()->disable(hrepeater_c, rewrite_policy);
-				}
-			} // check horizontal
-
 		} catch (const std::exception& e) {
 			LOG4CXX_ERROR(
 			    test_logger, "Error during test of HICANN " << hicann << " using seed " << seed
@@ -1163,6 +1165,37 @@ int main(int argc, char* argv[])
 		}
 	} // seed
 
+	// check set_repeater with all possible settings
+	// vertical
+	try {
+		for (auto const& vrepeater_c : C::iter_all<C::VRepeaterOnHICANN>()) {
+			// if component already blacklisted continue
+			if (!redman_hicann_previous_test.vrepeaters()->has(vrepeater_c))
+				continue;
+			LOG4CXX_INFO(test_logger, "Test component: " << vrepeater_c << " on HICANN " << hicann);
+			test_repeater(hicann_handle, vrepeater_c, redman_hicann.vrepeaters(), rewrite_policy);
+		} // vertical
+		// horizontal
+		for (auto const& hrepeater_c : C::iter_all<C::HRepeaterOnHICANN>()) {
+			// if component already blacklisted continue
+			if (!redman_hicann_previous_test.hrepeaters()->has(hrepeater_c))
+				continue;
+			LOG4CXX_INFO(test_logger, "Test component: " << hrepeater_c << " on HICANN " << hicann);
+			test_repeater(hicann_handle, hrepeater_c, redman_hicann.hrepeaters(), rewrite_policy);
+		} // horizontal
+	} catch (const std::exception& e) {
+		LOG4CXX_ERROR(
+		    test_logger, "Error during repeater test on HICANN " << hicann << ": " << e.what());
+		// reprogram HICANN
+		::HMF::FPGA::init(fpga_handle, false);
+		return EXIT_FAILURE;
+	} catch (...) {
+		LOG4CXX_ERROR(test_logger, "Error during repeater test on HICANN " << hicann);
+		// reprogram HICANN
+		::HMF::FPGA::init(fpga_handle, false);
+		return EXIT_FAILURE;
+	}
+
 	// blacklist synapse array if it contains unstable synapses
 	if (test_additional_components) {
 		std::mt19937 generator(stability_seed);
@@ -1174,7 +1207,7 @@ int main(int argc, char* argv[])
 				                     << " with fixed seed " << stability_seed);
 				if (!test_synapse_array_stability(
 				        syn_array_c, generator, hicann_handle, stability_repetitions,
-				        synapse_controller, test_logger)) {
+				        synapse_controller)) {
 					// disable synapsearray
 					redman_hicann.synapsearrays()->disable(syn_array_c, rewrite_policy);
 					LOG4CXX_INFO(
