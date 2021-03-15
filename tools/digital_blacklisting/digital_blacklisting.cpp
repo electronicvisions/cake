@@ -484,6 +484,7 @@ int main(int argc, char* argv[])
 	std::uniform_int_distribution<int> number4bit(0, 15);
 	std::uniform_int_distribution<int> number6bit(0, 63);
 	std::uniform_int_distribution<int> number8bit(0, 255);
+	std::uniform_int_distribution<int> number10bit(0, 1023);
 	std::uniform_int_distribution<int> number16bit(0, 65535);
 	std::uniform_int_distribution<unsigned long int> number32bit(0, 4294967295);
 	std::uniform_int_distribution<int> numberRepBlock(
@@ -1061,6 +1062,27 @@ int main(int argc, char* argv[])
 					}
 				}
 
+				// check fg ram values
+				for (auto const& fg_block_c : C::iter_all<C::FGBlockOnHICANN>()) {
+					// if component already blacklisted continue
+					if (!redman_hicann_previous_test.fgblocks()->has(fg_block_c))
+						continue;
+					LOG4CXX_INFO(
+					    test_logger, "Test fg ram values on " << fg_block_c << " on HICANN "
+					                                          << hicann << " with seed " << seed);
+					Backend::HICANN::FGRow fgr;
+					fgr.setShared(number10bit(generator));
+					for (auto const& nrn : C::iter_all<C::NeuronOnFGBlock>()) {
+						fgr.setNeuron(nrn, number10bit(generator));
+					}
+					// write and read values
+					Backend::HICANN::set_fg_ram_values(*hicann_handle, fg_block_c, fgr);
+					Backend::HICANN::FGRow const read_fgr =
+					    Backend::HICANN::get_fg_ram_values(*hicann_handle, fg_block_c);
+					if (fgr != read_fgr) {
+						redman_hicann.fgblocks()->disable(fg_block_c, rewrite_policy);
+					}
+				} // check fg ram values
 			} // highspeed avail
 
 			// check set_fg_config
