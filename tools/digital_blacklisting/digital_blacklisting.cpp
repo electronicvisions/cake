@@ -832,6 +832,30 @@ int main(int argc, char* argv[])
 						HMF::HICANN::DNCMerger merger(number2(generator), true_false(generator));
 						merger_line[merger_c] = merger;
 					}
+					// Loopback option (only possible in one direction)
+					for (size_t merger_group = 0; merger_group < C::DNCMergerOnHICANN::size / 2;
+					     merger_group++) {
+						C::DNCMergerOnHICANN left_merger(merger_group * 2);
+						C::DNCMergerOnHICANN right_merger(merger_group * 2 + 1);
+						switch (number2(generator)) {
+							case 0:
+								// left merger loopback
+								merger_line[left_merger].loopback = true;
+								merger_line[right_merger].loopback = false;
+								break;
+							case 1:
+								// right merger loopback
+								merger_line[left_merger].loopback = false;
+								merger_line[right_merger].loopback = true;
+								break;
+							case 2:
+								// no loopback
+								merger_line[left_merger].loopback = false;
+								merger_line[right_merger].loopback = false;
+								break;
+						}
+					}
+
 					// write and read values
 					Backend::HICANN::set_dnc_merger(*hicann_handle, merger_line);
 					HMF::HICANN::DNCMergerLine const read_merger_line =
