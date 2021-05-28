@@ -93,5 +93,10 @@ class StorageProcess(object):
         except Exception as error:
             cls.logger.error("Error in StorageProcess.pickle: " + str(error))
             result.put(error)
+        # Wait for put to finish writing, else there is a Broken Pipe error
+        # Check if result is filled, else wait for 1 us
+        # cf. https://bugs.python.org/issue35844
+        while (result.empty()):
+            time.sleep(1e-6)
         result.close()
 
