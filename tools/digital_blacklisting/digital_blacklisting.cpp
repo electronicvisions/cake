@@ -1086,6 +1086,13 @@ int main(int argc, char* argv[])
 					}
 				}
 
+				// Reset synapse controller to default state to ensure functional settings in subsequent tests.
+				for (auto const& synarray : C::iter_all<C::SynapseArrayOnHICANN>()) {
+					if (!redman_hicann_previous_test.synapsearrays()->has(synarray))
+						continue;
+					Backend::HICANN::set_synapse_controller(*hicann_handle, synarray, synapse_controller);
+				}
+
 				// check fg ram values
 				for (auto const& fg_block_c : C::iter_all<C::FGBlockOnHICANN>()) {
 					// if component already blacklisted continue
