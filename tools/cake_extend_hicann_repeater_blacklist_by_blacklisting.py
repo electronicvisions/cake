@@ -60,8 +60,8 @@ if __name__ == "__main__":
         blacklisted = False
         for rb in iter_all(RepeaterBlockOnHICANN):
             if defects_on_repeater_block[rb] > 1:
-                print ("disable all repeaters on {} on {}".format(
-                    short_format(rb), short_format(hicann_global)))
+                print(("disable all repeaters on {} on {}".format(
+                    short_format(rb), short_format(hicann_global))))
                 blacklist_repeaters_on_block(redman_hicann_output, rb)
                 blacklisted = True
         if blacklisted:

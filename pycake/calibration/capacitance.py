@@ -182,7 +182,7 @@ class Capacitance_Calibrator(BaseCalibrator):
         """
         all_results = self.experiments[0].results[0]
         caps = {}
-        for neuron, results in all_results.iteritems():
+        for neuron, results in all_results.items():
             fs = np.array([r['frequency'] for r in results])
             Is = np.array([r['current'] for r in results])
             As = np.array([r['amplitude'] for r in results])

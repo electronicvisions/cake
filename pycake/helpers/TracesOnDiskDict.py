@@ -100,7 +100,7 @@ class TracesOnDiskDict(collections.MutableMapping):
         tarr[:] = arr
 
     def __iter__(self):
-        for value in self.reverse_keys.itervalues():
+        for value in self.reverse_keys.values():
             yield value
 
 class RecordsOnDiskDict(TracesOnDiskDict):
@@ -126,7 +126,7 @@ class RecordsOnDiskDict(TracesOnDiskDict):
         if getattr(self.root, key, None):
             self.h5file.remove_node(getattr(self.root, key), recursive=True)
         group = self.h5file.create_group(self.root, key)
-        for dkey, arr in arrays.iteritems():
+        for dkey, arr in arrays.items():
             assert isinstance(arr, np.ndarray)
             atom = tables.Atom.from_dtype(arr.dtype)
             tarr = self.h5file.create_carray(group, dkey, atom, arr.shape)
@@ -184,7 +184,7 @@ class PandasRecordsOnDiskDict(RecordsOnDiskDict):
         self.h5file[self.get_key(key)] = arrays
 
     def __iter__(self):
-        for value in self.reverse_keys.itervalues():
+        for value in self.reverse_keys.values():
             yield value
 
     def get_trace(self, key, item='v'):

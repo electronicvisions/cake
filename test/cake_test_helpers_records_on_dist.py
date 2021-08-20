@@ -19,7 +19,7 @@ class TestRecordsOnDiskDictHelper(unittest.TestCase):
     def setUp(self):
         self.temp_file = tempfile.NamedTemporaryFile(delete=False)
         self.temp_file.close()
-        print "create temp file: ", self.temp_file.name
+        print("create temp file: ", self.temp_file.name)
         self.addCleanup(os.remove, self.temp_file.name)
 
     def test_call(self):
@@ -31,22 +31,22 @@ class TestRecordsOnDiskDictHelper(unittest.TestCase):
         records = RecordsOnDiskDict(*os.path.split(self.temp_file.name))
         self.assertEqual(records.fullpath, self.temp_file.name)
 
-        for n, d in data.iteritems():
+        for n, d in data.items():
             records[n] = d
         records.close()
 
         records = RecordsOnDiskDict(*os.path.split(self.temp_file.name))
-        for n, d in data.iteritems():
-            for k, v in records[n].iteritems():
+        for n, d in data.items():
+            for k, v in records[n].items():
                 assert_array_equal(d[k], v)
 
-        for n, d in data2.iteritems():
+        for n, d in data2.items():
             records[n] = d
         records.close()
 
         records = RecordsOnDiskDict(*os.path.split(self.temp_file.name))
-        for n, d in data2.iteritems():
-            for k, v in records[n].iteritems():
+        for n, d in data2.items():
+            for k, v in records[n].items():
                 assert_array_equal(d[k], v)
         records.close()
 

@@ -22,8 +22,8 @@ parser.add_argument('--defects_path', required=True, help="path to defects files
 parser.add_argument('--calib_path', required=True, help="path to calibration files")
 parser.add_argument('--parameter', required=True,
                     help="calibtic's NeuronCalibrationParameters; if neuron lacks calibration it will be blacklisted",
-                    nargs="+", choices=pycalibtic.NeuronCalibrationParameters.Calibrations.calib.names.keys())
-parser.add_argument('--neuron', default=range(512), type=int, nargs="+", help="NeuronOnHICANN enum to test for missing calibration")
+                    nargs="+", choices=list(pycalibtic.NeuronCalibrationParameters.Calibrations.calib.names.keys()))
+parser.add_argument('--neuron', default=list(range(512)), type=int, nargs="+", help="NeuronOnHICANN enum to test for missing calibration")
 args = parser.parse_args()
 
 wafer_c = C.Wafer(args.wafer)
@@ -37,12 +37,12 @@ for nrn in args.neuron:
 
     # if the neuron is already blacklisted, we do not want to accidentally enable it
     if not redman_hicann.neurons().has(C.NeuronOnHICANN(Enum(nrn))):
-        print "neuron {} already blacklisted -> skip test".format(nrn)
+        print("neuron {} already blacklisted -> skip test".format(nrn))
         continue
 
     disable = False
     if not cal.hc.atNeuronCollection().exists(nrn):
-        print "no calibration data for neuron {}".format(nrn)
+        print("no calibration data for neuron {}".format(nrn))
         disable = True
     else:
         for param in args.parameter:
@@ -50,12 +50,12 @@ for nrn in args.neuron:
             has_param = cal.hc.atNeuronCollection().at(nrn).exists(enum)
             if not has_param:
                 disable = True
-                print "{} missing for neuron {}".format(param, nrn)
+                print("{} missing for neuron {}".format(param, nrn))
                 # one calibration paramter missing is enough to disable
                 break
 
     if disable:
-        print "disabling {} neuron {}".format(C.short_format(hicann_global_c), nrn)
+        print("disabling {} neuron {}".format(C.short_format(hicann_global_c), nrn))
         redman_hicann.neurons().disable(C.NeuronOnHICANN(Enum(nrn)), pyredman.switch_mode.NONTHROW)
     else:
         redman_hicann.neurons().enable(C.NeuronOnHICANN(Enum(nrn)), pyredman.switch_mode.NONTHROW)

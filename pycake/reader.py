@@ -1,4 +1,4 @@
-import cPickle
+import pickle
 import os
 import numpy as np
 import pandas as pd
@@ -8,7 +8,7 @@ from pyhalco_common import Enum
 import pyhalco_hicann_v2 as C
 import pyhalbe
 from operator import itemgetter
-from helpers.misc import load_pickled_file
+from .helpers.misc import load_pickled_file
 from pycake.helpers.units import Second
 
 class Reader(object):
@@ -115,7 +115,7 @@ class Reader(object):
         df = ex.get_all_data([parameter, key]).sortlevel('neuron').loc[nrn_coord]
         #FIXME: to be compatible with the plotting script, the df is converted
         #to a dict.
-        if not isinstance(parameter, basestring):
+        if not isinstance(parameter, str):
             parameter = parameter.name
         nsteps = len(np.unique([d[2] for d in df.index.values]))
         df.index = df.index.droplevel(['shared_block', 'step'])
@@ -148,11 +148,11 @@ class Reader(object):
         import matplotlib.pyplot as plt
         neurons = self.get_neurons()
         results = self.get_results(parameter, neurons, key, repetition)
-        results_list = np.array(results.values())[:, step].astype(np.float)
+        results_list = np.array(list(results.values()))[:, step].astype(np.float)
         results_list = results_list[np.isfinite(results_list)]
         config = self.runner.config.copy(parameter)
 
-        if not isinstance(config.get_steps()[0].values()[0], Second):
+        if not isinstance(list(config.get_steps()[0].values())[0], Second):
             hist_label = "{:.1f} +- {:.1f} mV, {}".format(np.mean(results_list)*1000, np.std(results_list)*1000, len(results_list))
         else:
             hist_label = "{:.2f} +- {:.2f} $\mu$s, {}".format(np.mean(results_list)*1e6, np.std(results_list)*1e6, len(results_list))
@@ -161,7 +161,7 @@ class Reader(object):
         step_valus = config.get_steps()[step]
         target_value = config.get_steps()[step]
         if draw_target_line and len(target_value) == 1:
-            target_value = target_value.values()[0].value
+            target_value = list(target_value.values())[0].value
             plt.axvline(target_value, linestyle='dashed', color='k', linewidth=1)
         return hist
 
@@ -181,7 +181,7 @@ class Reader(object):
 
         fig = plt.figure()
 
-        p = plt.plot(*zip(*sorted(zip(x_values, results_list), key=itemgetter(0))), marker='x', linestyle="None",color='r')
+        p = plt.plot(*list(zip(*sorted(zip(x_values, results_list), key=itemgetter(0)))), marker='x', linestyle="None",color='r')
 
         plt.gca().get_yaxis().set_ticks([])
 
@@ -212,14 +212,14 @@ class Reader(object):
 
             results_list.append(results[n])
 
-        p = plt.plot(*zip(*sorted(zip(x_values, results_list), key=itemgetter(0))), marker='x', linestyle="None")
+        p = plt.plot(*list(zip(*sorted(zip(x_values, results_list), key=itemgetter(0)))), marker='x', linestyle="None")
 
         config = self.runner.config.copy(parameter)
 
         target_value = config.get_steps()[step]
 
         if draw_target_line and len(target_value) == 1:
-            target_value = target_value.values()[0].value
+            target_value = list(target_value.values())[0].value
             plt.axhline(target_value, linestyle='dashed', color='k', linewidth=1)
 
         return p
@@ -231,7 +231,7 @@ class Reader(object):
 
         fig = plt.figure()
 
-        ps = [self.plot_vs_neuron_number(parameter, key, step, repetition, **kwargs) for step in xrange(nsteps)]
+        ps = [self.plot_vs_neuron_number(parameter, key, step, repetition, **kwargs) for step in range(nsteps)]
 
         if show_legend:
             #plt.legend()
@@ -248,7 +248,7 @@ class Reader(object):
 
         fig = plt.figure()
 
-        hists = [self.plot_hist(parameter, key, step, repetition, **kwargs) for step in xrange(nsteps)]
+        hists = [self.plot_hist(parameter, key, step, repetition, **kwargs) for step in range(nsteps)]
 
         if show_legend:
             plt.legend()
@@ -258,7 +258,7 @@ class Reader(object):
     def plot_std(self, parameter, hicann_parameter, key, step, **kwargs):
         import matplotlib.pyplot as plt
 
-        if not isinstance(hicann_parameter, basestring):
+        if not isinstance(hicann_parameter, str):
             hicann_parameter = hicann_parameter.name
         unit = self.runner.get_single(name=parameter)
         e = unit.experiment
@@ -312,7 +312,7 @@ class Reader(object):
                 for step, step_value in enumerate(config.get_steps()):
 
                     if step_key is None:
-                        val = step_value.values()[0]
+                        val = list(step_value.values())[0]
                     else:
                         val = step_value[step_key]
 
@@ -322,9 +322,9 @@ class Reader(object):
                         xs.append(val.value)
 
                     if yfactor != 1:
-                        ys_tmp = (np.array(results.values())*yfactor)[:,step]
+                        ys_tmp = (np.array(list(results.values()))*yfactor)[:,step]
                     else:
-                        ys_tmp = (np.array(results.values()))[:,step]
+                        ys_tmp = (np.array(list(results.values())))[:,step]
 
                     if average:
                         ys.append(np.mean(ys_tmp))

@@ -24,5 +24,5 @@ for fpga in iter_all(FPGAOnWafer):
             hicann_backend.neurons().disable_all()
             hicann_backend.dncmergers().disable_all()
             hicann_backend.save()
-            print ("disable neurons and dncmerger on {} {}"
-                   .format(short_format(wafer_c),short_format(hicann)))
+            print(("disable neurons and dncmerger on {} {}"
+                   .format(short_format(wafer_c),short_format(hicann))))

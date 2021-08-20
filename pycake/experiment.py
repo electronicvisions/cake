@@ -35,7 +35,7 @@ class Experiment(object):
     # Compatibility for old pickels
     def __setstate__(self, state):
         if isinstance(state['results'], list):
-            data = zip(state['measurements'], state['results'], itertools.count())
+            data = list(zip(state['measurements'], state['results'], itertools.count()))
             state['results'] = pandas.concat([
                 self.convert_to_dataframe(measurement, result, step)
                 for measurement, result, step in data])
@@ -79,8 +79,8 @@ class Experiment(object):
         Return:
             list: Containing all neuron, shared and step parameters
         """
-        parameters = neuron_parameter.values.values()
-        parameters += shared_parameter.values.values()
+        parameters = list(neuron_parameter.values.values())
+        parameters += list(shared_parameter.values.values())
         # Remove non-parameter enum entries, note getattr is needed because
         # of python name mangling used for private members
         parameters.remove(getattr(neuron_parameter, '__last_neuron'))
@@ -119,8 +119,8 @@ class Experiment(object):
             pandas.DataFrame: index: (NeuronOnHICANN, FGBlockOnHICANN),
                               columns: all parameters and measurement results
         """
-        parameters = neuron_parameter.values.values()
-        parameters += shared_parameter.values.values()
+        parameters = list(neuron_parameter.values.values())
+        parameters += list(shared_parameter.values.values())
         # Remove non-parameter enum entries, note getattr is needed because
         # of python name mangling used for private members
         parameters.remove(getattr(neuron_parameter, '__last_neuron'))
@@ -129,7 +129,7 @@ class Experiment(object):
             p for p in measurement.step_parameters
             if not isinstance(p, (neuron_parameter, shared_parameter)))
         parameters = parameters + sorted(step_parameters)
-        names = [p if isinstance(p, basestring) else p.name
+        names = [p if isinstance(p, str) else p.name
                  for p in parameters]
 
         data = {}
@@ -202,7 +202,7 @@ class Experiment(object):
                               second level the FGBlock coordinate.
         """
         parameters = self.get_parameter_names()
-        names = [p if isinstance(p, basestring) else p.name
+        names = [p if isinstance(p, str) else p.name
                  for p in parameters]
         return self.get_all_data(keys=names, numeric_index=numeric_index)
 
@@ -221,7 +221,7 @@ class Experiment(object):
                               second level the FGBlock coordinate.
         """
         parameters = self.get_parameter_names()
-        names = [p if isinstance(p, basestring) else p.name
+        names = [p if isinstance(p, str) else p.name
                  for p in parameters]
         keys = list(self.results.columns)
         for name in names:
@@ -250,14 +250,14 @@ class Experiment(object):
                 return v
 
         nrn_data = {nrn_id(k): value(v)
-                    for k, v in self.initial_data.iteritems()
+                    for k, v in self.initial_data.items()
                     if isinstance(k, NeuronOnHICANN)}
         nrn_data = pandas.DataFrame.from_dict(nrn_data).T
         nrn_data.index.names = ['neuron']
 
         data = pandas.Series({
             k: value(v)
-            for k, v in self.initial_data.iteritems()
+            for k, v in self.initial_data.items()
             if not isinstance(k, NeuronOnHICANN)})
 
         return data, nrn_data
@@ -324,7 +324,7 @@ class Experiment(object):
             columns are indexed by parameter name
         """
         fg_values = {}
-        for p in self.fg_values.keys():
+        for p in list(self.fg_values.keys()):
             values = pandas.concat(self.fg_values[p],
                                   names=['step', 'shared block', 'neuron'])
             values = values.reorder_levels(['neuron', 'shared block', 'step'])
@@ -467,10 +467,10 @@ class I_pl_Experiment(SequentialExperiment):
                 for i in range(self.repetitions):
                     result = measurement.run_measurement(
                         analyzer, self.initial_data)
-                    values = [neuron_values.values() for neuron_values in result.itervalues()]
+                    values = [list(neuron_values.values()) for neuron_values in result.values()]
                     values_all.append(values)
-                value_keys = result.values()[0].keys()
-                neuron_coords = result.keys()
+                value_keys = list(result.values())[0].keys()
+                neuron_coords = list(result.keys())
                 values_all = numpy.array(values_all)
 
                 #get index of the standard deviation to find it in the values_all array
@@ -484,9 +484,9 @@ class I_pl_Experiment(SequentialExperiment):
                 #write the averaged values in the initial_values dictionary
                 mean_dict_all = []
                 for vals in values_all_mean:
-                    mean_dict = dict(zip(value_keys, vals))
+                    mean_dict = dict(list(zip(value_keys, vals)))
                     mean_dict_all.append(mean_dict)
-                self.initial_data.update(dict(zip(neuron_coords, mean_dict_all)))
+                self.initial_data.update(dict(list(zip(neuron_coords, mean_dict_all))))
                 self.run_time += time.time() - t_start
 
 # Compatibility for old pickels
@@ -521,7 +521,7 @@ class IncrementalExperiment(SequentialExperiment):
             result = measurement.run_measurement(
                 self.analyzer, additional_data=self.initial_data,
                 configurator=configurator, disconnect=False)
-            for parameter, values in self.fg_values.iteritems():
+            for parameter, values in self.fg_values.items():
                 values[i] = sthal.read_floating_gates(parameter)
 
             self.append_measurement_and_result(measurement, result)

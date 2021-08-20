@@ -40,7 +40,7 @@ class Calibtic(object):
         if 'ideal_bc' not in dic:
             dic['ideal_bc'] = pycalibtic.BlockCollection()
             dic['ideal_bc'].setDefaults()
-        if not (dic.has_key('bigcap') and dic.has_key('speedup')):
+        if not ('bigcap' in dic and 'speedup' in dic):
             dic['bigcap'] = True
             dic['speedup'] = 'normal'
             dic['hc'] = None
@@ -99,10 +99,10 @@ class Calibtic(object):
         """
         if isinstance(parameter, shared_parameter):
             collection = self.bc
-            ids = range(4)
+            ids = list(range(4))
         else:
             collection = self.nc
-            ids = range(512)
+            ids = list(range(512))
 
         for i in ids:
             self.logger.TRACE("Resetting calibration for parameter {} for id {}".format(parameter.name, i))
@@ -127,7 +127,7 @@ class Calibtic(object):
             backend = self.get_backend(backend_type)
             backend.load(name, md, hc)
             calibration_existed = True
-        except RuntimeError, e:
+        except RuntimeError as e:
             if "data set not found" not in e.message:
                 raise
 
@@ -198,7 +198,7 @@ class Calibtic(object):
         """
         name = self.get_calibtic_name()
 
-        for coord, trafo in trafos.iteritems():
+        for coord, trafo in trafos.items():
 
             if trafo is None:
                 continue
@@ -366,7 +366,7 @@ class Calibtic(object):
         neuron_params = parameters.copy()
         # Use pop to consume neuron specific parameters
         neuron_params.update(parameters.pop(neuron, {}))
-        for param, value in neuron_params.iteritems():
+        for param, value in neuron_params.items():
             if (not isinstance(param, neuron_parameter)) or param.name[0] == '_':
                 # e.g. __last_neuron
                 continue
@@ -403,7 +403,7 @@ class Calibtic(object):
             pysthal.FloatingGates with given parameters
         """
         block_parameters = copy.deepcopy(parameters)
-        for param, value in block_parameters.iteritems():
+        for param, value in block_parameters.items():
             if (not isinstance(param, shared_parameter)) or param.name[0] == '_':
                 # e.g. __last_*
                 continue

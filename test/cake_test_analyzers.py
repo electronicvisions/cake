@@ -134,7 +134,7 @@ class TestAnalyzers(unittest.TestCase):
 
         std = 0.1
         res = a(neuron=coord_neuron, trace=trace)
-        print res
+        print(res)
         # TODO continue test
 
     def test_V_reset_Analyzer(self):

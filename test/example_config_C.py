@@ -19,7 +19,7 @@ import pysthal
 
 
 def pproduct(paramters, ranges):
-    return [dict(zip(paramters, step)) for step in product(*ranges)]
+    return [dict(list(zip(paramters, step))) for step in product(*ranges)]
 
 # minimal floating gate current cell value [nA]
 MIN_CUR_FG = 50e-9

@@ -465,9 +465,9 @@ class Spikes_Analyzer(Analyzer):
             try:
                 mean_isi = np.mean(isis)
             except Exception as e:
-                print e
-                print spikes
-                print isis
+                print(e)
+                print(spikes)
+                print(isis)
                 raise(e)
         else:
             mean_isi = None
@@ -601,7 +601,7 @@ class SimplePSPAnalyzer(Analyzer):
         # calc rise and falltimes
 
         # find highest peak
-        peak_values = [maxtab[i][1] for i in xrange(len(maxtab))]
+        peak_values = [maxtab[i][1] for i in range(len(maxtab))]
         highest_peak_idx = peak_values.index(max(peak_values))
 
         peak_idx = maxtab[highest_peak_idx][0]
@@ -686,7 +686,7 @@ class PSPAnalyzer(Analyzer):
         if fit_result.success:
             result = dict(fit_result.params.valuesdict())
             result.update({
-                p.name + "_stderr": p.stderr for p in fit_result.params.values()})
+                p.name + "_stderr": p.stderr for p in list(fit_result.params.values())})
             result['report'] = fit_result.fit_report()
             result['chi2'] = fit_result.redchi
             if result['tau_1'] > result['tau_2']:

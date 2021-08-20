@@ -16,7 +16,7 @@ hardware = shallow.Hardware(0, 280, None, 100*1e6, 100)
 hardware.connect()
 hardware.wafer.configure(shallow.VOLVOHHICANNConfigurator(VOL, VOH))
 
-print "+" * 80
+print("+" * 80)
 for v, channel in [(VOL, ChannelOnADC(4)), (VOH, ChannelOnADC(1))]:
     cfg = db.get_adc_of_hicann(hardware.hicann.index(), AnalogOnHICANN(0))
     cfg.channel = channel
@@ -26,4 +26,4 @@ for v, channel in [(VOL, ChannelOnADC(4)), (VOH, ChannelOnADC(1))]:
     recorder.freeHandle()
     mean = numpy.mean(data)
     err = numpy.std(data) / numpy.sqrt(len(data-1))
-    print "{}: {:.2f} +- {:.2f} ({:.2f})".format(channel, mean, err, v)
+    print("{}: {:.2f} +- {:.2f} ({:.2f})".format(channel, mean, err, v))

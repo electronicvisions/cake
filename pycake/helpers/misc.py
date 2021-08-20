@@ -1,7 +1,7 @@
 import os
 import errno
 import collections
-import cPickle
+import pickle
 
 from bz2 import BZ2File
 from gzip import GzipFile
@@ -30,7 +30,7 @@ def load_pickled_file(path):
     else:
         f_open = open
     with f_open(os.path.expanduser(path), 'rb') as infile:
-        return cPickle.load(infile)
+        return pickle.load(infile)
 
 
 # https://stackoverflow.com/a/3233356
@@ -45,7 +45,7 @@ def nested_update(d, u):
         Updated original dictionary.
         Note that the original dictionary is modified, too.
     """
-    for k, v in u.iteritems():
+    for k, v in u.items():
         if isinstance(v, collections.Mapping):
             r = nested_update(d.get(k, {}), v)
             d[k] = r

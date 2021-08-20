@@ -77,7 +77,7 @@ def main(wafer, hicann, error_log, resume_number, exit_code, calib_eval, json_re
         json_data.update(json_dict)
     else:
         json_data = json_dict
-    if calib_eval in json_data.keys():
+    if calib_eval in list(json_data.keys()):
         json_data[calib_eval].update(resume_dict)
     else:
         json_data[calib_eval] = resume_dict

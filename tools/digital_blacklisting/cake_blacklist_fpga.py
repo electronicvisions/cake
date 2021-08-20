@@ -27,7 +27,7 @@ logbase = os.path.join(args.output_backend_path,
 logfile = logbase
 filecounter = 0
 while(os.path.exists(logfile)):
-    print ("logfile " + logfile + " already exists")
+    print(("logfile " + logfile + " already exists"))
     filecounter += 1
     logfile = logbase + "_" + str(filecounter)
 os.makedirs(logfile)
@@ -46,8 +46,8 @@ for c, hicann in enumerate(C.iter_all(C.HICANNOnDNC)):
             ferr.write("Error during test of HICANN " + str(hicann_on_wafer) +
                        " on FPGA " + str(args.fpga) + " on Wafer " + str(args.wafer))
             # shows status of all tests in slurm logfile
-            print ("Error during test of HICANN " + str(hicann_on_wafer) + " on FPGA " + str(args.fpga) + " on Wafer " + str(args.wafer))
+            print(("Error during test of HICANN " + str(hicann_on_wafer) + " on FPGA " + str(args.fpga) + " on Wafer " + str(args.wafer)))
             successful = False
 
 if successful:
-    print ("Test of FPGA " + str(args.fpga) + " completed successfully")
+    print(("Test of FPGA " + str(args.fpga) + " completed successfully"))

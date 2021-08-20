@@ -24,7 +24,7 @@ class TestJacobian(unittest.TestCase):
 
         repetitions = 100
 
-        for i in xrange(repetitions):
+        for i in range(repetitions):
             x = p.random(n) * size
             assert_array_almost_equal(2 * x, jacobian(f, x), decimal=4)
 

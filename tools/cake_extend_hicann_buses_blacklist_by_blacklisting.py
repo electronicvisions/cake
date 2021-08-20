@@ -14,7 +14,7 @@ def disable_hline(hl, outdir, wafer):
     hline = hl.toHLineOnHICANN()
     redman_hicann_output.hbuses().disable(hline)
     redman_hicann_output.save()
-    print ("disable {} on {}".format(hline, short_format(hicann_global)))
+    print(("disable {} on {}".format(hline, short_format(hicann_global))))
 
 def disable_vline(vl, outdir, wafer):
     hicann_global = HICANNGlobal(vl.toHICANNOnWafer(), wafer)
@@ -22,7 +22,7 @@ def disable_vline(vl, outdir, wafer):
     vline = vl.toVLineOnHICANN()
     redman_hicann_output.vbuses().disable(vline)
     redman_hicann_output.save()
-    print ("disable {} on {}".format(vline, short_format(hicann_global)))
+    print(("disable {} on {}".format(vline, short_format(hicann_global))))
 
 def disable_by_local_hrepeater(hr, outdir, wafer):
     local_hline = hr.toHLineOnWafer()[0]
@@ -64,11 +64,11 @@ if __name__ == "__main__":
                 try:
                     disable_by_local_hrepeater(hr_on_wafer, args.output_dir, wafer_c)
                 except RuntimeError as e:
-                    print e
+                    print(e)
                 try:
                     disable_by_neighbor_hrepeater(hr_on_wafer, args.output_dir, wafer_c)
                 except RuntimeError as e:
-                    print e
+                    print(e)
 
         for vr in iter_all(VRepeaterOnHICANN):
             if not redman_wafer_input.has(hicann) or not redman_hicann_input.vrepeaters().has(vr):
@@ -76,8 +76,8 @@ if __name__ == "__main__":
                 try:
                     disable_by_local_vrepeater(vr_on_wafer, args.output_dir, wafer_c)
                 except RuntimeError as e:
-                    print e
+                    print(e)
                 try:
                     disable_by_neighbor_vrepeater(vr_on_wafer, args.output_dir, wafer_c)
                 except RuntimeError as e:
-                    print e
+                    print(e)

@@ -23,7 +23,7 @@ def jacobian(func, p0, epsilon=1e-8):
         return result
 
     return (p.array([func(p0 + ith_epsilon(i))
-                     for i in xrange(len(p0))]) - func(p0)) / epsilon
+                     for i in range(len(p0))]) - func(p0)) / epsilon
 
 
 class PSPShape(object):
@@ -53,7 +53,7 @@ class PSPShape(object):
         return inspect.getargspec(cls.__call__).args[2:]
 
     def parameter_dict(self, parameters):
-        return dict(zip(self.parameter_names, parameters))
+        return dict(list(zip(self.parameter_names, parameters)))
 
     def __call__(self):
         raise NotImplementedError
@@ -323,7 +323,7 @@ class DoubleExponentialPSPOpt(DoubleExponentialPSP):
 
         tau_frac, t = self.prepare_t(time, tau_1, tau_2, start)
 
-        print "FUN:", height, tau_frac, tau_1, tau_2, start, offset
+        print("FUN:", height, tau_frac, tau_1, tau_2, start, offset)
 
         if self.is_singular(tau_frac):
             return self.__psp_singular(height, t) + offset
@@ -350,7 +350,7 @@ class DoubleExponentialPSPOpt(DoubleExponentialPSP):
         t : numpy.ndarray
             array of time points at which the function is evaluated
         """
-        print "JAC:", height, tau_frac, tau_1, tau_2, start, offset
+        print("JAC:", height, tau_frac, tau_1, tau_2, start, offset)
 
         pos_start = p.searchsorted(t, start)
         A = tau_frac ** (tau_frac / (tau_frac - 1)) / (tau_frac - 1)
@@ -378,8 +378,8 @@ class DoubleExponentialPSPOpt(DoubleExponentialPSP):
 
         result = p.array([dheight, dtau1, dtau2, dstart, doffset])
         if p.any(p.isnan(result)):
-            print "HELP!!!"
-            print height, tau_frac, tau_1, tau_2, start, offset
-            print [p.any(p.isnan(x)) for x in result]
+            print("HELP!!!")
+            print(height, tau_frac, tau_1, tau_2, start, offset)
+            print([p.any(p.isnan(x)) for x in result])
 
         return result

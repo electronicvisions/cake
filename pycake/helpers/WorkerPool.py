@@ -1,7 +1,7 @@
 import multiprocessing
 import time
 import traceback
-import cPickle
+import pickle
 import pylogging
 import os
 
@@ -21,8 +21,8 @@ def process(f, key, *args, **kwargs):
         return key, f(*args, **kwargs)
     except Exception as e:
         import traceback
-        print "{}\nERROR in worker thread:\n{} ({})\n{}\n{}".format(
-            '-' * 80, e, type(e), traceback.format_exc(), '-' * 80)
+        print("{}\nERROR in worker thread:\n{} ({})\n{}\n{}".format(
+            '-' * 80, e, type(e), traceback.format_exc(), '-' * 80))
         # Exception is propagated by worker tree
         raise
 

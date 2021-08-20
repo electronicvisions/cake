@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
+
 
 import argparse
 from collections import defaultdict
@@ -75,18 +75,18 @@ for n, hicann in enumerate(hicanns):
             except Exception as e:
                 pass
 
-            for DAC in reversed(range(1024)):
-                for parameter, vfD in vals_for_DAC.items():
+            for DAC in reversed(list(range(1024))):
+                for parameter, vfD in list(vals_for_DAC.items()):
                     val = get_val_for_DAC(DAC, nc, parameter, odb_throw)
                     if val != None:
                         vfD[DAC].append(val)
 
-for parameter, entries in vals_for_DAC.items():
+for parameter, entries in list(vals_for_DAC.items()):
     with open('{}.dat'.format(parameter), 'w') as f:
-        for DAC, vals in entries.iteritems():
+        for DAC, vals in entries.items():
             print(np.mean(vals), np.std(vals), DAC, file=f)
 
-for parameter, entries in trafo_data.items():
+for parameter, entries in list(trafo_data.items()):
     with open('{}.dat'.format(parameter), 'w') as f:
         for entry in entries:
             print(" ".join([str(v) for v in entry]), file=f)

@@ -3,7 +3,7 @@ import hashlib
 import numpy
 import scipy.interpolate
 import pandas
-import cPickle
+import pickle
 from collections import defaultdict
 
 import pylogging
@@ -142,7 +142,7 @@ class SimStHALContainer(StHALContainer):
                 adc_sampling_interval))
 
         resampled = dict()
-        signals = adc_result.keys()
+        signals = list(adc_result.keys())
         signals.remove('t')
 
         for signal in signals:
@@ -228,7 +228,7 @@ class SimStHALContainer(StHALContainer):
         if json_hash and os.path.isfile(json_hash):
             self.logger.info("load result from cache: {}".format(json_hash))
             with open(json_hash) as infile:
-                json_loaded, lresult, rresult = cPickle.load(infile)
+                json_loaded, lresult, rresult = pickle.load(infile)
                 assert json_loaded == json
         else:
             self.logger.info("Run simulation on {}:{}".format(
@@ -241,7 +241,7 @@ class SimStHALContainer(StHALContainer):
                 self.logger.info("cache result in {}".format(json_hash))
                 with open(json_hash, 'w') as outfile:
                     data = (json, lresult, rresult)
-                    cPickle.dump(data, outfile, cPickle.HIGHEST_PROTOCOL)
+                    pickle.dump(data, outfile, pickle.HIGHEST_PROTOCOL)
 
         if neuron == left:
             self.simulated_configurations[left].append(param)

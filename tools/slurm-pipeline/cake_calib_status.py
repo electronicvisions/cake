@@ -4,9 +4,9 @@
 
 """
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
+
+
+
 
 import sys
 import os
@@ -52,7 +52,7 @@ def copy_complete_calibs(calibs_dir, copy_dir):
 def jsonKeys2str(x):
     if isinstance(x, dict):
         new_dict = {}
-        for k,v in x.items():
+        for k,v in list(x.items()):
             try:
                 key = int(k)
             except ValueError:

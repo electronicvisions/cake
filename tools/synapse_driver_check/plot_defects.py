@@ -52,10 +52,10 @@ if __name__ == "__main__":
 
         try:
             with f as fana:
-                print "loading {}".format(f.name)
+                print("loading {}".format(f.name))
                 ana_results = json.load(fana)
         except IOError as e:
-            print ana_file, "is bad, continue with next"
+            print(ana_file, "is bad, continue with next")
             continue
 
         bkgisis.append(ana_results["bkgisi"])
@@ -269,7 +269,7 @@ if __name__ == "__main__":
 
         N = 10
 
-        for n in xrange(N):
+        for n in range(N):
 
             ra_low = 0.8 + (1.3-0.8)/N*n
             ra_high = 0.8 + (1.3-0.8)/N*(n+1)
@@ -295,7 +295,7 @@ if __name__ == "__main__":
 
         N = 20
 
-        for n in xrange(N):
+        for n in range(N):
 
             ra_low = 1 + (1.4-1.0)/N*n
             ra_high = 1 + (1.4-1.0)/N*(n+1)

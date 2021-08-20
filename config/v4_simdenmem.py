@@ -11,7 +11,7 @@ MC = False
 if MC:
     MC_SEED = 24011985
     NEURONS = [NeuronOnHICANN(Enum(i)) for i in
-               range(16) + range(100, 116) + range(300, 316) + range(400, 416)]
+               list(range(16)) + list(range(100, 116)) + list(range(300, 316)) + list(range(400, 416))]
 else:
     MC_SEED = None
     NEURONS = [NeuronOnHICANN(Enum(i)) for i in

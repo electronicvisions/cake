@@ -457,8 +457,8 @@ class StHALContainer(object):
                     df['v_raw'] = self.adc.traceRaw()
                 return df
             except RuntimeError as e:
-                print e
-                print "retry"
+                print(e)
+                print("retry")
                 self.connect_adc()
         raise RuntimeError("Aborting ADC readout, maximum number of retries exceded")
 
@@ -489,8 +489,8 @@ class StHALContainer(object):
                     return traces, pandas.DataFrame(columns=['L1Address', 'GbitLink'],
                                                     dtype=numpy.int8)
             except RuntimeError as e:
-                print e
-                print "retry"
+                print(e)
+                print("retry")
                 self.connect_adc()
         raise RuntimeError("Aborting ADC readout, maximum number of retries exceded")
 
@@ -609,7 +609,7 @@ class StHALContainer(object):
             raise NotImplementedError("skipping drivers is not yet implemeted")
 
         self.hicann.synapses[driver].connect_neighbor = True
-        for ii in xrange(count):
+        for ii in range(count):
             target_driver = SynapseDriverOnHICANN(driver.x(), Y(int(driver.y()) - 2))
             self.hicann.synapses[target_driver] = self.hicann.synapses[driver]
             self.hicann.synapses[target_driver].locin = False

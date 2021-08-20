@@ -17,9 +17,9 @@ Example:
     excluded.
 """
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
+
+
+
 
 import time
 
@@ -65,7 +65,7 @@ def get_hicanns_from_dnc(dnc):
     dnc = Coordinate.DNCOnWafer(Enum(dnc))
     h0 = Coordinate.HICANNOnDNC(Enum(0)).toHICANNOnWafer(dnc).toEnum().value()
     h1 = Coordinate.HICANNOnDNC(Enum(per_dnc // 2)).toHICANNOnWafer(dnc).toEnum().value()
-    return np.array([range(h0, h0+offset) , range(h1, h1+offset)])
+    return np.array([list(range(h0, h0+offset)) , list(range(h1, h1+offset))])
 
 def get_hicanns_from_fpga(fpga, wafer):
     """ Gives formatted list of HICANN enums for given fpga enum
@@ -129,8 +129,8 @@ def sort_error_dict(error_dict):
     """
     if not error_dict:
         return OrderedDict()
-    error_list = [[]]*len(error_dict.keys())
-    keys, values = zip(*[[v,k] for v,k in error_dict.iteritems()])
+    error_list = [[]]*len(list(error_dict.keys()))
+    keys, values = list(zip(*[[v,k] for v,k in error_dict.items()]))
     for ii,position in enumerate(np.argsort(values)):
         error_list[ii] = [keys[position], values[position]]
     ordered_dict = OrderedDict(error_list[::-1])
@@ -147,7 +147,7 @@ def make_color_map_errors(error_dict):
         dict: keys are error message, values are hex color codes
     """
     ordered_dict = sort_error_dict(error_dict)
-    num_different_errors = len(ordered_dict.keys())
+    num_different_errors = len(list(ordered_dict.keys()))
     colors_list = []
     for key in ['Spectral', 'RdGy', 'Set2', 'Paired', 'Set3', 'RdYlBu', 'RdPu', 'PiYG']:
         palette = bokeh.palettes.small_palettes[key]
@@ -206,12 +206,12 @@ def get_errors_as_latex(error_dict, cal_eval, wafer):
     colors = make_color_map_errors(error_dict)
     color_def = {}
     color_name = "errorcolorw{0}c{1}{{}}".format(wafer, cal_eval)
-    for ii, error in enumerate(ordered_dict.iterkeys()):
+    for ii, error in enumerate(ordered_dict.keys()):
         c_name = color_name.format(ii)
         c_def = r"\definecolor{{{1}}}{{HTML}}{{{0}}}".format(colors[error].replace("#", ""), c_name)
         color_def[error] = (c_name, c_def)
 
-    tex_lines = [c_def[1] for c_def in color_def.itervalues()]
+    tex_lines = [c_def[1] for c_def in color_def.values()]
     if cal_eval == "calib":
         cal_eval_long = "calibration"
     else:
@@ -220,7 +220,7 @@ def get_errors_as_latex(error_dict, cal_eval, wafer):
     tex_lines.append(tex_head)
     tex_begin = r"\begin{description}[labelsep=1mm, align=left, itemsep=-6pt]"
     tex_lines.append(tex_begin)
-    for error, num_errors in ordered_dict.iteritems():
+    for error, num_errors in ordered_dict.items():
         error_esc = error
         for esc_char in tex_escape_chars:
             error_esc = error_esc.replace(esc_char, "\{}".format(esc_char))
@@ -257,7 +257,7 @@ def get_plot_data(hicann_dict, color_code='blacklisted', cal_eval='calib'):
                   for i, (x,y) in enumerate(ret_coords)
                   for j,row in enumerate(range(rows))
                   for k,pos in enumerate(range(ret_width))]
-    hc_xy = np.array(zip(*hc_coords))
+    hc_xy = np.array(list(zip(*hc_coords)))
 
     plot_data = defaultdict(list)
     error_dict = defaultdict(int)
@@ -265,7 +265,7 @@ def get_plot_data(hicann_dict, color_code='blacklisted', cal_eval='calib'):
                           DNC=[get_dnc_from_hicann(hc) for hc in hc_xy[0]],
                           FPGA=[get_fpga_from_hicann(hc) for hc in hc_xy[0]]))
 
-    unique_keys = np.unique([k for value in hicann_dict.itervalues() for k in value.keys()])
+    unique_keys = np.unique([k for value in hicann_dict.values() for k in list(value.keys())])
     for hc in hc_xy[0]:
         for key in unique_keys:
             if key in ["error_calib", "error_eval"]:
@@ -294,7 +294,7 @@ def get_plot_data(hicann_dict, color_code='blacklisted', cal_eval='calib'):
 
 def get_error_key(line):
     error_keys_unique_dict = get_error_keys_with_unique_numbers()
-    for err_unique, replace_str in error_keys_unique_dict.items():
+    for err_unique, replace_str in list(error_keys_unique_dict.items()):
         if err_unique in line:
             return replace_str
     return line
@@ -381,7 +381,7 @@ def get_pie_chart_colors(idx):
                    'not yet calibrated': '#3399ff',
                    'excluded': '#2b2c2d'
                   }
-    for key, color in colors_dict.items():
+    for key, color in list(colors_dict.items()):
         if key in idx:
             return color
     return '#000000'
@@ -398,7 +398,7 @@ def get_blacklisted_series(hicann_dict):
     total_num_neurons = num_neurons_on_hicann * num_hicanns_on_wafer
     blacklisted_series = pandas.Series([0,0,0,0],
                                         index=['blacklisted', 'not blacklisted', 'excluded', 'not yet calibrated'])
-    for hicann, data in hicann_dict.iteritems():
+    for hicann, data in hicann_dict.items():
         if data['blacklisted'] > -1:
             blacklisted_series['blacklisted'] += data['blacklisted']
             blacklisted_series['not blacklisted'] += num_neurons_on_hicann - data['blacklisted']
@@ -484,12 +484,12 @@ def plot_wafer(hicann_dict, wafer, color_code='blacklisted', cal_eval='calib'):
 
     """
     hc_height = get_wafer_data()[3]
-    unique_keys = np.unique([k for value in hicann_dict.itervalues() for k in value.keys()])
+    unique_keys = np.unique([k for value in hicann_dict.values() for k in list(value.keys())])
 
     plot_data, error_dict = get_plot_data(hicann_dict, color_code, cal_eval)
     source = ColumnDataSource(data=plot_data)
 
-    tooltip_keys = plot_data.keys()
+    tooltip_keys = list(plot_data.keys())
     for key in ['x', 'y', 'fill_color']:
         tooltip_keys.remove(key)
     tooltips = [(key, "@{}".format(key)) for key in sorted(tooltip_keys)]
@@ -590,7 +590,7 @@ def get_blacklisted(wafer, hicann, backend_path):
     try:
         redman = pycake.helpers.redman.Redman(
             backend_path, Coordinate.HICANNGlobal(hicann,wafer))
-        neuron_enums = range(Coordinate.NeuronOnHICANN.size)
+        neuron_enums = list(range(Coordinate.NeuronOnHICANN.size))
         blacklisted = {ii: not redman.hicann_with_backend.neurons().has(Coordinate.NeuronOnHICANN(Enum(ii)))
                    for ii in neuron_enums}
         return blacklisted
@@ -616,12 +616,12 @@ def collect_blacklisted(calibs_path, wafer, hicanns):
                 wafer_from_filename = int(filename[filename.index('Wafer(')+6:filename.index(')')])
                 if hicann in hicanns and wafer == wafer_from_filename:
                     blacklisted = get_blacklisted(wafer, hicann, root)
-                    num_bl = np.sum(blacklisted.values()) if blacklisted else -1
-                    if hicann in hicann_dict.keys():
+                    num_bl = np.sum(list(blacklisted.values())) if blacklisted else -1
+                    if hicann in list(hicann_dict.keys()):
                         logger.WARN("Found more than one calibration file "
                               "for the same wafer, HICANN: {}, {}!!".format(wafer, hicann))
                     hicann_dict[hicann]['blacklisted'] = num_bl
-    not_found_hicanns = [h for h in hicanns if h not in hicann_dict.keys()]
+    not_found_hicanns = [h for h in hicanns if h not in list(hicann_dict.keys())]
     if not_found_hicanns != []:
         logger.WARN("For the following HICANNs, no redman file "
               "could be found: {}".format(not_found_hicanns))
@@ -680,7 +680,7 @@ def sort_hicann_logs(logs, wafer):
             continue
         hicann = log['hicann']
         for key in ['calib', 'eval']:
-            for log_key, log_value in log.get(key, {}).iteritems():
+            for log_key, log_value in log.get(key, {}).items():
                 if not isinstance(log_value, dict):
                     hicann_dict[hicann].update({'{}_{}'.format(log_key, key): log_value})
     return hicann_dict
@@ -703,7 +703,7 @@ def amend_errors_html(html, error_dict, headline):
         for _ in range(40):
             new_html += "\n<br>"
     new_html += "\n<p>" + headline + "<br>\n"
-    for key, value in ordered_dict.iteritems():
+    for key, value in ordered_dict.items():
         new_html += ("""<span style="background-color:{};"> _______</span>""".format(colors[key])
                          + "\n{}x: {} <br>".format(value, key))
     new_html += '</p>\n</body>\n</html>'
@@ -711,8 +711,8 @@ def amend_errors_html(html, error_dict, headline):
 
 def save_plot_data(save_dict, save_path):
     # convert numpy arrays to lists to save it as json
-    for key, value in save_dict.iteritems():
-        for key2, value2 in value.iteritems():
+    for key, value in save_dict.items():
+        for key2, value2 in value.items():
             if isinstance(value2, np.ndarray):
                 save_dict[key][key2] = list(value2)
     with open(save_path, 'wb') as handle:
@@ -732,7 +732,7 @@ def parse_args():
     return args.calibs_path, args.wafer, args.fpgas_to_exclude, args.load_path
 
 def get_blacklisted_hicanns(hicann_dict, error_code=-1):
-    hcs = [hc for hc, dic in hicann_dict.items() if dic['blacklisted'] == error_code]
+    hcs = [hc for hc, dic in list(hicann_dict.items()) if dic['blacklisted'] == error_code]
     return hcs
 
 def exclude_fpgas(hicann_dict, fpgas_to_exclude, wafer):
@@ -754,7 +754,7 @@ def jsonKeys2str(x):
     """ Helper function to convert str keys in json to int """
     if isinstance(x, dict):
         dict2 = {}
-        for k,v in x.iteritems():
+        for k,v in x.items():
             try:
                 key = int(k)
             except ValueError:
@@ -778,7 +778,7 @@ def init_hicann_dict(error_code=-1):
 
 def get_uncalibrated_hicanns(hicann_dict):
     hcs = []
-    for hc, dic in hicann_dict.items():
+    for hc, dic in list(hicann_dict.items()):
         if dic['blacklisted'] < 0:
             hcs.append(hc)
     return hcs
@@ -788,11 +788,11 @@ def do_wafer_plots(wafer, logs, calibs_path, fpgas_to_exclude):
     logger.INFO("Plotting wafer {} status".format(wafer))
 
     hicann_dict = init_hicann_dict()
-    for hc, log in sort_hicann_logs(logs, wafer).iteritems():
+    for hc, log in sort_hicann_logs(logs, wafer).items():
         hicann_dict[hc].update(log)
     calibrated_hicanns = get_finished_calibs(logs, wafer)
     blacklisted_dict = collect_blacklisted(calibs_path, wafer, calibrated_hicanns['calib'])
-    for hicann, results in blacklisted_dict.iteritems():
+    for hicann, results in blacklisted_dict.items():
         hicann_dict[hicann].update(results)
 
     save_dict = {'hicann_dict': hicann_dict}

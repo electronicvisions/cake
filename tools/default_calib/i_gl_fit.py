@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-from __future__ import division
-from __future__ import print_function
+
+
 
 import argparse
 import numpy as np
@@ -41,7 +41,7 @@ def tau_m_to_dac(tau_m, param1, param2, param3, param4):
     oop = NegativePowersPolynomial(parameters, 1e-10, 1)
 
     try:
-        return map(oop.apply, tau_m)
+        return list(map(oop.apply, tau_m))
     except TypeError:
         return oop.apply(tau_m)
 

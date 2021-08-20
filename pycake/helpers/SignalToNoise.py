@@ -5,9 +5,9 @@ try:
     fft = pyfftw.interfaces.numpy_fft.rfft
     fftfreq = pyfftw.interfaces.numpy_fft.fftfreq
 except ImportError as exc:  # pragma: no cover
-    print exc
-    print "FFT will not work!"
-    print "use: pip install --upgrade --user pyFFTW"
+    print(exc)
+    print("FFT will not work!")
+    print("use: pip install --upgrade --user pyFFTW")
     fft = None
     fftfreq = None
 

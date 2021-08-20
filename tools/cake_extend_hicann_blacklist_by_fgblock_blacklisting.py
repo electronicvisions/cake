@@ -15,7 +15,7 @@ parser.add_argument('--wafer', type=int, required=True,
 parser.add_argument('--input_dir', type=str, required=True, help="where to read redman files from")
 parser.add_argument('--output_dir', type=str, required=True, help="where to store redman files. "
                     "If file already exists, it gets adapted")
-parser.add_argument('--hicanns', nargs="+", type=int, default=range(HICANNOnWafer.enum_type.end),
+parser.add_argument('--hicanns', nargs="+", type=int, default=list(range(HICANNOnWafer.enum_type.end)),
                     help="HICANNs for which to create blacklisting for")
 args = parser.parse_args()
 
@@ -26,13 +26,13 @@ for hicann in args.hicanns:
     hicann_c = HICANNOnWafer(Enum(hicann))
     # skip already disabled HICANNs, test unnecessary
     if not wafer_output_backend.hicanns().has(hicann_c):
-        print ("{} on {} already disabled -> skip test"
-               .format(short_format(hicann_c), short_format(wafer_c)))
+        print(("{} on {} already disabled -> skip test"
+               .format(short_format(hicann_c), short_format(wafer_c))))
         continue
     hicann_input_backend = load.HicannWithBackend(
         args.input_dir, HICANNGlobal(hicann_c, wafer_c))
     if hicann_input_backend.fgblocks().available() != FGBlockOnHICANN.size:
         wafer_output_backend.hicanns().disable(hicann_c)
-        print ("disable {} on {}"
-               .format(short_format(hicann_c), short_format(wafer_c)))
+        print(("disable {} on {}"
+               .format(short_format(hicann_c), short_format(wafer_c))))
 wafer_output_backend.save()

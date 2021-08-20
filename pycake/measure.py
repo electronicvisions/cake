@@ -7,9 +7,9 @@ import pyhalbe
 import pysthal
 import pycake
 
-from helpers.WorkerPool import FakeWorkerPool, WorkerPool, DEFAULT_WORKERS
-from helpers.TracesOnDiskDict import PandasRecordsOnDiskDict
-from helpers.sthal import ADCFreqConfigurator
+from .helpers.WorkerPool import FakeWorkerPool, WorkerPool, DEFAULT_WORKERS
+from .helpers.TracesOnDiskDict import PandasRecordsOnDiskDict
+from .helpers.sthal import ADCFreqConfigurator
 from tables.exceptions import HDF5ExtError
 
 import time
@@ -96,7 +96,7 @@ class Measurement(object):
             elif isinstance(parameter, shared_parameter) and isinstance(coord, FGBlockOnHICANN):
                 values[coord] = fgs.getShared(coord, parameter)
             else:
-                print "Invalid parameter <-> coordinate pair"
+                print("Invalid parameter <-> coordinate pair")
                 return
                 # TODO raise TypeError
         return values
@@ -128,7 +128,7 @@ class Measurement(object):
                     values.append(np.nan)
             elif parameter is None:
                 continue
-            elif isinstance(parameter, basestring):
+            elif isinstance(parameter, str):
                 try:
                     values.append(self.step_parameters[parameter])
                 except KeyError:
@@ -257,7 +257,7 @@ class SpikeMeasurement(Measurement):
 
                 addr_spikes[NeuronOnHICANN(Enum(int(n)))].append(t)
 
-        for neuron, spikes in addr_spikes.iteritems():
+        for neuron, spikes in addr_spikes.items():
 
             if neuron in activated_neurons:
                 self.spikes[neuron] = spikes
@@ -278,7 +278,7 @@ class SpikeMeasurement(Measurement):
         results = {}
         self.logger.INFO("Reading out spikes")
 
-        for nb in xrange(0, 16):
+        for nb in range(0, 16):
             self.get_spikes([nb])
 
         for neuron in self.neurons:

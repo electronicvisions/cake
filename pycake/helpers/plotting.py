@@ -107,7 +107,7 @@ def get_hicanns_from_dnc(dnc):
     dnc = C.DNCOnWafer(Enum(dnc))
     h0 = C.HICANNOnDNC(Enum(0)).toHICANNOnWafer(dnc).toEnum().value()
     h1 = C.HICANNOnDNC(Enum(per_dnc // 2)).toHICANNOnWafer(dnc).toEnum().value()
-    return np.array([range(h0, h0+offset) , range(h1, h1+offset)])
+    return np.array([list(range(h0, h0+offset)) , list(range(h1, h1+offset))])
 
 def get_bokeh_figure(title, value_by_hicann_enum, max_value = None, cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["green", "red"]), add_text=False, default_fill_color='black'):
     """
@@ -129,7 +129,7 @@ def get_bokeh_figure(title, value_by_hicann_enum, max_value = None, cmap = matpl
     [-1, -1, -1, 45, 46, 47, -1, -1, -1] ])
 
     dncs = [dnc for row in dnc2reticle_map for dnc in row if dnc != -1]
-    hicann_array = np.array(map(get_hicanns_from_dnc, dncs))
+    hicann_array = np.array(list(map(get_hicanns_from_dnc, dncs)))
     ret_coords = [(ret_width*j,ret_width*i) for i,row in enumerate(dnc2reticle_map)
                                             for j,dnc in enumerate(row) if dnc != -1]
     hc_dict =  {hicann_array[i,j,k] : (x+pos, -(y+hc_height*row))
@@ -139,7 +139,7 @@ def get_bokeh_figure(title, value_by_hicann_enum, max_value = None, cmap = matpl
 
     plot_data = defaultdict(list)
 
-    for hicann_enum, values in hc_dict.items():
+    for hicann_enum, values in list(hc_dict.items()):
         plot_data["HICANN"].append(hicann_enum)
         plot_data["x"].append(values[0])
         plot_data["y"].append(values[1])
@@ -158,7 +158,7 @@ def get_bokeh_figure(title, value_by_hicann_enum, max_value = None, cmap = matpl
             plot_data["fill_color"].append(default_fill_color)
             plot_data["Value"].append(None)
 
-    tooltip_keys = plot_data.keys()
+    tooltip_keys = list(plot_data.keys())
     for key in ['x', 'y', 'fill_color']:
         tooltip_keys.remove(key)
     tooltips = [(key, "@{}".format(key)) for key in sorted(tooltip_keys)]

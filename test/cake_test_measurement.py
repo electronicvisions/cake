@@ -46,7 +46,7 @@ class TestMeasurement(unittest.TestCase):
         measurement.save_traces(temp_trace_path)
         # store some data, save neurons to check
         trace_keys = []
-        for ii, (neuron, trace) in enumerate(self.testdata.iteritems()):
+        for ii, (neuron, trace) in enumerate(self.testdata.items()):
             if ii < 10:
                 measurement.traces[neuron] = trace
                 trace_keys.append('/trace_{:0>3}'.format(neuron.toEnum().value()))
@@ -60,7 +60,7 @@ class TestMeasurement(unittest.TestCase):
         measurement2 = pycake.measure.ADCMeasurement(self.sthal, self.neurons)
         measurement2.save_traces(temp_trace_path)
         trace_keys = []
-        for ii, (neuron, trace) in enumerate(self.testdata.iteritems()):
+        for ii, (neuron, trace) in enumerate(self.testdata.items()):
             if 20 < ii and ii < 30:
                 measurement2.traces[neuron] = trace
                 trace_keys.append('/trace_{:0>3}'.format(neuron.toEnum().value()))

@@ -9,7 +9,7 @@ from neo.io import NeoHdf5IO
 import quantities
 import os
 import time
-import cPickle
+import pickle
 import subprocess
 from collections import defaultdict
 import numpy as np
@@ -78,7 +78,7 @@ def get_half_and_bank(addr, even, odd):
 
 def prepare_drivers(drivers):
 
-    print "preparing drivers"
+    print("preparing drivers")
 
     for driver in drivers:
 
@@ -98,11 +98,11 @@ def prepare_drivers(drivers):
 
         #print hardware.hicann
 
-    print "done"
+    print("done")
 
 def aquire(seg, driver):
 
-    print "aquiring data for driver", driver
+    print("aquiring data for driver", driver)
 
     hardware.clear_routes()
     hardware.clear_spike_trains()
@@ -143,7 +143,7 @@ def aquire(seg, driver):
         hardware.enable_readout(rl)
 
     # Create input spike trains
-    print hardware.hicann.synapses[Coordinate.SynapseDriverOnHICANN(Enum(driver))]
+    print(hardware.hicann.synapses[Coordinate.SynapseDriverOnHICANN(Enum(driver))])
 
     start_offset = 5e-6
     n_input_spikes = args.ninputspikes
@@ -161,7 +161,7 @@ def aquire(seg, driver):
 
     addr_position_map = {}
 
-    addresses = range(max_index+1)
+    addresses = list(range(max_index+1))
 
     # reverse
     #addresses = reversed(addresses)
@@ -222,21 +222,21 @@ def aquire(seg, driver):
 
     addr_dict = defaultdict(set)
 
-    for rl, rl_spikes in rl_dict.iteritems():
+    for rl, rl_spikes in rl_dict.items():
 
         for addr in rl_spikes:
             addr_dict[addr].add(rl)
 
-    for addr, rls in addr_dict.iteritems():
+    for addr, rls in addr_dict.items():
         #print "addr {}, rls {}, len(rls) {}".format(addr, rls, len(rls))
         if len(rls) > 1 and addr != 0:
             #raise Exception("WTF")
-            print "addr {}, rls {}, len(rls) {}".format(addr, rls, len(rls))
-            print "PROBLEM(?)"
+            print("addr {}, rls {}, len(rls) {}".format(addr, rls, len(rls)))
+            print("PROBLEM(?)")
 
     spikes = np.vstack([hardware.get_spikes(rl) for rl in recording_links])
 
-    print "len(spikes):", len(spikes)
+    print("len(spikes):", len(spikes))
 
     for i in range(64):
         try:
@@ -254,10 +254,10 @@ def aquire(seg, driver):
     if args.dumpwafercfg:
         hardware.wafer.dump(os.path.join(PATH, "wafer_"+filename_stub+".xml"), True)
 
-    print "aquiring done"
+    print("aquiring done")
 
 def vt_calib(neuron_blacklist):
-    print "Run V_t calibration"
+    print("Run V_t calibration")
     meassured = []
     for neuron in iter_all(Coordinate.NeuronOnHICANN):
         if int(neuron.toEnum()) in neuron_blacklist:
@@ -276,7 +276,7 @@ def vt_calib(neuron_blacklist):
     cfg = UpdateParameterDownAndConfigure([neuron_parameter.V_t],
             Coordinate.FGBlockOnHICANN())
     hardware.configure(configurator=cfg)
-    print cfg.readout_values
+    print(cfg.readout_values)
 
 
 def read_voltages(wafer=1):
@@ -323,7 +323,7 @@ def read_voltages(wafer=1):
             if "dac" in l:
                 prefix = "DAC_"
                 continue
-            data.update({ prefix+l.split('\t')[0]: map(float, l.split('\t')[1:]) })
+            data.update({ prefix+l.split('\t')[0]: list(map(float, l.split('\t')[1:])) })
 
         return data
 
@@ -343,11 +343,11 @@ def read_voltages(wafer=1):
 
     else:
 
-        print "no voltage information for wafer {}".format(wafer)
+        print("no voltage information for wafer {}".format(wafer))
 
         data = {}
 
-        for i in xrange(0,12):
+        for i in range(0,12):
 
             data['V{}'.format(i)] = [0.,0.]
             data['DAC_V{}'.format(i)] = [0.,0.]
@@ -377,7 +377,7 @@ if __name__ == "__main__":
     parser.add_argument('--dumpwafercfg', action="store_true", default=False)
     parser.add_argument('--ana', action="store_true", default=False,
         help="run ana_defects.py on the fly, to categorize correct/incorrect spiketimes")
-    parser.add_argument('--drivers', type=int, nargs="+", default=range(224))
+    parser.add_argument('--drivers', type=int, nargs="+", default=list(range(224)))
     parser.add_argument('--V_ccas', type=int, default=-1)
     parser.add_argument('--V_dllres', type=int, default=-1)
     parser.add_argument('--nooutput', action="store_true", default=False)
@@ -407,16 +407,16 @@ if __name__ == "__main__":
 
     if os.path.exists(PATH):
         if os.path.exists(FINISHED_TAG):
-            print "Skiping allready existing meassurement {}".format(PATH)
+            print("Skiping allready existing meassurement {}".format(PATH))
             exit(0)
         else:
-            print "Remove existing result folder {}..".format(PATH)
+            print("Remove existing result folder {}..".format(PATH))
             for ii in range(5, 0, -1):
-                print "in {}s...".format(ii)
+                print("in {}s...".format(ii))
                 time.sleep(1)
             shutil.rmtree(PATH)
     mkdir_p(PATH)
-    print "START"
+    print("START")
 
     from pycake.helpers.units import DAC, Volt, Ampere
 
@@ -429,11 +429,11 @@ if __name__ == "__main__":
             args.calibpath, 'parrot_blacklist.txt')
 
         if not os.path.exists(parrot_params):
-            print "Parrot calibration not found"
+            print("Parrot calibration not found")
             exit(-1)
-        print "Setting parameters from parrot file!"
+        print("Setting parameters from parrot file!")
         with open(parrot_params, 'r') as infile:
-            pparams = cPickle.load(infile)
+            pparams = pickle.load(infile)
         base_parameters = pparams['base_parameters']
         if args.V_ccas >= 0:
             base_parameters[shared_parameter.V_ccas] = DAC(args.V_ccas)
@@ -446,11 +446,11 @@ if __name__ == "__main__":
             v_t = Volt(0.7, apply_calibration=True)
             for nrn in params.neuron_parameters:
                 params.neuron_parameters[nrn][neuron_parameter.V_t] = v_t
-        pprint({getattr(p, 'name', p): v for p, v in params.base_parameters.items()})
+        pprint({getattr(p, 'name', p): v for p, v in list(params.base_parameters.items())})
         pprint(params.synapse_driver)
-        print params.neuron_parameters
+        print(params.neuron_parameters)
     else:
-        print "Setting default paramters"
+        print("Setting default paramters")
         params.base_parameters[neuron_parameter.E_l] = Volt(0.7)
         params.base_parameters[neuron_parameter.V_t] = Volt(0.745)
         params.base_parameters[neuron_parameter.E_synx] = Volt(0.8)
@@ -470,7 +470,7 @@ if __name__ == "__main__":
         parrot_blacklist = os.path.join(
             args.calibpath, 'parrot_blacklist.txt')
         if not os.path.exists(parrot_blacklist):
-            print "Parrot calibration blacklist not found"
+            print("Parrot calibration blacklist not found")
             exit(-1)
         neuron_blacklist = np.loadtxt(parrot_blacklist, dtype=int)
     else:
@@ -487,7 +487,7 @@ if __name__ == "__main__":
         f_p.fg_biasn = 0
         f_p.pulselength = int(f_p.pulselength.to_ulong() * float(FREQ)/100.0)
         fgc.setFGConfig(shallow.Enum(p), f_p)
-        print fgc.getFGConfig(shallow.Enum(p))
+        print(fgc.getFGConfig(shallow.Enum(p)))
 
     hardware.connect()
 
@@ -507,7 +507,7 @@ if __name__ == "__main__":
 
     if not args.nooutput:
         fname =os.path.join(PATH, "defects_data.hdf5")
-        print "opening {}".format(fname)
+        print("opening {}".format(fname))
         reader = NeoHdf5IO(filename=fname)
     # create a new block
     blk = Block(time=time.time(),wafer=WAFER,hicann=HICANN,freq=FREQ,bkgisi=BKGISI)
@@ -529,18 +529,18 @@ if __name__ == "__main__":
         if args.ana:
             ana_defects.ana(seg, plotpath=PATH)
 
-        print "it took {} s".format(time.time()-start)
+        print("it took {} s".format(time.time()-start))
 
     sp = shallow.HICANN.shared_parameter
     shared = {0:{}, 1:{}, 2:{}, 3:{}}
     for block in shallow.Coordinate.iter_all(shallow.Coordinate.FGBlockOnHICANN):
-        for name, param in sp.names.iteritems():
+        for name, param in sp.names.items():
             try:
                 shared[int(block.toEnum())][name] = fgc.getShared(block, param)
             except IndexError:
                 pass
 
-    print shared
+    print(shared)
 
     blk.annotations['shared_parameters'] = shared
 
@@ -549,7 +549,7 @@ if __name__ == "__main__":
 
     if not args.nooutput:
         reader.write(blk)
-        print "To analyze results call: ./ana_defects.py", fname
+        print("To analyze results call: ./ana_defects.py", fname)
 
     if not args.nooutput:
         with open(FINISHED_TAG, 'w'):

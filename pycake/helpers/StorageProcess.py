@@ -1,14 +1,14 @@
 """bla bla"""
 
 import multiprocessing
-import Queue
+import queue
 import time
 import os
 import tempfile
 import bz2
 import gzip
 import shutil
-import cPickle
+import pickle
 import pylogging
 
 
@@ -55,7 +55,7 @@ class StorageProcess(object):
         process.join()
         try:
             result = result_queue.get(False)
-        except Queue.Empty:
+        except queue.Empty:
             # Note: this might happen, when the OS out-of-memory killer, kills
             # our poor innocent storage process
             self.logger.error("Storage process seems to be lost")
@@ -85,7 +85,7 @@ class StorageProcess(object):
             # from multiple processes!
             tmpfile = tempfile.mktemp(dir=(os.path.dirname(filename)))
             with fopen(tmpfile, 'wb') as outfile:
-                cPickle.dump(obj, outfile, cPickle.HIGHEST_PROTOCOL)
+                pickle.dump(obj, outfile, pickle.HIGHEST_PROTOCOL)
             shutil.move(tmpfile, filename)
             cls.logger.INFO("Pickled object in {}s to '{}'".format(
                     int(time.time() - tstart), filename))

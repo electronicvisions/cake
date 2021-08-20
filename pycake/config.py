@@ -17,7 +17,7 @@ from pyhalco_hicann_v2 import FGBlockOnHICANN
 from pyhalco_hicann_v2 import NeuronOnHICANN
 from pyhalco_hicann_v2 import AnalogOnHICANN
 
-from helpers.WorkerPool import DEFAULT_WORKERS
+from .helpers.WorkerPool import DEFAULT_WORKERS
 
 logger = pylogging.get("pycake.config")
 

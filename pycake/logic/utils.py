@@ -9,7 +9,7 @@ def nonint_reshape_data(data, d):
     Only int(len(data) / int(d)) samples starting at index 0 are considered.
     """
     reshaped = []
-    for i in xrange(int(len(data) / d)):
+    for i in range(int(len(data) / d)):
         offset = int(round(d * i))
         reshaped.append(data[offset: offset + int(d)])
 
@@ -22,7 +22,7 @@ def nonint_reshape_data_interp(data, d):
 
     index_base = pylab.arange(0, int(d) + 1)
 
-    for i in xrange(0, int(len(data) / d), 1):
+    for i in range(0, int(len(data) / d), 1):
         offset = int(d * i)
 
         if i == 0:

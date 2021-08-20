@@ -2,7 +2,7 @@
 
 """
 import os
-import cPickle
+import pickle
 import numpy
 import pandas
 import numpy as np
@@ -298,7 +298,7 @@ class I_gl_Calibrator(BaseCalibrator):
         try:
             fit_coeffs = curve_fit(func, xs, ys, [-82.6548e-6, 248.6586e-12])[0]
             fit_coeffs = [fit_coeffs[1], fit_coeffs[0], 0]
-        except ValueError, e:
+        except ValueError as e:
             self.logger.WARN("Could not fit results of I_gl because: {}".format(e))
             fit_coeffs = None
         return fit_coeffs
@@ -781,7 +781,7 @@ class readout_shift_Calibrator(BaseCalibrator):
         # from pymarocco_coordinates import LogicalNeuron
         # will be part of halco later
         if block_id * size > 512:
-            raise ValueError, "There are only {} blocks of size {}".format(512/size, size)
+            raise ValueError("There are only {} blocks of size {}".format(512/size, size))
         nids_top = np.arange(size/2*block_id,size/2*block_id+size/2)
         nids_bottom = np.arange(256+size/2*block_id,256+size/2*block_id+size/2)
         nids = np.concatenate([nids_top, nids_bottom])
@@ -855,7 +855,7 @@ class Parrot_Calibrator(BaseCalibrator):
         parrot_blacklist = [int(n.toEnum()) for n in V_t.index[~V_t['good']]]
 
         with open(self.settings, 'w') as out:
-            cPickle.dump(parrot_calib, out, -1)
+            pickle.dump(parrot_calib, out, -1)
         numpy.savetxt(self.blacklist, parrot_blacklist, fmt='%d')
         return []
 
@@ -869,5 +869,5 @@ class Parrot_Calibrator(BaseCalibrator):
             for nrn in neurons:
                 blacklist.write('{}\n'.format(nrn))
         with open(self.settings, 'w') as out:
-            cPickle.dump(self.experiment.measurements[0].step_parameters, out, -1)
+            pickle.dump(self.experiment.measurements[0].step_parameters, out, -1)
         return []

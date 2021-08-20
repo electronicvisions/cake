@@ -10,9 +10,9 @@ Example:
     hdf5 in ./save/blacklisted.h5
 """
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
+
+
+
 
 import pandas as pd
 import numpy as np
@@ -33,7 +33,7 @@ def parse_args():
     parser.add_argument('--calibs_path', '-c', help="path to all calibs", required=True)
     parser.add_argument('--wafer', '-w', help="wafer", type=int, required=True)
     parser.add_argument('--hicanns', nargs='+', type=int,
-                        default=range(Coordinate.HICANNOnWafer.size), help="HICANNs to check for")
+                        default=list(range(Coordinate.HICANNOnWafer.size)), help="HICANNs to check for")
     parser.add_argument('--save_path', '-s', help="path to save results to", default="blacklisted.h5")
 
     args = parser.parse_args()
@@ -53,11 +53,11 @@ def collect_blacklisted(calibs_path, wafer, hicanns):
             continue
         for cal_dir in cal_dirs:
             with pd.HDFStore(os.path.join(os.path.join(search_path, cal_dir), 'results.h5')) as store:
-                keys_with_blacklisted = [key for key in store if 'defect' in store[key].keys()]
+                keys_with_blacklisted = [key for key in store if 'defect' in list(store[key].keys())]
                 for key in keys_with_blacklisted:
                     blacklisted = np.sum(store[key]['defect'].values)
                     blacklisted_dict[hicann].update({key[1:key.find('_calib')]: blacklisted})
-            blacklisted_sum = np.sum(blacklisted_dict[hicann].values())
+            blacklisted_sum = np.sum(list(blacklisted_dict[hicann].values()))
             logger.INFO("Collected {} blacklisted for HICANN {}".format(blacklisted_sum, hicann))
     blacklisted_df = pd.DataFrame.from_dict(blacklisted_dict, orient='index')
     blacklisted_df.index.names = ['hicann']

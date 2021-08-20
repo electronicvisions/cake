@@ -15,7 +15,7 @@ folder = "/tmp"
 
 
 def pproduct(paramters, ranges):
-    return [dict(zip(paramters, step)) for step in product(*ranges)]
+    return [dict(list(zip(paramters, step))) for step in product(*ranges)]
 
 E_l_target = 0.7  # FIXME: propagate to E_l_I_gl_fixed calibrator
 E_syn_distance = 0.1

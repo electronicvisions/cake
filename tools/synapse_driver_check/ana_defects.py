@@ -50,7 +50,7 @@ def categorize(addr, spikes, start_offset, addr_offset, addr_position_map):
 
         t = float(t)
 
-        for o_addr in addr_position_map.keys():
+        for o_addr in list(addr_position_map.keys()):
 
             pos = addr_position_map[o_addr]
 
@@ -71,7 +71,7 @@ def ana(seg, plotpath=None):
 
     driver = seg.annotations["driver"]
 
-    print "analyzing data of driver", driver
+    print("analyzing data of driver", driver)
     #print 'Memory usage: %s (kb)' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 
     start_offset = seg.annotations["start_offset"]*quantities.s
@@ -92,7 +92,7 @@ def ana(seg, plotpath=None):
         plt.grid(False)
         plt.ylim((-1, 64))
         plt.xlim((0, duration))
-        plt.yticks(range(0, 64, 1))
+        plt.yticks(list(range(0, 64, 1)))
 
         yticklabels=["{:.0f} ({:.0f}, {})".format(yt, addr_neuron_map[yt], int((addr_neuron_map[yt] % 256) / 32)) for yt in ax1.get_yticks()]
         ax1.set_yticklabels(yticklabels)
@@ -101,7 +101,7 @@ def ana(seg, plotpath=None):
 
     addr_result_map = {}
 
-    n_spikes_in_total = sum([len(spikes) for spikes in addr_spikes_map.values()])
+    n_spikes_in_total = sum([len(spikes) for spikes in list(addr_spikes_map.values())])
 
     early_abort = n_spikes_in_total > 30000
 
@@ -136,7 +136,7 @@ def ana(seg, plotpath=None):
         ax2 = ax1.twinx()
         ax2.set_ylabel("cor,incor")
         plt.ylim((-1, 64))
-        plt.yticks(range(0, 64, 1))
+        plt.yticks(list(range(0, 64, 1)))
         ax2.set_yticklabels(right_yticklabels)
         plt.tick_params(axis='y', which='both', labelsize=5)
 
@@ -145,7 +145,7 @@ def ana(seg, plotpath=None):
             plt.savefig(os.path.join(plotpath, "driver_{:03d}.pdf".format(driver)))
         plt.close()
 
-    print "analyzing done"
+    print("analyzing done")
 
     return seg
 
@@ -160,15 +160,15 @@ if __name__ == "__main__":
     fdir, filename = os.path.split(os.path.abspath(args.file.name))
 
     ############################################################################
-    print "opening file"
+    print("opening file")
     start = time.time()
     reader = NeoHdf5IO(filename=args.file.name)
     blks = reader.read()
-    print "done"
-    print "it took {} s".format(time.time()-start)
+    print("done")
+    print("it took {} s".format(time.time()-start))
 
     ############################################################################
-    print "starting analysis"
+    print("starting analysis")
 
     if False:
 
@@ -179,16 +179,16 @@ if __name__ == "__main__":
         segments = blk.segments
         # one driver per segment
         augmented_segments = [ana(seg, plotpath=fdir) for seg in segments]
-        print "done"
-        print "it took {} s".format(time.time()-start)
+        print("done")
+        print("it took {} s".format(time.time()-start))
 
         ############################################################################
-        print "storing results"
+        print("storing results")
         start = time.time()
         for seg in augmented_segments:
             reader.save(seg)
-        print "done"
-        print "it took {} s".format(time.time()-start)
+        print("done")
+        print("it took {} s".format(time.time()-start))
 
     ana_file = os.path.join(fdir, os.path.splitext(filename)[0]+".json")
 
@@ -239,7 +239,7 @@ if __name__ == "__main__":
         driver = seg.annotations["driver"]
 
         if args.verbose:
-            print "classifying driver {}".format(driver)
+            print("classifying driver {}".format(driver))
 
 #        print "driver", driver
 
@@ -267,7 +267,7 @@ if __name__ == "__main__":
 
         good_addresses = 0
 
-        for addr, (correct, incorrect, addr_correlation_map) in addr_result_map.iteritems():
+        for addr, (correct, incorrect, addr_correlation_map) in addr_result_map.items():
             # address 0 will always see "false" background events
             if addr != 0 and addr_neuron_map[addr] not in args.ignore_neurons:
                 drv_correct += correct
@@ -294,7 +294,7 @@ if __name__ == "__main__":
             n_good_drv += 1
             is_good.append(True)
             if args.verbose:
-                print "driver {:03d} is good".format(driver)
+                print("driver {:03d} is good".format(driver))
 
             try:
                 os.symlink("../driver_{:03d}.png".format(driver), os.path.join(fdir,"good/driver_{:03d}.png".format(driver)))
@@ -305,7 +305,7 @@ if __name__ == "__main__":
             is_good.append(False)
             bad_drivers.append(driver)
             if args.verbose:
-                print "driver {:03d} is bad".format(driver)
+                print("driver {:03d} is bad".format(driver))
 
             try:
                 os.symlink("../driver_{:03d}.png".format(driver), os.path.join(fdir,"bad/driver_{:03d}.png".format(driver)))

@@ -35,33 +35,33 @@ else:
     raise RuntimeError("unknown HICANN version {}".format(args.hicann_version))
 
 for hicann in args.hicann:
-    print "w{}h{}".format(args.wafer, hicann)
+    print("w{}h{}".format(args.wafer, hicann))
     redman_hicann = redman.HicannWithBackend(redman_backend, HICANNGlobal(HICANNOnWafer(Enum(hicann)), Wafer(args.wafer)))
     for drv in unavailable_in_hicann_version:
         drv_c = SynapseDriverOnHICANN(Enum(drv))
         if redman_hicann.drivers().has(drv_c):
-            print "\tdisabling {}".format(drv_c)
+            print("\tdisabling {}".format(drv_c))
             redman_hicann.drivers().disable(drv_c)
         else:
-            print "\t{} already disabled".format(drv_c)
+            print("\t{} already disabled".format(drv_c))
     redman_hicann.save()
 
 for df_file in args.defect_files:
     try:
         df = json.load(df_file)
         if df['hicann'] in args.hicann:
-            print "w{}h{}".format(args.wafer, df['hicann'])
+            print("w{}h{}".format(args.wafer, df['hicann']))
             redman_hicann = redman.HicannWithBackend(redman_backend, HICANNGlobal(HICANNOnWafer(Enum(df['hicann'])), Wafer(args.wafer)))
             for drv in df['bad_drivers']:
                 drv_c = SynapseDriverOnHICANN(Enum(drv))
                 if redman_hicann.drivers().has(drv_c):
-                    print "\tdisabling {}".format(drv_c)
+                    print("\tdisabling {}".format(drv_c))
                     redman_hicann.drivers().disable(drv_c)
                 else:
-                    print "\t{} already disabled".format(drv_c)
+                    print("\t{} already disabled".format(drv_c))
             redman_hicann.save()
     except Exception as e:
-        print e
+        print(e)
         continue
 
 for drv in args.syndrv:
@@ -69,8 +69,8 @@ for drv in args.syndrv:
         redman_hicann = redman.HicannWithBackend(redman_backend, HICANNGlobal(HICANNOnWafer(Enum(hicann)), Wafer(args.wafer)))
         drv_c = SynapseDriverOnHICANN(Enum(drv))
         if redman_hicann.drivers().has(drv_c):
-            print "\tdisabling {}".format(drv_c)
+            print("\tdisabling {}".format(drv_c))
             redman_hicann.drivers().disable(drv_c)
         else:
-            print "\t{} already disabled".format(drv_c)
+            print("\t{} already disabled".format(drv_c))
         redman_hicann.save()

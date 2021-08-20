@@ -5,8 +5,8 @@ Two separate ranges (see heuristic limits below) are fitted
 for a closer match to the data.
 """
 
-from __future__ import division
-from __future__ import print_function
+
+
 
 import sys
 
@@ -45,7 +45,7 @@ def tau_refrac_to_dac_first_part(tau_ref, param1, param2, param3, param4):
     oop = NegativePowersPolynomial(parameters, 1e-10, 1)
 
     try:
-        return map(oop.apply, tau_ref)
+        return list(map(oop.apply, tau_ref))
     except TypeError:
         return oop.apply(tau_ref)
 
@@ -57,7 +57,7 @@ def tau_refrac_to_dac_second_part(tau_ref,
     oop = NegativePowersPolynomial(parameters, 1e-10, 1)
 
     try:
-        return map(oop.apply, tau_ref)
+        return list(map(oop.apply, tau_ref))
 
     except TypeError:
         return oop.apply(tau_ref)
@@ -97,7 +97,7 @@ tau_refrac_join = 0.056e-6
 upper_DAC_limit = int(tau_refrac_to_dac_first_part(
     tau_refrac_join, *popt_first_part))
 
-joined_DACs = range(11, 1024)
+joined_DACs = list(range(11, 1024))
 joined_tau_refracs = []
 
 for DAC in range(min(joined_DACs), upper_DAC_limit):

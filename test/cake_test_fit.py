@@ -58,7 +58,7 @@ class TestFit(unittest.TestCase):
             p.title("fit result")
             fname = "/tmp/fit_quality_plot_{0}.pdf".format(seed_val)
             p.savefig(fname)
-            print "Plot saved to:", fname
+            print("Plot saved to:", fname)
 
         err = p.sqrt(p.diag(cov))
 
@@ -78,7 +78,7 @@ class TestFit(unittest.TestCase):
 
         self.assertLess(red_chi2, 1.5)
         if debug_plot:
-            print red_chi2, abs(fitres[1] - tau_1) / err[1], abs(fitres[2] - tau_2) / err[2]
+            print(red_chi2, abs(fitres[1] - tau_1) / err[1], abs(fitres[2] - tau_2) / err[2])
 
     def test_fit_quality_fixed_seeds(self):
         """
@@ -135,7 +135,7 @@ class TestFit(unittest.TestCase):
             p.title("initial parameter estimate")
             fname = "/tmp/test_param_estimate.pdf"
             p.savefig(fname)
-            print "plot saved to:", fname
+            print("plot saved to:", fname)
 
 
     def test_errors(self):

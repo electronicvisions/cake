@@ -49,7 +49,7 @@ figures = []
 
 # any
 data = {}
-for hicann_c, nc in cals.iteritems():
+for hicann_c, nc in cals.items():
     try:
         blacklisted = 0
         for ii in range(C.NeuronOnHICANN.size):
@@ -69,7 +69,7 @@ for calib_enums in calibs_to_check:
 
     for calib_enum in calib_enums:
         data = {}
-        for hicann_c, nc in cals.iteritems():
+        for hicann_c, nc in cals.items():
             try:
                 blacklisted = sum([not nc.at(ii).exists(calib_enum) for ii in range(C.NeuronOnHICANN.size)])
                 data[hicann_c.toEnum().value()] = blacklisted

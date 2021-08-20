@@ -86,7 +86,7 @@ class BaseExperimentBuilder(object):
 
         # Create one sthal container for each step
         # order is step 1, step 2, step 3, ..., step 1, step 2, step 3, ...
-        for rep, step in product(range(repetitions), steps):
+        for rep, step in product(list(range(repetitions)), steps):
             self.logger.INFO(
                 "Building step {}, repetition {}".format(step, rep))
 
@@ -424,7 +424,7 @@ class V_convoff_Experimentbuilder(BaseExperimentBuilder):
         # Collect parameters from potentially nested configruation dicts
         parameters = set()
         for step in self.config.get_steps():
-            for k, v in step.iteritems():
+            for k, v in step.items():
                 if isinstance(v, dict):
                     parameters |= set(v.keys())
                 else:

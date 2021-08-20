@@ -399,7 +399,7 @@ class Hardware(object):
                 params.update(self.params.shared_parameters[block])
                 self.calibration.set_shared_parameters(
                     params, block, self.hicann.floating_gates)
-            print self.hicann.floating_gates
+            print(self.hicann.floating_gates)
 
 
         # Write configuration

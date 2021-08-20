@@ -156,7 +156,7 @@ class CalibrationUnit(object):
         """
         for parameter, data in transformations:
             total = len(data)
-            good = len([d for d in data.itervalues() if d is not None])
+            good = len([d for d in data.values() if d is not None])
             progress.info(
                 "Write calibration data for {}: {} of {} are good.".format(
                     parameter, good, total))
@@ -168,7 +168,7 @@ class CalibrationUnit(object):
         """
         """
         for parameter, data in transformations:
-            defects = [coord for coord, t in data.iteritems() if t is None]
+            defects = [coord for coord, t in data.items() if t is None]
             progress.info(
                 "Write defects for {}: {} of {} are bad.".format(
                     parameter, len(defects), len(data)))
@@ -222,7 +222,7 @@ class CalibrationUnit(object):
                         'trafo', 'domain_min', 'domain_max']
 
         for parameter, data in transformations:
-            name = parameter if isinstance(parameter, basestring) \
+            name = parameter if isinstance(parameter, str) \
                              else parameter.name
             name += '_calib'
             # Transform FGBlock indexed data to Neuron indexed
@@ -232,7 +232,7 @@ class CalibrationUnit(object):
                         for nrn
                         in neurons}
             data_all = []
-            for nrn, trafo in data.iteritems():
+            for nrn, trafo in data.items():
                 nrn_id = nrn.toEnum().value()
                 fgb_id = nrn.toSharedFGBlockOnHICANN().toEnum().value()
                 if trafo is None:
@@ -263,7 +263,7 @@ class CalibrationUnit(object):
             df.sort_index(axis=0, level='neuron', inplace=True)
             with pandas.HDFStore(self.pandas_store,
                                  complevel=9, complib='blosc') as store:
-                name = self.check_name(name, store.keys())
+                name = self.check_name(name, list(store.keys()))
                 store[name] = df
 
     def save_experiment_results(self, numeric_index=False):
@@ -278,7 +278,7 @@ class CalibrationUnit(object):
                 numeric_index=numeric_index)
         # drop columns that cannot be directly mapped to c-types
         # this saves a lot of disk space
-        droped_columns = results.select_dtypes(include=[object]).keys()
+        droped_columns = list(results.select_dtypes(include=[object]).keys())
         for key in droped_columns:
             self.logger.WARN(
                 "The column '{}' of {} is dropped in results.h5 to "
@@ -289,10 +289,10 @@ class CalibrationUnit(object):
             "Helper to convert config values into numeric values if possible"
             if k in ("speedup_I_gl", "speedup_I_gladapt", "speedup_I_radapt",
                      "target_speedup_I_gl", "target_speedup_I_gladapt",
-                     "target_speedup_I_radapt") and isinstance(v, basestring):
+                     "target_speedup_I_radapt") and isinstance(v, str):
                 v = SpeedUp.names[v.upper()]
 
-            if isinstance(v, basestring):
+            if isinstance(v, str):
                 return v
             else:
                 return float(v)
@@ -309,7 +309,7 @@ class CalibrationUnit(object):
             for rep in range(repetitions):
                 step_index = ii + rep*num_unique_steps
                 params[step_index] = {str(n) + '_config': normalize_value(n, p)
-                              for n,p in param.iteritems()}
+                              for n,p in param.items()}
         to_merge = pandas.DataFrame.from_dict(params, orient='index')
         to_merge.index.names = ['step']
         results = pandas.merge(results.reset_index(), to_merge.reset_index(),
@@ -318,7 +318,7 @@ class CalibrationUnit(object):
 
         with pandas.HDFStore(self.pandas_store,
                              complevel=9, complib='blosc') as store:
-            name = self.check_name(name, store.keys())
+            name = self.check_name(name, list(store.keys()))
             store[name] = results
 
     def save(self):
@@ -415,11 +415,11 @@ class CalibrationRunner(object):
             pos [int/slice/iterable]: index of the request calibrations
         """
         if pos is None:
-            pos = xrange(len(self.to_run))
+            pos = range(len(self.to_run))
         elif isinstance(pos, int):
             pos = [pos]
         elif isinstance(pos, slice):
-            pos = xrange(*pos.indices(len(self.to_run)))
+            pos = range(*pos.indices(len(self.to_run)))
         if name:
             pos = [ii for ii in pos if self.to_run[ii] == name]
         return pos
