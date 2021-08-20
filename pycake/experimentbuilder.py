@@ -157,7 +157,7 @@ class BaseExperimentBuilder(object):
 
         floating_gates = pysthal.FloatingGates()
 
-        for ii in range(floating_gates.getNoProgrammingPasses()):
+        for ii in range(floating_gates.getNoProgrammingPasses().value()):
             cfg = floating_gates.getFGConfig(Enum(ii))
             cfg.fg_bias = self.config.get_fg_bias()
             cfg.fg_biasn = self.config.get_fg_biasn()

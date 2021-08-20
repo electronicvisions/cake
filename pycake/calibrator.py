@@ -399,7 +399,7 @@ class V_convoff_Calibrator(BaseCalibrator):
         results = []
         params = Parameters()
         params.add('a', value=-1.0)
-        params.add('b', value=fit_data[0][len(fit_data)/2])
+        params.add('b', value=fit_data[0][len(fit_data)//2])
         params.add('c', value=0.0)
 
         out = minimize(self.residual, params,
@@ -641,7 +641,7 @@ class V_syntc_Calibrator(BaseCalibrator):
             return None
 
         try:
-            lookup = pycalibtic.Lookup(fitted.values, fitted.index.values[0])
+            lookup = pycalibtic.Lookup(fitted.values, int(fitted.index.values[0]))
             lookup.setDomain(*domain)
         except RuntimeError as e:
             self.logger.WARN(
@@ -802,7 +802,7 @@ class readout_shift_Calibrator(BaseCalibrator):
             readout_shifts: [dict] readout shifts for all neurons
         """
         trafo_type = self.get_trafo_type()
-        n_blocks = 512/neuron_size # no. of interconnected neurons
+        n_blocks = 512//neuron_size # no. of interconnected neurons
         readout_shifts = {}
 
         results = self.get_results([self.get_key()]).dropna(how='any')

@@ -752,10 +752,10 @@ class StHALContainer(object):
         repeater_data = self.hicann.repeater[repeater]
         repeater_data.setOutput(right, True)
         if driver.toSideHorizontal() == left:
-            v_line_value = 31 - out_line.value()/2
+            v_line_value = 31 - out_line.value()//2
             v_line_value += 32 * route
         if driver.toSideHorizontal() == right:
-            v_line_value = 128 + out_line.value()/2
+            v_line_value = 128 + out_line.value()//2
             v_line_value += 32 * route
         v_line = VLineOnHICANN(v_line_value)
         chain = (output_buffer, repeater, out_line, v_line, driver_line, driver)

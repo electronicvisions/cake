@@ -12,6 +12,18 @@ import pickle
 
 import pandas
 
+def convert_old_pickle(d):
+    res = {}
+    for k, v in d.items():
+        if isinstance(v, dict):
+            v = convert_old_pickle(v)
+        elif isinstance(v, bytes):
+            v = v.decode()
+        if isinstance(k, bytes):
+            k = k.decode()
+        res[k] = v
+    return(res)
+
 class TestAnalyzers(unittest.TestCase):
     def assertEqualNumpyArrays(self, A, B, message=None):
         """compares two numpy arrays for equality"""
@@ -185,7 +197,7 @@ class TestAnalyzers(unittest.TestCase):
         Test MeanOfTraceAnalyzer using a previously measured dataset.
         """
         neuron = False
-        testdata = pickle.load(open('/wang/data/calibration/testdata/testdata.p'))['E_l']
+        testdata = convert_old_pickle(pickle.load(open('/wang/data/calibration/testdata/testdata.p', 'rb'), encoding='bytes'))['E_l']
 
         # patch testdata
         testdata['result']['size'] = len(testdata["v"])
@@ -203,7 +215,7 @@ class TestAnalyzers(unittest.TestCase):
         Test V_reset_Analyzer using a previously measured dataset.
         """
         neuron = False
-        testdata = pickle.load(open('/wang/data/calibration/testdata/testdata.p'))['V_reset']
+        testdata = convert_old_pickle(pickle.load(open('/wang/data/calibration/testdata/testdata.p', 'rb'), encoding='bytes'))['V_reset']
         analyzer = pycake.analyzer.V_reset_Analyzer()
 
         trace = pandas.DataFrame({'v': testdata["v"]}, index=testdata["t"])
@@ -217,7 +229,7 @@ class TestAnalyzers(unittest.TestCase):
         Test I_pl_Analyzer using a previously measured dataset.
         """
         neuron = pyhalco_hicann_v2.NeuronOnHICANN(pyhalco_common.Enum(100))
-        testdata = pickle.load(open('/wang/data/calibration/testdata/testdata.p'))['I_pl']
+        testdata = convert_old_pickle(pickle.load(open('/wang/data/calibration/testdata/testdata.p', 'rb'), encoding='bytes'))['I_pl']
         analyzer = pycake.analyzer.I_pl_Analyzer()
         data = testdata['initial_data'][neuron]
         data['t'] = testdata['t']
@@ -234,7 +246,7 @@ class TestAnalyzers(unittest.TestCase):
         Test I_pl_Analyzer using a previously measured dataset.
         """
         neuron = pyhalco_hicann_v2.NeuronOnHICANN(pyhalco_common.Enum(100))
-        testdata = pickle.load(open('/wang/data/calibration/testdata/testdata.p'))['I_gl']
+        testdata = convert_old_pickle(pickle.load(open('/wang/data/calibration/testdata/testdata.p', 'rb'), encoding='bytes'))['I_gl']
         analyzer = pycake.analyzer.I_gl_Analyzer()
         additional_data = {}
         additional_data['adc_freq'] = testdata['adc_freq']

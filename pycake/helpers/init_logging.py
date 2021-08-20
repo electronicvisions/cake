@@ -6,6 +6,7 @@ common logger initialization routine for cake tools
 import argparse
 import logging
 import multiprocessing
+from multiprocessing.util import LOGGER_NAME
 
 import pylogging
 
@@ -51,7 +52,7 @@ def init_cake_logging(overwrite_defaults=[]):
         ("sthal", pylogging.LogLevel.INFO),
         ("sthal.AnalogRecorder", pylogging.LogLevel.WARN),
         ("sthal.HICANNConfigurator.Time", pylogging.LogLevel.INFO),
-        (multiprocessing.util.LOGGER_NAME, pylogging.LogLevel.DEBUG),
+        (LOGGER_NAME, pylogging.LogLevel.DEBUG),
         ] + overwrite_defaults)
 
     logger = multiprocessing.get_logger()

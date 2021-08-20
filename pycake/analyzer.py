@@ -515,8 +515,8 @@ class ADCFreq_Analyzer(Analyzer):
         """
         th = 0.5
         tmp = np.where((trace >= th)[:-1] != (trace >= th)[1:])[0]
-        tmp = tmp[:len(tmp)/2*2]
-        spike_pos = tmp.reshape((len(tmp)/2, 2))
+        tmp = tmp[:len(tmp)//2*2]
+        spike_pos = tmp.reshape((len(tmp)//2, 2))
         positions = []
         for begin, end in spike_pos:
             begin, end = begin - 1, end + 1
@@ -580,7 +580,7 @@ class SimplePSPAnalyzer(Analyzer):
         v = trace["v"].values
 
         # calc baseline from the beginning of the trace
-        baseline = np.mean(v[0:len(v)/self.baseline_fraction])
+        baseline = np.mean(v[0:len(v)//self.baseline_fraction])
 
         # shallow copy to allow modification
         v_orig = v

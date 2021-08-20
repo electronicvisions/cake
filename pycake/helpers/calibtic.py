@@ -128,7 +128,7 @@ class Calibtic(object):
             backend.load(name, md, hc)
             calibration_existed = True
         except RuntimeError as e:
-            if "data set not found" not in e.message:
+            if "data set not found" not in str(e):
                 raise
 
             # Delete all standard entries.
@@ -387,7 +387,7 @@ class Calibtic(object):
                 else:
                     value_dac = value.toDAC().value
             self.logger.TRACE("Setting FGValue of {} parameter {} to {}.".format(neuron, param, value_dac))
-            floating_gates.setNeuron(neuron, param, value_dac)
+            floating_gates.setNeuron(neuron, param, int(value_dac))
 
     def set_shared_parameters(self, parameters, block, floating_gates, bigcap, speedup_I_gl, speedup_I_gladapt, speedup_I_radapt):
         """Writes shared floating gate parameters for a single floating gate
@@ -424,7 +424,7 @@ class Calibtic(object):
                     value_dac = self.apply_calibration(value.value, param, block, bigcap, speedup_I_gl, speedup_I_gladapt, speedup_I_radapt, use_ideal=True)
 
             self.logger.TRACE("Setting FGValue of {} parameter {} to {}.".format(block, param, value))
-            floating_gates.setShared(block, param, value_dac)
+            floating_gates.setShared(block, param, int(value_dac))
 
 
     def set_calibrated_parameters(self, parameters, neurons, blocks, floating_gates,
