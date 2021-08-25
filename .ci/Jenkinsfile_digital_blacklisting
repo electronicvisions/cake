@@ -24,7 +24,12 @@ timestamps {
 	addBuildParameter(string(
 	                  name: 'MODULE',
 	                  defaultValue: "nmpm_software/current",
-	                  description: "NMPM software version. The default is a link to the last stable version"
+	                  description: "NMPM software version. The default is a link to the last stable version. Wafers with ananas require a module including changeset 5428"
+	))
+	addBuildParameter(booleanParam(
+	                  name: 'ANANAS',
+	                  defaultValue: false,
+	                  description: "Use true if tested wafer is with ananas -> `reticleCtrl/1.1-pMG` is loaded"
 	))
 	addBuildParameter(string(
 	                  name: 'SEED',
@@ -84,8 +89,12 @@ timestamps {
 
 				// run communication test
 				runOnSlave(label: "frontend") {
-					withModules(modules: ["${MODULE}"]) {
-						withModules(modules: ["slurm-singularity"]) {
+					if (params.ANANAS) {
+						withModules(modules: ["${MODULE}", "slurm-singularity", "reticleCtrl/1.1-pMG"]) {
+							parallel parallel_tasks
+						}
+					} else {
+						withModules(modules: ["${MODULE}", "slurm-singularity"]) {
 							parallel parallel_tasks
 						}
 					}
@@ -144,8 +153,12 @@ timestamps {
 				}
 
 				runOnSlave(label: "frontend") {
-					withModules(modules: ["${MODULE}"]) {
-						withModules(modules: ["slurm-singularity"]) {
+					if (params.ANANAS) {
+						withModules(modules: ["${MODULE}", "slurm-singularity", "reticleCtrl/1.1-pMG"]) {
+							parallel parallel_tasks
+						}
+					} else {
+						withModules(modules: ["${MODULE}", "slurm-singularity"]) {
 							parallel parallel_tasks
 						}
 					}
