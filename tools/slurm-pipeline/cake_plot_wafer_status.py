@@ -48,7 +48,8 @@ import bokeh.palettes
 from matplotlib.cm import get_cmap
 from matplotlib.colors import rgb2hex
 
-import Coordinate as C
+import pyhalco_hicann_v2 as Coordinate
+from pyhalco_common import iter_all, Enum
 
 def get_hicanns_from_dnc(dnc):
     """ Gives formatted list of HICANN enums for given dnc enum
@@ -59,11 +60,11 @@ def get_hicanns_from_dnc(dnc):
     Returns:
         numpy.ndarray: HICANN enums
     """
-    per_dnc = C.HICANNOnDNC.enum_type.size
+    per_dnc = Coordinate.HICANNOnDNC.size
     offset = (per_dnc // 2)
-    dnc = C.DNCOnWafer(C.Enum(dnc))
-    h0 = C.HICANNOnDNC(C.Enum(0)).toHICANNOnWafer(dnc).toEnum().value()
-    h1 = C.HICANNOnDNC(C.Enum(per_dnc // 2)).toHICANNOnWafer(dnc).toEnum().value()
+    dnc = Coordinate.DNCOnWafer(Enum(dnc))
+    h0 = Coordinate.HICANNOnDNC(Enum(0)).toHICANNOnWafer(dnc).toEnum().value()
+    h1 = Coordinate.HICANNOnDNC(Enum(per_dnc // 2)).toHICANNOnWafer(dnc).toEnum().value()
     return np.array([range(h0, h0+offset) , range(h1, h1+offset)])
 
 def get_hicanns_from_fpga(fpga, wafer):
@@ -76,8 +77,8 @@ def get_hicanns_from_fpga(fpga, wafer):
         numpy.ndarray: HICANN enums
     """
     return  np.array([hc_glob.toHICANNOnWafer().toEnum().value()
-             for hc_glob in C.FPGAGlobal(C.FPGAOnWafer(C.Enum(fpga)),
-                                     C.Wafer(wafer)).toHICANNGlobal()])
+             for hc_glob in Coordinate.FPGAGlobal(Coordinate.FPGAOnWafer(Enum(fpga)),
+                                     Coordinate.Wafer(wafer)).toHICANNGlobal()])
 
 def get_dnc_from_hicann(hicann):
     """ Gives DNC enum for given hicann enum
@@ -88,7 +89,7 @@ def get_dnc_from_hicann(hicann):
     Returns:
         int: DNC enum
     """
-    return C.HICANNOnWafer(C.Enum(hicann)).toDNCOnWafer().toEnum().value()
+    return Coordinate.HICANNOnWafer(Enum(hicann)).toDNCOnWafer().toEnum().value()
 
 def get_fpga_from_hicann(hicann):
     """ Gives FPGA enum for given hicann enum
@@ -101,8 +102,8 @@ def get_fpga_from_hicann(hicann):
     """
     # wafer enum should not matter as long as it is > 3 ==> set to 33
     wafer = 33
-    return (C.HICANNGlobal(C.HICANNOnWafer(C.Enum(hicann)),
-            C.Wafer(C.Enum(wafer))).toFPGAOnWafer().value())
+    return (Coordinate.HICANNGlobal(Coordinate.HICANNOnWafer(Enum(hicann)),
+            Coordinate.Wafer(Enum(wafer))).toFPGAOnWafer().value())
 
 def get_color_blacklisted(num_bl, cmap_dict):
     """ Get hex color depending on num_bl
@@ -331,7 +332,7 @@ def get_error_keys_with_unique_numbers():
     }
     return error_keys_unique_dict
 
-def get_cmap_dict(max_bl=C.NeuronOnHICANN.size, cmap_name='rainbow'):
+def get_cmap_dict(max_bl=Coordinate.NeuronOnHICANN.size, cmap_name='rainbow'):
     cmap_mpl = get_cmap('rainbow')
     cmap = [cmap_mpl(int(ii*(1.*cmap_mpl.N/(max_bl+1)))) for ii in range(max_bl+1)]
     cmap_hex = [rgb2hex(rgba[:3]) for rgba in cmap]
@@ -356,7 +357,7 @@ def set_fill_color(plot_data, error_dict, color_code='blacklisted', cal_eval='ca
         dict: plot_data, appended by a list of fill colors
     """
     if color_code =='blacklisted':
-        cmap_dict = get_cmap_dict(max_bl=C.NeuronOnHICANN.size, cmap_name='rainbow')
+        cmap_dict = get_cmap_dict(max_bl=Coordinate.NeuronOnHICANN.size, cmap_name='rainbow')
         for blacklisted in plot_data['blacklisted']:
             plot_data['fill_color'].append(get_color_blacklisted(blacklisted, cmap_dict))
     elif color_code == 'error':
@@ -392,8 +393,8 @@ def get_blacklisted_series(hicann_dict):
         hicann_dict (dict): A dict containing information about each HICANN
                             such as errors, blacklisted, etc.
     """
-    num_neurons_on_hicann = C.NeuronOnHICANN.size
-    num_hicanns_on_wafer = C.HICANNOnWafer.size
+    num_neurons_on_hicann = Coordinate.NeuronOnHICANN.size
+    num_hicanns_on_wafer = Coordinate.HICANNOnWafer.size
     total_num_neurons = num_neurons_on_hicann * num_hicanns_on_wafer
     blacklisted_series = pandas.Series([0,0,0,0],
                                         index=['blacklisted', 'not blacklisted', 'excluded', 'not yet calibrated'])
@@ -584,13 +585,13 @@ def get_blacklisted(wafer, hicann, backend_path):
     import pyredman as redman
     import pycake.helpers.redman
 
-    wafer = C.Wafer(C.Enum(wafer))
-    hicann = C.HICANNOnWafer(C.Enum(hicann))
+    wafer = Coordinate.Wafer(Enum(wafer))
+    hicann = Coordinate.HICANNOnWafer(Enum(hicann))
     try:
         redman = pycake.helpers.redman.Redman(
-            backend_path, C.HICANNGlobal(hicann,wafer))
-        neuron_enums = range(C.NeuronOnHICANN.size)
-        blacklisted = {ii: not redman.hicann_with_backend.neurons().has(C.NeuronOnHICANN(C.Enum(ii)))
+            backend_path, Coordinate.HICANNGlobal(hicann,wafer))
+        neuron_enums = range(Coordinate.NeuronOnHICANN.size)
+        blacklisted = {ii: not redman.hicann_with_backend.neurons().has(Coordinate.NeuronOnHICANN(Enum(ii)))
                    for ii in neuron_enums}
         return blacklisted
     except RuntimeError:
@@ -771,7 +772,7 @@ def add_error_messages_html(hicann_dict, html):
 
 def init_hicann_dict(error_code=-1):
     hicann_dict = defaultdict(dict)
-    for hc in [hicann.toEnum().value() for hicann in C.iter_all(C.HICANNOnWafer)]:
+    for hc in [hicann.toEnum().value() for hicann in iter_all(Coordinate.HICANNOnWafer)]:
         hicann_dict[hc]['blacklisted'] = error_code
     return hicann_dict
 

@@ -20,7 +20,7 @@ import os
 import json
 from collections import defaultdict
 
-import Coordinate as C
+import pyhalco_hicann_v2 as Coordinate
 import pylogging
 from pycake.helpers.init_logging import init_cake_logging
 init_cake_logging([("pycake.collect_statistics", pylogging.LogLevel.DEBUG),
@@ -33,7 +33,7 @@ def parse_args():
     parser.add_argument('--calibs_path', '-c', help="path to all calibs", required=True)
     parser.add_argument('--wafer', '-w', help="wafer", type=int, required=True)
     parser.add_argument('--hicanns', nargs='+', type=int,
-                        default=range(C.HICANNOnWafer.size), help="HICANNs to check for")
+                        default=range(Coordinate.HICANNOnWafer.size), help="HICANNs to check for")
     parser.add_argument('--save_path', '-s', help="path to save results to", default="blacklisted.h5")
 
     args = parser.parse_args()

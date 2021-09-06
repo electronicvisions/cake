@@ -93,3 +93,23 @@ def find_max_defects(calibs_path, wafer, hicanns, store_dir='.'):
     with open(store_path, 'wb') as json_handle:
         json.dump(defects_dict, json_handle, indent=4)
 
+def main():
+    import argparse
+
+    helpstring = """Convenience functions to operate on the data produced with
+        cake_calib_hicanns.sbatch. If called directly providing a calibration path,
+        the script will print 3 columns: Wafer, Hicann and Status (boolean). The
+        status is True for hicanns having a completed calibration status in their
+        individual report_w#_h#.json file."""
+
+    parser = argparse.ArgumentParser(description=helpstring)
+
+    parser.add_argument('input', help="Path to calibration results")
+    args = parser.parse_args()
+
+    for wafer, hicann, status in get_calib_status(args.input):
+        print(wafer, hicann, status)
+
+if __name__ == "__main__":
+    main()
+
