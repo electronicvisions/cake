@@ -60,7 +60,7 @@ for hicann_c, nc in cals.iteritems():
 
 names = [calib_enum.name for sublist in calibs_to_check for calib_enum in sublist]
 names = "{} or {}".format(", ".join(names[:-1]), names[-1])
-figures.append([pycake.helpers.plotting.get_bokeh_figure("{} not calibrated".format(names), data, cmap=cmap, add_text = True, default_fill_color = 'blue')])
+figures.append(pycake.helpers.plotting.get_bokeh_figure("{} not calibrated".format(names), data, cmap=cmap, add_text = True, default_fill_color = 'blue'))
 
 # individual
 for calib_enums in calibs_to_check:
@@ -78,6 +78,6 @@ for calib_enums in calibs_to_check:
 
         row_figures.append(pycake.helpers.plotting.get_bokeh_figure(calib_enum.name, data, cmap=cmap, add_text = True, default_fill_color = 'blue'))
 
-    figures.append(row_figures)
+    figures += row_figures
 
 pycake.helpers.plotting.store_bokeh("Calib Wafer {} Overview".format(args.wafer), figures, "calib_status_w{}.html".format(args.wafer))
