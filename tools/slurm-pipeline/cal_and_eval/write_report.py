@@ -29,6 +29,7 @@ Example:
 import os
 import json
 import time
+from collections import OrderedDict
 
 def is_complete(exit_code):
     """ Convert bash exit code to finished/not_finished.
@@ -65,10 +66,10 @@ def main(wafer, hicann, error_log, resume_number, exit_code, calib_eval, json_re
         error_message = ""
 
     json_dict = {'wafer': wafer, 'hicann': hicann}
-    resume_dict = {'error': error_message, 'complete': complete,
-                   resume_number: {'complete': complete,
+    resume_dict = OrderedDict({resume_number: {'complete': complete,
                                    'date': time.strftime("%Y-%m-%d, %H:%M:%S"),
-                                   'error': error_message}}
+                                   'error': error_message},
+                   'error': error_message, 'complete': complete})
     if os.path.isfile(json_report_path):
         with open(json_report_path, 'r') as report:
             json_data = json.load(report)
@@ -83,7 +84,7 @@ def main(wafer, hicann, error_log, resume_number, exit_code, calib_eval, json_re
         json_data[calib_eval] = resume_dict
 
     with open(json_report_path, 'w') as report:
-        json.dump(json_data, report, indent=4, sort_keys=True)
+        json.dump(json_data, report, indent=4, sort_keys=False)
 
 if __name__ == "__main__":
     import argparse

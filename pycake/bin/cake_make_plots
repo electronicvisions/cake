@@ -14,8 +14,8 @@ from matplotlib import rcParams
 from cycler import cycler
 rcParams.update({'figure.autolayout': True, 'axes.formatter.limits': [-4, 4],
                  'figure.figsize': [6.4, 4.8], 'axes.prop_cycle': cycler('color',
-                    [u'#1f77b4', u'#ff7f0e', u'#2ca02c', u'#9467bd',
-                     u'#8c564b', u'#e377c2', u'#7f7f7f', u'#bcbd22', u'#17becf'])})
+                    ['#1f77b4', '#ff7f0e', '#2ca02c', '#9467bd',
+                     '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'])})
 
 # ===========================HOW TO USE (as a plotting script)=============================
 
@@ -64,7 +64,7 @@ plot_config = {'readout_shift': {'result_key': 'coeff0', 'result_label': r"offse
                              'key_label_cal': r"$V_{syntc,x}$ [DAC] (in)", 'xunit': 's',
                              'xrange': np.logspace(-9, -3.5, 200), 'logx': True}
               }
-for plot_dict in plot_config.itervalues():
+for plot_dict in plot_config.values():
     if plot_dict.get('result_label', False):
         plot_dict['key_label_eval'] = plot_dict['result_label'] + r" (in)"
 # ==========================================================================================
@@ -99,15 +99,15 @@ def load_data(storage_path, calib_name='', eval_name='', patch=True):
     eval_storage_path = os.path.join(storage_path, eval_name)
     with pd.HDFStore(os.path.join(calib_storage_path, 'results.h5')) as store:
         if len(store) == 0 and calib_name != '':
-            print "\n", ("WARNING: calibration store for does not contain anything!"
-                   " (is the path correct?)  {}".format(calib_storage_path)), "\n"
-        exp_results = {key[1:] : store[key] for key in store.keys() if '_calib' not in key}
-        cal_results = {key[1:] : store[key] for key in store.keys() if '_calib' in key}
+            print("\n", ("WARNING: calibration store for does not contain anything!"
+                   " (is the path correct?)  {}".format(calib_storage_path)), "\n")
+        exp_results = {key[1:] : store[key] for key in list(store.keys()) if '_calib' not in key}
+        cal_results = {key[1:] : store[key] for key in list(store.keys()) if '_calib' in key}
     with pd.HDFStore(os.path.join(eval_storage_path, 'results.h5')) as store:
         if len(store) == 0 and eval_name != '':
-            print "\n", ("WARNING: evaluation store does not contain anything!"
-                  " (is the path correct?)  {}".format(eval_storage_path)), "\n"
-        eval_results = {key[1:] : store[key] for key in store.keys()}
+            print("\n", ("WARNING: evaluation store does not contain anything!"
+                  " (is the path correct?)  {}".format(eval_storage_path)), "\n")
+        eval_results = {key[1:] : store[key] for key in list(store.keys())}
     if patch:
         # add column 'defect_all' to all DataFrames
         patch_defects(cal_results, exp_results)
@@ -129,7 +129,7 @@ def get_defects(dfs):
     if len(dfs) == 0:
         return False
     df_def = []
-    for df in dfs.itervalues():
+    for df in dfs.values():
         df_def.append(df['defect'])
     return pd.concat(df_def, axis=1).sum(axis=1) > 0
 
@@ -161,19 +161,19 @@ def patch_defects_redman(results, backend_path, wafer, hicann):
                     and f[f.index(hicann_str)+len(hicann_str)] not in "0123456789"):
                 found = True
     if not found:
-        print "\n", ("WARNING: No redman xml found!"
-               " (is the path correct?)  {}".format(backend_path)), "\n"
+        print("\n", ("WARNING: No redman xml found!"
+               " (is the path correct?)  {}".format(backend_path)), "\n")
     wafer = C.Wafer(Enum(wafer))
     hicann = C.HICANNOnWafer(Enum(hicann))
     redman = pycake.helpers.redman.Redman(
         backend_path, C.HICANNGlobal(hicann,wafer))
-    neuron_enums = results.values()[0].index.get_level_values('neuron').unique().values
-    defects = {ii: not redman.hicann_with_backend.neurons().has(C.NeuronOnHICANN(Enum(ii)))
+    neuron_enums = list(results.values())[0].index.get_level_values('neuron').unique().values
+    defects = {ii: not redman.hicann_with_backend.neurons().has(C.NeuronOnHICANN(Enum(ii.item())))
                for ii in neuron_enums}
     df_defect = pd.Series(defects).to_frame()
     df_defect.columns = ['defect_all']
     df_defect.index.names = ['neuron']
-    for key, df in results.iteritems():
+    for key, df in results.items():
         index_names = df.index.names
         df = pd.merge(df.reset_index(), df_defect.reset_index(),
                                on=['neuron'], how='inner')
@@ -191,11 +191,11 @@ def patch_defects(dfs0, dfs1):
     """
     defects = get_defects(dfs0)
     if isinstance(defects, bool):
-        for df in dfs1.itervalues():
+        for df in dfs1.values():
             df['defect_all'] = defects
     else:
         defects_val = defects.sort_index(axis=0, level='neuron').values
-        for df in dfs1.itervalues():
+        for df in dfs1.values():
             if 'step' in df.index.names:
                 step_len = len(df.index.get_level_values('step').unique())
                 defects = np.repeat(defects_val, step_len)
@@ -211,7 +211,7 @@ def get_rep_slice(df, rep, columns):
     step_level = df.index.names.index('step')
     df = df.swaplevel(0, step_level).sort_index(axis=0, level='step')
     step_len = min(len(df[col].unique()) for col in columns)
-    df = df.loc[range(step_len*rep, step_len*(rep+1)), :]
+    df = df.loc[list(range(step_len*rep, step_len*(rep+1))), :]
     df = df.swaplevel(0,step_level)
     return df
 
@@ -230,7 +230,7 @@ def add_FG_Block(df):
     dfs = []
     for block, group in df.groupby(level='shared_block'):
         group.sort_index(axis=0, level='neuron', inplace=True)
-        group['FGBlock'] = (np.tile(range(group.shape[0]/num_steps), num_steps)
+        group['FGBlock'] = (np.tile(list(range(group.shape[0]//num_steps)), num_steps)
                             + num_nrn/num_shared*block)
         dfs.append(group.copy())
     return pd.concat(dfs)
@@ -244,7 +244,7 @@ def patch_tau_syn(df):
     return df
 
 def patch_tau_syn_all(df):
-    keys = df.keys()
+    keys = list(df.keys())
     keys = [k for k in keys if k in ['V_syntci', 'V_syntcx']]
     for key in keys:
         df_to_patch = df[key]
@@ -443,8 +443,8 @@ def plot_defects(df, all_defects=True, **kwargs):
         take only defect neurons of parameter of the DataFrame
     """
     std_kwargs = {'linestyle' : '', 'marker' : 'x'}
-    for key in std_kwargs.keys():
-        if key not in kwargs.keys():
+    for key in list(std_kwargs.keys()):
+        if key not in list(kwargs.keys()):
             kwargs.update({key : std_kwargs[key]})
 
     ax = kwargs.get('ax', None)
@@ -468,7 +468,7 @@ def plot_defects(df, all_defects=True, **kwargs):
 
     num_fg_blocks = defects['shared_block'].unique().shape[0]
     ax.set_yticks([rr + 0.25 for rr in range(num_fg_blocks)])
-    ax.set_yticklabels(range(num_fg_blocks))
+    ax.set_yticklabels(list(range(num_fg_blocks)))
     plt_min_max = [defects['neuron'].min(), defects['neuron'].max()]
     ax.set_xlim(plt_min_max)
     ax.set_xlabel("neuron")
@@ -503,8 +503,8 @@ def plot(df, columns, level='neuron', with_defects=True,
     """
     first_bottom = 256 #first bottom neuron on HICANN chip
     std_kwargs = {'alpha' : 0.05, 'linestyle' : '-', 'marker' : '.', 'legend' : None}
-    for key in std_kwargs.keys():
-        if key not in kwargs.keys():
+    for key in list(std_kwargs.keys()):
+        if key not in list(kwargs.keys()):
             kwargs.update({key : std_kwargs[key]})
     if set_tb:
         kwargs.update({'color' : 'b'})
@@ -552,7 +552,11 @@ def plot(df, columns, level='neuron', with_defects=True,
         for name, group in df_plot.groupby(level=level):
             if name >= first_bottom and set_tb:
                 kwargs.update({'color' : 'g'})
+            # color=None not allowed in newer pandas
+            col = kwargs.get('color', None)
+            kwargs['color'] = col if col is not None else 'None'
             group.plot(x=columns[0], y=columns[1], **kwargs)
+            kwargs['color'] = col
             if with_defects:
                 col, al = kwargs.get('color', None), kwargs.get('alpha', None)
                 kwargs['color'] = 'red'
@@ -580,7 +584,7 @@ def plot(df, columns, level='neuron', with_defects=True,
         num_fg_blocks = df_plot.index.get_level_values('shared_block').unique().shape[0]
         fg_pos = [rr*num_nrn/num_fg_blocks for rr in range(num_fg_blocks)]
         ax.set_xticks(fg_pos)
-        ax.set_xticklabels(range(num_fg_blocks))
+        ax.set_xticklabels(list(range(num_fg_blocks)))
     if locals().get('fig', None) is None:
         return ax
     else:
@@ -607,8 +611,8 @@ def hist(df, column, x_label=None, with_defects=True, all_defects=True,
         axis or figure, axis if axis was None
     """
     std_kwargs = {'bins' : 100}
-    for key in std_kwargs.keys():
-        if key not in kwargs.keys():
+    for key in list(std_kwargs.keys()):
+        if key not in list(kwargs.keys()):
             kwargs.update({key : std_kwargs[key]})
     ax = kwargs.get('ax', None)
     if ax == None:
@@ -627,7 +631,7 @@ def hist(df, column, x_label=None, with_defects=True, all_defects=True,
         num_not_defect = len(df.index.get_level_values('neuron').unique())
     mean = df_plot.mean()
     std = df_plot.std()
-    if 'label' not in kwargs.keys() and x_label is not None:
+    if 'label' not in list(kwargs.keys()) and x_label is not None:
         s0,s1 = x_label.find('['), x_label.find(']')+1
         # ignore if np.log10 returns inf
         oldsettings = np.seterr(divide='ignore')
@@ -738,8 +742,8 @@ def plot_spikes(df, **kwargs):
         fig, ax = plt.subplots()
         kwargs.update({'ax' : ax})
     for tb in ['top', 'bottom']:
-        nrns = range(256) if tb is 'top' else range(256,512)
-        color = 'b' if tb is 'top' else 'g'
+        nrns = list(range(256)) if tb == 'top' else list(range(256,512))
+        color = 'b' if tb == 'top' else 'g'
         cols = ['V_t_config', 'spikes_n_spikes']
         mean = df.sort_index(axis=0, level='neuron').loc[nrns, cols].mean(0, level='step')
         std = df.sort_index(axis=0, level='neuron').loc[nrns, cols].std(0, level='step')
@@ -769,7 +773,7 @@ def plot_spiking_neurons(df, with_defects=True, ax=None, **kwargs):
     for _, group in df_plot.groupby(level='step'):
         num_spikes.append([group['V_t_config'].iloc[0],
                          (group['spikes_n_spikes'] > 1).sum()])
-    ax.plot(*zip(*num_spikes), **kwargs)
+    ax.plot(*list(zip(*num_spikes)), **kwargs)
     ax.axhline(num_nrns, linestyle='--', color='k')
 
     if locals().get('fig', None) is None:
@@ -833,7 +837,7 @@ def main():
     args = parser.parse_args()
 
     # insert neuron enums (to plot traces of) in config dict
-    for config in plot_config.itervalues():
+    for config in plot_config.values():
         if not config.get('nrns', False):
             config['nrns'] = args.neuron_enum
 
@@ -857,7 +861,7 @@ def main():
                  'tools/overview.html')
     shutil.copy(overview_path, fig_dir_path)
     # trace plots have individual neuron values in file name, add
-    with open(os.path.join(fig_dir_path, "overview.html"), 'rw') as overview:
+    with open(os.path.join(fig_dir_path, "overview.html"), 'r') as overview:
         data = overview.readlines()
         for key in ['V_reset', 'V_t']:
             remove = True
@@ -897,12 +901,12 @@ def main():
     fig, ax = plt.subplots(figsize=(16,5.))
     # plot defects, they are patched in every DataFrame so we can take any
     if len(exp_results) > 0:
-        plot_defects(exp_results.values()[0], ax=ax)
+        plot_defects(list(exp_results.values())[0], ax=ax)
     else:
-        plot_defects(eval_results.values()[0], ax=ax)
+        plot_defects(list(eval_results.values())[0], ax=ax)
     fig_filename = 'defect_neurons_vs_neuron_number.png'
     fig_path = os.path.join(fig_dir_path, fig_filename)
-    print "Saving {}.".format(fig_filename)
+    print("Saving {}.".format(fig_filename))
     plt.savefig(fig_path)
     ax.cla()
 
@@ -910,7 +914,7 @@ def main():
     fig, ax = plt.subplots()
 
     # plot readout_shift
-    if 'readout_shift_calib' in cal_results.keys():
+    if 'readout_shift_calib' in list(cal_results.keys()):
         df = cal_results['readout_shift_calib']
         config = plot_config['readout_shift']
         result_key = config['result_key']
@@ -918,7 +922,7 @@ def main():
         hist(df, result_key, x_label=config['result_label'], plot_mean=True, ax=ax)
         fig_filename = 'analog_readout_offset.png'
         fig_path = os.path.join(fig_dir_path, fig_filename)
-        print "Saving {}.".format(fig_filename)
+        print("Saving {}.".format(fig_filename))
         plt.savefig(fig_path)
         ax.cla()
 
@@ -928,19 +932,19 @@ def main():
         ax.set_ylabel(config['result_label'])
         fig_filename = 'analog_readout_offset_vs_nrn.png'
         fig_path = os.path.join(fig_dir_path, fig_filename)
-        print "Saving {}.".format(fig_filename)
+        print("Saving {}.".format(fig_filename))
         plt.savefig(fig_path)
         ax.cla()
 
     # plot domains
-    keys = cal_results.keys()
+    keys = list(cal_results.keys())
     keys = [k for k in keys if k in ['V_syntci_calib', 'V_syntcx_calib']]
     for key in keys:
         df = cal_results[key]
         plot_domains(df, ax=ax)
         fig_filename = '{}_domain.png'.format(key[:-6])
         fig_path = os.path.join(fig_dir_path, fig_filename)
-        print "Saving {}.".format(fig_filename)
+        print("Saving {}.".format(fig_filename))
         plt.savefig(fig_path)
         ax.cla()
 
@@ -948,7 +952,7 @@ def main():
     columns = ['I_gl', 'mean']
     for with_defects in [True, False]:
         label_wd = 'with_defects' if with_defects else 'without_defects'
-        keys = eval_results.keys()
+        keys = list(eval_results.keys())
         keys = [k for k in keys if k in ['V_convoff_test_calibrated',
                                          'V_convoff_test_uncalibrated']]
         for key in keys:
@@ -968,22 +972,22 @@ def main():
             pad_xaxis(ax)
             fig_filename = 'V_convoff_{}_test_{}.png'.format(label_wd, label_cal)
             fig_path = os.path.join(fig_dir_path, fig_filename)
-            print "Saving {}.".format(fig_filename)
+            print("Saving {}.".format(fig_filename))
             plt.savefig(fig_path)
             ax.cla()
 
     # plot spikes
     for with_defects in [True, False]:
         label_wd = 'with_defects' if with_defects else 'without_defects'
-        if 'Spikes' in eval_results.keys():
+        if 'Spikes' in list(eval_results.keys()):
             df = eval_results['Spikes']
-            print "Plotting {}, {}".format('Spikes', label_wd)
+            print("Plotting {}, {}".format('Spikes', label_wd))
 
             plot_spikes(df, ax=ax)
             pad_xaxis(ax)
             fig_filename = 'n_spikes_{}_result_calibrated.png'.format(label_wd)
             fig_path = os.path.join(fig_dir_path, fig_filename)
-            print "Saving {}.".format(fig_filename)
+            print("Saving {}.".format(fig_filename))
             plt.savefig(fig_path)
             ax.cla()
 
@@ -991,41 +995,41 @@ def main():
             pad_xaxis(ax)
             fig_filename = 'n_spiking_neurons_{}_calibrated.png'.format(label_wd)
             fig_path = os.path.join(fig_dir_path, fig_filename)
-            print "Saving {}.".format(fig_filename)
+            print("Saving {}.".format(fig_filename))
             plt.savefig(fig_path)
             ax.cla()
 
     # plot tau_syn, tau_mem vs V_syntc
     for with_defects in [True, False]:
         label_wd = 'with_defects' if with_defects else 'without_defects'
-        keys = exp_results.keys()
+        keys = list(exp_results.keys())
         keys = [k for k in keys if k in ['V_syntci', 'V_syntcx']]
         for key in keys:
-            print "Plotting {}, {}".format(key, label_wd)
+            print("Plotting {}, {}".format(key, label_wd))
             df = exp_results[key]
 
             config = plot_config[key]
             for tau in ['tau_syn', 'tau_mem']:
                 plot(df, [key, tau], ax=ax, with_defects=with_defects, set_tb=True)
-                if tau is 'tau_syn':
+                if tau == 'tau_syn':
                     fig_filename = '{}_{}_result_uncalibrated.png'.format(key, label_wd)
                 else:
                     fig_filename = '{}_{}_result_tau_mem_uncalibrated.png'.format(key, label_wd)
                 pad_xaxis(ax)
                 ax.set_xlabel(config['key_label_cal'])
-                if tau is 'tau_syn':
+                if tau == 'tau_syn':
                     ax.set_ylabel(r"$\tau_{syn}$ [s]")
                 else:
                     ax.set_ylabel(r"$\tau_{mem}$ [s]")
                 fig_path = os.path.join(fig_dir_path, fig_filename)
-                print "Saving {}".format(fig_filename)
+                print("Saving {}".format(fig_filename))
                 plt.savefig(fig_path)
                 ax.cla()
 
-        keys = eval_results.keys()
+        keys = list(eval_results.keys())
         keys = [k for k in keys if k in ['V_syntci', 'V_syntcx']]
         for key in keys:
-            print "Plotting {}, {}".format(key, label_wd)
+            print("Plotting {}, {}".format(key, label_wd))
             df = eval_results[key]
             patch_tau_syn(df)
 
@@ -1036,14 +1040,14 @@ def main():
             ax.legend(loc='best').get_frame().set_alpha(0.5)
             fig_filename = '{}_{}_{}.png'.format(key, label_wd, 'calibrated')
             fig_path = os.path.join(fig_dir_path, fig_filename)
-            print "Saving {}".format(fig_filename)
+            print("Saving {}".format(fig_filename))
             plt.savefig(fig_path)
             ax.cla()
 
 
     # plot the remaining plots
     for cal_or_eval in ['cal', 'eval']:
-        keys = exp_results.keys() if cal_or_eval in 'cal' else eval_results.keys()
+        keys = list(exp_results.keys()) if cal_or_eval in 'cal' else list(eval_results.keys())
         keys = [k for k in keys if k in ['V_reset', 'V_t', 'E_synx',
                                          'E_syni', 'E_l', 'I_pl', 'I_gl_PSP']]
         label_cal = 'uncalibrated' if cal_or_eval == 'cal' else 'calibrated'
@@ -1053,7 +1057,7 @@ def main():
             for key in keys:
                 load_key = key if key != 'I_gl_PSP' else 'I_gl'
                 df = exp_results[key] if cal_or_eval in 'cal' else eval_results[key]
-                print "Plotting {}, {}, {}".format(key, label_cal, label_wd)
+                print("Plotting {}, {}, {}".format(key, label_cal, label_wd))
 
                 config = plot_config[load_key]
                 result_key = config['result_key']
@@ -1072,7 +1076,7 @@ def main():
                     fig_filename = fig_filename[:-4]
                     fig_filename += '_{}.png'.format(label_cal)
                 fig_path = os.path.join(fig_dir_path, fig_filename)
-                print "Saving {}".format(fig_filename)
+                print("Saving {}".format(fig_filename))
                 plt.savefig(fig_path)
                 ax.cla()
 
@@ -1095,7 +1099,7 @@ def main():
                 ax.legend(loc='best').get_frame().set_alpha(0.5)
                 fig_filename = '{}_{}_{}.png'.format(key, label_wd, label_cal)
                 fig_path = os.path.join(fig_dir_path, fig_filename)
-                print "Saving {}".format(fig_filename)
+                print("Saving {}".format(fig_filename))
                 plt.savefig(fig_path)
                 ax.cla()
 
@@ -1110,7 +1114,7 @@ def main():
                 ax.set_ylabel(config['result_label'])
                 fig_filename = '{}_{}_{}_vs_{}.png'.format(key, label_wd, label_cal, label_nrn)
                 fig_path = os.path.join(fig_dir_path, fig_filename)
-                print "Saving {}".format(fig_filename)
+                print("Saving {}".format(fig_filename))
                 plt.savefig(fig_path)
                 ax.cla()
 
@@ -1125,12 +1129,12 @@ def main():
                             fig_filename = '{}_trace_{}_nrn_{}.png'.format(key, label_cal,
                                                                            nrn)
                             fig_path = os.path.join(fig_dir_path, fig_filename)
-                            print "Saving {}".format(fig_filename)
+                            print("Saving {}".format(fig_filename))
                             plt.savefig(fig_path)
                             ax.cla()
 
     # plot fits
-    keys = exp_results.keys()
+    keys = list(exp_results.keys())
     keys = [k for k in keys if k not in ['readout_shift', 'V_convoffx', 'V_convoffi']]
 
     for key in keys:
@@ -1158,7 +1162,7 @@ def main():
         pad_xaxis(ax)
         fig_filename = '{}_fit.png'.format(load_key)
         fig_path = os.path.join(fig_dir_path, fig_filename)
-        print "Saving {}.".format(fig_filename)
+        print("Saving {}.".format(fig_filename))
         plt.savefig(fig_path)
         ax.cla()
 
@@ -1173,20 +1177,20 @@ def main():
         pad_xaxis(ax)
         fig_filename = '{}_fit_all.png'.format(load_key)
         fig_path = os.path.join(fig_dir_path, fig_filename)
-        print "Saving {}.".format(fig_filename)
+        print("Saving {}.".format(fig_filename))
         plt.savefig(fig_path)
         ax.cla()
 
     # plot coefficients
     for with_defects in [True, False]:
         label_wd = 'with_defects' if with_defects else 'without_defects'
-        for key, df in cal_results.iteritems():
+        for key, df in cal_results.items():
             if df[~df['defect_all']]['trafo'].dropna().iloc[0] not in 'Lookup':
                 fig, axes = plot_coefficients(df, key, with_defects)
 
                 fig_filename = '{}_{}_hist.png'.format(key, label_wd)
                 fig_path = os.path.join(fig_dir_path, fig_filename)
-                print "Saving {}".format(fig_filename)
+                print("Saving {}".format(fig_filename))
                 plt.savefig(fig_path)
                 for ax in axes:
                     ax.cla()

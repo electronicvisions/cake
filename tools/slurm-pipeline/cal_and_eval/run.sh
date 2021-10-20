@@ -92,9 +92,9 @@ if os.path.isfile(sys.argv[1]):
         cal_eval_report = json.load(report).get(sys.argv[2], None)
     if cal_eval_report is not None:
         if cal_eval_report['complete']:
-            print 0
+            print(0)
     else:
-        print 1
+        print(1)
 EndOfPythonCode
 )
 if [[ $NEW == false && $REDO_FITS == false && $exit_code == 0 ]]; then

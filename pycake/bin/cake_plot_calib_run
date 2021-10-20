@@ -34,11 +34,11 @@ if __name__ == '__main__':
     reader = Reader(runner)
 
     if args.list_only:
-        print "=== available neurons: =========="
-        print pformat([str(i.toEnum()) for i in reader.get_neurons()])
+        print("=== available neurons: ==========")
+        print(pformat([str(i.toEnum()) for i in reader.get_neurons()]))
 
-        print "=== available parameters: ======="
-        print pformat(reader.get_parameters())
+        print("=== available parameters: =======")
+        print(pformat(reader.get_parameters()))
 
     if args.experiment in reader.get_parameters():
         exp_names = args.experiment
@@ -48,25 +48,20 @@ if __name__ == '__main__':
 
     experiment = unit.experiment
 
-    available_keys = list(set((kk
-        for jj in experiment.results
-        for ii in jj.values()
-        for kk in ii)))
+    available_keys = list(set(experiment.results))
 
     if args.list_only:
-        print "=== available keys: ============="
-        print available_keys
+        print("=== available keys: =============")
+        print(available_keys)
 
-        print "=== valid parameter names: ======"
-        print pformat(
-            [i for i in dir(neuron_parameter) if not i.startswith("_")])
+        print("=== valid parameter names: ======")
+        print(pformat(
+            [i for i in dir(neuron_parameter) if not i.startswith("_")]))
         exit(0)
 
     neuron = NeuronOnHICANN(Enum(args.neuron))
 
-    x = experiment.get_parameters(neuron,
-                                  (getattr(neuron_parameter, args.parameter_name), )
-                                  )
+    x = experiment.get_parameters().loc[neuron][str(getattr(neuron_parameter, args.parameter_name))]
 
     nplots = len(available_keys)
     nx = 2
@@ -76,9 +71,12 @@ if __name__ == '__main__':
     sp = p.subplot(nx, ny, plot_idx)
 
     for key in sorted(available_keys):
-        p.title(key)
-        p.plot(x, [i.values()[0][key] for i in experiment.results], 'kx', lw=2, ms=3)
-        p.xlabel(args.parameter_name)
+        #TODO fix formatting, for now remove all labels
+#        p.title(key)
+        p.plot(x, experiment.results.loc[neuron][key], 'kx', lw=2, ms=3)
+        # remove all ticks
+        p.tick_params(axis='both', which='both', bottom=False, top=False, labelbottom=False, right=False, left=False, labelleft=False)
+#        p.xlabel(args.parameter_name)
 
         plot_idx += 1
         if plot_idx <= len(available_keys):
