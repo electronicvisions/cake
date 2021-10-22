@@ -104,7 +104,7 @@ def get_cmap_dict(max_value, cmap_name, missing_color='black'):
 def get_hicanns_from_dnc(dnc):
     per_dnc = C.HICANNOnDNC.enum_type.size
     offset = (per_dnc // 2)
-    dnc = C.DNCOnWafer(Enum(dnc))
+    dnc = C.DNCOnWafer(Enum(int(dnc)))
     h0 = C.HICANNOnDNC(Enum(0)).toHICANNOnWafer(dnc).toEnum().value()
     h1 = C.HICANNOnDNC(Enum(per_dnc // 2)).toHICANNOnWafer(dnc).toEnum().value()
     return np.array([list(range(h0, h0+offset)) , list(range(h1, h1+offset))])
@@ -143,8 +143,8 @@ def get_bokeh_figure(title, value_by_hicann_enum, max_value = None, cmap = matpl
         plot_data["HICANN"].append(hicann_enum)
         plot_data["x"].append(values[0])
         plot_data["y"].append(values[1])
-        plot_data["DNC"].append(C.HICANNOnWafer(Enum(hicann_enum)).toDNCOnWafer().toEnum().value())
-        plot_data["FPGA"].append(C.HICANNOnWafer(Enum(hicann_enum)).toFPGAOnWafer().value())
+        plot_data["DNC"].append(C.HICANNOnWafer(Enum(int(hicann_enum))).toDNCOnWafer().toEnum().value())
+        plot_data["FPGA"].append(C.HICANNOnWafer(Enum(int(hicann_enum))).toFPGAOnWafer().value())
         if hicann_enum in value_by_hicann_enum:
             plot_data["Value"].append(value_by_hicann_enum[hicann_enum])
 
