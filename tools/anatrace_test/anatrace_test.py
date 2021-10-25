@@ -39,9 +39,9 @@ def d(t):
 def fftit(t, dat, window):
     datlen = np.size(dat)
     if datlen % 2 == 1:
-        flen = (datlen - 1) / 2 + 1
+        flen = (datlen - 1) // 2 + 1
     else:
-        flen = datlen / 2 + 1
+        flen = datlen // 2 + 1
     f_ = 1. / d(t)
     if window == "rect":
         return (np.linspace(0, f_/2., flen), np.fft.rfft(dat) / np.sqrt(datlen))
@@ -165,8 +165,8 @@ for plt_idx_ in range(len(plt_time)):
         plt_etime_idx = plt_range_idx
     elif (plt_range[plt_idx_] == 'max'):
         plt_max_idx = plt_range_idx + np.argmax(v[plt_range_idx:-plt_range_idx])
-        plt_stime_idx = plt_max_idx - plt_range_idx/2
-        plt_etime_idx = plt_max_idx + plt_range_idx/2
+        plt_stime_idx = plt_max_idx - plt_range_idx//2
+        plt_etime_idx = plt_max_idx + plt_range_idx//2
     plt.figure(figsize=(14,6))
     plt.axhline(y=v_mean, color="g")
     plt.axhline(y=v_mean + v_rms, color="r")
@@ -196,7 +196,7 @@ plt_time = 300.e-6
 plt_time_idx = int(plt_time / d(t))
 fs, ts, s = scsig.spectrogram(v[:plt_time_idx], 1./d(t), nperseg=int(np.size(v)/10000.), scaling='spectrum')
 cmap = plt.get_cmap('gnuplot2')
-plt.pcolormesh(ts * 1.e6, fs, s, cmap=cmap)
+plt.pcolormesh(ts * 1.e6, fs, s, cmap=cmap, shading='auto')
 plt.ylabel("frequency [Hz]")
 plt.xlabel("time [us]")
 plt.title("spectrogram overview")
@@ -204,7 +204,7 @@ plt.tight_layout()
 plt.savefig(plot_basename+"spectrogram_overview.png", dpi=300)
 plt.clf()
 cmap = plt.get_cmap('gist_heat')
-plt.pcolormesh(ts * 1.e6, fs, dB(s)/2., cmap=cmap)
+plt.pcolormesh(ts * 1.e6, fs, dB(s)/2., cmap=cmap, shading='auto')
 plt.ylabel("frequency [Hz]")
 plt.xlabel("time [us]")
 plt.title("spectrogram overview (log color scale)")
@@ -218,7 +218,7 @@ fs, ts, s = scsig.spectrogram(v, 1./d(t), nperseg=int(np.size(v)/500.), scaling=
 plt_f_idx = int(plt_f / d(fs))
 plt_time_idx = int(plt_time / d(ts))
 cmap = plt.get_cmap('gnuplot2')
-plt.pcolormesh(ts * 1.e6, fs[:plt_f_idx], s[:plt_f_idx,:], cmap=cmap)
+plt.pcolormesh(ts * 1.e6, fs[:plt_f_idx], s[:plt_f_idx,:], cmap=cmap, shading='auto')
 plt.ylabel("frequency [Hz]")
 plt.xlabel("time [us]")
 plt.title("spectrogram of low frequencies")
@@ -226,7 +226,7 @@ plt.tight_layout()
 plt.savefig(plot_basename+"spectrogram_lowfreq.png", dpi=300)
 plt.clf()
 cmap = plt.get_cmap('gist_heat')
-plt.pcolormesh(ts * 1.e6, fs[:plt_f_idx], dB(s[:plt_f_idx,:])/2., cmap=cmap)
+plt.pcolormesh(ts * 1.e6, fs[:plt_f_idx], dB(s[:plt_f_idx,:])/2., cmap=cmap, shading='auto')
 plt.ylabel("frequency [Hz]")
 plt.xlabel("time [us]")
 plt.title("spectrogram of low frequencies (log color scale)")
