@@ -3,7 +3,7 @@
 timestamps {
 	addBuildParameter(string(
 	                  name: 'WAFER',
-	                  defaultValue: "24,30,33,37",
+	                  defaultValue: "30",
 	                  description: "comma-separated list of wafers"
 	))
 	addBuildParameter(string(
