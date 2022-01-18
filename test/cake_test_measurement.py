@@ -16,7 +16,12 @@ import pandas
 from pycake.config import Config
 from pyhalco_common import iter_all, Enum
 import pyhalco_hicann_v2 as C
-from pycake.helpers.sim import SimStHALContainer
+try:
+    from pycake.helpers.sim import SimStHALContainer
+except ImportError:
+    # if used without-sim use dummy sthal container
+    def SimStHALContainer(*args, **kwargs):
+        pass
 import pycake.measure
 import pycake.analyzer
 
