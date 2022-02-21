@@ -10,7 +10,9 @@ try {
 		}
 	}
 
-	wafSetup(projects: ["cake"])
+	inSingularity(app: "visionary-wafer") {
+		wafSetup(projects: ["cake"])
+	}
 
 	stage("Recording and Analysis") {
 		def successfulRecordings = 0
