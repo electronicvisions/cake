@@ -203,10 +203,12 @@ timestamps {
 				withModules(modules: ["${MODULE}"]) {
 					jesh ("run_nmpm_software cake_extend_hicann_syndrvs_blacklist.py --wafer ${wafers[w]} --hicann `seq 0 383` --defects_path ${derived_blacklisting_path.trim()}")
 					jesh ("run_nmpm_software cake_extend_hicann_repeater_blacklist_by_blacklisting.py --wafer ${wafers[w]} --input_dir ${derived_blacklisting_path.trim()} --output_dir ${derived_blacklisting_path.trim()}")
-					// Use hicann_blacklist_by_fgblock_blacklisting before calling hicann_buses_blacklist_by_blacklisting, else the neighboring buses are not blacklisted!
+					// Use hicann_buses_blacklist_by_blacklisting before calling hicann_blacklist_by_fgblock_blacklisting. Else the neighboring buses are blacklisted but
+					// HICANNs with defect FG controller can still be initialized and their repeaters can be brought into a safe state.
+					// Digital blacklisting has to be used during the init and derived for the experiments.
+					jesh ("run_nmpm_software cake_extend_hicann_buses_blacklist_by_blacklisting.py ${wafers[w]} ${derived_blacklisting_path.trim()} ${derived_blacklisting_path.trim()}")
 					jesh ("run_nmpm_software cake_extend_hicann_blacklist_by_fgblock_blacklisting.py --wafer ${wafers[w]} --input_dir ${derived_blacklisting_path.trim()} --output_dir ${derived_blacklisting_path.trim()}")
 					jesh ("run_nmpm_software cake_extend_hicann_neuron_and_dnc_blacklist_by_blacklisting.py ${wafers[w]} ${derived_blacklisting_path.trim()} ${derived_blacklisting_path.trim()}")
-					jesh ("run_nmpm_software cake_extend_hicann_buses_blacklist_by_blacklisting.py ${wafers[w]} ${derived_blacklisting_path.trim()} ${derived_blacklisting_path.trim()}")
 					if (wafers_with_old_postprocessing.contains(wafers[w])) {
 						jesh ("run_nmpm_software cake_extend_hicann_buses_blacklist_by_pp.py ${wafers[w]} ${derived_blacklisting_path.trim()}")
 					}
