@@ -377,7 +377,7 @@ class StHALContainer(object):
             try:
                 return self.wafer.configure(configurator)
             except RuntimeError as err:
-                if err.message == 'fg_log_error timeout':
+                if str(err) == 'fg_log_error timeout':
                     self.logger.error("Error configuring floating gates, retry")
                     continue
                 else:
