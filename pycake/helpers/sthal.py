@@ -86,6 +86,18 @@ class UpdateParameterUpAndConfigure(UpdateParameterUp):
                 self.config_dncmerger(h, hicann)
                 self.config_background_generators(h, hicann)
                 self.flush_hicann(h)
+
+        # requires relocking
+        elif stage is ConfigurationStage.LOCKING_REPEATER_BLOCKS:
+            for h, hicann in zip(handles, hicanns):
+                hicann.repeater.disable_dllreset()
+                self.config_repeater_blocks(h, hicann)
+
+        elif stage is ConfigurationStage.LOCKING_SYNAPSE_DRIVERS:
+            for h, hicann in zip(handles, hicanns):
+                hicann.synapse_controllers.disable_dllreset()
+                self.config_synapse_controllers(h, hicann)
+
         else:
             pass
 
