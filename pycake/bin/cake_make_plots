@@ -503,6 +503,12 @@ def plot(df, columns, level='neuron', with_defects=True,
     """
     first_bottom = 256 #first bottom neuron on HICANN chip
     std_kwargs = {'alpha' : 0.05, 'linestyle' : '-', 'marker' : '.', 'legend' : None}
+
+    # If kwargs['color'] is None, it brings issues with plots. c.f. c\17800
+    col = kwargs.get('color', 'not set')
+    if col is None:
+        del kwargs['color']
+
     for key in list(std_kwargs.keys()):
         if key not in list(kwargs.keys()):
             kwargs.update({key : std_kwargs[key]})
@@ -546,17 +552,16 @@ def plot(df, columns, level='neuron', with_defects=True,
             if df_plot[df_plot[defect_str]].shape[0] != 0:
                 df_plot[df_plot[defect_str]].plot(x=columns[0],
                                                   y=columns[1], **kwargs)
-            kwargs['color'] = col
+            if col is not None:
+                kwargs['color'] = col
+            else:
+                del kwargs['color']
             kwargs['alpha'] = al
     else:
         for name, group in df_plot.groupby(level=level):
             if name >= first_bottom and set_tb:
                 kwargs.update({'color' : 'g'})
-            # color=None not allowed in newer pandas
-            col = kwargs.get('color', None)
-            kwargs['color'] = col if col is not None else 'None'
             group.plot(x=columns[0], y=columns[1], **kwargs)
-            kwargs['color'] = col
             if with_defects:
                 col, al = kwargs.get('color', None), kwargs.get('alpha', None)
                 kwargs['color'] = 'red'
@@ -564,7 +569,10 @@ def plot(df, columns, level='neuron', with_defects=True,
                 if group[group[defect_str]].shape[0] != 0:
                     group[group[defect_str]].plot(x=columns[0],
                                                   y=columns[1], **kwargs)
-                kwargs['color'] = col
+                if col is not None:
+                    kwargs['color'] = col
+                else:
+                    del kwargs['color']
                 kwargs['alpha'] = al
 
     if refs is not None:

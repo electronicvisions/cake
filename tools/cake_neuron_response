@@ -4,7 +4,7 @@ import math
 import os
 import copy
 import numpy
-import cPickle
+import pickle
 import pyhalbe
 import pysthal
 import pylogging
@@ -345,12 +345,12 @@ def plot_jobs(basefolder, jobs):
 
 def save_jobs(file_object, jobs):
     logger.info("Saving jobs...")
-    cPickle.dump(jobs, file_object, cPickle.HIGHEST_PROTOCOL)
+    pickle.dump(jobs, file_object, pickle.HIGHEST_PROTOCOL)
     logger.info("Saving jobs done")
 
 def load_jobs(file_object):
     logger.info("loading jobs...")
-    return cPickle.load(file_object)
+    return pickle.load(file_object)
 
 def add_options(parser):
     import argparse
