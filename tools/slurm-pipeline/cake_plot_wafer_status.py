@@ -62,7 +62,7 @@ def get_hicanns_from_dnc(dnc):
     """
     per_dnc = Coordinate.HICANNOnDNC.size
     offset = (per_dnc // 2)
-    dnc = Coordinate.DNCOnWafer(Enum(dnc))
+    dnc = Coordinate.DNCOnWafer(Enum(int(dnc)))
     h0 = Coordinate.HICANNOnDNC(Enum(0)).toHICANNOnWafer(dnc).toEnum().value()
     h1 = Coordinate.HICANNOnDNC(Enum(per_dnc // 2)).toHICANNOnWafer(dnc).toEnum().value()
     return np.array([list(range(h0, h0+offset)) , list(range(h1, h1+offset))])
@@ -89,7 +89,7 @@ def get_dnc_from_hicann(hicann):
     Returns:
         int: DNC enum
     """
-    return Coordinate.HICANNOnWafer(Enum(hicann)).toDNCOnWafer().toEnum().value()
+    return Coordinate.HICANNOnWafer(Enum(int(hicann))).toDNCOnWafer().toEnum().value()
 
 def get_fpga_from_hicann(hicann):
     """ Gives FPGA enum for given hicann enum
@@ -102,7 +102,7 @@ def get_fpga_from_hicann(hicann):
     """
     # wafer enum should not matter as long as it is > 3 ==> set to 33
     wafer = 33
-    return (Coordinate.HICANNGlobal(Coordinate.HICANNOnWafer(Enum(hicann)),
+    return (Coordinate.HICANNGlobal(Coordinate.HICANNOnWafer(Enum(int(hicann))),
             Coordinate.Wafer(Enum(wafer))).toFPGAOnWafer().value())
 
 def get_color_blacklisted(num_bl, cmap_dict):
@@ -709,14 +709,21 @@ def amend_errors_html(html, error_dict, headline):
     new_html += '</p>\n</body>\n</html>'
     return new_html
 
+def np_encoder(object):
+    """
+    Helper to transform numpy objects into native objects in json dump
+    """
+    if isinstance(object, np.generic):
+        return object.item()
+
 def save_plot_data(save_dict, save_path):
     # convert numpy arrays to lists to save it as json
     for key, value in save_dict.items():
         for key2, value2 in value.items():
             if isinstance(value2, np.ndarray):
                 save_dict[key][key2] = list(value2)
-    with open(save_path, 'wb') as handle:
-        json.dump(save_dict, handle, indent=4, separators=(',', ': '))
+    with open(save_path, 'w') as handle:
+        json.dump(save_dict, handle, indent=4, separators=(',', ': '), default=np_encoder)
 
 def parse_args():
     import argparse
@@ -818,7 +825,7 @@ def do_wafer_plots(wafer, logs, calibs_path, fpgas_to_exclude):
     html = file_html(wafer_plots, INLINE, "Calib Status wafer {}".format(wafer))
 
     html = add_error_messages_html(hicann_dict, html)
-    with open(filepath, 'wb') as html_file:
+    with open(filepath, 'w') as html_file:
         html_file.write(html)
 
     #pie_chart_blacklisted_matplotlib(hicann_dict, wafer)
