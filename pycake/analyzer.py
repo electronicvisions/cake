@@ -513,7 +513,7 @@ class ADCFreq_Analyzer(Analyzer):
         the transition time is calculated by weighting the index by the
         measured amplitude (dot product is used here to that end)
         """
-        th = 0.5
+        th = 0.4
         tmp = np.where((trace >= th)[:-1] != (trace >= th)[1:])[0]
         tmp = tmp[:len(tmp)//2*2]
         spike_pos = tmp.reshape((len(tmp)//2, 2))

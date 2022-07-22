@@ -263,7 +263,7 @@ class TestAnalyzers(unittest.TestCase):
     def test_adc_freq_analyzer(self):
         """ Test ADCFreq_Analyzer
         """
-        v = np.array([0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.9]*5)
+        v = np.array([0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.9]*5)
         t = np.linspace(0, 1e-6, len(v))
 
         a = pycake.analyzer.ADCFreq_Analyzer()
