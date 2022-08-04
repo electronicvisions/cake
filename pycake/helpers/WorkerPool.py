@@ -46,7 +46,13 @@ class WorkerPool(object):
         self.results = []
 
     def __del__(self):
-        self.pool.terminate()
+        try:
+            self.pool.terminate()
+        except ImportError:
+            # Error is caused by custom logger handler used with multiprocessing.
+            # If loglevel debug is used, pool.terminate tries to write a log message
+            # which fails with an import error, most likely since process already terminated.
+            pass
 
     def __enter__(self):
         return self
