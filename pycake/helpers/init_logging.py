@@ -30,7 +30,7 @@ class PyLoggingHandler(logging.Handler):
         f = self.LOGLEVELS.get(record.levelno, pylogging.Logger.fatal)
         f(logger, record.getMessage())
 
-def init_cake_logging(overwrite_defaults=[]):
+def init_cake_logging(overwrite_defaults=[], mp_default_loglevel=logging.DEBUG):
     init_logger(pylogging.LogLevel.WARN, [
         ("Default", pylogging.LogLevel.INFO),
         ("halbe.fgwriter", pylogging.LogLevel.ERROR),
@@ -56,7 +56,7 @@ def init_cake_logging(overwrite_defaults=[]):
         ] + overwrite_defaults)
 
     logger = multiprocessing.get_logger()
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(mp_default_loglevel)
     logger.addHandler(PyLoggingHandler())
 
     parser = argparse.ArgumentParser(add_help=False)
