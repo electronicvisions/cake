@@ -213,7 +213,7 @@ class Calibtic(object):
                 cal = pycalibtic.NeuronCalibration()
                 param_name = parameter.name
                 calib_id = self.get_calib_id(param_name, target_bigcap, target_I_gl_speedup, target_I_gladapt_speedup, target_I_radapt_speedup)
-            elif parameter is 'readout_shift':
+            elif parameter == 'readout_shift':
                 collection = self.nc
                 cal = pycalibtic.NeuronCalibration()
                 calib_id = pycalibtic.NeuronCalibrationParameters.Calibrations.ReadoutShift
