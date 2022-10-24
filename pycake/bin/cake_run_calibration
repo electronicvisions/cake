@@ -76,6 +76,10 @@ def load_config(parsed_args):
         cfg.parameters['coord_hicann'] = parsed_args.hicann
     if parsed_args.wafer:
         cfg.parameters['coord_wafer'] = parsed_args.wafer
+    if parsed_args.analog:
+        if len(parsed_args.analog) > 1:
+            raise RuntimeError("Only 1 analog output can be used")
+        cfg.parameters['analog'] = parsed_args.analog[0]
     if parsed_args.parameter:
         remove = [key for key in cfg.parameters if key.startswith('run_')]
         for key in remove:
