@@ -680,6 +680,7 @@ int main(int argc, char* argv[])
 					HMF::HICANN::DecoderDoubleRow const read_decoder_row =
 					    Backend::HICANN::get_decoder_double_row(*hicann_handle, synapse_controller, syn_drv_c);
 					// compare values
+					bool error_found = false;
 					for (auto const& row_number : C::iter_all<C::RowOnSynapseDriver>()) {
 						for (auto const& syn_column_c : C::iter_all<C::SynapseColumnOnHICANN>()) {
 							if (decoder_double_row[row_number][syn_column_c] !=
@@ -689,8 +690,13 @@ int main(int argc, char* argv[])
 								    C::SynapseOnHICANN(
 									C::SynapseRowOnHICANN(syn_drv_c, row_number), syn_column_c),
 								    rewrite_policy);
+								error_found = true;
 							}
 						}
+					}
+					if (error_found) {
+						// also disable driver to prevent the usage of wrongly set decoders
+						redman_hicann.drivers()->disable(syn_drv_c, rewrite_policy);
 					}
 				} // check set decoder_double_row
 
