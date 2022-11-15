@@ -110,7 +110,7 @@ class Reader(object):
             nrn_coord.append(neuron)
         # calibration name is I_gl_PSP, but parameter name still is I_gl -->
         # convert it
-        if parameter is 'I_gl_PSP':
+        if parameter == 'I_gl_PSP':
             parameter = 'I_gl'
         df = ex.get_all_data([parameter, key]).sortlevel('neuron').loc[nrn_coord]
         #FIXME: to be compatible with the plotting script, the df is converted
