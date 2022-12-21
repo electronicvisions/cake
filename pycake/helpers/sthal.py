@@ -464,11 +464,11 @@ class StHALContainer(object):
         for ii in range(max_tries):
             try:
                 self.adc.record(recording_time)
-                v = self.adc.trace()
+                v = self.adc.trace().astype(numpy.float64)
                 t = numpy.arange(len(v)) * self.adc.getTimestamp()
                 df = pandas.DataFrame({'v': v}, index=t)
                 if self.save_raw_traces:
-                    df['v_raw'] = self.adc.traceRaw()
+                    df['v_raw'] = self.adc.traceRaw().astype(numpy.float64)
                 return df
             except RuntimeError as e:
                 print(e)
@@ -486,7 +486,7 @@ class StHALContainer(object):
                 runner = pysthal.ExperimentRunner(runtime)
                 self.wafer.restart(runner)  # Clears received spikes
                 self.adc.record()  # TODO triggered
-                traces = pandas.DataFrame({'v': self.adc.trace()},
+                traces = pandas.DataFrame({'v': self.adc.trace().astype(numpy.float64)},
                                            index=self.adc.getTimestamps())
 
                 recv_spikes = []
