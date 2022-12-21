@@ -4,17 +4,17 @@ timestamps {
     catchError{
         addBuildParameter(string(
                         name: 'WAFERS',
-                        defaultValue: "37",
+                        defaultValue: "24",
                         description: "List of wafers. One is drawn randomly"
         ))
         addBuildParameter(string(
                         name: 'HICANNS',
-                        defaultValue: "120 121 122",
+                        defaultValue: "310 311 312 313 314 315 316",
                         description: "List of hicanns. One is drawn randomly"
         ))
         addBuildParameter(string(
                         name: 'NEURONS',
-                        defaultValue: "1 2 255 256",
+                        defaultValue: "-1",
                         description: "List of neurons to calibrate. For all: -1"
         ))
         addBuildParameter(string(
