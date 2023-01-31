@@ -43,18 +43,16 @@ mv $log ${OUTDIR}/${log_prefix}${resume_number_padded}.log
 log=${OUTDIR}/${log_prefix}${resume_number_padded}.log
 exec > >(tee -a $log)
 
-source /opt/init/modules.sh
-
-if ! [[ -z $(module list 2>&1 | grep localdir) ]]; then
+if [[ ${LOADEDMODULES} == *localdir* ]]; then
     echo "You are using a localdir cake."
-elif ! [[ -z $(module list 2>&1 | grep nmpm_software) ]]; then
-    echo "You are using cake from $(module list 2>&1 | grep nmpm_software)"
+elif [[ ${LOADEDMODULES} == *nmpm_software* ]]; then
+    echo "You are using cake from nmpm_software"
 else
     echo "No version of cake found. Exiting."
     exit 6
 fi
 
-if [[ -z $(module list 2>&1 | grep slurm-singularity) ]]; then
+if ! [[ ${LOADEDMODULES} == *slurm-singularity* ]]; then
     echo "Module slurm-singularity should be loaded. Exiting."
     exit 6
 fi
