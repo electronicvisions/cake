@@ -35,7 +35,7 @@ def generate_bokeh_table(table, column_names):
         source=source, columns=columns, sizing_mode="stretch_both")
 
     savebutton = Button(label="Save", button_type="success", width=200)
-    savebutton.callback = CustomJS(
+    savebutton.js_on_click(CustomJS(
         args=dict(source_data=source),
         code="""
             const columns = Object.keys(source_data.data);
@@ -57,10 +57,10 @@ def generate_bokeh_table(table, column_names):
             elem.click();
             document.body.removeChild(elem);
             """,
-    )
+    ))
 
     colorbutton = Button(label="color", width=200)
-    colorbutton.callback = CustomJS(
+    colorbutton.js_on_click(CustomJS(
         args=dict(source=blacklist_table),
         code="""
              var nocolor = '<div style="background: white'+
@@ -87,7 +87,7 @@ def generate_bokeh_table(table, column_names):
              }
              source.change.emit();
              """,
-    )
+    ))
 
     buttons = row(savebutton, colorbutton)
     layout = grid([buttons, blacklist_table])
