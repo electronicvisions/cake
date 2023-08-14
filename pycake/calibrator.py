@@ -467,12 +467,14 @@ class V_convoff_Calibrator(BaseCalibrator):
             results = self.find_optimum(
                 data, self.v_range, self.get_spiking_threshold(nrn))
             value = self.V_convoff(results)
-            if self.believably(value):
-                fits[nrn] = Constant(value)
-            elif value is not None:
-                self.logger.WARN("V_convoff_Calibrator: Unbelievable value {}.".format(value))
-                fits[nrn] = None
+            if value is not None:
+                if self.believably(value):
+                    fits[nrn] = Constant(value)
+                else:
+                    self.logger.WARN("V_convoff_Calibrator: Unbelievable value {}.".format(value))
+                    fits[nrn] = None
             else:
+                self.logger.WARN("V_convoff_Calibrator: Neuron {} fit result is None.".format(nrn))
                 fits[nrn] = None
         return [(self.target_parameter, fits)]
 
