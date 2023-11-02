@@ -4,14 +4,14 @@ import unittest
 import pylab as p
 from pycake.helpers.psp_shapes import DoubleExponentialPSP, jacobian
 from pycake.helpers.psp_model import double_exponetial_psp
-import scipy
+import numpy
 from numpy.testing import assert_array_almost_equal
 
 
 def noisy_psp(height, tau_1, tau_2, start, offset, time, noise):
     alpha_psp = DoubleExponentialPSP()
     return alpha_psp(time, height, tau_1, tau_2, start, offset) \
-        + (scipy.random.normal(0., noise, size=time.shape))
+        + (numpy.random.normal(0., noise, size=time.shape))
 
 
 class TestJacobian(unittest.TestCase):
