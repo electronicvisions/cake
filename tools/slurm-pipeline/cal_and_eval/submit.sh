@@ -40,7 +40,7 @@ export SINGULARITYENV_PREPEND_PATH=$PATH
 
 # TODO: If only fits should be redone, it is not necessary to allocate the
 # wafer
-jobid=$(sbatch --parsable --nice="${nicelvl}" -o "$OUTDIR/slurm_${name}_run${resume_number}.log" -p calib \
+jobid=$(sbatch --parsable --nice="${nicelvl}" -o "$OUTDIR/slurm_${name}_run${resume_number}.log" -p batch \
        --wmod $WAFER --hicann-with-aout ${HICANN}:$AOUT -J $name --kill-on-invalid-dep=yes --time=02:00:00 \
        $SP_DEPENDENCY_ARG --wrap "singularity exec --app $CONTAINER_APP_NMPM_SOFTWARE $CONTAINER_IMAGE_NMPM_SOFTWARE \
        ./run.sh $SP_ORIGINAL_ARGS -t=$CAL_EVAL")

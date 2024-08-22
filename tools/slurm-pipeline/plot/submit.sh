@@ -38,7 +38,7 @@ fi
 
 export SINGULARITYENV_PREPEND_PATH=$PATH
 
-jobid=$(sbatch --parsable --time=00:20:00 --nice=25 -o "$OUTDIR/slurm_${name}_run${resume_number}.log" -p calib -J $name \
+jobid=$(sbatch --parsable --time=00:20:00 --nice=25 -o "$OUTDIR/slurm_${name}_run${resume_number}.log" -p batch -J $name \
         --kill-on-invalid-dep=yes $SP_DEPENDENCY_ARG \
         --wrap "singularity exec --app $CONTAINER_APP_NMPM_SOFTWARE $CONTAINER_IMAGE_NMPM_SOFTWARE ./run.sh $SP_ORIGINAL_ARGS -t=$CAL_EVAL")
 if [[ -z "$jobid" ]]; then
