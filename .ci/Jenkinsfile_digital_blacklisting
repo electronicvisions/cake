@@ -51,125 +51,182 @@ timestamps {
 	// this information should be stored in the hwdb. For now, it is added here.
 	def wafers_with_old_postprocessing = [33, 37]
 
-	stage("Checkout") {
-		runOnSlave(label: "frontend") {
-			checkout scm
+	timeout(time: 4, unit: 'HOURS') {
+		stage("Checkout") {
+			runOnSlave(label: "frontend") {
+				checkout scm
+			}
 		}
-	}
 
-	for (int w = 0; w < wafers.length; w++) {
-		String comm_path
-		String blacklisting_path
-		String derived_blacklisting_path
+		for (int w = 0; w < wafers.length; w++) {
+			String comm_path
+			String blacklisting_path
+			String derived_blacklisting_path
 
-		// communication test
-		if (COMM_TEST_RESULT_PATH == "new" && BLACKLISTING_RESULT_PATH == "new") {
-			stage("Run commtest on Wafer ${wafers[w]}") {
+			// communication test
+			if (COMM_TEST_RESULT_PATH == "new" && BLACKLISTING_RESULT_PATH == "new") {
+				stage("Run commtest on Wafer ${wafers[w]}") {
+					// create empty directory
+					def path = BLACKLISTING_PATH + "/" + wafer_strings[w] + "/communication/" + "jenkins-" + date
+					runOnSlave(label: "frontend") {
+						comm_path = jesh (script: ".ci/evaluate_path.sh $path",
+						returnStdout: true)
+					}
+
+					// define commtest task for each fpga -> parallel testing
+					def parallel_tasks = [:]
+					for (int f = 0; f < 48; f++) {
+						def fpga = f
+						parallel_tasks["Check FPGA ${fpga}"] = {
+							catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+								jesh ("srun -p calib -n1 --wmod ${wafers[w]} --fpga-without-aout ${fpga} --job-name comm_test" +
+								      " --time 60:00 --skip-hicann-init --mem-per-cpu 400 run_nmpm_software" +
+								      " sthal_multi_chip_comm_test.py --wafer ${wafers[w]} --hicann"  +
+								      " \$(run_nmpm_software halbe_list_hicanns.py --wafer ${wafers[w]} --fpga ${fpga})" +
+								      " --backend_path_pattern ${comm_path.trim()}/w{}h{} --pll 125 --zero-synapses")
+							}
+						}
+					}
+
+					// run communication test
+					runOnSlave(label: "frontend") {
+						if (params.ANANAS) {
+							withModules(modules: ["${MODULE}", "slurm-singularity", "reticleCtrl/1.1-pMG"]) {
+								parallel parallel_tasks
+							}
+						} else {
+							withModules(modules: ["${MODULE}", "slurm-singularity"]) {
+								parallel parallel_tasks
+							}
+						}
+					}
+				}
+
+				// merge communication test results
+				stage("Merge results of Wafer ${wafers[w]}") {
+					runOnSlave(label: "frontend") {
+						withModules(modules: ["${MODULE}"]) {
+							jesh ("run_nmpm_software .ci/merge_comm_test_results.sh ${wafers[w]} ${comm_path.trim()}")
+						}
+					}
+				}
+
+				// visualize results
+				stage("Visualize commtest results of Wafer ${wafers[w]}") {
+					runOnSlave(label: "frontend") {
+						withModules(modules: ["${MODULE}"]) {
+							jesh ("cd ${comm_path.trim()} && run_nmpm_software cake_redman_overview.py ${wafers[w]} ${comm_path.trim()}")
+							// create symlink to latest jenkins-generated results
+							jesh ("ln -fnrs ${comm_path.trim()} ${BLACKLISTING_PATH}/${wafer_strings[w]}/communication/latest-jenkins")
+							// change group and add write permissions
+							jesh ("chgrp -h commissioners_bss1 ${BLACKLISTING_PATH}/${wafer_strings[w]}/communication/latest-jenkins")
+							jesh ("chgrp -R commissioners_bss1 ${comm_path.trim()}")
+							jesh ("chmod -R 775 ${comm_path.trim()}/*")
+						}
+					}
+				}
+			} else {
+				comm_path = COMM_TEST_RESULT_PATH
+			}
+
+			// digital_blacklisting
+			if (BLACKLISTING_RESULT_PATH == "new") {
+				stage("Run blacklisting on Wafer ${wafers[w]}") {
+					// create empty directory
+					def path = BLACKLISTING_PATH + "/" + wafer_strings[w] + "/digital_blacklisting/" + "jenkins-" + date
+					runOnSlave(label: "frontend") {
+						blacklisting_path = jesh (script: ".ci/evaluate_path.sh $path",
+						returnStdout: true)
+					}
+
+					// define blacklisting task for each fpga -> parallel testing
+					def parallel_tasks = [:]
+					for (int f = 0; f < 48; f++) {
+						def fpga = f
+						parallel_tasks["Check FPGA ${fpga}"] = {
+							catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+								jesh ("srun -p calib -n1 --wmod ${wafers[w]} --fpga-without-aout ${fpga} --job-name blacklisting" +
+								      " --time 60:00 --skip-hicann-init --mem-per-cpu 400 run_nmpm_software cake_blacklist_fpga.py" +
+								      " --wafer ${wafers[w]} --fpga ${fpga} --seeds ${SEED} --input_backend_path ${comm_path.trim()}" +
+								      " --output_backend_path ${blacklisting_path.trim()}")
+							}
+						}
+					}
+
+					runOnSlave(label: "frontend") {
+						if (params.ANANAS) {
+							withModules(modules: ["${MODULE}", "slurm-singularity", "reticleCtrl/1.1-pMG"]) {
+								parallel parallel_tasks
+							}
+						} else {
+							withModules(modules: ["${MODULE}", "slurm-singularity"]) {
+								parallel parallel_tasks
+							}
+						}
+					}
+
+					// copy commtest results and add write permissions for group
+					runOnSlave(label: "frontend") {
+						jesh (script: "cp ${comm_path.trim()}/fpga-${wafers[w]}-*.xml ${blacklisting_path.trim()}",
+						returnStatus: true)
+						jesh (script: "cp ${comm_path.trim()}/wafer-Wafer\\(${wafers[w]}\\).xml ${blacklisting_path.trim()}",
+						returnStatus: true)
+					}
+				}
+
+				// visualize results
+				stage("Visualize blacklisting results of Wafer ${wafers[w]}") {
+					runOnSlave(label: "frontend") {
+						withModules(modules: ["${MODULE}"]) {
+							jesh ("cd ${blacklisting_path.trim()} && run_nmpm_software cake_redman_overview.py ${wafers[w]} ${blacklisting_path.trim()}")
+							// create symlink to latest jenkins file
+							jesh ("ln -fnrs ${blacklisting_path.trim()} ${BLACKLISTING_PATH}/${wafer_strings[w]}/digital_blacklisting/latest-jenkins")
+							// change group and add write permissions
+							jesh ("chgrp -h commissioners_bss1 ${BLACKLISTING_PATH}/${wafer_strings[w]}/digital_blacklisting/latest-jenkins")
+							jesh ("chgrp -R commissioners_bss1 ${blacklisting_path.trim()}")
+							jesh ("chmod -R 775 ${blacklisting_path.trim()}/*")
+						}
+					}
+				}
+			} else {
+				blacklisting_path = BLACKLISTING_RESULT_PATH
+			}
+			stage("Run derived blacklisting for Wafer ${wafers[w]}") {
 				// create empty directory
-				def path = BLACKLISTING_PATH + "/" + wafer_strings[w] + "/communication/" + "jenkins-" + date
+				def path = BLACKLISTING_PATH + "/" + wafer_strings[w] + "/derived_blacklisting/" + "jenkins-" + date
 				runOnSlave(label: "frontend") {
-					comm_path = jesh (script: ".ci/evaluate_path.sh $path",
+					derived_blacklisting_path = jesh (script: ".ci/evaluate_path.sh $path",
 					returnStdout: true)
 				}
 
-				// define commtest task for each fpga -> parallel testing
-				def parallel_tasks = [:]
-				for (int f = 0; f < 48; f++) {
-					def fpga = f
-					parallel_tasks["Check FPGA ${fpga}"] = {
-						catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
-							jesh ("srun -p calib -n1 --wmod ${wafers[w]} --fpga-without-aout ${fpga} --job-name comm_test" +
-							      " --time 60:00 --skip-hicann-init --mem-per-cpu 400 run_nmpm_software" +
-							      " sthal_multi_chip_comm_test.py --wafer ${wafers[w]} --hicann"  +
-							      " \$(run_nmpm_software halbe_list_hicanns.py --wafer ${wafers[w]} --fpga ${fpga})" +
-							      " --backend_path_pattern ${comm_path.trim()}/w{}h{} --pll 125 --zero-synapses")
-						}
-					}
-				}
-
-				// run communication test
+				// copy blacklisting results
 				runOnSlave(label: "frontend") {
-					if (params.ANANAS) {
-						withModules(modules: ["${MODULE}", "slurm-singularity", "reticleCtrl/1.1-pMG"]) {
-							parallel parallel_tasks
-						}
-					} else {
-						withModules(modules: ["${MODULE}", "slurm-singularity"]) {
-							parallel parallel_tasks
-						}
-					}
+					// store path to digital blacklisting
+					jesh (script: "echo ${blacklisting_path.trim()} > ${derived_blacklisting_path.trim()}/digital_blacklisting_path.txt",
+					returnStatus: true)
+					jesh (script: "cp ${blacklisting_path.trim()}/fpga-${wafers[w]}-*.xml ${derived_blacklisting_path.trim()}",
+					returnStatus: true)
+					jesh (script: "cp ${blacklisting_path.trim()}/wafer-Wafer\\(${wafers[w]}\\).xml ${derived_blacklisting_path.trim()}",
+					returnStatus: true)
+					jesh (script: "cp ${blacklisting_path.trim()}/hicann-Wafer\\(${wafers[w]}\\)-Enum*.xml ${derived_blacklisting_path.trim()}",
+					returnStatus: true)
 				}
-			}
 
-			// merge communication test results
-			stage("Merge results of Wafer ${wafers[w]}") {
+				// run derived blacklisting
 				runOnSlave(label: "frontend") {
 					withModules(modules: ["${MODULE}"]) {
-						jesh ("run_nmpm_software .ci/merge_comm_test_results.sh ${wafers[w]} ${comm_path.trim()}")
-					}
-				}
-			}
-
-			// visualize results
-			stage("Visualize commtest results of Wafer ${wafers[w]}") {
-				runOnSlave(label: "frontend") {
-					withModules(modules: ["${MODULE}"]) {
-						jesh ("cd ${comm_path.trim()} && run_nmpm_software cake_redman_overview.py ${wafers[w]} ${comm_path.trim()}")
-						// create symlink to latest jenkins-generated results
-						jesh ("ln -fnrs ${comm_path.trim()} ${BLACKLISTING_PATH}/${wafer_strings[w]}/communication/latest-jenkins")
-						// change group and add write permissions
-						jesh ("chgrp -h commissioners_bss1 ${BLACKLISTING_PATH}/${wafer_strings[w]}/communication/latest-jenkins")
-						jesh ("chgrp -R commissioners_bss1 ${comm_path.trim()}")
-						jesh ("chmod -R 775 ${comm_path.trim()}/*")
-					}
-				}
-			}
-		} else {
-			comm_path = COMM_TEST_RESULT_PATH
-		}
-
-		// digital_blacklisting
-		if (BLACKLISTING_RESULT_PATH == "new") {
-			stage("Run blacklisting on Wafer ${wafers[w]}") {
-				// create empty directory
-				def path = BLACKLISTING_PATH + "/" + wafer_strings[w] + "/digital_blacklisting/" + "jenkins-" + date
-				runOnSlave(label: "frontend") {
-					blacklisting_path = jesh (script: ".ci/evaluate_path.sh $path",
-					returnStdout: true)
-				}
-
-				// define blacklisting task for each fpga -> parallel testing
-				def parallel_tasks = [:]
-				for (int f = 0; f < 48; f++) {
-					def fpga = f
-					parallel_tasks["Check FPGA ${fpga}"] = {
-						catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
-							jesh ("srun -p calib -n1 --wmod ${wafers[w]} --fpga-without-aout ${fpga} --job-name blacklisting" +
-							      " --time 60:00 --skip-hicann-init --mem-per-cpu 400 run_nmpm_software cake_blacklist_fpga.py" +
-							      " --wafer ${wafers[w]} --fpga ${fpga} --seeds ${SEED} --input_backend_path ${comm_path.trim()}" +
-							      " --output_backend_path ${blacklisting_path.trim()}")
+						jesh ("run_nmpm_software cake_extend_hicann_syndrvs_blacklist.py --wafer ${wafers[w]} --hicann `seq 0 383` --defects_path ${derived_blacklisting_path.trim()}")
+						jesh ("run_nmpm_software cake_extend_hicann_repeater_blacklist_by_blacklisting.py --wafer ${wafers[w]} --input_dir ${derived_blacklisting_path.trim()} --output_dir ${derived_blacklisting_path.trim()}")
+						// Use hicann_buses_blacklist_by_blacklisting before calling hicann_blacklist_by_fgblock_blacklisting. Else the neighboring buses are blacklisted but
+						// HICANNs with defect FG controller can still be initialized and their repeaters can be brought into a safe state.
+						// Digital blacklisting has to be used during the init and derived for the experiments.
+						jesh ("run_nmpm_software cake_extend_hicann_buses_blacklist_by_blacklisting.py ${wafers[w]} ${derived_blacklisting_path.trim()} ${derived_blacklisting_path.trim()}")
+						jesh ("run_nmpm_software cake_extend_hicann_blacklist_by_fgblock_blacklisting.py --wafer ${wafers[w]} --input_dir ${derived_blacklisting_path.trim()} --output_dir ${derived_blacklisting_path.trim()}")
+						jesh ("run_nmpm_software cake_extend_hicann_neuron_and_dnc_blacklist_by_blacklisting.py ${wafers[w]} ${derived_blacklisting_path.trim()} ${derived_blacklisting_path.trim()}")
+						if (wafers_with_old_postprocessing.contains(wafers[w])) {
+							jesh ("run_nmpm_software cake_extend_hicann_buses_blacklist_by_pp.py ${wafers[w]} ${derived_blacklisting_path.trim()}")
 						}
 					}
-				}
-
-				runOnSlave(label: "frontend") {
-					if (params.ANANAS) {
-						withModules(modules: ["${MODULE}", "slurm-singularity", "reticleCtrl/1.1-pMG"]) {
-							parallel parallel_tasks
-						}
-					} else {
-						withModules(modules: ["${MODULE}", "slurm-singularity"]) {
-							parallel parallel_tasks
-						}
-					}
-				}
-
-				// copy commtest results and add write permissions for group
-				runOnSlave(label: "frontend") {
-					jesh (script: "cp ${comm_path.trim()}/fpga-${wafers[w]}-*.xml ${blacklisting_path.trim()}",
-					returnStatus: true)
-					jesh (script: "cp ${comm_path.trim()}/wafer-Wafer\\(${wafers[w]}\\).xml ${blacklisting_path.trim()}",
-					returnStatus: true)
 				}
 			}
 
@@ -177,83 +234,28 @@ timestamps {
 			stage("Visualize blacklisting results of Wafer ${wafers[w]}") {
 				runOnSlave(label: "frontend") {
 					withModules(modules: ["${MODULE}"]) {
-						jesh ("cd ${blacklisting_path.trim()} && run_nmpm_software cake_redman_overview.py ${wafers[w]} ${blacklisting_path.trim()}")
-						// create symlink to latest jenkins file
-						jesh ("ln -fnrs ${blacklisting_path.trim()} ${BLACKLISTING_PATH}/${wafer_strings[w]}/digital_blacklisting/latest-jenkins")
+						jesh ("cd ${derived_blacklisting_path.trim()} && run_nmpm_software cake_redman_overview.py ${wafers[w]} ${derived_blacklisting_path.trim()}")
+						// create symlink to latest jenkins-generated results
+						jesh ("ln -fnrs ${derived_blacklisting_path.trim()} ${BLACKLISTING_PATH}/${wafer_strings[w]}/derived_blacklisting/latest-jenkins")
 						// change group and add write permissions
-						jesh ("chgrp -h commissioners_bss1 ${BLACKLISTING_PATH}/${wafer_strings[w]}/digital_blacklisting/latest-jenkins")
-						jesh ("chgrp -R commissioners_bss1 ${blacklisting_path.trim()}")
-						jesh ("chmod -R 775 ${blacklisting_path.trim()}/*")
+						jesh ("chgrp -h commissioners_bss1 ${BLACKLISTING_PATH}/${wafer_strings[w]}/derived_blacklisting/latest-jenkins")
+						jesh ("chgrp -R commissioners_bss1 ${derived_blacklisting_path.trim()}")
+						jesh ("chmod -R 775 ${derived_blacklisting_path.trim()}/*")
 					}
 				}
-			}
-		} else {
-			blacklisting_path = BLACKLISTING_RESULT_PATH
-		}
-		stage("Run derived blacklisting for Wafer ${wafers[w]}") {
-			// create empty directory
-			def path = BLACKLISTING_PATH + "/" + wafer_strings[w] + "/derived_blacklisting/" + "jenkins-" + date
-			runOnSlave(label: "frontend") {
-				derived_blacklisting_path = jesh (script: ".ci/evaluate_path.sh $path",
-				returnStdout: true)
-			}
-
-			// copy blacklisting results
-			runOnSlave(label: "frontend") {
-				// store path to digital blacklisting
-				jesh (script: "echo ${blacklisting_path.trim()} > ${derived_blacklisting_path.trim()}/digital_blacklisting_path.txt",
-				returnStatus: true)
-				jesh (script: "cp ${blacklisting_path.trim()}/fpga-${wafers[w]}-*.xml ${derived_blacklisting_path.trim()}",
-				returnStatus: true)
-				jesh (script: "cp ${blacklisting_path.trim()}/wafer-Wafer\\(${wafers[w]}\\).xml ${derived_blacklisting_path.trim()}",
-				returnStatus: true)
-				jesh (script: "cp ${blacklisting_path.trim()}/hicann-Wafer\\(${wafers[w]}\\)-Enum*.xml ${derived_blacklisting_path.trim()}",
-				returnStatus: true)
-			}
-
-			// run derived blacklisting
-			runOnSlave(label: "frontend") {
-				withModules(modules: ["${MODULE}"]) {
-					jesh ("run_nmpm_software cake_extend_hicann_syndrvs_blacklist.py --wafer ${wafers[w]} --hicann `seq 0 383` --defects_path ${derived_blacklisting_path.trim()}")
-					jesh ("run_nmpm_software cake_extend_hicann_repeater_blacklist_by_blacklisting.py --wafer ${wafers[w]} --input_dir ${derived_blacklisting_path.trim()} --output_dir ${derived_blacklisting_path.trim()}")
-					// Use hicann_buses_blacklist_by_blacklisting before calling hicann_blacklist_by_fgblock_blacklisting. Else the neighboring buses are blacklisted but
-					// HICANNs with defect FG controller can still be initialized and their repeaters can be brought into a safe state.
-					// Digital blacklisting has to be used during the init and derived for the experiments.
-					jesh ("run_nmpm_software cake_extend_hicann_buses_blacklist_by_blacklisting.py ${wafers[w]} ${derived_blacklisting_path.trim()} ${derived_blacklisting_path.trim()}")
-					jesh ("run_nmpm_software cake_extend_hicann_blacklist_by_fgblock_blacklisting.py --wafer ${wafers[w]} --input_dir ${derived_blacklisting_path.trim()} --output_dir ${derived_blacklisting_path.trim()}")
-					jesh ("run_nmpm_software cake_extend_hicann_neuron_and_dnc_blacklist_by_blacklisting.py ${wafers[w]} ${derived_blacklisting_path.trim()} ${derived_blacklisting_path.trim()}")
-					if (wafers_with_old_postprocessing.contains(wafers[w])) {
-						jesh ("run_nmpm_software cake_extend_hicann_buses_blacklist_by_pp.py ${wafers[w]} ${derived_blacklisting_path.trim()}")
+				// archive all visu results in Jenkinsjob
+				runOnSlave(label: "frontend") {
+					// only files in jenkins workspace can be archived
+					output_path = WORKSPACE
+					if (comm_path.trim() != "new") {
+						jesh ("mkdir ${output_path.trim()}/commtest && cp ${comm_path.trim()}/*.html ${output_path.trim()}/commtest/")
+						archiveArtifacts "commtest/*.html"
 					}
+					jesh ("mkdir ${output_path.trim()}/digital && cp ${blacklisting_path.trim()}/*.html ${output_path.trim()}/digital/")
+					jesh ("mkdir ${output_path.trim()}/derived && cp ${derived_blacklisting_path.trim()}/*.html ${output_path.trim()}/derived/")
+					archiveArtifacts "digital/*.html"
+					archiveArtifacts "derived/*.html"
 				}
-			}
-		}
-
-		// visualize results
-		stage("Visualize blacklisting results of Wafer ${wafers[w]}") {
-			runOnSlave(label: "frontend") {
-				withModules(modules: ["${MODULE}"]) {
-					jesh ("cd ${derived_blacklisting_path.trim()} && run_nmpm_software cake_redman_overview.py ${wafers[w]} ${derived_blacklisting_path.trim()}")
-					// create symlink to latest jenkins-generated results
-					jesh ("ln -fnrs ${derived_blacklisting_path.trim()} ${BLACKLISTING_PATH}/${wafer_strings[w]}/derived_blacklisting/latest-jenkins")
-					// change group and add write permissions
-					jesh ("chgrp -h commissioners_bss1 ${BLACKLISTING_PATH}/${wafer_strings[w]}/derived_blacklisting/latest-jenkins")
-					jesh ("chgrp -R commissioners_bss1 ${derived_blacklisting_path.trim()}")
-					jesh ("chmod -R 775 ${derived_blacklisting_path.trim()}/*")
-				}
-			}
-			// archive all visu results in Jenkinsjob
-			runOnSlave(label: "frontend") {
-				// only files in jenkins workspace can be archived
-				output_path = WORKSPACE
-				if (comm_path.trim() != "new") {
-					jesh ("mkdir ${output_path.trim()}/commtest && cp ${comm_path.trim()}/*.html ${output_path.trim()}/commtest/")
-					archiveArtifacts "commtest/*.html"
-				}
-				jesh ("mkdir ${output_path.trim()}/digital && cp ${blacklisting_path.trim()}/*.html ${output_path.trim()}/digital/")
-				jesh ("mkdir ${output_path.trim()}/derived && cp ${derived_blacklisting_path.trim()}/*.html ${output_path.trim()}/derived/")
-				archiveArtifacts "digital/*.html"
-				archiveArtifacts "derived/*.html"
 			}
 		}
 	}
