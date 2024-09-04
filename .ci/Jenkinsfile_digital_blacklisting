@@ -79,11 +79,12 @@ timestamps {
 						def fpga = f
 						parallel_tasks["Check FPGA ${fpga}"] = {
 							catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
-								jesh ("srun -p calib -n1 --wmod ${wafers[w]} --fpga-without-aout ${fpga} --job-name comm_test" +
-								      " --time 60:00 --skip-hicann-init --mem-per-cpu 400 run_nmpm_software" +
-								      " sthal_multi_chip_comm_test.py --wafer ${wafers[w]} --hicann"  +
-								      " \$(run_nmpm_software halbe_list_hicanns.py --wafer ${wafers[w]} --fpga ${fpga})" +
-								      " --backend_path_pattern ${comm_path.trim()}/w{}h{} --pll 125 --zero-synapses")
+								jesh ("sbatch -p batch -n1 --wmod ${wafers[w]} --fpga-without-aout ${fpga} --job-name comm_test" +
+								      " --time 60:00 --skip-hicann-init --mem-per-cpu 400 " +
+								      " --output \"${comm_path.trim()}/slurm_log_w${wafers[w]}_f${fpga}\" --wait --wrap" +
+								      " \"run_nmpm_software sthal_multi_chip_comm_test.py --wafer ${wafers[w]} --hicann"  +
+								      " \\\$(run_nmpm_software halbe_list_hicanns.py --wafer ${wafers[w]} --fpga ${fpga})" +
+								      " --backend_path_pattern ${comm_path.trim()}/w{}h{} --pll 125 --zero-synapses\"")
 							}
 						}
 					}
@@ -145,10 +146,12 @@ timestamps {
 						def fpga = f
 						parallel_tasks["Check FPGA ${fpga}"] = {
 							catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
-								jesh ("srun -p calib -n1 --wmod ${wafers[w]} --fpga-without-aout ${fpga} --job-name blacklisting" +
-								      " --time 60:00 --skip-hicann-init --mem-per-cpu 400 run_nmpm_software cake_blacklist_fpga.py" +
+								jesh ("sbatch -p batch -n1 --wmod ${wafers[w]} --fpga-without-aout ${fpga} --job-name blacklisting" +
+								      " --time 60:00 --skip-hicann-init --mem-per-cpu 400 " +
+								      " --output \"${blacklisting_path.trim()}/slurm_log_w${wafers[w]}_f${fpga}\" --wait --wrap" +
+								      " \"run_nmpm_software cake_blacklist_fpga.py" +
 								      " --wafer ${wafers[w]} --fpga ${fpga} --seeds ${SEED} --input_backend_path ${comm_path.trim()}" +
-								      " --output_backend_path ${blacklisting_path.trim()}")
+								      " --output_backend_path ${blacklisting_path.trim()}\"")
 							}
 						}
 					}
