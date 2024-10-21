@@ -95,7 +95,7 @@ timestamps {
         if (params.EXISTING_CALIBRATION_PATH == "") {
             stage("Run calibration on W${wafer}H${hicann}") {
                 withEnv(['STHAL_DEFECTS_PATH=' + defects_path]) {
-                    onSlurmResource(partition: "calib",
+                    onSlurmResource(partition: "batch",
                                         "wmod" : wafer,
                                         "hicann-with-aout" : hicann,
                                         "job-name" : "calibration_ci") {
@@ -111,7 +111,7 @@ timestamps {
             }
 
             stage("Plot calib results W${wafer}H${hicann}") {
-                onSlurmResource(partition: "calib", "job-name" : "calibration_plot_integration_test") {
+                onSlurmResource(partition: "batch", "job-name" : "calibration_plot_integration_test") {
                     hdf_path = jesh(script: ".ci/get_paths.sh cal " +
                         output_path + "/", returnStdout: true).trim()
                     backend_dir = jesh(script: ".ci/get_paths.sh cal " +
@@ -142,7 +142,7 @@ timestamps {
         if (params.RUN_EVALUATION) {
             stage("Run evaluation for W${wafer}H${hicann}") {
                 withEnv(['STHAL_DEFECTS_PATH=' + defects_path]) {
-                    onSlurmResource(partition: "calib",
+                    onSlurmResource(partition: "batch",
                                         "wmod" : wafer,
                                         "hicann-with-aout" : hicann,
                                         "job-name" : "calibration_ci_eval") {
@@ -158,7 +158,7 @@ timestamps {
             }
 
             stage("Plot eval results for W${wafer}H${hicann}") {
-                onSlurmResource(partition: "calib",
+                onSlurmResource(partition: "batch",
                                     "job-name" : "calibration_eval_plot_integration_test") {
                     hdf_path = jesh(script: ".ci/get_paths.sh eval " +
                         output_path + "/", returnStdout: true).trim()

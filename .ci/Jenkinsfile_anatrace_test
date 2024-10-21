@@ -19,7 +19,7 @@ try {
 
 		for (wmodHicannPair in wmodHicannPairs) {
 			try {
-				onSlurmResource(partition: "experiment", wmod: wmodHicannPair[0]) {
+				onSlurmResource(partition: "batch", wmod: wmodHicannPair[0]) {
 					timeout(time: 5, unit: "MINUTES") {
 						withModules(modules: ["nmpm_software/current"]) {
 							jesh("run_nmpm_software python cake/tools/anatrace_test/anatrace_test_record.py " +
@@ -30,7 +30,7 @@ try {
 					}
 				}
 
-				onSlurmResource(partition: "compile") {
+				onSlurmResource(partition: "batch") {
 					withModules(modules: ["nmpm_software/current"]) {
 						jesh("run_nmpm_software python cake/tools/anatrace_test/anatrace_test.py " +
 						     "--wnr ${wmodHicannPair[0]} " +
