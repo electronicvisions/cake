@@ -24,7 +24,7 @@ timestamps {
 	addBuildParameter(string(
 	                  name: 'MODULE',
 	                  defaultValue: "nmpm_software/current",
-	                  description: "NMPM software version. The default is a link to the last stable version. Wafers with ananas require a module including changeset 5428"
+	                  description: "NMPM software version. The default is a link to the last stable version. Wafers with ananas require a module including changeset 5428 (e.g. nmpm_software/2023-02-07-5428-1)"
 	))
 	addBuildParameter(booleanParam(
 	                  name: 'ANANAS',
