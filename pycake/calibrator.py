@@ -812,7 +812,7 @@ class readout_shift_Calibrator(BaseCalibrator):
             neurons_in_block = self.get_neuron_block(block_id, neuron_size)
 
             results_block = results.loc[neurons_in_block]
-            shifts = results_block.mean(level='neuron') - results_block.mean()
+            shifts = results_block.groupby(level='neuron').mean() - results_block.mean()
             for i, shift in enumerate(shifts.values):
                 trafo = create_pycalibtic_transformation(list(shift), None, trafo_type)
                 readout_shifts[shifts.index[i]] = trafo
