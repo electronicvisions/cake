@@ -753,9 +753,9 @@ def plot_spikes(df, **kwargs):
         nrns = list(range(256)) if tb == 'top' else list(range(256,512))
         color = 'b' if tb == 'top' else 'g'
         cols = ['V_t_config', 'spikes_n_spikes']
-        mean = df.sort_index(axis=0, level='neuron').loc[nrns, cols].mean(0, level='step')
-        std = df.sort_index(axis=0, level='neuron').loc[nrns, cols].std(0, level='step')
-        df_plot = pd.concat([mean, std], 1)
+        mean = df.sort_index(axis=0, level='neuron').loc[nrns, cols].groupby(level='step').mean(0)
+        std = df.sort_index(axis=0, level='neuron').loc[nrns, cols].groupby(level='step').std(0)
+        df_plot = pd.concat([mean, std], axis=1)
         df_plot.columns = ['V_t', 'y', 'xerr', 'yerr']
         df_plot.plot('V_t', 'y', yerr='yerr', label=tb, marker='o', color=color, **kwargs)
 
